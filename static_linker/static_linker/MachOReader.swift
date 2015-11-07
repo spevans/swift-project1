@@ -10,8 +10,8 @@ import Foundation
 
 
 class MachOReader {
-    private let file: NSData;
-    var header: MachOHeader?
+    private final var file: NSData!
+    final var header: MachOHeader!
 
     enum MachOMagic: UInt32 {
         case MAGIC_LE    = 0xfeedface
@@ -110,13 +110,17 @@ class MachOReader {
     }
 
 
-    init(filename: String) throws {
-        file = try! NSData(contentsOfFile: filename, options: .DataReadingMapped)
-        if (file.length < MachOHeader.size()) {
-            print("Header is too short \(file.length) shoud be at least \(MachOHeader.size())")
-            return
+    init?(filename: String) {
+        do {
+            file = try NSData(contentsOfFile: filename, options: .DataReadingMapped)
+            guard file.length > MachOHeader.size() else {
+                print("Header is too short \(file.length) shoud be at least \(MachOHeader.size())")
+                return nil
+            }
+            header = try readHeader()
+        } catch {
+            return nil
         }
-        header = try readHeader()
     }
 
 
@@ -163,7 +167,7 @@ class MachOReader {
 
 
     func readEnum<T : RawRepresentable>(offset: Int) throws -> T {
-        if let result : T = try! T(rawValue: readBytes(offset)) {
+        if let result : T = try T(rawValue: readBytes(offset)) {
             return result
         }
         throw ReadError.InvalidData
@@ -181,7 +185,7 @@ class MachOReader {
 
 
     func getLoadCommand(index: UInt32) throws -> LoadCommand.LoadCommandHdr {
-        if (index >= header!.ncmds) {
+        if (index >= header.ncmds) {
             throw ReadError.InvalidOffset
         }
         var offset = MachOHeader.size()

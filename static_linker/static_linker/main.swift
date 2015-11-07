@@ -13,10 +13,13 @@ func processDylib(srcLib: String, destBinary: String)
 {
     print("Converting \(srcLib) to \(destBinary)")
     do {
-        let srcLibData = try MachOReader(filename: srcLib)
-        if srcLibData.header!.fileType != MachOReader.FileType.DYLIB {
+        guard let srcLibData = MachOReader(filename: srcLib) else {
+            print("Cannot parse \(srcLib)")
+            exit(EXIT_FAILURE)
+        }
+        guard srcLibData.header.fileType == MachOReader.FileType.DYLIB  else {
             print("File is not a DYLIB, exiting")
-            return
+            exit(EXIT_FAILURE)
         }
         for cmd in 0...srcLibData.header!.ncmds-1 {
             if let lcHdr : LoadCommand.LoadCommandHdr = try srcLibData.getLoadCommand(cmd) {
@@ -29,7 +32,8 @@ func processDylib(srcLib: String, destBinary: String)
             }
         }
     } catch {
-        print("Error")
+        print("Parse Error")
+        exit(EXIT_FAILURE)
     }
 }
 

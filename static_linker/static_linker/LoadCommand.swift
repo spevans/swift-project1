@@ -150,7 +150,6 @@ class LoadCommandMinVersion : LoadCommand {
                     UInt16(truncatingBitPattern: buffer >> 16),
                     UInt8(truncatingBitPattern: buffer >> 8),
                     UInt8(truncatingBitPattern: buffer))
-
             } else {
                 return ""
             }
