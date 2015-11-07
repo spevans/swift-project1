@@ -93,12 +93,12 @@ class LoadCommand {
         //case .SEGMENT_64:         return LoadCommandSegment64(header, reader)
         case .ID_DYLIB:             return LoadCommandIdDylib(header, reader)
         //case .DYLD_INFO_ONLY:
-        //case .SYMTAB:
+        case .SYMTAB:               return LoadCommandSymTab(header, reader)
         //case .DYSYMTAB:
         case .UUID:                 return LoadCommandUUID(header, reader)
         case .VERSION_MIN_MACOSX:   return LoadCommandMinVersion(header, reader)
         case .SOURCE_VERSION:       return LoadCommandSourceVersion(header, reader)
-        //case .LOAD_DYLIB:
+        case .LOAD_DYLIB:           return LoadCommandLoadDylib(header, reader)
         //case .FUNCTION_STARTS:
         //case .DATA_IN_CODE:
         //case .CODE_SIGNATURE:
@@ -195,7 +195,7 @@ class LoadCommandSourceVersion : LoadCommand {
 
 class LoadCommandIdDylib : LoadCommand {
     final var dylib : String!
-    final var timestamp : UInt32!
+    final var timestamp : NSDate!
     final var currentVersion : UInt32!
     final var compatibilityVersion : UInt32!
 
@@ -208,7 +208,7 @@ class LoadCommandIdDylib : LoadCommand {
             let strOffset = Int(buffer[0])
             dylib = try reader.readASCIIZString(header.cmdOffset + Int(strOffset),
                                                 header.cmdOffset + Int(header.cmdSize))!
-            timestamp = buffer[1]
+            timestamp = NSDate(timeIntervalSince1970: Double(buffer[1]))
             currentVersion = buffer[2]
             compatibilityVersion = buffer[3]
         } catch {
@@ -218,8 +218,17 @@ class LoadCommandIdDylib : LoadCommand {
 
 
     override var description: String {
-        let dt = NSDate(timeIntervalSince1970: Double(timestamp))
-        var str = "LoadCommandIdDylib lib: \(dylib), timestamp: \(dt) "
+        var str = "LoadCommandIdDylib lib: \(dylib), timestamp: \(timestamp) "
+        str += "version: \(currentVersion) compat: \(compatibilityVersion)"
+
+        return str
+    }
+}
+
+
+class LoadCommandLoadDylib : LoadCommandIdDylib {
+    override var description: String {
+        var str = "LoadCommandLoadDylib lib: \(dylib), timestamp: \(timestamp) "
         str += "version: \(currentVersion) compat: \(compatibilityVersion)"
 
         return str
