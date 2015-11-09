@@ -73,8 +73,8 @@ class LoadCommand {
 
     struct LoadCommandHdr {
         let cmdOffset:  Int
-        let cmd:     LoadCommandID
-        let cmdSize: UInt32
+        let cmd:        LoadCommandID
+        let cmdSize:    UInt32
     }
 
     enum LoadCommandError : ErrorType {
@@ -99,9 +99,9 @@ class LoadCommand {
         case .VERSION_MIN_MACOSX:   return LoadCommandMinVersion(header, reader)
         case .SOURCE_VERSION:       return LoadCommandSourceVersion(header, reader)
         case .LOAD_DYLIB:           return LoadCommandLoadDylib(header, reader)
-        //case .FUNCTION_STARTS:
-        //case .DATA_IN_CODE:
-        //case .CODE_SIGNATURE:
+        case .FUNCTION_STARTS:      return LoadCommandLinkEditDataCommand(header, reader)
+        case .DATA_IN_CODE:         return LoadCommandLinkEditDataCommand(header, reader)
+        case .CODE_SIGNATURE:       return LoadCommandLinkEditDataCommand(header, reader)
 
         default: return nil
         }
@@ -231,5 +231,27 @@ class LoadCommandLoadDylib : LoadCommandIdDylib {
         str += "version: \(currentVersion) compat: \(compatibilityVersion)"
 
         return str
+    }
+}
+
+
+class LoadCommandLinkEditDataCommand : LoadCommand {
+    var dataOffset : UInt32 = 0
+    var dataSize : UInt32   = 0
+
+    init?(_ header: LoadCommandHdr, _ reader: MachOReader) {
+        super.init(header: header, reader: reader)
+
+        do {
+            dataOffset = try reader.readBytes(header.cmdOffset + 8)
+            dataSize = try reader.readBytes(header.cmdOffset + 12)
+        } catch {
+            return nil
+        }
+    }
+
+
+    override var description: String {
+        return String("LinkEdit: \(header.cmd) : ") + String(format: "offset: %016X size: %016X", dataOffset, dataSize)
     }
 }

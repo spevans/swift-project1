@@ -19,6 +19,7 @@ class LoadCommandSegment64 : LoadCommand {
     var initialProtection     = VMProtection.VM_PROT_NONE
     var numSections : UInt32  = 0
     var flags : UInt32        = 0
+    var sections : [LoadCommandSegmentSection64] = []
 
 
     struct VMProtection : OptionSetType, CustomStringConvertible {
@@ -70,13 +71,12 @@ class LoadCommandSegment64 : LoadCommand {
             numSections = try buffer.read()
             flags = try buffer.read()
 
-            var sections : [LoadCommandSegmentSection64] = []
             sections.reserveCapacity(Int(numSections))
             if (numSections > 0) {
                 for _ in 0...Int(numSections)-1 {
                     if let section = LoadCommandSegmentSection64(buffer) {
                         sections.append(section)
-                        print(section.description)
+
                     } else {
                         print("Error processing section")
                         return nil
@@ -96,8 +96,15 @@ class LoadCommandSegment64 : LoadCommand {
         str += String(format: " addr: %016X", vmaddr)
         str += String(format: " vmsize: %016X", vmsize)
         str += String(format: " offset: %016X", fileOffset)
-        str += " size: \(fileSize) sections: \(numSections) "
+        str += String(format: " size: %016X sections: %d ", fileSize, numSections)
         str += "maxProt: \(maxProtection.description) initialProt: \(initialProtection.description) flags: \(flags)"
+        if sections.count > 0 {
+            str += "\nsections:\n"
+            for section in sections {
+                str += section.description + "\n"
+            }
+        }
+
         return str
     }
 }

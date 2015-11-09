@@ -23,9 +23,10 @@ func processDylib(srcLib: String, destBinary: String)
         }
         for cmd in 0...srcLibData.header!.ncmds-1 {
             if let lcHdr : LoadCommand.LoadCommandHdr = try srcLibData.getLoadCommand(cmd) {
-                print("Cmd: \(cmd): \(lcHdr)")
                 if let loadCmd = LoadCommand(header: lcHdr, reader: srcLibData).parse() {
                     print("Cmd: \(cmd) loadCmd:", loadCmd.description)
+                } else {
+                    print("Cmd: \(cmd): \(lcHdr)")
                 }
             } else {
                 print("Cannot read load command header: \(cmd)")
