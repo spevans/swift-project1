@@ -74,9 +74,7 @@ class MachOReader {
         static let MH_NO_HEAP_EXECUTION         = MHFlags(rawValue: 0x1000000)
         static let MH_APP_EXTENSION_SAFE        = MHFlags(rawValue: 0x2000000)
 
-        var description: String {
-            return NSString(format: "%08X", self.rawValue) as String
-        }
+        var description: String { return String(format: "%08X", self.rawValue) }
     }
 
     struct MachOHeader {
@@ -163,6 +161,15 @@ class MachOReader {
         }
 
         return UnsafeBufferPointer<T>(start: UnsafePointer<T>(file.bytes + offset), count: count)
+    }
+
+
+    func memoryReadBuffer<T>(offset: Int, size: Int) throws -> UnsafePointer<T> {
+        guard size > 0 && offset > 0 && (offset + size) < file.length else {
+            throw ReadError.InvalidOffset
+        }
+
+        return UnsafePointer<T>(file.bytes + offset)
     }
 
 

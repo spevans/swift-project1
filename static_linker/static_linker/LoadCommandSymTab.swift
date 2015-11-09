@@ -10,7 +10,7 @@ import Foundation
 
 
 class LoadCommandSymTab : LoadCommand {
-     final var symbols : [Symbol] = []
+    var symbols : [Symbol] = []
 
     // File format of a symbol
     private struct nlist64 {

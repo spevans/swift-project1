@@ -90,7 +90,7 @@ class LoadCommand {
 
     func parse() -> LoadCommand? {
         switch(header.cmd) {
-        //case .SEGMENT_64:         return LoadCommandSegment64(header, reader)
+        case .SEGMENT_64:           return LoadCommandSegment64(header, reader)
         case .ID_DYLIB:             return LoadCommandIdDylib(header, reader)
         //case .DYLD_INFO_ONLY:
         case .SYMTAB:               return LoadCommandSymTab(header, reader)
