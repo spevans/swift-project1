@@ -2,8 +2,8 @@
 ;;;
 ;;; Starts with a check to see if its even needed
 
-%define FAST_A20_GATE 0x92
-%define A20_TEST_COUNT 5
+FAST_A20_GATE   EQU     0x92
+A20_TEST_COUNT  EQU     5
 
 
 ;;; Enable the A20 using differnt methods, returns carry set if not enabled

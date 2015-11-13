@@ -1,47 +1,50 @@
 ;;; Setup 4 level page tables with the PGD at 0x1000
-;;; Identity maps the first 2MB so only needs 1 entry
-;;; in the PML4/PDP/PD and 512 PTEs in the PT
+;;; Identity maps the first 16MB so only needs 1 entry
+;;; in the PML4/PDP 8 in the PD and 2048 PTEs in the PT
 
 PAGE_PRESENT    EQU     1
 PAGE_WRITEABLE  EQU     2
 
 
-;;; Setup pagetables at in 16K region @ 0000:1000
-;;; PML4 @ 0000:1000, PDP @ 0000:2000, PD @ 0000:3000 PT @ 0000:4000
+;;; Setup pagetables a 48KB region @ 0000:1000
+;;; PML4 @ 0000:1000, PDP @ 0000:2000, PD @ 0000:3000 PT @ 0000:4000 - 0000:7000
 
 setup_pagetables:
         push    es
         push    di
         xor     eax, eax
         mov     es, ax
-        mov     edi, 0x1000      ; clear 16KB (4x pages)
+        mov     edi, 0x1000
         mov     cr3, edi
-        mov     ecx, 0x1000
+        mov     cx, 0x2C00     ; clear 44KB (11 pages)
         cld
         rep     stosd
         mov     edi, cr3
-
         ;; Page Map Level 4 (PML4)
-        mov     eax, 0x2000
-        or      eax, PAGE_PRESENT | PAGE_WRITEABLE
+        mov     eax, 0x2000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di], eax
 
         ;; Page Directory Pointer (PDP)
-        mov     eax, 0x3000
-        or      eax, PAGE_PRESENT | PAGE_WRITEABLE
+        mov     eax, 0x3000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di + 0x1000], eax
 
-        ;; Page Directory (PD)
-        mov     eax, 0x4000
-        or      eax, PAGE_PRESENT | PAGE_WRITEABLE
-        mov     [es:di + 0x2000], eax
+        ;; Page Directory (PD), 8 entries
+        mov     eax, 0x4000 | PAGE_PRESENT | PAGE_WRITEABLE
+        mov     cx, 8
 
-        ;; Page Table Entries (PTEs), 512 entries of 4KB pages
-        ;; maps linear 0-2MB to physical 0-2MB
+pde_loop:
+        mov     [es:di + 0x2000], eax
+        add     eax, 0x1000
+        add     di, 8
+        dec     cx
+        jnz     pde_loop
+
+        ;; Page Table Entries (PTEs), 2048 entries of 4KB pages
+        ;; maps linear 0-16MB to physical 0-16MB
 
         mov     eax, PAGE_PRESENT | PAGE_WRITEABLE ; EAX -> physical addr 0
         mov     di, 0x4000
-        mov     cx, 512         ; entry count
+        mov     cx, 4096        ; entry count
 
 pte_loop:
         mov     [es:di], eax
@@ -65,7 +68,6 @@ pte_loop:
         pop     di
         pop     es
         ret
-
 
 
         ; Dump CL bytes from ES:DI
@@ -113,7 +115,7 @@ HexDumpEnd:
         pop     di
         ret
 
-; print the hex digit in low 4 bits of AL to the screen
+        ;; print the hex digit in low 4 bits of AL to the screen
 PrintNibble:
         and     al, 0xf
         add     al, 48
@@ -124,7 +126,7 @@ less_than_a:
         call    print_char
         ret
 
-; print the byte in BL to the screen
+        ;; print the byte in BL to the screen
 printByte:
         mov     al, bl
         shr     al, 4
@@ -133,7 +135,7 @@ printByte:
         call    PrintNibble
         ret
 
-; print the word in BX to the screen
+        ;; print the word in BX to the screen
 printWord:
         mov     al, bh
         shr     al, 4

@@ -4,10 +4,12 @@
 ;;; then a triple fault will occur and the CPU will
 ;;; reset.
 
-        %define CODE_SEG        0x8
-        %define DATA_SEG        0x10
 
-ORG 0x0000
+CODE_SEG        EQU     0x8
+DATA_SEG        EQU     0x10
+
+        ORG 0x0000
+
         ;; Code is loaded at 0x9000:0000 by bootloader and entered
         ;; at that address
         push    cs
@@ -18,14 +20,19 @@ ORG 0x0000
         call    print
         call    cpu_check
         jc      boot_failed
-        mov     si, msg_dis_intr
-        call    print
-        call    disable_interrupts
 
         mov     si, msg_enable_a20
         call    print
         call    enable_a20
         jc      boot_failed
+
+        call    disable_nmi
+        call    pmode_loader
+
+        mov     si, msg_dis_intr
+        call    print
+        call    disable_interrupts
+
         mov     si, msg_pagetables
         call    print
         call    setup_pagetables ; This returns with CR3 setup
@@ -44,24 +51,24 @@ ORG 0x0000
 
         lgdt    [GDT.pointer]
         mov     eax, cr0
-        or      eax, 0x80000001  ; Enable paging and protected mode, 
+        or      eax, 0x80000001  ; Enable paging and protected mode,
         mov     cr0, eax         ; activating longmode
 
-        ;; Since this code is loaded at 9000:0000, everything
-        ;; is effectivly ORG 0x900000 so add that to the far jmp
-        db      0x66, 0xea
-        dd      0x90000 + longmode
-        dw      CODE_SEG
+        ;; jump to the kernel loading the code selector
+        jmp     dword CODE_SEG:0x100000
 
         ;; Disable all interrupts including NMI and IRQs
-%define MASTER_PIC      0x21
-%define SLAVE_PIC       0xA1
+MASTER_PIC      EQU     0x21
+SLAVE_PIC       EQU     0xA1
 
-disable_interrupts:
-        cli
+disable_nmi:
         mov     al, 0x80
         out     0x70, al        ; disable NMI
         call    io_delay
+        ret
+
+disable_interrupts:
+        cli
         mov     al, 0xff
         out     MASTER_PIC, al  ; Mask all IRQs
         call    io_delay
@@ -110,23 +117,4 @@ GDT:
         dq      0x90000 + GDT   ; 32bit base address
 
 
-        BITS 64
-longmode:
-        mov     ax, DATA_SEG
-        mov     ds, ax
-        mov     es, ax
-        mov     fs, ax
-        mov     gs, ax
-        mov     ss, ax
-
-        mov     edi, 0xB8000
-        mov     rcx, 500                 ; Clear 2000 bytes as 500x8
-        mov     rax, 0x1F201F201F201F20  ; White on Blue spaces
-        rep     stosq
-
-        mov     edi, 0xB8000
-        mov     rax, 0x1F6C1F6C1F651F48
-        mov     [edi], rax
-        hlt
-
-times 4096 - ($-$$) db 0
+%include "pmode_loader.asm"
