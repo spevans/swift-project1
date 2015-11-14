@@ -90,6 +90,7 @@ class LoadCommandSymTab : LoadCommand {
                     if (sym == nil) {
                         return nil
                     }
+                    print(sym!)
                     symbols.append(sym!)
                 }
             }

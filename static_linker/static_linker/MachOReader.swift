@@ -209,3 +209,84 @@ class MachOReader {
         return hdr!
     }
 }
+
+
+class MemoryBufferReader {
+    var ptr: UnsafePointer<UInt8> = nil
+    var buffer: UnsafeBufferPointer<UInt8> = UnsafeBufferPointer<UInt8>(start: nil, count: 0)
+    var offset: Int = 0
+    var bytesRemaining: Int { return (buffer.count - offset) }
+
+    init?(_ reader: MachOReader, offset: Int, size: Int) {
+        do {
+            ptr = try reader.memoryReadBuffer(offset, size: size)
+            buffer = UnsafeBufferPointer<UInt8>(start: ptr, count: size)
+        } catch {
+            return nil
+        }
+    }
+
+    func subBuffer(offset: Int, size: Int) -> UnsafeBufferPointer<UInt8> {
+        return UnsafeBufferPointer<UInt8>(start: ptr + offset, count: size)
+    }
+
+
+    func readASCIIZString(maxSize maxSize: Int) throws -> String {
+        guard maxSize > 0 else {
+            throw MachOReader.ReadError.InvalidOffset
+        }
+
+        guard bytesRemaining > 0 else {
+            throw MachOReader.ReadError.InvalidOffset
+        }
+
+        guard bytesRemaining >= maxSize else {
+            throw MachOReader.ReadError.InvalidOffset
+        }
+
+        var newString : [CChar] = []
+        newString.reserveCapacity(maxSize + 1)
+        for _ in 0...maxSize-1 {
+            newString.append(CChar(buffer[offset++]))
+        }
+        newString.append(0) // Terminating nul
+        if let result = String(CString: newString, encoding: NSASCIIStringEncoding) {
+            return result
+        } else {
+            throw MachOReader.ReadError.InvalidData
+        }
+    }
+
+
+    // read from the current offset until the first nul byte is found
+    func scanASCIIZString() throws -> String {
+        var str : [CChar] = []
+        var ch : CChar
+        repeat {
+            ch = try read()
+            str.append(ch)
+        }
+        while ch != 0
+        if let result = String(CString: str, encoding: NSASCIIStringEncoding) {
+            return result
+        } else {
+            throw MachOReader.ReadError.InvalidData
+        }
+    }
+
+
+    func read<T>() throws -> T {
+        guard bytesRemaining > 0 else {
+            throw MachOReader.ReadError.InvalidOffset
+        }
+
+        guard bytesRemaining >= sizeof(T) else {
+            throw MachOReader.ReadError.InvalidOffset
+        }
+        let resultPtr : UnsafePointer<T> = UnsafePointer(ptr + offset)
+        let result = resultPtr.memory
+        offset += sizeof(T)
+
+        return result
+    }
+}

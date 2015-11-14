@@ -92,9 +92,9 @@ class LoadCommand {
         switch(header.cmd) {
         case .SEGMENT_64:           return LoadCommandSegment64(header, reader)
         case .ID_DYLIB:             return LoadCommandIdDylib(header, reader)
-        //case .DYLD_INFO_ONLY:
+        case .DYLD_INFO_ONLY:       return LoadCommandDyldInfo(header, reader)
         case .SYMTAB:               return LoadCommandSymTab(header, reader)
-        //case .DYSYMTAB:
+        case .DYSYMTAB:             return LoadCommandDySymTab(header, reader)
         case .UUID:                 return LoadCommandUUID(header, reader)
         case .VERSION_MIN_MACOSX:   return LoadCommandMinVersion(header, reader)
         case .SOURCE_VERSION:       return LoadCommandSourceVersion(header, reader)

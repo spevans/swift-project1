@@ -45,6 +45,3 @@ if (args.count > 2) {
 } else {
     print("Usage: \(args[0]) srcLib destBinary")
 }
-
-
-
