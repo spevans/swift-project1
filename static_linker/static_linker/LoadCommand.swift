@@ -10,10 +10,13 @@ import Foundation
 
 
 class LoadCommand {
-
-    var description: String { return "LoadCommand" }
     let header : LoadCommandHdr
     let reader : MachOReader
+
+    var loadCommandSegment: LoadCommandSegment64!
+
+    var description: String { return "LoadCommand" }
+
 
     enum LoadCommandID : UInt32 {
         static let LC_REQ_DYLD : UInt32 = 0x80000000

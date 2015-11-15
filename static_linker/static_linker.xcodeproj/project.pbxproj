@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B90997C91BF81D17006DE13C /* LoadCommandSegmentSection64.swift in Sources */ = {isa = PBXBuildFile; fileRef = B90997C81BF81D17006DE13C /* LoadCommandSegmentSection64.swift */; };
 		B95674C01BF173330015BA28 /* LoadCommandDyldInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = B95674BF1BF173330015BA28 /* LoadCommandDyldInfo.swift */; };
 		B9658C971BE96A36000F3E67 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9658C961BE96A36000F3E67 /* main.swift */; };
 		B9658C9E1BEB6811000F3E67 /* MachOReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9658C9D1BEB6811000F3E67 /* MachOReader.swift */; };
@@ -29,6 +30,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B90997C81BF81D17006DE13C /* LoadCommandSegmentSection64.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LoadCommandSegmentSection64.swift; sourceTree = "<group>"; };
 		B95674BF1BF173330015BA28 /* LoadCommandDyldInfo.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LoadCommandDyldInfo.swift; sourceTree = "<group>"; };
 		B9658C931BE96A36000F3E67 /* static_linker */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = static_linker; sourceTree = BUILT_PRODUCTS_DIR; };
 		B9658C961BE96A36000F3E67 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
@@ -76,6 +78,7 @@
 				B95674BF1BF173330015BA28 /* LoadCommandDyldInfo.swift */,
 				B9658CA51BEE7BA0000F3E67 /* LoadCommandSegment64.swift */,
 				B9658CA31BED265D000F3E67 /* LoadCommandSymTab.swift */,
+				B90997C81BF81D17006DE13C /* LoadCommandSegmentSection64.swift */,
 			);
 			path = static_linker;
 			sourceTree = "<group>";
@@ -144,6 +147,7 @@
 				B9658CA41BED265D000F3E67 /* LoadCommandSymTab.swift in Sources */,
 				B9658C9E1BEB6811000F3E67 /* MachOReader.swift in Sources */,
 				B9658CA21BEBAA73000F3E67 /* LoadCommand.swift in Sources */,
+				B90997C91BF81D17006DE13C /* LoadCommandSegmentSection64.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

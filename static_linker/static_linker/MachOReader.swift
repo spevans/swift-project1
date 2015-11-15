@@ -10,8 +10,11 @@ import Foundation
 
 
 class MachOReader {
-    private final var file: NSData!
-    final var header: MachOHeader!
+    var file: NSData!
+    var header: MachOHeader!
+    var loadCommandSegment: LoadCommandSegment64! = nil
+    var symbolTable: LoadCommandSymTab! = nil
+
 
     enum MachOMagic: UInt32 {
         case MAGIC_LE    = 0xfeedface
@@ -20,17 +23,17 @@ class MachOReader {
         case MAGIC_64_BE = 0xcffaedfe
     }
 
-    enum CpuType : UInt32 {
+    enum CpuType: UInt32 {
         case ANY    = 0xffffffff
         case X86    = 7
         case X86_64 = 0x01000007
     }
 
-    enum CpuSubType : UInt32 {
+    enum CpuSubType: UInt32 {
         case CPU_SUBTYPE_I386_ALL = 3
     }
 
-    enum FileType : UInt32 {
+    enum FileType: UInt32 {
         case OBJECT      = 0x1
         case EXECUTE     = 0x2
         case FVMLIB      = 0x3
@@ -116,6 +119,25 @@ class MachOReader {
                 return nil
             }
             header = try readHeader()
+
+            for cmd in 0..<header!.ncmds {
+                if let lcHdr : LoadCommand.LoadCommandHdr = try getLoadCommand(cmd) {
+                    if let loadCmd = LoadCommand(header: lcHdr, reader: self).parse() {
+                        if loadCmd is LoadCommandSegment64 {
+                            loadCommandSegment = loadCmd as! LoadCommandSegment64
+                        } else if loadCmd is LoadCommandSymTab {
+                            symbolTable = loadCmd as! LoadCommandSymTab
+                        }
+                    } else {
+                        return nil
+                    }
+                } else {
+                    print("Cannot read load command header: \(cmd)")
+                    return nil
+                }
+            }
+
+
         } catch {
             return nil
         }
@@ -170,6 +192,15 @@ class MachOReader {
         }
 
         return UnsafePointer<T>(file.bytes + offset)
+    }
+
+
+    func dataBuffer(offset offset: Int, size: Int) throws -> NSData {
+        guard size > 0 && offset >= 0 && (offset + size) < file.length else {
+            throw ReadError.InvalidOffset
+        }
+
+        return NSData(bytes: file.bytes + offset, length: size)
     }
 
 

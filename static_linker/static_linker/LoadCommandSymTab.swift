@@ -90,7 +90,6 @@ class LoadCommandSymTab : LoadCommand {
                     if (sym == nil) {
                         return nil
                     }
-                    print(sym!)
                     symbols.append(sym!)
                 }
             }
@@ -99,6 +98,17 @@ class LoadCommandSymTab : LoadCommand {
         }
     }
 
+
+    func symbolsInSection(section: Int) -> [Symbol] {
+        var result: [Symbol] = []
+        for symbol in symbols {
+            if Int(symbol.sectionNumber) == section {
+                result.append(symbol)
+            }
+        }
+
+        return result
+    }
 
     override var description: String {
         return "LoadCommandSymTab symbol count: \(symbols.count)"
