@@ -11,6 +11,7 @@ import Foundation
 
 class LoadCommandSegmentSection64 {
     let reader: MachOReader
+    let sectionNumber: Int
     var sectionName : String    = ""
     var segmentName : String    = ""
     var addr : UInt64           = 0
@@ -105,8 +106,9 @@ class LoadCommandSegmentSection64 {
     }
 
 
-    init?(reader: MachOReader, buffer: MemoryBufferReader) {
+    init?(reader: MachOReader, buffer: MemoryBufferReader, sectionNumber: Int) {
         self.reader = reader
+        self.sectionNumber = sectionNumber
         do {
             func parseFlags(value: UInt32) throws -> (SectionType, SectionAttribute) {
                 guard let sType = SectionType(rawValue: UInt8(value & 0xFF)) else {
@@ -153,7 +155,6 @@ class LoadCommandSegmentSection64 {
             throw MachOReader.ReadError.InvalidOffset
         }
 
-
         result.reserveCapacity(Int(numberOfRelocs))
         for _ in 0..<Int(numberOfRelocs) {
             let addr: UInt32 = try relocBuffer.read()
@@ -162,6 +163,11 @@ class LoadCommandSegmentSection64 {
         }
 
         return result
+    }
+
+
+    func symbolName(idx: Int) -> String {
+        return reader.symbolTable.symbols[idx].name
     }
 
 

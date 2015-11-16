@@ -53,7 +53,7 @@ class LoadCommandDySymTab : LoadCommand {
             numLocalReloc = try buffer.read()
 
             let syms = buffer.subBuffer(buffer.offset + Int(idxExtDefSym), size: Int(numExtDefSym))
-            //showSyms(syms)
+            showSyms(syms)
         } catch {
             return nil
         }

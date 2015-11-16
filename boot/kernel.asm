@@ -2,6 +2,8 @@
 
         SECTION .text
 
+extern _init_tty
+
         mov     rdi, 0xB8000
         mov     rcx, 500                 ; Clear 2000 bytes as 500x8
         mov     rax, 0x4F201F204F201F20  ; White on Blue spaces
@@ -25,7 +27,9 @@ start2:
         je      .msgend
         stosw
         jmp     .loop
+
 .msgend:
+        call    _init_tty
         hlt
 
 

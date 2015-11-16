@@ -98,7 +98,7 @@ class LoadCommandSymTab : LoadCommand {
         }
     }
 
-
+/***
     func symbolsInSection(section: Int) -> [Symbol] {
         var result: [Symbol] = []
         for symbol in symbols {
@@ -109,6 +109,7 @@ class LoadCommandSymTab : LoadCommand {
 
         return result
     }
+***/
 
     override var description: String {
         return "LoadCommandSymTab symbol count: \(symbols.count)"

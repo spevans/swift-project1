@@ -3,9 +3,10 @@ all: disk_image
 bootsector.bin : bootsector.asm
 	nasm -fbin -o $@ $<
 
-kernel.bin: kernel.asm
+kernel.bin: kernel.asm tty.c
 	nasm -fmacho64 -o kernel.o $<
-	../static_linker/build/Debug/static_linker kernel.o $@
+	clang -c -o tty.o tty.c
+	../static_linker/build/Debug/static_linker --output=$@ --baseAddress=0x100000 --mapfile=kernel.map kernel.o tty.o
 
 boot16to64.bin : boot16to64.asm utils.asm a20.asm cpu_check.asm page_tables.asm pmode_loader.asm
 	nasm -fbin -o $@ $<

@@ -73,8 +73,8 @@ class LoadCommandSegment64 : LoadCommand {
 
             sections.reserveCapacity(Int(numSections))
             if (numSections > 0) {
-                for _ in 0...Int(numSections)-1 {
-                    if let section = LoadCommandSegmentSection64(reader:reader, buffer:buffer) {
+                for idx in 0..<Int(numSections) {
+                    if let section = LoadCommandSegmentSection64(reader:reader, buffer:buffer, sectionNumber:idx+1) {
                         sections.append(section)
 
                     } else {

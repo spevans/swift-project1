@@ -9,6 +9,10 @@
 import Foundation
 
 
+enum LinkerError: ErrorType {
+    case UnrecoverableError(reason: String)
+}
+
 
 class binarySection {
     let name: String
@@ -17,7 +21,7 @@ class binarySection {
     var sectionData    = NSMutableData()
     var symbolInfo:    [String: UInt64] = [:]
     var symbolOrder:   [String] = []
-    var relocations:   [LoadCommandSegmentSection64.Relocation] = []
+    var relocations:   [(LoadCommandSegmentSection64, FileInfo)] = []
 
 
     init(_ name: String) {
@@ -38,30 +42,36 @@ class binarySection {
     }
 
 
-    func addSection(section: LoadCommandSegmentSection64, symbols: [LoadCommandSymTab.Symbol]) {
+    func addSection(section: LoadCommandSegmentSection64, fileInfo: FileInfo) throws -> UInt64 {
         if section.align > 1 {
             let diff = sectionData.length % Int(section.align)
             if diff > 0 {
-                sectionData.increaseLengthBy(Int(section.align) - diff)
+                let fillerByte: UInt8 = (name == "__TEXT") ? 0x90 : 0x00
+                let length = Int(section.align) - diff
+                let filler = Array<UInt8>(count:length, repeatedValue:UInt8(fillerByte))
+                sectionData.appendData(NSData(bytes:filler, length:length))
+            }
+        }
+        let sectionStart = UInt64(sectionData.length)
+
+        guard let data = section.sectionData else {
+            throw LinkerError.UnrecoverableError(reason: "Cant read data")
+        }
+        sectionData.appendData(data)
+        for symbol in fileInfo.symbolTable.symbols {
+            if Int(symbol.sectionNumber) == section.sectionNumber {
+                symbolInfo[symbol.name] = (symbol.value - section.addr) + sectionStart
+                symbolOrder.append(symbol.name)
             }
         }
 
-        guard let data = section.sectionData else {
-            print("Cant read data")
-            exit(EXIT_FAILURE)
-        }
-        sectionData.appendData(data)
-        for symbol in symbols {
-            symbolInfo[symbol.name] = (symbol.value - section.addr) //+ currentOffset
-            symbolOrder.append(symbol.name)
-        }
 
-        guard let relocs = section.relocations else {
-            print("Null relocations")
-            exit(EXIT_FAILURE)
-        }
-        relocations.appendContentsOf(relocs)
+
+        let tuple = (section, fileInfo)
+        relocations.append(tuple)
         currentOffset = UInt64(sectionData.length)
+
+        return sectionStart
     }
 
 
@@ -76,77 +86,109 @@ class binarySection {
     }
 
 
-    func relocate(map map: [String:UInt64], symbols: [LoadCommandSymTab.Symbol]) {
-        for reloc in relocations {
-            let symbolName = symbols[Int(reloc.symbolNum)].name
-            var address = map[symbolName]!
-            print(String(format: "Updating location %0X length = \(reloc.length) with %016X", reloc.address, address))
-            let length = Int(1 << reloc.length)
-            let offset = Int(reloc.address)
+    func relocate(map map: [String:UInt64]) throws {
+        for (section, fileInfo) in relocations {
+            try relocateSection(map, section, fileInfo)
+        }
+    }
 
+
+    func relocateSection(map: [String:UInt64], _ section: LoadCommandSegmentSection64, _ fileInfo: FileInfo) throws {
+
+        guard let relocs = section.relocations else {
+            throw LinkerError.UnrecoverableError(reason: "Null relocations")
+        }
+
+        for reloc in relocs {
+            var address: Int64 = 0              // The value to be patched into memory
+            var symAddr: UInt64 = 0             // The address of the symbol or section that is the target
+            let length = Int(1 << reloc.length) // Number of bytes to modify
+            print(reloc)
+            if reloc.extern {
+                // Target is a symbol
+                let symbols = fileInfo.symbolTable.symbols
+                let symbolName: String? = reloc.extern ? symbols[Int(reloc.symbolNum)].name : nil
+                guard let addr = map[symbolName!] else {
+                    throw LinkerError.UnrecoverableError(reason: "Undefined symbol: \(symbolName!)")
+                }
+                symAddr = addr
+            } else {
+                // Target is in another section
+                symAddr = 0 //fileInfo.sectionBaseAddrs[Int(reloc.symbolNum)]! + baseAddress
+                if (reloc.PCRelative) {
+                    // Other sections in the same segment are contiguous and if the reloc is pc relative then
+                    // there shouldnt be anything to relocate for now (may change if sections dont end up being
+                    // contiguous)
+                    continue
+                }
+            }
+
+            // Offset into the bytes of this segment that will updated
+            let offset = Int(reloc.address) + Int(fileInfo.sectionBaseAddrs[section.sectionNumber]!)
             if (reloc.PCRelative) {
                 // The absolute address needs to be made relative to the symbol being patched
                 let pc = (baseAddress + UInt64(offset + length))
-                address -= pc
+                address = Int64(symAddr) - Int64(pc)
+                print(String(format:"pc: %08X symAddr: %08X baseAddr: %08X address: %08X",
+                    pc, symAddr, baseAddress, address))
             }
+            //print(String(format: "Updating location %0X length = \(reloc.length) with %016X", reloc.address, address))
+            print(String(format: "symAddr: %08X offset: %d/%04X length: %d", symAddr, offset, offset,length))
+
             guard (offset + length) <= sectionData.length else {
-                print("Bad offset \(offset + length) > \(sectionData.length)")
-                exit(EXIT_FAILURE)
+                throw LinkerError.UnrecoverableError(reason: "Bad offset \(offset + length) > \(sectionData.length)")
             }
+
+            // Pointer to the bytes in the data to actually update
             let relocAddr = UnsafePointer<Void>(sectionData.bytes + offset)
 
             switch (length) {
             case 1:
-                guard address <= UInt64(UInt8.max) else {
-                    print("Bad address \(address) for UInt8")
-                    exit(EXIT_FAILURE)
+                guard address <= Int64(Int8.max) else {
+                    throw LinkerError.UnrecoverableError(reason: "Bad address \(address) for Int8")
                 }
-                let ptr = UnsafeMutablePointer<UInt8>(relocAddr)
-                ptr.memory = UInt8(address)
+                let ptr = UnsafeMutablePointer<Int8>(relocAddr)
+                ptr.memory += Int8(address)
 
             case 2:
-                guard address <= UInt64(UInt16.max) else {
-                    print("Bad address \(address) for UInt16")
-                    exit(EXIT_FAILURE)
+                guard address <= Int64(Int16.max) else {
+                    throw LinkerError.UnrecoverableError(reason: "Bad address \(address) for Int16")
                 }
-                let ptr = UnsafeMutablePointer<UInt16>(relocAddr)
-                ptr.memory = UInt16(littleEndian: UInt16(address))
+                let ptr = UnsafeMutablePointer<Int16>(relocAddr)
+                ptr.memory += Int16(littleEndian: Int16(address))
 
             case 4:
-                guard address <= UInt64(UInt32.max) else {
-                    print("Bad address \(address) for UInt32")
-                    exit(EXIT_FAILURE)
+                guard address <= Int64(Int32.max) else {
+                    throw LinkerError.UnrecoverableError(reason: "Bad address \(address) for Int32")
                 }
-                let ptr = UnsafeMutablePointer<UInt32>(relocAddr)
-                ptr.memory = UInt32(littleEndian: UInt32(address))
+                let ptr = UnsafeMutablePointer<Int32>(relocAddr)
+                ptr.memory += Int32(littleEndian: Int32(address))
 
             case 8:
-                let ptr = UnsafeMutablePointer<UInt64>(relocAddr)
-                ptr.memory = UInt64(littleEndian: address)
+                let ptr = UnsafeMutablePointer<Int64>(relocAddr)
+                ptr.memory += Int64(littleEndian: address)
 
             default:
-                print("Unknown length \(length)")
-                exit(EXIT_FAILURE)
+                throw LinkerError.UnrecoverableError(reason: "Invalid symbol relocation length \(length)")
             }
         }
     }
 }
 
 extension Dictionary {
-    mutating func mergeSymbols<K, V>(dict: [K: V]){
+    mutating func mergeSymbols<K, V>(dict: [K: V]) throws {
         for (k, v) in dict {
             if (self[k as! Key] != nil) {
-                print("\(k) is already defined")
-                exit(EXIT_FAILURE)
+                throw LinkerError.UnrecoverableError(reason: "\(k) is already defined")
             } else {
-            self.updateValue(v as! Value, forKey: k as! Key)
+                self.updateValue(v as! Value, forKey: k as! Key)
             }
         }
     }
 }
 
 
-func openOutput(filename: String) -> NSFileHandle {
+func openOutput(filename: String) throws -> NSFileHandle {
     if NSFileManager.defaultManager().createFileAtPath(filename, contents: nil, attributes: nil) {
         let output = NSFileHandle(forWritingAtPath: filename)
         if output != nil {
@@ -154,15 +196,14 @@ func openOutput(filename: String) -> NSFileHandle {
         }
     }
 
-    print("Cant open output file: \(filename)")
-    exit(EXIT_FAILURE)
+    throw LinkerError.UnrecoverableError(reason: "Cant open output file: \(filename)")
 }
 
 
-func writeMapToFile(filename: String, map: [String:UInt64]) {
+func writeMapToFile(filename: String, map: [String:UInt64]) throws {
     let sortedMap = map.sort({ return $0.1 < $1.1 })
 
-    let mapFile = openOutput(filename)
+    let mapFile = try openOutput(filename)
     for (symbol, addr) in sortedMap {
         let str = String(format: "%08X: %@\n", addr, symbol)
         mapFile.writeData(str.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: true)!)
@@ -172,80 +213,144 @@ func writeMapToFile(filename: String, map: [String:UInt64]) {
 }
 
 
-func processDylib(srcLib: String, destBinary: String) {
-    print("Converting \(srcLib) to \(destBinary)")
+func parseNumber(number: String) -> UInt64? {
+    let strs = number.componentsSeparatedByString("0x")
 
-    guard let srcLibData = MachOReader(filename: srcLib) else {
-        print("Cannot parse \(srcLib)")
-        exit(EXIT_FAILURE)
+    if strs.count == 2 {
+        return UInt64(strs[1], radix: 16)
+    } else {
+        return UInt64(strs[0], radix: 10)
     }
+}
 
-    do {
-        for cmd in 0...srcLibData.header!.ncmds-1 {
-            if let lcHdr : LoadCommand.LoadCommandHdr = try srcLibData.getLoadCommand(cmd) {
-                if let loadCmd = LoadCommand(header: lcHdr, reader: srcLibData).parse() {
-                    print("Cmd: \(cmd) loadCmd:", loadCmd.description)
-                } else {
-                    print("Cmd: \(cmd): \(lcHdr)")
-                }
-            } else {
-                print("Cannot read load command header: \(cmd)")
-            }
-        }
-    } catch {
-        print("Parse Error")
-        exit(EXIT_FAILURE)
+
+class FileInfo {
+    let symbolTable: LoadCommandSymTab
+    var sectionBaseAddrs: [Int:UInt64] = [:]
+
+    init(symbolTable: LoadCommandSymTab) {
+        self.symbolTable = symbolTable
     }
+}
 
-    let loadSegment = srcLibData.loadCommandSegment
-    let symTab = srcLibData.symbolTable;
+
+func processDylib(args: [String:AnyObject]) throws {
+    let sources = args["sources"] as! [String]
+    let destBinary = args["--output"] as! String
     let textSection = binarySection("__TEXT")
     let dataSection = binarySection("__DATA")
 
-    var sectionNum = 1
-    for section in loadSegment.sections {
-        if section.segmentName == "__TEXT" {
-            textSection.addSection(section, symbols: symTab.symbolsInSection(sectionNum))
-        } else if section.segmentName == "__DATA" {
-            dataSection.addSection(section, symbols: symTab.symbolsInSection(sectionNum))
-        } else {
-            print("Unknown section: \(section.segmentName)")
-            exit(EXIT_FAILURE)
+    for source in sources {
+        guard let srcLibData = MachOReader(filename: source) else {
+            throw LinkerError.UnrecoverableError(reason: "Cannot parse \(source)")
         }
-        sectionNum++
+
+        do {
+            for cmd in 0..<srcLibData.header!.ncmds {
+                if let lcHdr : LoadCommand.LoadCommandHdr = try srcLibData.getLoadCommand(cmd) {
+                    if let loadCmd = LoadCommand(header: lcHdr, reader: srcLibData).parse() {
+                        print("Cmd: \(cmd) loadCmd:", loadCmd.description)
+                    } else {
+                        print("Cmd: \(cmd): \(lcHdr)")
+                    }
+                } else {
+                    print("Cannot read load command header: \(cmd)")
+                }
+            }
+        } catch {
+            throw LinkerError.UnrecoverableError(reason: "Parse Error")
+        }
+
+        let loadSegment = srcLibData.loadCommandSegment
+
+        let fileInfo = FileInfo(symbolTable: srcLibData.symbolTable)
+        for section in loadSegment.sections {
+            if section.segmentName == "__TEXT" {
+                let sectionStart = try textSection.addSection(section, fileInfo: fileInfo)
+                fileInfo.sectionBaseAddrs[section.sectionNumber] = sectionStart
+            } else if section.segmentName == "__DATA" {
+                let sectionStart = try dataSection.addSection(section, fileInfo: fileInfo)
+                fileInfo.sectionBaseAddrs[section.sectionNumber] = sectionStart
+            } else {
+                //throw LinkerError.UnrecoverableError(reason: "Unknown section: \(section.segmentName)")
+                print("Skipping section: \(section.segmentName)");
+            }
+        }
     }
 
     let sectionAlign:UInt64 = 4096 // page size
-
-    textSection.baseAddress = 0x100000
-    textSection.printInfo()
+    if let baseAddr = args["--baseAddress"] as? String {
+        guard let addr = parseNumber(baseAddr) else {
+            throw LinkerError.UnrecoverableError(reason: "Bad baseAddress \(baseAddr)")
+        }
+        print(String(format: "Base address = %016X", addr))
+        textSection.baseAddress = addr
+    }
 
     var dataAddr = textSection.baseAddress + textSection.currentOffset
     dataAddr = (dataAddr + sectionAlign-1) & ~(sectionAlign-1)
     dataSection.baseAddress = dataAddr
-    dataSection.printInfo()
 
     // Update symbol locations and relocate
     var map = textSection.symbolMap()
-    map.mergeSymbols(dataSection.symbolMap())
+    try map.mergeSymbols(dataSection.symbolMap())
 
     print(map)
-    textSection.relocate(map: map, symbols: symTab.symbols)
+    try textSection.relocate(map: map)
+    try dataSection.relocate(map: map)
 
 
-    let outputFile = openOutput(destBinary)
+    let outputFile = try openOutput(destBinary)
     outputFile.writeData(textSection.sectionData)
     let dataOffset = dataSection.baseAddress - textSection.baseAddress
     outputFile.seekToFileOffset(dataOffset)
     outputFile.writeData(dataSection.sectionData)
     outputFile.closeFile()
-    writeMapToFile("mapfile", map: map)
+    if let mapfile = args["--mapfile"] as? String {
+        try writeMapToFile(mapfile, map: map)
+    }
 }
 
 
-var args = Process.arguments
-if (args.count > 2) {
-    processDylib(args[1], destBinary:args[2])
-} else {
-    print("Usage: \(args[0]) srcLib destBinary")
+func parseArgs() throws -> [String:AnyObject] {
+    let validOptions:Set = ["--baseAddress", "--mapfile", "--output"]
+
+    var options: [String:AnyObject] = [:]
+    var sources: [String] = []
+    var args = Process.arguments
+    args.removeAtIndex(0)
+
+    for arg in args {
+        if arg.hasPrefix("--") {
+            let option = arg.componentsSeparatedByString("=")
+            guard option.count == 2 && validOptions.contains(option[0]) else {
+                throw LinkerError.UnrecoverableError(reason: "Bad option: \(arg)")
+            }
+            guard (option[1] != "") else {
+                throw LinkerError.UnrecoverableError(reason: "Bad value for option: \(arg)")
+            }
+            options[option[0]] = option[1]
+        } else {
+            sources.append(arg)
+        }
+    }
+
+    guard sources.count > 0 else {
+        throw LinkerError.UnrecoverableError(reason: "No source files specified!")
+    }
+    options["sources"] = sources
+
+    guard options["--output"] != nil else {
+        throw LinkerError.UnrecoverableError(reason: "No output file specified")
+    }
+
+    return options
+}
+
+
+do {
+    try processDylib(parseArgs())
+} catch LinkerError.UnrecoverableError(let reason) {
+    print("Error processing arguments: \(reason)")
+    exit(EXIT_FAILURE)
 }
