@@ -23,7 +23,7 @@ class LoadCommandDySymTab : LoadCommand {
     var indirectSymOff: UInt32   = 0
     var numIndirectSym: UInt32   = 0
     var extRelocOff: UInt32      = 0
-    var numExtReloc: UInt32        = 0
+    var numExtReloc: UInt32      = 0
     var localRelocOff: UInt32    = 0
     var numLocalReloc: UInt32    = 0
 
@@ -52,8 +52,8 @@ class LoadCommandDySymTab : LoadCommand {
             localRelocOff = try buffer.read()
             numLocalReloc = try buffer.read()
 
-            let syms = buffer.subBuffer(buffer.offset + Int(idxExtDefSym), size: Int(numExtDefSym))
-            showSyms(syms)
+            //let syms = buffer.subBuffer(buffer.offset + Int(idxExtDefSym), size: Int(numExtDefSym))
+            //showSyms(syms)
         } catch {
             return nil
         }

@@ -73,9 +73,12 @@ class LoadCommandSegment64 : LoadCommand {
 
             sections.reserveCapacity(Int(numSections))
             if (numSections > 0) {
-                for idx in 0..<Int(numSections) {
-                    if let section = LoadCommandSegmentSection64(reader:reader, buffer:buffer, sectionNumber:idx+1) {
+                for _ in 0..<Int(numSections) {
+                    reader.totalSections++
+                    if let section = LoadCommandSegmentSection64(reader:reader, buffer:buffer,
+                        sectionNumber:reader.totalSections) {
                         sections.append(section)
+                        reader.loadCommandSections.append(section)
 
                     } else {
                         print("Error processing section")
@@ -92,7 +95,7 @@ class LoadCommandSegment64 : LoadCommand {
 
     override var description: String {
         var str = String(format: "LoadCommandSegment64: %@", segname)
-        str += String(format: " addr: %016X", vmaddr)
+        str += String(format: " vmaddr: %016X", vmaddr)
         str += String(format: " vmsize: %016X", vmsize)
         str += String(format: " offset: %016X", fileOffset)
         str += String(format: " size: %016X sections: %d ", fileSize, numSections)

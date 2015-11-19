@@ -9,6 +9,8 @@
 import Foundation
 
 
+// FIXME: remove after debugging
+var globalMap: [String:LoadCommandSymTab.Symbol] = [:]
 enum LinkerError: ErrorType {
     case UnrecoverableError(reason: String)
 }
@@ -41,25 +43,55 @@ class binarySection {
         }
     }
 
-
-    func addSection(section: LoadCommandSegmentSection64, fileInfo: FileInfo) throws -> UInt64 {
-        if section.align > 1 {
-            let diff = sectionData.length % Int(section.align)
-            if diff > 0 {
-                let fillerByte: UInt8 = (name == "__TEXT") ? 0x90 : 0x00
-                let length = Int(section.align) - diff
-                let filler = Array<UInt8>(count:length, repeatedValue:UInt8(fillerByte))
-                sectionData.appendData(NSData(bytes:filler, length:length))
-            }
+    func align(addr: UInt64, alignment: UInt64) -> UInt64 {
+        if (alignment > 0) {
+            let mask = alignment - 1
+            return (addr + mask) & ~mask
         }
-        let sectionStart = UInt64(sectionData.length)
+        return addr
+    }
+
+    func addSection(segment: LoadCommandSegment64, section: LoadCommandSegmentSection64, fileInfo: FileInfo) throws -> UInt64 {
+        print("Adding section nr \(section.sectionNumber): \(section.segmentName):\(section.sectionName)")
+
+        // Pad section upto next alignment
+        let alignSize = UInt64(1 << section.align)
+        let padding = Int(align(UInt64(sectionData.length), alignment:alignSize)) - sectionData.length
+        if padding > 0 {
+            let fillerByte: UInt8 = (name == "__TEXT") ? 0x90 : 0x00
+            let filler = Array<UInt8>(count:padding, repeatedValue:UInt8(fillerByte))
+            sectionData.appendData(NSData(bytes:filler, length:padding))
+        }
+        let sectionStart = UInt64(sectionData.length)   // the current 'program counter' for this section
 
         guard let data = section.sectionData else {
             throw LinkerError.UnrecoverableError(reason: "Cant read data")
         }
         sectionData.appendData(data)
-        for symbol in fileInfo.symbolTable.symbols {
-            if Int(symbol.sectionNumber) == section.sectionNumber {
+
+        // If there is a dynamic symbol table, use that to get a list of the declared symbols contained in the obj/lib
+        // otherwise assume all of the symbols are
+
+        var symbolOffset: Int
+        var symbolCount: Int
+        if fileInfo.machOFile.dySymbolTable != nil {
+            symbolOffset = Int(fileInfo.machOFile.dySymbolTable!.idxExtDefSym )
+            symbolCount = Int(fileInfo.machOFile.dySymbolTable!.numExtDefSym)
+        } else {
+            symbolCount = fileInfo.machOFile.symbolTable.symbols.count
+            symbolOffset = 0
+        }
+
+        for symIdx in symbolOffset..<symbolCount {
+            let symbol = fileInfo.machOFile.symbolTable.symbols[symIdx]
+
+            if Int(symbol.sectionNumber) == section.sectionNumber && symbol.type != .UNDF {
+                print(symbol)
+                if globalMap[symbol.name] == nil {
+                    globalMap[symbol.name] = symbol
+                } else {
+                    print("Found \(symbol.name) already in globalMap")
+                }
                 symbolInfo[symbol.name] = (symbol.value - section.addr) + sectionStart
                 symbolOrder.append(symbol.name)
             }
@@ -100,38 +132,47 @@ class binarySection {
         }
 
         for reloc in relocs {
+            guard reloc.type == LoadCommandSegmentSection64.RelocationType.X86_64_RELOC_BRANCH ||
+                reloc.type == LoadCommandSegmentSection64.RelocationType.X86_64_RELOC_SIGNED else {
+                throw LinkerError.UnrecoverableError(reason: "Cant processes reloc type \(reloc.type)")
+            }
+            guard reloc.PCRelative == true else {
+                throw LinkerError.UnrecoverableError(reason: "reloc is not PCRelative")
+            }
             var address: Int64 = 0              // The value to be patched into memory
             var symAddr: UInt64 = 0             // The address of the symbol or section that is the target
             let length = Int(1 << reloc.length) // Number of bytes to modify
-            print(reloc)
+
+            // Offset into the bytes of this segment that will updated
+            let offset = Int(reloc.address) + Int(fileInfo.sectionBaseAddrs[section.sectionNumber]!)
+            let pc = (baseAddress + UInt64(offset + length))
+
+            //print(reloc)
             if reloc.extern {
                 // Target is a symbol
-                let symbols = fileInfo.symbolTable.symbols
+                let symbols = fileInfo.machOFile.symbolTable.symbols
                 let symbolName: String? = reloc.extern ? symbols[Int(reloc.symbolNum)].name : nil
                 guard let addr = map[symbolName!] else {
                     throw LinkerError.UnrecoverableError(reason: "Undefined symbol: \(symbolName!)")
                 }
                 symAddr = addr
+                address = Int64(symAddr) - Int64(pc)
             } else {
                 // Target is in another section
-                symAddr = 0 //fileInfo.sectionBaseAddrs[Int(reloc.symbolNum)]! + baseAddress
-                if (reloc.PCRelative) {
-                    // Other sections in the same segment are contiguous and if the reloc is pc relative then
-                    // there shouldnt be anything to relocate for now (may change if sections dont end up being
-                    // contiguous)
-                    continue
-                }
+                let section = Int(reloc.symbolNum)
+                symAddr = fileInfo.sectionBaseAddrs[section]! //+ baseAddress
+                let oldAddr = fileInfo.machOFile.loadCommandSections[section-1].addr
+                address = Int64(fileInfo.offsetInSegment[section]!) - Int64(oldAddr)
+
+                print("oldAddr: \(oldAddr)")
             }
 
-            // Offset into the bytes of this segment that will updated
-            let offset = Int(reloc.address) + Int(fileInfo.sectionBaseAddrs[section.sectionNumber]!)
-            if (reloc.PCRelative) {
+
                 // The absolute address needs to be made relative to the symbol being patched
-                let pc = (baseAddress + UInt64(offset + length))
-                address = Int64(symAddr) - Int64(pc)
-                print(String(format:"pc: %08X symAddr: %08X baseAddr: %08X address: %08X",
-                    pc, symAddr, baseAddress, address))
-            }
+
+                print(String(format:"pc: %08X relocAddr: %08X symAddr: %08X baseAddr: %08X address: %08X offset: %08X length: %d  ",
+                    pc, reloc.address, symAddr, baseAddress, address, offset, length), terminator:"" )
+
             //print(String(format: "Updating location %0X length = \(reloc.length) with %016X", reloc.address, address))
             print(String(format: "symAddr: %08X offset: %d/%04X length: %d", symAddr, offset, offset,length))
 
@@ -142,31 +183,35 @@ class binarySection {
             // Pointer to the bytes in the data to actually update
             let relocAddr = UnsafePointer<Void>(sectionData.bytes + offset)
 
+            // The address to patch may not contain 0 it main contain an offset that needs to be added to the address
+            let addend: Int8 =  UnsafePointer<Int8>(relocAddr).memory
+            print("Addend at location: \(addend)")
+
             switch (length) {
             case 1:
                 guard address <= Int64(Int8.max) else {
                     throw LinkerError.UnrecoverableError(reason: "Bad address \(address) for Int8")
                 }
                 let ptr = UnsafeMutablePointer<Int8>(relocAddr)
-                ptr.memory += Int8(address)
+                ptr.memory = Int8(address) + addend
 
             case 2:
                 guard address <= Int64(Int16.max) else {
                     throw LinkerError.UnrecoverableError(reason: "Bad address \(address) for Int16")
                 }
                 let ptr = UnsafeMutablePointer<Int16>(relocAddr)
-                ptr.memory += Int16(littleEndian: Int16(address))
+                ptr.memory = Int16(littleEndian: Int16(address)) + Int16(addend)
 
             case 4:
                 guard address <= Int64(Int32.max) else {
                     throw LinkerError.UnrecoverableError(reason: "Bad address \(address) for Int32")
                 }
                 let ptr = UnsafeMutablePointer<Int32>(relocAddr)
-                ptr.memory += Int32(littleEndian: Int32(address))
+                ptr.memory = Int32(littleEndian: Int32(address)) + Int32(addend)
 
             case 8:
                 let ptr = UnsafeMutablePointer<Int64>(relocAddr)
-                ptr.memory += Int64(littleEndian: address)
+                ptr.memory = Int64(littleEndian: address) + Int64(addend)
 
             default:
                 throw LinkerError.UnrecoverableError(reason: "Invalid symbol relocation length \(length)")
@@ -179,11 +224,18 @@ extension Dictionary {
     mutating func mergeSymbols<K, V>(dict: [K: V]) throws {
         for (k, v) in dict {
             if (self[k as! Key] != nil) {
-                throw LinkerError.UnrecoverableError(reason: "\(k) is already defined")
+                //throw LinkerError.UnrecoverableError(reason: "\(k) is already defined")
             } else {
                 self.updateValue(v as! Value, forKey: k as! Key)
             }
         }
+    }
+}
+
+
+extension NSFileHandle {
+    func writeString(string: String) {
+        self.writeData(string.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: true)!)
     }
 }
 
@@ -200,14 +252,19 @@ func openOutput(filename: String) throws -> NSFileHandle {
 }
 
 
-func writeMapToFile(filename: String, map: [String:UInt64]) throws {
+func writeMapToFile(filename: String, map: [String:UInt64], textAddress: UInt64, dataAddress: UInt64) throws {
     let sortedMap = map.sort({ return $0.1 < $1.1 })
-
     let mapFile = try openOutput(filename)
+    var showData = false
+
+    mapFile.writeString(String(format: ".text section baseAddress: %08X\n\n", textAddress))
+
     for (symbol, addr) in sortedMap {
-        let str = String(format: "%08X: %@\n", addr, symbol)
-        mapFile.writeData(str.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: true)!)
-        print(str, terminator:"")
+        if (addr >= dataAddress) && !showData {
+            mapFile.writeString(String(format: "\n.data section baseAddress: %08X\n\n", dataAddress))
+            showData = true
+        }
+        mapFile.writeString(String(format: "%08X [%10d]: %@\n", addr, addr, symbol))
     }
     mapFile.closeFile()
 }
@@ -225,55 +282,77 @@ func parseNumber(number: String) -> UInt64? {
 
 
 class FileInfo {
-    let symbolTable: LoadCommandSymTab
+    let machOFile: MachOReader
     var sectionBaseAddrs: [Int:UInt64] = [:]
+    var offsetInSegment: [Int:UInt64] = [:]
 
-    init(symbolTable: LoadCommandSymTab) {
-        self.symbolTable = symbolTable
+    init(file: MachOReader) {
+        self.machOFile = file
     }
 }
 
 
-func processDylib(args: [String:AnyObject]) throws {
+func processSourceFile(args: [String:AnyObject]) throws {
     let sources = args["sources"] as! [String]
     let destBinary = args["--output"] as! String
     let textSection = binarySection("__TEXT")
     let dataSection = binarySection("__DATA")
 
     for source in sources {
+        print("Processing \(source)")
         guard let srcLibData = MachOReader(filename: source) else {
             throw LinkerError.UnrecoverableError(reason: "Cannot parse \(source)")
         }
 
-        do {
-            for cmd in 0..<srcLibData.header!.ncmds {
-                if let lcHdr : LoadCommand.LoadCommandHdr = try srcLibData.getLoadCommand(cmd) {
-                    if let loadCmd = LoadCommand(header: lcHdr, reader: srcLibData).parse() {
-                        print("Cmd: \(cmd) loadCmd:", loadCmd.description)
-                    } else {
-                        print("Cmd: \(cmd): \(lcHdr)")
-                    }
-                } else {
-                    print("Cannot read load command header: \(cmd)")
-                }
-            }
-        } catch {
-            throw LinkerError.UnrecoverableError(reason: "Parse Error")
+        guard srcLibData.loadCommandSegments.count > 0 else {
+            throw LinkerError.UnrecoverableError(reason: "No load command segments found")
         }
 
-        let loadSegment = srcLibData.loadCommandSegment
+        if (srcLibData.header.fileType == MachOReader.FileType.OBJECT) {
+            guard srcLibData.loadCommandSegments.count == 1 else {
+                throw LinkerError.UnrecoverableError(reason: "OBJECT file has >1 segments")
+            }
 
-        let fileInfo = FileInfo(symbolTable: srcLibData.symbolTable)
-        for section in loadSegment.sections {
-            if section.segmentName == "__TEXT" {
-                let sectionStart = try textSection.addSection(section, fileInfo: fileInfo)
-                fileInfo.sectionBaseAddrs[section.sectionNumber] = sectionStart
-            } else if section.segmentName == "__DATA" {
-                let sectionStart = try dataSection.addSection(section, fileInfo: fileInfo)
-                fileInfo.sectionBaseAddrs[section.sectionNumber] = sectionStart
-            } else {
-                //throw LinkerError.UnrecoverableError(reason: "Unknown section: \(section.segmentName)")
-                print("Skipping section: \(section.segmentName)");
+            guard srcLibData.loadCommandSegments[0].vmaddr == 0 else {
+                throw LinkerError.UnrecoverableError(reason: "OBJECT file has vmaddr set!")
+            }
+        }
+
+        for idx in 0..<srcLibData.loadCommands.count {
+            print("\(idx): \(srcLibData.loadCommands[idx].description)")
+        }
+
+        // These two vars track the offset that sections are copied to, this allows that difference
+        // between where a section's addr says it should go and where it ends up (relative to the start of the
+        // object file not the start of the total output
+        var textAddress: UInt64?
+        var dataAddress: UInt64?
+
+        for loadSegment in srcLibData.loadCommandSegments {
+            print(loadSegment)
+            let fileInfo = FileInfo(file: srcLibData) //symbolTable: srcLibData.symbolTable, dySymbolTable: srcLibData.dySymbolTable)
+            for section in loadSegment.sections {
+                if section.segmentName == "__TEXT" {
+                    var curaddr = textSection.currentOffset
+                    let sectionStart = try textSection.addSection(loadSegment, section: section, fileInfo: fileInfo)
+                    if textAddress == nil {
+                        textAddress = sectionStart
+                        curaddr = sectionStart
+                    }
+                    fileInfo.sectionBaseAddrs[section.sectionNumber] = sectionStart
+                    fileInfo.offsetInSegment[section.sectionNumber] = curaddr - textAddress!
+                } else if section.segmentName == "__DATA" {
+                    var curaddr = dataSection.currentOffset
+                    let sectionStart = try dataSection.addSection(loadSegment, section: section, fileInfo: fileInfo)
+                    if dataAddress == nil {
+                        dataAddress = sectionStart
+                        curaddr = sectionStart
+                    }
+                    fileInfo.sectionBaseAddrs[section.sectionNumber] = sectionStart
+                    fileInfo.offsetInSegment[section.sectionNumber] = curaddr - dataAddress!
+                } else {
+                    print("Skipping section: \(section.segmentName)");
+                }
             }
         }
     }
@@ -295,7 +374,7 @@ func processDylib(args: [String:AnyObject]) throws {
     var map = textSection.symbolMap()
     try map.mergeSymbols(dataSection.symbolMap())
 
-    print(map)
+    //print(map)
     try textSection.relocate(map: map)
     try dataSection.relocate(map: map)
 
@@ -307,7 +386,7 @@ func processDylib(args: [String:AnyObject]) throws {
     outputFile.writeData(dataSection.sectionData)
     outputFile.closeFile()
     if let mapfile = args["--mapfile"] as? String {
-        try writeMapToFile(mapfile, map: map)
+        try writeMapToFile(mapfile, map: map, textAddress: textSection.baseAddress, dataAddress: dataSection.baseAddress)
     }
 }
 
@@ -349,7 +428,7 @@ func parseArgs() throws -> [String:AnyObject] {
 
 
 do {
-    try processDylib(parseArgs())
+    try processSourceFile(parseArgs())
 } catch LinkerError.UnrecoverableError(let reason) {
     print("Error processing arguments: \(reason)")
     exit(EXIT_FAILURE)

@@ -49,7 +49,7 @@ class LoadCommandSymTab : LoadCommand {
         }
 
 
-        init?(name: String, type: UInt8, section: UInt8, value: UInt64) {
+        private init?(name: String, type: UInt8, section: UInt8, value: UInt64) {
             let PRIVATE_EXTERNAL_BIT_MASK : UInt8 = 0x10
             let EXTERNAL_BIT_MASK : UInt8 = 0x1
 
@@ -79,13 +79,14 @@ class LoadCommandSymTab : LoadCommand {
 
             symbols.reserveCapacity(numberSyms)
             if numberSyms > 1 {
-                for idx in 0...numberSyms-1 {
+                for idx in 0..<numberSyms {
                     let symbol = symbolBuffer[Int(idx)]
                     let sym = Symbol(
                         name: try reader.readASCIIZString(strOffset + Int(symbol.strIdx), strSize - strOffset)!,
                         type: symbol.type,
                         section: symbol.section,
                         value: symbol.value
+                        //symbol: symbol
                     )
                     if (sym == nil) {
                         return nil
@@ -98,18 +99,6 @@ class LoadCommandSymTab : LoadCommand {
         }
     }
 
-/***
-    func symbolsInSection(section: Int) -> [Symbol] {
-        var result: [Symbol] = []
-        for symbol in symbols {
-            if Int(symbol.sectionNumber) == section {
-                result.append(symbol)
-            }
-        }
-
-        return result
-    }
-***/
 
     override var description: String {
         return "LoadCommandSymTab symbol count: \(symbols.count)"

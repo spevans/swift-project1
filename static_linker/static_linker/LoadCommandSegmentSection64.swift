@@ -17,7 +17,7 @@ class LoadCommandSegmentSection64 {
     var addr : UInt64           = 0
     var size : UInt64           = 0
     var fileOffset : UInt32     = 0
-    var align : UInt32          = 0
+    var align : UInt32          = 0     // log2 of alignment
     var relocOffset : UInt32    = 0
     var numberOfRelocs : UInt32 = 0
     var flags : UInt32          = 0
@@ -75,21 +75,35 @@ class LoadCommandSegmentSection64 {
     }
 
 
+    enum RelocationType: UInt8 {
+        case X86_64_RELOC_UNSIGNED      = 0 // for absolute addresses
+        case X86_64_RELOC_SIGNED        = 1 // for signed 32-bit displacement
+        case X86_64_RELOC_BRANCH        = 2 // a CALL/JMP instruction with 32-bit displacement
+        case X86_64_RELOC_GOT_LOAD      = 3 // a MOVQ load of a GOT entry
+        case X86_64_RELOC_GOT           = 4 // other GOT references
+        case X86_64_RELOC_SUBTRACTOR    = 5 // must be followed by a X86_64_RELOC_UNSIGNED
+        case X86_64_RELOC_SIGNED_1      = 6 // for signed 32-bit displacement with a -1 addend
+        case X86_64_RELOC_SIGNED_2      = 7 // for signed 32-bit displacement with a -2 addend
+        case X86_64_RELOC_SIGNED_4      = 8 // for signed 32-bit displacement with a -4 addend
+        case X86_64_RELOC_TLV           = 9 // for thread local variables
+    }
+
+
     struct Relocation {
         let address: UInt32
         let symbolNum: UInt32
         let PCRelative: Bool
         let length: UInt8
         let extern: Bool
-        let type: UInt8
+        let type: RelocationType
 
         var description: String {
-            return String(format: "addr: %08X num: %d PCRel: %d len: %d extern: %d type: %d",
-                address, symbolNum, PCRelative, length, extern, type)
+            return String(format: "addr: %08X num: %d PCRel: %d len: %d extern: %d type: \(type)",
+                address, symbolNum, PCRelative, length, extern)
         }
 
 
-        init(address: UInt32, data: UInt32) {
+        init?(address: UInt32, data: UInt32) {
             let SYMBOL_MASK: UInt32 = 0x00FFFFFF
             let PCREL_MASK: UInt32  = 0x01000000
             let LENGTH_MASK: UInt32 = 0x06000000
@@ -101,7 +115,11 @@ class LoadCommandSegmentSection64 {
             self.PCRelative = (data & PCREL_MASK) == PCREL_MASK
             self.length = UInt8((data & LENGTH_MASK) >> 25)
             self.extern = (data & EXTERN_MASK) == EXTERN_MASK
-            self.type = UInt8((data & TYPE_MASK) >> 28)
+
+            guard let type = RelocationType(rawValue: UInt8((data & TYPE_MASK) >> 28)) else {
+                return nil
+            }
+            self.type = type
         }
     }
 
@@ -112,8 +130,7 @@ class LoadCommandSegmentSection64 {
         do {
             func parseFlags(value: UInt32) throws -> (SectionType, SectionAttribute) {
                 guard let sType = SectionType(rawValue: UInt8(value & 0xFF)) else {
-                    print("Bad section flags")
-                    throw MachOReader.ReadError.InvalidData
+                    throw MachOReader.ReadError.InvalidData(reason: "Bad section flags")
                 }
                 let sAttr = SectionAttribute(rawValue: UInt32(value & 0xFFFFFF00))
 
@@ -137,8 +154,11 @@ class LoadCommandSegmentSection64 {
                 try self.parseRelocations()
             } catch {
             }
+        } catch MachOReader.ReadError.InvalidData(let reason) {
+            print("Error reading from buffer: \(reason)")
+            return nil
         } catch {
-            print("Error reading from buffer")
+            print("Non InvalidData error")
             return nil
         }
     }
@@ -159,7 +179,10 @@ class LoadCommandSegmentSection64 {
         for _ in 0..<Int(numberOfRelocs) {
             let addr: UInt32 = try relocBuffer.read()
             let data: UInt32 = try relocBuffer.read()
-            result.append(Relocation(address: addr, data: data))
+            guard let reloc = Relocation(address: addr, data: data) else {
+                throw MachOReader.ReadError.InvalidData(reason: "Bad relocation info")
+            }
+            result.append(reloc)
         }
 
         return result
@@ -172,8 +195,8 @@ class LoadCommandSegmentSection64 {
 
 
     var description: String {
-        return String(format: "%@: %@ addr: %016X size: %016X fileOffset: %08X type: \(sectionType) align: %02X relocs: %d/%08X attr: \(attributes)",
-            segmentName, sectionName, addr, size, fileOffset, align, numberOfRelocs, relocOffset)
+        return String(format: "%@: %02d %@ addr: %016X size: %016X fileOffset: %08X type: \(sectionType) align: %02X relocs: %d/%08X attr: \(attributes)",
+            segmentName, sectionNumber, sectionName, addr, size, fileOffset, align, numberOfRelocs, relocOffset)
     }
 
     lazy var sectionData: NSData? = {

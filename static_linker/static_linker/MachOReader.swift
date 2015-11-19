@@ -12,8 +12,12 @@ import Foundation
 class MachOReader {
     var file: NSData!
     var header: MachOHeader!
-    var loadCommandSegment: LoadCommandSegment64! = nil
-    var symbolTable: LoadCommandSymTab! = nil
+    var loadCommands: [LoadCommand] = []
+    var loadCommandSegments: [LoadCommandSegment64] = []
+    var loadCommandSections: [LoadCommandSegmentSection64] = []
+    var symbolTable: LoadCommandSymTab!
+    var dySymbolTable: LoadCommandDySymTab?
+    var totalSections = 0
 
 
     enum MachOMagic: UInt32 {
@@ -107,7 +111,7 @@ class MachOReader {
     enum ReadError : ErrorType {
         case InvalidHeader
         case InvalidOffset
-        case InvalidData
+        case InvalidData(reason: String)
     }
 
 
@@ -123,10 +127,26 @@ class MachOReader {
             for cmd in 0..<header!.ncmds {
                 if let lcHdr : LoadCommand.LoadCommandHdr = try getLoadCommand(cmd) {
                     if let loadCmd = LoadCommand(header: lcHdr, reader: self).parse() {
-                        if loadCmd is LoadCommandSegment64 {
-                            loadCommandSegment = loadCmd as! LoadCommandSegment64
-                        } else if loadCmd is LoadCommandSymTab {
+                        loadCommands.append(loadCmd)
+                        switch loadCmd {
+                        case is LoadCommandSegment64:
+                            loadCommandSegments.append(loadCmd as! LoadCommandSegment64)
+
+                        case is LoadCommandSymTab:
+                            guard symbolTable == nil else {
+                                print("2nd symbolTable found!")
+                                return nil
+                            }
                             symbolTable = loadCmd as! LoadCommandSymTab
+
+                        case is LoadCommandDySymTab:
+                            guard dySymbolTable == nil else {
+                                print("2nd DySymbolTable found!")
+                                return nil
+                            }
+                            dySymbolTable = loadCmd as? LoadCommandDySymTab
+
+                        default: break
                         }
                     } else {
                         return nil
@@ -136,8 +156,6 @@ class MachOReader {
                     return nil
                 }
             }
-
-
         } catch {
             return nil
         }
@@ -208,13 +226,13 @@ class MachOReader {
         if let result : T = try T(rawValue: readBytes(offset)) {
             return result
         }
-        throw ReadError.InvalidData
+        throw ReadError.InvalidData(reason: "Cant read ENUM")
     }
 
 
     func readASCIIZString(offset: Int, _ maxLength: Int) throws -> String? {
         guard (offset + maxLength) < file.length else {
-            throw ReadError.InvalidData
+            throw ReadError.InvalidOffset
         }
         let ptr = UnsafePointer<CChar>(file.bytes + offset)
 
@@ -284,7 +302,7 @@ class MemoryBufferReader {
         if let result = String(CString: newString, encoding: NSASCIIStringEncoding) {
             return result
         } else {
-            throw MachOReader.ReadError.InvalidData
+            throw MachOReader.ReadError.InvalidData(reason: "Invalid string")
         }
     }
 
@@ -301,7 +319,7 @@ class MemoryBufferReader {
         if let result = String(CString: str, encoding: NSASCIIStringEncoding) {
             return result
         } else {
-            throw MachOReader.ReadError.InvalidData
+            throw MachOReader.ReadError.InvalidData(reason: "Invalid string")
         }
     }
 

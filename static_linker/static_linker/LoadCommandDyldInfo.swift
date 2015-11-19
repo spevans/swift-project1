@@ -41,7 +41,7 @@ class LoadCommandDyldInfo: LoadCommand {
             exportSize = try buffer.read()
 
             let rebase = MemoryBufferReader(reader, offset: Int(rebaseOffset), size: Int(rebaseSize))
-            rebaseInfo(rebase!)
+            try rebaseInfo(rebase!)
 
             let bind = MemoryBufferReader(reader, offset: Int(bindOffset), size: Int(rebaseSize))
             bindInfo(bind!, isLazy: false)
@@ -111,7 +111,7 @@ class LoadCommandDyldInfo: LoadCommand {
             let immValue = instr & RebaseOpcode.IMMEDIATE_MASK
             return (opcode, immValue)
         } else {
-            throw MachOReader.ReadError.InvalidData
+            throw MachOReader.ReadError.InvalidData(reason: "Cant read Rebase Opcode")
         }
     }
 
@@ -121,12 +121,12 @@ class LoadCommandDyldInfo: LoadCommand {
             let immValue = instr & BindOpcode.IMMEDIATE_MASK
             return (opcode, immValue)
         } else {
-            throw MachOReader.ReadError.InvalidData
+            throw MachOReader.ReadError.InvalidData(reason: "Invalid Bind Opcode")
         }
     }
 
 
-    func rebaseInfo(r: MemoryBufferReader) {
+    func rebaseInfo(r: MemoryBufferReader) throws {
         //dumpBuffer(r)
         var rebaseType = RebaseType.NONE
         var segmentIndex: Int = 0
@@ -135,66 +135,62 @@ class LoadCommandDyldInfo: LoadCommand {
         var remainingLoopCount: UInt64 = 0
         let pointerSize: UInt64 = 8
 
-        do {
-            repeat {
-                let startOffset = r.offset
-                let (opcode, immValue) = try decodeRebaseOp(r.read())
+        repeat {
+            let startOffset = r.offset
+            let (opcode, immValue) = try decodeRebaseOp(r.read())
 
-                switch (opcode) {
-                case .DONE:
-                    break
+            switch (opcode) {
+            case .DONE:
+                break
 
-                case .SET_TYPE_IMM:
-                    guard let type = RebaseType(rawValue: immValue) else {
-                        throw MachOReader.ReadError.InvalidData
-                    }
-                    rebaseType = type
-                    break
-
-                case .SET_SEGMENT_AND_OFFSET_ULEB:
-                    segmentIndex = Int(immValue)
-                    segmentOffset = try readULEB128(r)
-                    break
-
-                case .ADD_ADDR_ULEB:
-                    segmentOffset += try readULEB128(r)
-                    break
-
-                case .ADD_ADDR_IMM_SCALED:
-                    segmentOffset += UInt64(immValue) * pointerSize
-                    break
-
-                case .DO_REBASE_IMM_TIMES:
-                    advanceAmt = pointerSize
-                    remainingLoopCount = UInt64(immValue) - 1
-                    break
-
-                case .DO_REBASE_ULEB_TIMES:
-                    advanceAmt = pointerSize
-                    remainingLoopCount = try readULEB128(r) - 1
-                    break
-
-                case .DO_REBASE_ADD_ADDR_ULEB:
-                    advanceAmt = try readULEB128(r) + pointerSize
-                    remainingLoopCount = 0
-                    break
-
-                case .DO_REBASE_ULEB_TIMES_SKIPPING_ULEB:
-                    remainingLoopCount = try readULEB128(r) - 1
-                    advanceAmt  = try readULEB128(r) + pointerSize
-                    break
+            case .SET_TYPE_IMM:
+                guard let type = RebaseType(rawValue: immValue) else {
+                    throw MachOReader.ReadError.InvalidData(reason: "Invalid RebaseType")
                 }
-                let ops = dumpBuffer(r, startOffset, r.offset)
-                var str = "\(ops): \(opcode): rebaseType: \(rebaseType) segmentIdx: \(segmentIndex) segmentOff: \(segmentOffset) "
-                str += "advance: \(advanceAmt) rlc: \(remainingLoopCount)"
-                //print(str)
-                if opcode == .DONE {
-                    return
-                }
-            } while true
-        } catch {
-            print("Read error")
-        }
+                rebaseType = type
+                break
+
+            case .SET_SEGMENT_AND_OFFSET_ULEB:
+                segmentIndex = Int(immValue)
+                segmentOffset = try readULEB128(r)
+                break
+
+            case .ADD_ADDR_ULEB:
+                segmentOffset += try readULEB128(r)
+                break
+
+            case .ADD_ADDR_IMM_SCALED:
+                segmentOffset += UInt64(immValue) * pointerSize
+                break
+
+            case .DO_REBASE_IMM_TIMES:
+                advanceAmt = pointerSize
+                remainingLoopCount = UInt64(immValue) - 1
+                break
+
+            case .DO_REBASE_ULEB_TIMES:
+                advanceAmt = pointerSize
+                remainingLoopCount = try readULEB128(r) - 1
+                break
+
+            case .DO_REBASE_ADD_ADDR_ULEB:
+                advanceAmt = try readULEB128(r) + pointerSize
+                remainingLoopCount = 0
+                break
+
+            case .DO_REBASE_ULEB_TIMES_SKIPPING_ULEB:
+                remainingLoopCount = try readULEB128(r) - 1
+                advanceAmt  = try readULEB128(r) + pointerSize
+                break
+            }
+            let ops = dumpBuffer(r, startOffset, r.offset)
+            var str = "\(ops): \(opcode): rebaseType: \(rebaseType) segmentIdx: \(segmentIndex) segmentOff: \(segmentOffset) "
+            str += "advance: \(advanceAmt) rlc: \(remainingLoopCount)"
+            //print(str)
+            if opcode == .DONE {
+                return
+            }
+        } while true
     }
 
 
@@ -256,15 +252,14 @@ class LoadCommandDyldInfo: LoadCommand {
 
                 case .SET_TYPE_IMM:
                     guard let type = BindType(rawValue: immValue) else {
-                        throw MachOReader.ReadError.InvalidData
+                        throw MachOReader.ReadError.InvalidData(reason: "Invalud BindType")
                     }
                     bindType = type
                     break
 
                 case .SET_ADDEND_SLEB:
                     if (isLazy) {
-                        print("SET_ADDEND_SLEB found in lazy bind")
-                        throw MachOReader.ReadError.InvalidData
+                        throw MachOReader.ReadError.InvalidData(reason: "SET_ADDEND_SLEB found in lazy bind")
                     }
                     addend = try readSLEB128(r)
                     break
@@ -275,7 +270,9 @@ class LoadCommandDyldInfo: LoadCommand {
                     break
 
                 case .ADD_ADDR_ULEB:
-                    segmentOffset += try readULEB128(r)
+                    // FIXME
+                    let val = try readULEB128(r)
+                    segmentOffset = segmentOffset &+ val
                     break
 
                 case .DO_BIND:
@@ -285,18 +282,17 @@ class LoadCommandDyldInfo: LoadCommand {
 
                 case .DO_BIND_ADD_ADDR_ULEB:
                     if (isLazy) {
-                        print("DO_BIND_ADD_ADDR_ULEB found in lazy bind")
-                        throw MachOReader.ReadError.InvalidData
+                        throw MachOReader.ReadError.InvalidData(reason: "DO_BIND_ADD_ADDR_ULEB found in lazy bind")
                     }
                     advanceAmt = try readULEB128(r)
-                    advanceAmt += pointerSize
+                    // FIXME
+                    advanceAmt = (advanceAmt &+ pointerSize)
                     remainingLoopCount = 0
                     break
 
                 case .DO_BIND_ADD_ADDR_IMM_SCALED:
                     if (isLazy) {
-                        print("DO_BIND_ADD_ADDR_IMM_SCALED found in lazy bind")
-                        throw MachOReader.ReadError.InvalidData
+                        throw MachOReader.ReadError.InvalidData(reason: "DO_BIND_ADD_ADDR_IMM_SCALED found in lazy bind")
                     }
                     advanceAmt = UInt64(immValue) * pointerSize
                     advanceAmt += pointerSize
@@ -305,8 +301,7 @@ class LoadCommandDyldInfo: LoadCommand {
 
                 case .DO_BIND_ULEB_TIMES_SKIPPING_ULEB:
                     if (isLazy) {
-                        print("DO_BIND_ULEB_TIMES_SKIPPING_ULEB found in lazy bind")
-                        throw MachOReader.ReadError.InvalidData
+                        throw MachOReader.ReadError.InvalidData(reason: "DO_BIND_ULEB_TIMES_SKIPPING_ULEB found in lazy bind")
                     }
                     remainingLoopCount = try readULEB128(r) - 1
                     advanceAmt = try readULEB128(r) + pointerSize
@@ -318,6 +313,8 @@ class LoadCommandDyldInfo: LoadCommand {
                 str += "ordinal: \(ordinal) addend: \(addend) symbol: \(symbolName)"
                 //print(str)
             }
+        } catch MachOReader.ReadError.InvalidData(let reason) {
+            print("Read error: \(reason)")
         } catch {
             print("Read error")
         }
@@ -363,11 +360,14 @@ class LoadCommandDyldInfo: LoadCommand {
 
     func readULEB128(r: MemoryBufferReader) throws -> UInt64 {
         var value: UInt64 = 0
+        var shift: UInt64 = 0
+        var byte: UInt8 = 0
+
         repeat {
-            let byte: UInt8 = try r.read()
-            value <<= 7
-            value |= UInt64(byte & 0x7f)
-        } while (value & 0x80) == 0x80
+            byte = try r.read()
+            value |= (UInt64(byte & 0x7f) << shift)
+            shift += 7
+        } while (byte & 0x80) == 0x80
 
         return value
     }
@@ -380,10 +380,9 @@ class LoadCommandDyldInfo: LoadCommand {
 
         repeat {
             byte = try r.read()
-            value <<= 7
-            value |= Int64(byte)
+            value |= (Int64(byte & 0x7f) << shift)
             shift += 7
-        } while (value & 0x80) == 0x80
+        } while (byte & 0x80) == 0x80
 
         if (Int(shift) < sizeof(Int64)) && (byte & 0x40) == 0x40 {
             // sign bit set so sign extend
