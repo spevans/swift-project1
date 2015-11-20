@@ -86,7 +86,6 @@ class LoadCommandSymTab : LoadCommand {
                         type: symbol.type,
                         section: symbol.section,
                         value: symbol.value
-                        //symbol: symbol
                     )
                     if (sym == nil) {
                         return nil

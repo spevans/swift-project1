@@ -18,7 +18,8 @@ enum LinkerError: ErrorType {
 
 class binarySection {
     let name: String
-    var baseAddress:   UInt64 = 0
+    var baseAddress:   UInt64 = 0               // base address of this section
+    var startAddress:   UInt64 = 0              // base address of complete binary (--baseAddress argument)
     var currentOffset: UInt64 = 0
     var sectionData    = NSMutableData()
     var symbolInfo:    [String: UInt64] = [:]
@@ -64,40 +65,47 @@ class binarySection {
         }
         let sectionStart = UInt64(sectionData.length)   // the current 'program counter' for this section
 
-        guard let data = section.sectionData else {
-            throw LinkerError.UnrecoverableError(reason: "Cant read data")
+        if (section.sectionType == .S_ZEROFILL) {
+            print("Adding \(section.size) bytes of zerofill")
+            sectionData.increaseLengthBy(Int(section.size))
+        } else {
+            guard let data = section.sectionData else {
+                throw LinkerError.UnrecoverableError(reason: "Cant read data")
+            }
+            sectionData.appendData(data)
         }
-        sectionData.appendData(data)
 
         // If there is a dynamic symbol table, use that to get a list of the declared symbols contained in the obj/lib
         // otherwise assume all of the symbols are
 
-        var symbolOffset: Int
-        var symbolCount: Int
-        if fileInfo.machOFile.dySymbolTable != nil {
-            symbolOffset = Int(fileInfo.machOFile.dySymbolTable!.idxExtDefSym )
-            symbolCount = Int(fileInfo.machOFile.dySymbolTable!.numExtDefSym)
-        } else {
-            symbolCount = fileInfo.machOFile.symbolTable.symbols.count
-            symbolOffset = 0
-        }
-
-        for symIdx in symbolOffset..<symbolCount {
-            let symbol = fileInfo.machOFile.symbolTable.symbols[symIdx]
-
-            if Int(symbol.sectionNumber) == section.sectionNumber && symbol.type != .UNDF {
-                print(symbol)
-                if globalMap[symbol.name] == nil {
-                    globalMap[symbol.name] = symbol
-                } else {
-                    print("Found \(symbol.name) already in globalMap")
+        func addSymbols(offset offset: Int, count: Int) {
+            let lastIdx = offset + count
+            for symIdx in offset..<lastIdx {
+                let symbol = fileInfo.machOFile.symbolTable.symbols[symIdx]
+                if Int(symbol.sectionNumber) == section.sectionNumber && symbol.type != .UNDF {
+                    print("\(symIdx): \(symbol.name)")
+                    if globalMap[symbol.name] == nil {
+                        globalMap[symbol.name] = symbol
+                    } else {
+                        print("Found \(symbol.name) already in globalMap")
+                    }
+                    symbolInfo[symbol.name] = (symbol.value - section.addr) + sectionStart
+                    symbolOrder.append(symbol.name)
                 }
-                symbolInfo[symbol.name] = (symbol.value - section.addr) + sectionStart
-                symbolOrder.append(symbol.name)
             }
         }
 
+        if fileInfo.machOFile.dySymbolTable != nil {
+            // Add in exported symbols
+            addSymbols(offset: Int(fileInfo.machOFile.dySymbolTable!.idxExtDefSym),
+                count: Int(fileInfo.machOFile.dySymbolTable!.numExtDefSym))
 
+            // Add in local symbols
+            addSymbols(offset: Int(fileInfo.machOFile.dySymbolTable!.idxLocalSym),
+                count:Int(fileInfo.machOFile.dySymbolTable!.numLocalSym))
+        } else {
+            addSymbols(offset: 0, count: fileInfo.machOFile.symbolTable.symbols.count)
+        }
 
         let tuple = (section, fileInfo)
         relocations.append(tuple)
@@ -132,13 +140,22 @@ class binarySection {
         }
 
         for reloc in relocs {
-            guard reloc.type == LoadCommandSegmentSection64.RelocationType.X86_64_RELOC_BRANCH ||
-                reloc.type == LoadCommandSegmentSection64.RelocationType.X86_64_RELOC_SIGNED else {
-                throw LinkerError.UnrecoverableError(reason: "Cant processes reloc type \(reloc.type)")
+            switch reloc.type {
+            case .X86_64_RELOC_BRANCH, .X86_64_RELOC_SIGNED:
+                guard reloc.PCRelative == true else {
+                    throw LinkerError.UnrecoverableError(reason: "reloc is not PCRelative")
+                }
+
+            case .X86_64_RELOC_UNSIGNED:
+                break
+
+            case .X86_64_RELOC_SIGNED_4:
+                break
+
+            default:
+                throw LinkerError.UnrecoverableError(reason: "Unsupported reloc type: \(reloc.type)")
             }
-            guard reloc.PCRelative == true else {
-                throw LinkerError.UnrecoverableError(reason: "reloc is not PCRelative")
-            }
+
             var address: Int64 = 0              // The value to be patched into memory
             var symAddr: UInt64 = 0             // The address of the symbol or section that is the target
             let length = Int(1 << reloc.length) // Number of bytes to modify
@@ -147,7 +164,7 @@ class binarySection {
             let offset = Int(reloc.address) + Int(fileInfo.sectionBaseAddrs[section.sectionNumber]!)
             let pc = (baseAddress + UInt64(offset + length))
 
-            //print(reloc)
+            print(reloc)
             if reloc.extern {
                 // Target is a symbol
                 let symbols = fileInfo.machOFile.symbolTable.symbols
@@ -155,26 +172,34 @@ class binarySection {
                 guard let addr = map[symbolName!] else {
                     throw LinkerError.UnrecoverableError(reason: "Undefined symbol: \(symbolName!)")
                 }
+                print(symbolName!)
                 symAddr = addr
-                address = Int64(symAddr) - Int64(pc)
+                if (reloc.PCRelative) {
+                    address = Int64(symAddr) - Int64(pc)
+                } else {
+                    throw LinkerError.UnrecoverableError(reason: "PCRelative == false not allowed")
+                }
             } else {
                 // Target is in another section
                 let section = Int(reloc.symbolNum)
-                symAddr = fileInfo.sectionBaseAddrs[section]! //+ baseAddress
-                let oldAddr = fileInfo.machOFile.loadCommandSections[section-1].addr
-                address = Int64(fileInfo.offsetInSegment[section]!) - Int64(oldAddr)
 
-                print("oldAddr: \(oldAddr)")
+                // Where the section was originally supposed to go
+                let oldAddr = fileInfo.machOFile.loadCommandSections[section-1].addr
+                if (reloc.type == .X86_64_RELOC_UNSIGNED) {
+                    symAddr = fileInfo.sectionBaseAddrs[section]! + startAddress
+                    address = Int64(symAddr - oldAddr)
+                } else {
+                    address = Int64(fileInfo.offsetInSegment[section]!) - Int64(oldAddr)
+                }
             }
 
+            // The absolute address needs to be made relative to the symbol being patched
 
-                // The absolute address needs to be made relative to the symbol being patched
-
-                print(String(format:"pc: %08X relocAddr: %08X symAddr: %08X baseAddr: %08X address: %08X offset: %08X length: %d  ",
-                    pc, reloc.address, symAddr, baseAddress, address, offset, length), terminator:"" )
+            //print(String(format:"pc: %08X relocAddr: %08X symAddr: %08X baseAddr: %08X address: %08X offset: %08X length: %d  ",
+             //   pc, reloc.address, symAddr, baseAddress, address, offset, length), terminator:"" )
 
             //print(String(format: "Updating location %0X length = \(reloc.length) with %016X", reloc.address, address))
-            print(String(format: "symAddr: %08X offset: %d/%04X length: %d", symAddr, offset, offset,length))
+            //print(String(format: "symAddr: %08X offset: %d/%04X length: %d", symAddr, offset, offset,length))
 
             guard (offset + length) <= sectionData.length else {
                 throw LinkerError.UnrecoverableError(reason: "Bad offset \(offset + length) > \(sectionData.length)")
@@ -184,8 +209,8 @@ class binarySection {
             let relocAddr = UnsafePointer<Void>(sectionData.bytes + offset)
 
             // The address to patch may not contain 0 it main contain an offset that needs to be added to the address
-            let addend: Int8 =  UnsafePointer<Int8>(relocAddr).memory
-            print("Addend at location: \(addend)")
+            let addend: Int8 = (reloc.type == .X86_64_RELOC_UNSIGNED) ? 0 :  UnsafePointer<Int8>(relocAddr).memory
+            //print("Addend at location: \(addend)")
 
             switch (length) {
             case 1:
@@ -210,8 +235,13 @@ class binarySection {
                 ptr.memory = Int32(littleEndian: Int32(address)) + Int32(addend)
 
             case 8:
-                let ptr = UnsafeMutablePointer<Int64>(relocAddr)
-                ptr.memory = Int64(littleEndian: address) + Int64(addend)
+                if (reloc.type == .X86_64_RELOC_UNSIGNED) {
+                    let ptr = UnsafeMutablePointer<UInt64>(relocAddr)
+                    ptr.memory += UInt64(littleEndian: UInt64(bitPattern: address))
+                } else {
+                    let ptr = UnsafeMutablePointer<Int64>(relocAddr)
+                    ptr.memory = Int64(littleEndian: address) + Int64(addend)
+                }
 
             default:
                 throw LinkerError.UnrecoverableError(reason: "Invalid symbol relocation length \(length)")
@@ -252,21 +282,24 @@ func openOutput(filename: String) throws -> NSFileHandle {
 }
 
 
-func writeMapToFile(filename: String, map: [String:UInt64], textAddress: UInt64, dataAddress: UInt64) throws {
-    let sortedMap = map.sort({ return $0.1 < $1.1 })
-    let mapFile = try openOutput(filename)
-    var showData = false
+func writeMapToFile(filename: String, textMap: [String:UInt64], dataMap: [String:UInt64], bssMap: [String:UInt64],
+    textAddr: UInt64, dataAddr: UInt64, bssAddr: UInt64) throws {
 
-    mapFile.writeString(String(format: ".text section baseAddress: %08X\n\n", textAddress))
+        let mapFile = try openOutput(filename)
 
-    for (symbol, addr) in sortedMap {
-        if (addr >= dataAddress) && !showData {
-            mapFile.writeString(String(format: "\n.data section baseAddress: %08X\n\n", dataAddress))
-            showData = true
+        func writeSection(name:String, _ map: [String:UInt64], _ baseAddr: UInt64) {
+            mapFile.writeString(String(format: "%@ section baseAddress: %08X\n\n", name, baseAddr))
+            for (symbol, addr) in map.sort({ return $0.1 < $1.1 }) {
+                mapFile.writeString(String(format: "%08X [%10d]: %@\n", addr, addr, symbol))
+            }
         }
-        mapFile.writeString(String(format: "%08X [%10d]: %@\n", addr, addr, symbol))
-    }
-    mapFile.closeFile()
+
+        writeSection(".text", textMap, textAddr)
+        mapFile.writeString("\n\n")
+        writeSection(".data", dataMap, dataAddr)
+        mapFile.writeString("\n\n")
+        writeSection(".bss", bssMap, bssAddr)
+        mapFile.closeFile()
 }
 
 
@@ -288,6 +321,24 @@ class FileInfo {
 
     init(file: MachOReader) {
         self.machOFile = file
+    }
+}
+
+var bssSymbols: [String:LoadCommandSymTab.Symbol] = [:]
+
+func findBssSymbols(symbols: [LoadCommandSymTab.Symbol]) throws {
+    for symbol in symbols {
+        print(symbol)
+        if (symbol.sectionNumber == 0) && (symbol.type == .UNDF) && symbol.value > 0 {
+            if let sym = bssSymbols[symbol.name] {
+                if sym.value != symbol.value {
+                    let reason = "Found \(symbol.name) in bss list but it has size \(sym.value) and not \(symbol.value)"
+                    throw LinkerError.UnrecoverableError(reason:reason)
+                }
+            } else {
+                bssSymbols[symbol.name] = symbol
+            }
+        }
     }
 }
 
@@ -328,6 +379,7 @@ func processSourceFile(args: [String:AnyObject]) throws {
         var textAddress: UInt64?
         var dataAddress: UInt64?
 
+        try findBssSymbols(srcLibData.symbolTable.symbols)
         for loadSegment in srcLibData.loadCommandSegments {
             print(loadSegment)
             let fileInfo = FileInfo(file: srcLibData) //symbolTable: srcLibData.symbolTable, dySymbolTable: srcLibData.dySymbolTable)
@@ -364,6 +416,8 @@ func processSourceFile(args: [String:AnyObject]) throws {
         }
         print(String(format: "Base address = %016X", addr))
         textSection.baseAddress = addr
+        textSection.startAddress = addr
+        dataSection.startAddress = addr
     }
 
     var dataAddr = textSection.baseAddress + textSection.currentOffset
@@ -371,9 +425,29 @@ func processSourceFile(args: [String:AnyObject]) throws {
     dataSection.baseAddress = dataAddr
 
     // Update symbol locations and relocate
-    var map = textSection.symbolMap()
-    try map.mergeSymbols(dataSection.symbolMap())
+    let textMap = textSection.symbolMap()
+    let dataMap = dataSection.symbolMap()
+    var map = textMap
+    try map.mergeSymbols(dataMap)
 
+    // Put the BSS after the data section and align to 8 bytes
+    let dataEnd = dataSection.baseAddress + dataSection.currentOffset
+    let bssBaseAddr: UInt64 = (dataEnd + 7) & ~7
+    let bssFileOffset = bssBaseAddr - dataEnd
+
+    // Create bss from BSS symbols
+    print("BSS symbols: \(bssSymbols)")
+
+    var bssMap: [String:UInt64] = [:]
+    var bssOffset: UInt64 = 0
+    for symbol in bssSymbols {
+        bssMap[symbol.0] = bssBaseAddr + bssOffset
+        bssOffset += UInt64(symbol.1.value)
+    }
+    try map.mergeSymbols(bssMap)
+
+
+    // Find all of the symbols refernced in the BSS and allocate them an address
     //print(map)
     try textSection.relocate(map: map)
     try dataSection.relocate(map: map)
@@ -384,9 +458,19 @@ func processSourceFile(args: [String:AnyObject]) throws {
     let dataOffset = dataSection.baseAddress - textSection.baseAddress
     outputFile.seekToFileOffset(dataOffset)
     outputFile.writeData(dataSection.sectionData)
+
+    print("bssFileOffset = \(bssFileOffset)")
+    let bssFileSz = bssOffset
+    print("bssFileSz = \(bssFileSz)")
+    let bss = NSMutableData()
+    bss.increaseLengthBy(Int(bssFileOffset + bssFileSz + 100))
+    outputFile.writeData(bss)
+
+
     outputFile.closeFile()
     if let mapfile = args["--mapfile"] as? String {
-        try writeMapToFile(mapfile, map: map, textAddress: textSection.baseAddress, dataAddress: dataSection.baseAddress)
+        try writeMapToFile(mapfile, textMap: textMap, dataMap: dataMap, bssMap: bssMap,
+            textAddr: textSection.baseAddress, dataAddr: dataSection.baseAddress, bssAddr: bssBaseAddr)
     }
 }
 
