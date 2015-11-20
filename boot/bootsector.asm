@@ -9,7 +9,7 @@ LOAD_SEG        EQU       0x9000  ; 16bit code loaded here
 start:
         xor     ax, ax
         mov     ss, ax
-        mov     sp, 0x1000
+        mov     sp, 0x2000
         mov     ds, ax
         mov     es, ax
 

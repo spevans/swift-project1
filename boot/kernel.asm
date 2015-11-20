@@ -5,6 +5,7 @@
 
 extern _init_tty
 start_of_kernel:
+        mov     esp, 0x2000             ; Reset the SP to top of page1
         mov     rdi, 0xB8000
         mov     rcx, 500                 ; Clear 2000 bytes as 500x8
         mov     rax, 0x4F201F204F201F20  ; White on Blue spaces

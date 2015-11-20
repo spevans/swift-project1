@@ -1,4 +1,4 @@
-;;; Setup 4 level page tables with the PGD at 0x1000
+;;; Setup 4 level page tables with the PGD at 0x3000
 ;;; Identity maps the first 16MB so only needs 1 entry
 ;;; in the PML4/PDP 8 in the PD and 2048 PTEs in the PT
 
@@ -6,30 +6,30 @@ PAGE_PRESENT    EQU     1
 PAGE_WRITEABLE  EQU     2
 
 
-;;; Setup pagetables a 48KB region @ 0000:1000
-;;; PML4 @ 0000:1000, PDP @ 0000:2000, PD @ 0000:3000 PT @ 0000:4000 - 0000:7000
+;;; Setup pagetables a 48KB region @ 0000:3000
+;;; PML4 @ 0000:3000, PDP @ 0000:4000, PD @ 0000:5000 PT @ 0000:6000 - 0000:9FFF
 
 setup_pagetables:
         push    es
         push    di
         xor     eax, eax
         mov     es, ax
-        mov     edi, 0x1000
+        mov     edi, 0x3000
         mov     cr3, edi
         mov     cx, 0x2C00     ; clear 44KB (11 pages)
         cld
         rep     stosd
         mov     edi, cr3
         ;; Page Map Level 4 (PML4)
-        mov     eax, 0x2000 | PAGE_PRESENT | PAGE_WRITEABLE
+        mov     eax, 0x4000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di], eax
 
         ;; Page Directory Pointer (PDP)
-        mov     eax, 0x3000 | PAGE_PRESENT | PAGE_WRITEABLE
+        mov     eax, 0x5000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di + 0x1000], eax
 
         ;; Page Directory (PD), 8 entries
-        mov     eax, 0x4000 | PAGE_PRESENT | PAGE_WRITEABLE
+        mov     eax, 0x6000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     cx, 8
 
 pde_loop:
@@ -43,7 +43,7 @@ pde_loop:
         ;; maps linear 0-16MB to physical 0-16MB
 
         mov     eax, PAGE_PRESENT | PAGE_WRITEABLE ; EAX -> physical addr 0
-        mov     di, 0x4000
+        mov     di, 0x6000
         mov     cx, 4096        ; entry count
 
 pte_loop:
@@ -52,17 +52,20 @@ pte_loop:
         add     di, 8
         dec     cx
         jnz     pte_loop
-
-        mov     di, 0x1000
-        mov     cl, 16
-        call    HexDump
-        mov     di, 0x2000
-        mov     cl, 16
-        call    HexDump
+        xor     eax, eax
+        mov     [es:0x6000], eax        ; Unmap page 0 and page 2 to catch null ptr and
+        mov     [es:0x6010], eax        ; stack underflow and overflow. The SP will be set to
+                                        ; page 1 (0x2000 is the top)
         mov     di, 0x3000
         mov     cl, 16
         call    HexDump
-        mov     di, 0x4480
+        mov     di, 0x4000
+        mov     cl, 16
+        call    HexDump
+        mov     di, 0x6000
+        mov     cl, 32
+        call    HexDump
+        mov     di, 0x6480
         mov     cl, 32
         call    HexDump
         pop     di
