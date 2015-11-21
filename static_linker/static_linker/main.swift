@@ -9,21 +9,36 @@
 import Foundation
 
 
-// FIXME: remove after debugging
-var globalMap: [String:LoadCommandSymTab.Symbol] = [:]
 enum LinkerError: ErrorType {
     case UnrecoverableError(reason: String)
 }
+
+enum Section: String {
+    case TEXT = "__TEXT"
+    case DATA = "__DATA"
+    case BSS  = "__BSS"
+}
+
+struct SymbolInfo {
+    let name: String
+    let section: Section
+    var address: UInt64 = 0 // Initially offset in the section until final address is determined
+    let isLocal: Bool
+    var GOTAddress: UInt64? // nil if doesnt need an entry, else 0 until GOT address is determined
+    var bssSize: Int?
+}
+
+
+var globalMap: [String:SymbolInfo] = [:]
+var bssSymbols: [String:Int] = [:]
 
 
 class binarySection {
     let name: String
     var baseAddress:   UInt64 = 0               // base address of this section
-    var startAddress:   UInt64 = 0              // base address of complete binary (--baseAddress argument)
+    var startAddress:  UInt64 = 0               // base address of complete binary (--baseAddress argument)
     var currentOffset: UInt64 = 0
     var sectionData    = NSMutableData()
-    var symbolInfo:    [String: UInt64] = [:]
-    var symbolOrder:   [String] = []
     var relocations:   [(LoadCommandSegmentSection64, FileInfo)] = []
 
 
@@ -31,18 +46,6 @@ class binarySection {
         self.name = name
     }
 
-
-    func printInfo() {
-        print("\(name) Symbols:")
-        for symbol in symbolOrder {
-            let offset: UInt64 = baseAddress + symbolInfo[symbol]!
-            print(String(format: "%@: %016X", symbol, offset))
-        }
-        print("Relocations:")
-        for reloc in relocations {
-            print("Reloc: \(reloc)")
-        }
-    }
 
     func align(addr: UInt64, alignment: UInt64) -> UInt64 {
         if (alignment > 0) {
@@ -77,34 +80,33 @@ class binarySection {
 
         // If there is a dynamic symbol table, use that to get a list of the declared symbols contained in the obj/lib
         // otherwise assume all of the symbols are
-
-        func addSymbols(offset offset: Int, count: Int) {
+        func addSymbols(offset offset: Int, count: Int) throws {
             let lastIdx = offset + count
             for symIdx in offset..<lastIdx {
                 let symbol = fileInfo.machOFile.symbolTable.symbols[symIdx]
                 if Int(symbol.sectionNumber) == section.sectionNumber && symbol.type != .UNDF {
                     print("\(symIdx): \(symbol.name)")
                     if globalMap[symbol.name] == nil {
-                        globalMap[symbol.name] = symbol
+                        let address = (symbol.value - section.addr) + sectionStart
+                        globalMap[symbol.name] = SymbolInfo(name: symbol.name, section: Section(rawValue: name)!,
+                            address: address, isLocal: symbol.privateExternalBit, GOTAddress: nil, bssSize: nil)
                     } else {
-                        print("Found \(symbol.name) already in globalMap")
+                        throw LinkerError.UnrecoverableError(reason: "Found \(symbol.name) already in globalMap")
                     }
-                    symbolInfo[symbol.name] = (symbol.value - section.addr) + sectionStart
-                    symbolOrder.append(symbol.name)
                 }
             }
         }
 
         if fileInfo.machOFile.dySymbolTable != nil {
             // Add in exported symbols
-            addSymbols(offset: Int(fileInfo.machOFile.dySymbolTable!.idxExtDefSym),
+            try addSymbols(offset: Int(fileInfo.machOFile.dySymbolTable!.idxExtDefSym),
                 count: Int(fileInfo.machOFile.dySymbolTable!.numExtDefSym))
 
             // Add in local symbols
-            addSymbols(offset: Int(fileInfo.machOFile.dySymbolTable!.idxLocalSym),
+            try addSymbols(offset: Int(fileInfo.machOFile.dySymbolTable!.idxLocalSym),
                 count:Int(fileInfo.machOFile.dySymbolTable!.numLocalSym))
         } else {
-            addSymbols(offset: 0, count: fileInfo.machOFile.symbolTable.symbols.count)
+            try addSymbols(offset: 0, count: fileInfo.machOFile.symbolTable.symbols.count)
         }
 
         let tuple = (section, fileInfo)
@@ -115,25 +117,14 @@ class binarySection {
     }
 
 
-    func symbolMap() -> [String:UInt64] {
-        var map: [String:UInt64] = [:]
-
-        for symbol in symbolInfo {
-            map[symbol.0] = symbol.1 + baseAddress
-        }
-
-        return map
-    }
-
-
-    func relocate(map map: [String:UInt64]) throws {
+    func relocate() throws {
         for (section, fileInfo) in relocations {
-            try relocateSection(map, section, fileInfo)
+            try relocateSection(section, fileInfo)
         }
     }
 
 
-    func relocateSection(map: [String:UInt64], _ section: LoadCommandSegmentSection64, _ fileInfo: FileInfo) throws {
+    func relocateSection(section: LoadCommandSegmentSection64, _ fileInfo: FileInfo) throws {
 
         guard let relocs = section.relocations else {
             throw LinkerError.UnrecoverableError(reason: "Null relocations")
@@ -169,11 +160,11 @@ class binarySection {
                 // Target is a symbol
                 let symbols = fileInfo.machOFile.symbolTable.symbols
                 let symbolName: String? = reloc.extern ? symbols[Int(reloc.symbolNum)].name : nil
-                guard let addr = map[symbolName!] else {
+                guard let symbol = globalMap[symbolName!] else {
                     throw LinkerError.UnrecoverableError(reason: "Undefined symbol: \(symbolName!)")
                 }
                 print(symbolName!)
-                symAddr = addr
+                symAddr = symbol.address
                 if (reloc.PCRelative) {
                     address = Int64(symAddr) - Int64(pc)
                 } else {
@@ -250,18 +241,6 @@ class binarySection {
     }
 }
 
-extension Dictionary {
-    mutating func mergeSymbols<K, V>(dict: [K: V]) throws {
-        for (k, v) in dict {
-            if (self[k as! Key] != nil) {
-                //throw LinkerError.UnrecoverableError(reason: "\(k) is already defined")
-            } else {
-                self.updateValue(v as! Value, forKey: k as! Key)
-            }
-        }
-    }
-}
-
 
 extension NSFileHandle {
     func writeString(string: String) {
@@ -282,23 +261,28 @@ func openOutput(filename: String) throws -> NSFileHandle {
 }
 
 
-func writeMapToFile(filename: String, textMap: [String:UInt64], dataMap: [String:UInt64], bssMap: [String:UInt64],
-    textAddr: UInt64, dataAddr: UInt64, bssAddr: UInt64) throws {
+func writeMapToFile(filename: String, textAddr: UInt64, dataAddr: UInt64, bssAddr: UInt64) throws {
 
         let mapFile = try openOutput(filename)
+        let sortedSymbols = globalMap.keys.sort({ return globalMap[$0]!.address < globalMap[$1]!.address })
 
-        func writeSection(name:String, _ map: [String:UInt64], _ baseAddr: UInt64) {
+        func writeSection(name:String, _ section: Section, _ baseAddr: UInt64) {
             mapFile.writeString(String(format: "%@ section baseAddress: %08X\n\n", name, baseAddr))
-            for (symbol, addr) in map.sort({ return $0.1 < $1.1 }) {
-                mapFile.writeString(String(format: "%08X [%10d]: %@\n", addr, addr, symbol))
+            for name in sortedSymbols {
+                let symbol = globalMap[name]!
+                if symbol.section == section {
+                    let addr = symbol.address
+                    mapFile.writeString(String(format: "%08X [%10d]:%@: %@\n", addr, addr, symbol.isLocal ? "L" : "G",
+                        symbol.name))
+                }
             }
         }
 
-        writeSection(".text", textMap, textAddr)
+        writeSection(".text", Section.TEXT, textAddr)
         mapFile.writeString("\n\n")
-        writeSection(".data", dataMap, dataAddr)
+        writeSection(".data", Section.DATA, dataAddr)
         mapFile.writeString("\n\n")
-        writeSection(".bss", bssMap, bssAddr)
+        writeSection(".bss", Section.BSS, bssAddr)
         mapFile.closeFile()
 }
 
@@ -324,19 +308,20 @@ class FileInfo {
     }
 }
 
-var bssSymbols: [String:LoadCommandSymTab.Symbol] = [:]
 
+// Look through all of the symbols to find the ones which are BSS and store them along with their
+// size (which is that symbol.value).
 func findBssSymbols(symbols: [LoadCommandSymTab.Symbol]) throws {
     for symbol in symbols {
-        print(symbol)
         if (symbol.sectionNumber == 0) && (symbol.type == .UNDF) && symbol.value > 0 {
-            if let sym = bssSymbols[symbol.name] {
-                if sym.value != symbol.value {
-                    let reason = "Found \(symbol.name) in bss list but it has size \(sym.value) and not \(symbol.value)"
-                    throw LinkerError.UnrecoverableError(reason:reason)
+            let size = Int(symbol.value)
+            if let curSize = bssSymbols[symbol.name] {
+                if curSize < size {
+                    // Store the largest value for a BSS symbol as this will be its allocated size
+                    bssSymbols[symbol.name] = size
                 }
             } else {
-                bssSymbols[symbol.name] = symbol
+                bssSymbols[symbol.name] = size
             }
         }
     }
@@ -424,34 +409,30 @@ func processSourceFile(args: [String:AnyObject]) throws {
     dataAddr = (dataAddr + sectionAlign-1) & ~(sectionAlign-1)
     dataSection.baseAddress = dataAddr
 
-    // Update symbol locations and relocate
-    let textMap = textSection.symbolMap()
-    let dataMap = dataSection.symbolMap()
-    var map = textMap
-    try map.mergeSymbols(dataMap)
-
     // Put the BSS after the data section and align to 8 bytes
     let dataEnd = dataSection.baseAddress + dataSection.currentOffset
     let bssBaseAddr: UInt64 = (dataEnd + 7) & ~7
     let bssFileOffset = bssBaseAddr - dataEnd
 
-    // Create bss from BSS symbols
-    print("BSS symbols: \(bssSymbols)")
+    for symbol in globalMap.keys {
+        if (globalMap[symbol]!.section == .TEXT) {
+            globalMap[symbol]!.address += textSection.baseAddress
+        } else if (globalMap[symbol]!.section == .DATA) {
+            globalMap[symbol]!.address += dataSection.baseAddress
+        }
+    }
 
-    var bssMap: [String:UInt64] = [:]
+    // Create bss from BSS symbols
     var bssOffset: UInt64 = 0
     for symbol in bssSymbols {
-        bssMap[symbol.0] = bssBaseAddr + bssOffset
+        let gsym = SymbolInfo(name: symbol.0, section: Section.BSS, address: bssBaseAddr + bssOffset, isLocal: false,
+            GOTAddress: nil, bssSize: Int(symbol.1.value))
+        globalMap[symbol.0] = gsym
         bssOffset += UInt64(symbol.1.value)
     }
-    try map.mergeSymbols(bssMap)
 
-
-    // Find all of the symbols refernced in the BSS and allocate them an address
-    //print(map)
-    try textSection.relocate(map: map)
-    try dataSection.relocate(map: map)
-
+    try textSection.relocate()
+    try dataSection.relocate()
 
     let outputFile = try openOutput(destBinary)
     outputFile.writeData(textSection.sectionData)
@@ -469,8 +450,8 @@ func processSourceFile(args: [String:AnyObject]) throws {
 
     outputFile.closeFile()
     if let mapfile = args["--mapfile"] as? String {
-        try writeMapToFile(mapfile, textMap: textMap, dataMap: dataMap, bssMap: bssMap,
-            textAddr: textSection.baseAddress, dataAddr: dataSection.baseAddress, bssAddr: bssBaseAddr)
+        try writeMapToFile(mapfile, textAddr: textSection.baseAddress, dataAddr: dataSection.baseAddress,
+            bssAddr: bssBaseAddr)
     }
 }
 

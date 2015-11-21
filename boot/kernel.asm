@@ -6,7 +6,7 @@
         extern _init_tty
         extern _offset
         global _halt
-        
+
 start_of_kernel:
         mov     esp, 0x2000             ; Reset the SP to top of page1
         mov     rdi, 0xB8000

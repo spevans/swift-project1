@@ -4,7 +4,7 @@ extern void halt();
 
 
 char *const screen = (char *)0xB8000;
-static unsigned int offset = 0;
+unsigned int offset = 0;
 static char *hex = "0123456789ABCDEF";
 
 
