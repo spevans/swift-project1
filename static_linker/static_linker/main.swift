@@ -186,129 +186,152 @@ class binarySection {
     }
 
 
+    private func patchAddress(offset offset: Int, length: Int, address: Int64, absolute: Bool) throws {
+        guard (offset + length) <= sectionData.length else {
+            throw LinkerError.UnrecoverableError(reason: "Bad offset \(offset + length) > \(sectionData.length)")
+        }
+        // Pointer to the bytes in the data to actually update
+        let relocAddr = UnsafePointer<Void>(sectionData.bytes + offset)
+
+        switch (length) {
+        case 1:
+            guard address <= Int64(Int8.max) else {
+                throw LinkerError.UnrecoverableError(reason: "Bad address \(address) for Int8")
+            }
+            let ptr = UnsafeMutablePointer<Int8>(relocAddr)
+            guard absolute == false || ptr.memory == 0 else {
+                throw LinkerError.UnrecoverableError(reason: "Addend found in absolute patch")
+            }
+            ptr.memory += Int8(address)
+
+
+        case 2:
+            guard address <= Int64(Int16.max) else {
+                throw LinkerError.UnrecoverableError(reason: "Bad address \(address) for Int16")
+            }
+            let ptr = UnsafeMutablePointer<Int16>(relocAddr)
+            guard absolute == false || ptr.memory == 0 else {
+                throw LinkerError.UnrecoverableError(reason: "Addend found in absolute patch")
+            }
+            ptr.memory += Int16(littleEndian: Int16(address))
+
+
+        case 4:
+            guard address <= Int64(Int32.max) else {
+                throw LinkerError.UnrecoverableError(reason: "Bad address \(address) for Int32")
+            }
+            let ptr = UnsafeMutablePointer<Int32>(relocAddr)
+            guard absolute == false || ptr.memory == 0 else {
+                throw LinkerError.UnrecoverableError(reason: "Addend found in absolute patch")
+            }
+            ptr.memory += Int32(littleEndian: Int32(address))
+
+
+        case 8:
+            let ptr = UnsafeMutablePointer<Int64>(relocAddr)
+            guard absolute == false || ptr.memory == 0 else {
+                throw LinkerError.UnrecoverableError(reason: "Addend found in absolute patch")
+            }
+            ptr.memory += Int64(littleEndian: address)
+
+
+        default:
+            throw LinkerError.UnrecoverableError(reason: "Invalid symbol relocation length \(length)")
+        }
+    }
+
+
     func relocateSection(section: LoadCommandSegmentSection64, _ fileInfo: FileInfo) throws {
 
         guard let relocs = section.relocations else {
             throw LinkerError.UnrecoverableError(reason: "Null relocations")
         }
 
+
         for reloc in relocs {
+            // Offset into the bytes of this segment that will updated
+            let offset = Int(reloc.address) + Int(fileInfo.sectionBaseAddrs[section.sectionNumber]!)
+            let length = Int(1 << reloc.length) // Number of bytes to modify
+            let pc = (baseAddress + UInt64(offset + length))
+            var address: Int64 = 0              // The value to be patched into memory
+
+
+            func externalSymbol() throws -> SymbolInfo {
+                guard reloc.extern else {
+                    throw LinkerError.UnrecoverableError(reason: "Not an external reloc")
+                }
+                let symbols = fileInfo.machOFile.symbolTable.symbols
+                let symbolName: String? = reloc.extern ? symbols[Int(reloc.symbolNum)].name : nil
+                guard let symbol = globalMap[symbolName!] else {
+                    throw LinkerError.UnrecoverableError(reason: "Undefined symbol: \(symbolName!)")
+                }
+                return symbol
+            }
+
+
             switch reloc.type {
             case .X86_64_RELOC_BRANCH, .X86_64_RELOC_SIGNED:
                 guard reloc.PCRelative == true else {
                     throw LinkerError.UnrecoverableError(reason: "reloc is not PCRelative")
                 }
 
-            case .X86_64_RELOC_UNSIGNED:
-                break
+                if reloc.extern {
+                    // Target is a symbol
+                    guard reloc.PCRelative else {
+                        throw LinkerError.UnrecoverableError(reason: "PCRelative == false not allowed")
+                    }
 
-            case .X86_64_RELOC_SIGNED_4:
-                break
+                    let symbol = try externalSymbol()
+                    address = Int64(symbol.address) - Int64(pc)
+                } else {
+                    // Target is in another section
+                    let section = Int(reloc.symbolNum)
+
+                    // Where the section was originally supposed to go
+                    let oldAddr = fileInfo.machOFile.loadCommandSections[section-1].addr
+                    address = Int64(fileInfo.offsetInSegment[section]!) - Int64(oldAddr)
+                }
+                try patchAddress(offset: offset, length: length, address: address, absolute: false)
+
+
+            case .X86_64_RELOC_UNSIGNED:
+                guard reloc.PCRelative == false else {
+                    throw LinkerError.UnrecoverableError(reason: "PCRelative == true not allowed")
+                }
+                guard reloc.length == 2 || reloc.length == 3 else {
+                    throw LinkerError.UnrecoverableError(reason: "Bad reloc length \(reloc.length) for RELOC_UNSIGNED")
+                }
+                if (reloc.extern) {
+                    throw LinkerError.UnrecoverableError(reason: "UNSIGNED reloc with extern")
+                } else {
+                    // Target is in another section
+                    let section = Int(reloc.symbolNum)
+
+                    // Where the section was originally supposed to go
+                    let oldAddr = fileInfo.machOFile.loadCommandSections[section-1].addr
+                    let symAddr = fileInfo.sectionBaseAddrs[section]! + startAddress
+                    address = Int64(symAddr - oldAddr)
+                }
+                try patchAddress(offset: offset, length: length, address: address, absolute: false)
+
 
             case .X86_64_RELOC_GOT, .X86_64_RELOC_GOT_LOAD:
+                guard reloc.PCRelative else {
+                    throw LinkerError.UnrecoverableError(reason: "PCRelative == false not allowed")
+                }
+                guard reloc.length == 2 else {
+                    throw LinkerError.UnrecoverableError(reason: "Bad reloc length \(reloc.length) for GOT reloc")
+                }
 
-                break
+                let symbol = try externalSymbol()
+                guard let saddr = symbol.GOTAddress else {
+                    throw LinkerError.UnrecoverableError(reason: "\(symbol.name) does not have a GOT address")
+                }
+                let address = Int64(saddr) - Int64(pc) // make PC relative
+                try patchAddress(offset: offset, length: length, address: address, absolute: true)
 
             default:
                 throw LinkerError.UnrecoverableError(reason: "Unsupported reloc type: \(reloc.type)")
-            }
-
-            var address: Int64 = 0              // The value to be patched into memory
-            var symAddr: UInt64 = 0             // The address of the symbol or section that is the target
-            let length = Int(1 << reloc.length) // Number of bytes to modify
-
-            // Offset into the bytes of this segment that will updated
-            let offset = Int(reloc.address) + Int(fileInfo.sectionBaseAddrs[section.sectionNumber]!)
-            let pc = (baseAddress + UInt64(offset + length))
-
-            print(reloc)
-            if reloc.extern {
-                // Target is a symbol
-                let symbols = fileInfo.machOFile.symbolTable.symbols
-                let symbolName: String? = reloc.extern ? symbols[Int(reloc.symbolNum)].name : nil
-                guard let symbol = globalMap[symbolName!] else {
-                    throw LinkerError.UnrecoverableError(reason: "Undefined symbol: \(symbolName!)")
-                }
-                print(symbolName!)
-                if (reloc.type == .X86_64_RELOC_GOT_LOAD || reloc.type == .X86_64_RELOC_GOT) {
-                    guard let saddr = symbol.GOTAddress else {
-                        throw LinkerError.UnrecoverableError(reason: "\(symbolName!) does not have a GOT address")
-                    }
-                    symAddr = saddr
-                } else {
-                    symAddr = symbol.address
-                }
-                if (reloc.PCRelative) {
-                    address = Int64(symAddr) - Int64(pc)
-                } else {
-                    throw LinkerError.UnrecoverableError(reason: "PCRelative == false not allowed")
-                }
-            } else {
-                // Target is in another section
-                let section = Int(reloc.symbolNum)
-
-                // Where the section was originally supposed to go
-                let oldAddr = fileInfo.machOFile.loadCommandSections[section-1].addr
-                if (reloc.type == .X86_64_RELOC_UNSIGNED) {
-                    symAddr = fileInfo.sectionBaseAddrs[section]! + startAddress
-                    address = Int64(symAddr - oldAddr)
-                } else {
-                    address = Int64(fileInfo.offsetInSegment[section]!) - Int64(oldAddr)
-                }
-            }
-
-            // The absolute address needs to be made relative to the symbol being patched
-
-            //print(String(format:"pc: %08X relocAddr: %08X symAddr: %08X baseAddr: %08X address: %08X offset: %08X length: %d  ",
-             //   pc, reloc.address, symAddr, baseAddress, address, offset, length), terminator:"" )
-
-            //print(String(format: "Updating location %0X length = \(reloc.length) with %016X", reloc.address, address))
-            //print(String(format: "symAddr: %08X offset: %d/%04X length: %d", symAddr, offset, offset,length))
-
-            guard (offset + length) <= sectionData.length else {
-                throw LinkerError.UnrecoverableError(reason: "Bad offset \(offset + length) > \(sectionData.length)")
-            }
-
-            // Pointer to the bytes in the data to actually update
-            let relocAddr = UnsafePointer<Void>(sectionData.bytes + offset)
-
-            // The address to patch may not contain 0 it main contain an offset that needs to be added to the address
-            let addend: Int8 = (reloc.type == .X86_64_RELOC_UNSIGNED) ? 0 :  UnsafePointer<Int8>(relocAddr).memory
-            //print("Addend at location: \(addend)")
-
-            switch (length) {
-            case 1:
-                guard address <= Int64(Int8.max) else {
-                    throw LinkerError.UnrecoverableError(reason: "Bad address \(address) for Int8")
-                }
-                let ptr = UnsafeMutablePointer<Int8>(relocAddr)
-                ptr.memory = Int8(address) + addend
-
-            case 2:
-                guard address <= Int64(Int16.max) else {
-                    throw LinkerError.UnrecoverableError(reason: "Bad address \(address) for Int16")
-                }
-                let ptr = UnsafeMutablePointer<Int16>(relocAddr)
-                ptr.memory = Int16(littleEndian: Int16(address)) + Int16(addend)
-
-            case 4:
-                guard address <= Int64(Int32.max) else {
-                    throw LinkerError.UnrecoverableError(reason: "Bad address \(address) for Int32")
-                }
-                let ptr = UnsafeMutablePointer<Int32>(relocAddr)
-                ptr.memory = Int32(littleEndian: Int32(address)) + Int32(addend)
-
-            case 8:
-                if (reloc.type == .X86_64_RELOC_UNSIGNED) {
-                    let ptr = UnsafeMutablePointer<UInt64>(relocAddr)
-                    ptr.memory += UInt64(littleEndian: UInt64(bitPattern: address))
-                } else {
-                    let ptr = UnsafeMutablePointer<Int64>(relocAddr)
-                    ptr.memory = Int64(littleEndian: address) + Int64(addend)
-                }
-
-            default:
-                throw LinkerError.UnrecoverableError(reason: "Invalid symbol relocation length \(length)")
             }
         }
     }

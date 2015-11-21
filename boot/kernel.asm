@@ -42,7 +42,7 @@ msgend:
         cmp     dword [counter], 10
         jne     msgend.loop
 
-        mov     dword [_offset], 0
+        mov     dword [_offset], 640
         call    _init_tty
 
 
