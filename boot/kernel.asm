@@ -1,7 +1,7 @@
         BITS 64
 
         DEFAULT REL
-         SECTION .text
+        SECTION .text
 
         extern _init_tty
         extern _offset

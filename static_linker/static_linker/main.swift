@@ -55,17 +55,49 @@ class binarySection {
         return addr
     }
 
-    func addSection(segment: LoadCommandSegment64, section: LoadCommandSegmentSection64, fileInfo: FileInfo) throws -> UInt64 {
-        print("Adding section nr \(section.sectionNumber): \(section.segmentName):\(section.sectionName)")
 
-        // Pad section upto next alignment
-        let alignSize = UInt64(1 << section.align)
+    // alignment is log2 eg 0=>1, 1=>2 etc
+    private func expandSectionToAlignment(alignment: Int) {
+        let alignSize = UInt64(1 << alignment)
         let padding = Int(align(UInt64(sectionData.length), alignment:alignSize)) - sectionData.length
         if padding > 0 {
             let fillerByte: UInt8 = (name == "__TEXT") ? 0x90 : 0x00
             let filler = Array<UInt8>(count:padding, repeatedValue:UInt8(fillerByte))
             sectionData.appendData(NSData(bytes:filler, length:padding))
         }
+    }
+
+    /***
+    func ptrToSpace<T>(addr: UInt64, count: Int) throws -> UnsafeMutableBufferPointer<T> {
+        guard count > 0 && UInt64(sectionData.length) >= (addr + UInt64(count*(sizeof(T)))) else {
+            throw LinkerError.UnrecoverableError(reason: "address/count is out of bounds")
+        }
+        let ptr = UnsafeMutablePointer<T>(sectionData.bytes + Int(addr))
+        return UnsafeMutableBufferPointer<T>(start: ptr, count: count)
+    }***/
+
+
+    func reserveSpace<T>(count: Int, align: Int) -> (UInt64, UnsafeMutableBufferPointer<T>) {
+        let size = count * sizeof(T)
+        let space = NSMutableData()
+        space.increaseLengthBy(size)
+        expandSectionToAlignment(align)
+
+        let addr = UInt64(sectionData.length)
+        sectionData.appendData(space)
+
+        let ptr = UnsafeMutablePointer<T>(sectionData.bytes + Int(addr))
+        let buffer = UnsafeMutableBufferPointer<T>(start: ptr, count: count)
+
+        return (addr, buffer)
+    }
+
+
+    func addSection(segment: LoadCommandSegment64, section: LoadCommandSegmentSection64, fileInfo: FileInfo) throws -> UInt64 {
+        print("Adding section nr \(section.sectionNumber): \(section.segmentName):\(section.sectionName)")
+
+        // Pad section upto next alignment
+        expandSectionToAlignment(Int(section.align))
         let sectionStart = UInt64(sectionData.length)   // the current 'program counter' for this section
 
         if (section.sectionType == .S_ZEROFILL) {
@@ -117,6 +149,36 @@ class binarySection {
     }
 
 
+    // Look through all of the relocations and find any symbols that are via the GOT and so may need a GOT entry
+    func findGOTSymbols() throws -> Set<String> {
+        var result: Set<String> = []
+
+        for (section, fileInfo) in relocations {
+            guard let relocs = section.relocations else {
+                throw LinkerError.UnrecoverableError(reason: "Null relocations")
+            }
+            let symbols = fileInfo.machOFile.symbolTable.symbols
+
+            for reloc in relocs {
+                if reloc.type == .X86_64_RELOC_GOT || reloc.type == .X86_64_RELOC_GOT_LOAD {
+                    guard reloc.extern else {
+                        throw LinkerError.UnrecoverableError(reason: "Found GOT relocation that is not external")
+                    }
+                    let symbolName: String? = reloc.extern ? symbols[Int(reloc.symbolNum)].name : nil
+
+                    if bssSymbols[symbolName!] == nil {
+                        throw LinkerError.UnrecoverableError(reason: "Undefined symbol: \(symbolName!)")
+                    }
+                    result.insert(symbolName!)
+                    print("GOT entry: \(symbolName!)")
+                }
+            }
+        }
+
+        return result
+    }
+
+
     func relocate() throws {
         for (section, fileInfo) in relocations {
             try relocateSection(section, fileInfo)
@@ -143,6 +205,10 @@ class binarySection {
             case .X86_64_RELOC_SIGNED_4:
                 break
 
+            case .X86_64_RELOC_GOT, .X86_64_RELOC_GOT_LOAD:
+
+                break
+
             default:
                 throw LinkerError.UnrecoverableError(reason: "Unsupported reloc type: \(reloc.type)")
             }
@@ -164,7 +230,14 @@ class binarySection {
                     throw LinkerError.UnrecoverableError(reason: "Undefined symbol: \(symbolName!)")
                 }
                 print(symbolName!)
-                symAddr = symbol.address
+                if (reloc.type == .X86_64_RELOC_GOT_LOAD || reloc.type == .X86_64_RELOC_GOT) {
+                    guard let saddr = symbol.GOTAddress else {
+                        throw LinkerError.UnrecoverableError(reason: "\(symbolName!) does not have a GOT address")
+                    }
+                    symAddr = saddr
+                } else {
+                    symAddr = symbol.address
+                }
                 if (reloc.PCRelative) {
                     address = Int64(symAddr) - Int64(pc)
                 } else {
@@ -271,9 +344,13 @@ func writeMapToFile(filename: String, textAddr: UInt64, dataAddr: UInt64, bssAdd
             for name in sortedSymbols {
                 let symbol = globalMap[name]!
                 if symbol.section == section {
+                    var extra = ""
                     let addr = symbol.address
-                    mapFile.writeString(String(format: "%08X [%10d]:%@: %@\n", addr, addr, symbol.isLocal ? "L" : "G",
-                        symbol.name))
+                    if let gAddr = symbol.GOTAddress {
+                        extra = String(format: " [GOT = %08X]", gAddr)
+                    }
+                    mapFile.writeString(String(format: "%08X [%10d]:%@: %@ %@ \n", addr, addr, symbol.isLocal ? "L" : "G",
+                        extra, symbol.name))
                 }
             }
         }
@@ -405,6 +482,21 @@ func processSourceFile(args: [String:AnyObject]) throws {
         dataSection.startAddress = addr
     }
 
+    let GOTSymbols = try textSection.findGOTSymbols().union(dataSection.findGOTSymbols())
+    let GOTSize = GOTSymbols.count * 8      // 8 byte pointer per entry
+    print("GOT: \(GOTSymbols) size: \(GOTSize)")
+
+    // If there are GOT symbols create a GOT and add to the end of the text section
+    // GOTBase / GOTAddr are initialised so they can be updated in a tuple return
+    // Probably needs fixin
+    var GOTBase: UnsafeMutableBufferPointer<UInt64> = UnsafeMutableBufferPointer<UInt64>(start: nil, count: 0)
+    var GOTAddr: UInt64 = 0
+    if (GOTSize > 0) {
+        let count = GOTSymbols.count
+        (GOTAddr, GOTBase) = textSection.reserveSpace(count, align:3)
+        GOTAddr += textSection.startAddress
+    }
+
     var dataAddr = textSection.baseAddress + textSection.currentOffset
     dataAddr = (dataAddr + sectionAlign-1) & ~(sectionAlign-1)
     dataSection.baseAddress = dataAddr
@@ -414,14 +506,6 @@ func processSourceFile(args: [String:AnyObject]) throws {
     let bssBaseAddr: UInt64 = (dataEnd + 7) & ~7
     let bssFileOffset = bssBaseAddr - dataEnd
 
-    for symbol in globalMap.keys {
-        if (globalMap[symbol]!.section == .TEXT) {
-            globalMap[symbol]!.address += textSection.baseAddress
-        } else if (globalMap[symbol]!.section == .DATA) {
-            globalMap[symbol]!.address += dataSection.baseAddress
-        }
-    }
-
     // Create bss from BSS symbols
     var bssOffset: UInt64 = 0
     for symbol in bssSymbols {
@@ -430,6 +514,22 @@ func processSourceFile(args: [String:AnyObject]) throws {
         globalMap[symbol.0] = gsym
         bssOffset += UInt64(symbol.1.value)
     }
+
+
+    var GOTEntry = 0
+    for symbol in globalMap.keys {
+        if (globalMap[symbol]!.section == .TEXT) {
+            globalMap[symbol]!.address += textSection.baseAddress
+        } else if (globalMap[symbol]!.section == .DATA) {
+            globalMap[symbol]!.address += dataSection.baseAddress
+        }
+        if (GOTSymbols.contains(symbol)) {
+            globalMap[symbol]!.GOTAddress = GOTAddr + (8 * UInt64(GOTEntry))
+            GOTBase[GOTEntry] = globalMap[symbol]!.address
+            GOTEntry++
+        }
+    }
+
 
     try textSection.relocate()
     try dataSection.relocate()
@@ -444,7 +544,7 @@ func processSourceFile(args: [String:AnyObject]) throws {
     let bssFileSz = bssOffset
     print("bssFileSz = \(bssFileSz)")
     let bss = NSMutableData()
-    bss.increaseLengthBy(Int(bssFileOffset + bssFileSz + 100))
+    bss.increaseLengthBy(Int(bssFileOffset + bssFileSz))
     outputFile.writeData(bss)
 
 
