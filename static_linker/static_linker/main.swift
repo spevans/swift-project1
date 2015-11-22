@@ -17,6 +17,10 @@ enum Section: String {
     case TEXT = "__TEXT"
     case DATA = "__DATA"
     case BSS  = "__BSS"
+    case GOT  = "__GOT"
+
+    func startSymbol() -> String { return rawValue.lowercaseString + "_start" }
+    func endSymbol()   -> String { return rawValue.lowercaseString + "_end" }
 }
 
 struct SymbolInfo {
@@ -42,7 +46,7 @@ var bssSymbols: [String:Int] = [:]
 
 
 class binarySection {
-    let name: String
+    let sectionType:   Section
     var baseAddress:   UInt64 = 0               // base address of this section
     var startAddress:  UInt64 = 0               // base address of complete binary (--baseAddress argument)
     var currentOffset: UInt64 = 0
@@ -50,8 +54,8 @@ class binarySection {
     var relocations:   [(LoadCommandSegmentSection64, FileInfo)] = []
 
 
-    init(_ name: String) {
-        self.name = name
+    init(_ type: Section) {
+        sectionType = type
     }
 
 
@@ -69,7 +73,7 @@ class binarySection {
         let alignSize = UInt64(1 << alignment)
         let padding = Int(align(UInt64(sectionData.length), alignment:alignSize)) - sectionData.length
         if padding > 0 {
-            let fillerByte: UInt8 = (name == "__TEXT") ? 0x90 : 0x00
+            let fillerByte: UInt8 = (sectionType == .TEXT) ? 0x90 : 0x00
             let filler = Array<UInt8>(count:padding, repeatedValue:UInt8(fillerByte))
             sectionData.appendData(NSData(bytes:filler, length:padding))
         }
@@ -128,7 +132,7 @@ class binarySection {
                 if Int(symbol.sectionNumber) == section.sectionNumber && symbol.type != .UNDF {
                     if globalMap[symbol.name] == nil {
                         let address = (symbol.value - section.addr) + sectionStart
-                        globalMap[symbol.name] = SymbolInfo(name: symbol.name, section: Section(rawValue: name)!,
+                        globalMap[symbol.name] = SymbolInfo(name: symbol.name, section: sectionType,
                             address: address, isLocal: symbol.privateExternalBit, GOTAddress: nil, bssSize: nil)
                     } else {
                         throw LinkerError.UnrecoverableError(reason: "Found \(symbol.name) already in globalMap")
@@ -442,8 +446,8 @@ func findBssSymbols(symbols: [LoadCommandSymTab.Symbol]) throws {
 func processSourceFile(args: [String:AnyObject]) throws {
     let sources = args["sources"] as! [String]
     let destBinary = args["--output"] as! String
-    let textSection = binarySection("__TEXT")
-    let dataSection = binarySection("__DATA")
+    let textSection = binarySection(Section.TEXT)
+    let dataSection = binarySection(Section.DATA)
 
     for source in sources {
         print("Processing \(source)")
@@ -480,7 +484,7 @@ func processSourceFile(args: [String:AnyObject]) throws {
             print(loadSegment)
             let fileInfo = FileInfo(file: srcLibData) //symbolTable: srcLibData.symbolTable, dySymbolTable: srcLibData.dySymbolTable)
             for section in loadSegment.sections {
-                if section.segmentName == "__TEXT" {
+                if section.segmentName == Section.TEXT.rawValue {
                     var curaddr = textSection.currentOffset
                     let sectionStart = try textSection.addSection(loadSegment, section: section, fileInfo: fileInfo)
                     if textAddress == nil {
@@ -489,7 +493,7 @@ func processSourceFile(args: [String:AnyObject]) throws {
                     }
                     fileInfo.sectionBaseAddrs[section.sectionNumber] = sectionStart
                     fileInfo.offsetInSegment[section.sectionNumber] = curaddr - textAddress!
-                } else if section.segmentName == "__DATA" {
+                } else if section.segmentName == Section.DATA.rawValue {
                     var curaddr = dataSection.currentOffset
                     let sectionStart = try dataSection.addSection(loadSegment, section: section, fileInfo: fileInfo)
                     if dataAddress == nil {
@@ -516,25 +520,15 @@ func processSourceFile(args: [String:AnyObject]) throws {
         dataSection.startAddress = addr
     }
 
-    var GOT = try computeGOTSize(textSection, dataSection)
+    // Add the GOT at the end of the text section if one is required
+    let GOT = try computeGOTSize(textSection, dataSection)
 
     var dataAddr = textSection.baseAddress + textSection.currentOffset
     dataAddr = (dataAddr + sectionAlign-1) & ~(sectionAlign-1)
     dataSection.baseAddress = dataAddr
 
-    // Put the BSS after the data section and align to 8 bytes
-    let dataEnd = dataSection.baseAddress + dataSection.currentOffset
-    let bssBaseAddr: UInt64 = (dataEnd + 7) & ~7
-
-    // Create bss from BSS symbols
-    var bssOffset: UInt64 = 0
-    for symbol in bssSymbols {
-        let gsym = SymbolInfo(name: symbol.0, section: Section.BSS, address: bssBaseAddr + bssOffset, isLocal: false,
-            GOTAddress: nil, bssSize: Int(symbol.1.value))
-        globalMap[symbol.0] = gsym
-        bssOffset += UInt64(symbol.1.value)
-    }
-
+    // Now that the text and data section base addresses have been set, update the symbols in these sections
+    // to have their final address
     for symbol in globalMap.keys {
         if (globalMap[symbol]!.section == .TEXT) {
             globalMap[symbol]!.address += textSection.baseAddress
@@ -542,11 +536,9 @@ func processSourceFile(args: [String:AnyObject]) throws {
             globalMap[symbol]!.address += dataSection.baseAddress
         }
     }
-    if GOT.address > 0 {
-        GOT.address += textSection.startAddress
-    }
 
-    addSectionSymbols(textSection, dataSection, bssBaseAddr: bssBaseAddr, bssEndAddr: bssBaseAddr + bssOffset, GOT: GOT)
+    let (bssBaseAddr, bssSize) = createBSS(dataSection)
+    addSectionSymbols(textSection, dataSection, bssBaseAddr: bssBaseAddr, bssEndAddr: bssBaseAddr + bssSize, GOT: GOT)
     addGOTSymbols(GOT)
 
     try textSection.relocate()
@@ -567,8 +559,12 @@ func processSourceFile(args: [String:AnyObject]) throws {
 
 
 func computeGOTSize(textSection: binarySection, _ dataSection: binarySection) throws -> GlobalOffsetTable {
-    let sectionSymbols = Set(["__text_start", "__text_end", "__data_start", "__data_end",
-        "__bss_start", "__bss_end", "__got_start", "__got_end"])
+    let sectionSymbols = Set([
+        Section.TEXT.startSymbol(), Section.TEXT.endSymbol(),
+        Section.DATA.startSymbol(), Section.DATA.endSymbol(),
+        Section.GOT.startSymbol(), Section.GOT.endSymbol(),
+        Section.BSS.startSymbol(), Section.BSS.endSymbol()
+    ])
     let GOTSymbols = try textSection.findGOTSymbols().union(dataSection.findGOTSymbols()).union(sectionSymbols)
 
     let GOTSize = GOTSymbols.count * sizeof(UInt64)      // 8 byte pointer per entry
@@ -581,33 +577,66 @@ func computeGOTSize(textSection: binarySection, _ dataSection: binarySection) th
     if (GOTSize > 0) {
         let count = GOTSymbols.count
         (GOTAddr, GOTBase) = textSection.reserveSpace(count, align:3)
+        GOTAddr += textSection.startAddress
     }
 
     return GlobalOffsetTable(symbols: GOTSymbols, size: GOTSize, buffer: GOTBase, address: GOTAddr)
 }
 
 
+func createBSS(dataSection: binarySection) -> (UInt64, UInt64) {
+
+    // Put the BSS after the data section and align to 8 bytes
+    let dataEnd = dataSection.baseAddress + dataSection.currentOffset
+    let bssBaseAddr: UInt64 = (dataEnd + 7) & ~7
+
+    // Create bss from BSS symbols
+    var bssOffset: UInt64 = 0
+    for symbol in bssSymbols {
+        let gsym = SymbolInfo(name: symbol.0, section: Section.BSS, address: bssBaseAddr + bssOffset, isLocal: false,
+            GOTAddress: nil, bssSize: Int(symbol.1.value))
+        globalMap[symbol.0] = gsym
+        bssOffset += UInt64(symbol.1.value)
+    }
+
+    return (bssBaseAddr, bssOffset)
+}
+
+
 func addSectionSymbols(textSection: binarySection, _ dataSection: binarySection, bssBaseAddr: UInt64, bssEndAddr: UInt64,
     GOT: GlobalOffsetTable) {
-    globalMap["__text_start"] = SymbolInfo(name: "__text_start", section: Section.TEXT,
+
+    var symbol = textSection.sectionType.startSymbol()
+    globalMap[symbol] = SymbolInfo(name: symbol, section: Section.TEXT,
         address: textSection.baseAddress, isLocal: false, GOTAddress: nil, bssSize: nil)
-    globalMap["__text_end"] = SymbolInfo(name: "__text_end", section: Section.TEXT,
+
+    symbol = textSection.sectionType.endSymbol()
+    globalMap[symbol] = SymbolInfo(name: symbol, section: Section.TEXT,
         address: textSection.baseAddress + textSection.currentOffset, isLocal: false, GOTAddress: nil, bssSize: nil)
 
-    globalMap["__data_start"] = SymbolInfo(name: "__data_start", section: Section.DATA,
+    symbol = dataSection.sectionType.startSymbol()
+    globalMap[symbol] = SymbolInfo(name: symbol, section: Section.DATA,
         address: dataSection.baseAddress, isLocal: false, GOTAddress: nil, bssSize: nil)
-    globalMap["__data_end"] = SymbolInfo(name: "__data_end", section: Section.DATA,
+
+    symbol = dataSection.sectionType.endSymbol()
+    globalMap[symbol] = SymbolInfo(name: symbol, section: Section.DATA,
         address: dataSection.baseAddress + dataSection.currentOffset, isLocal: false, GOTAddress: nil, bssSize: nil)
 
-    globalMap["__bss_start"] = SymbolInfo(name: "__bss_start", section: Section.BSS,
+    symbol = Section.BSS.startSymbol()
+    globalMap[symbol] = SymbolInfo(name: symbol, section: Section.BSS,
         address: bssBaseAddr, isLocal: false, GOTAddress: nil, bssSize: nil)
-    globalMap["__bss_end"] = SymbolInfo(name: "__bss_end", section: Section.BSS,
+
+    symbol = Section.BSS.endSymbol()
+    globalMap[symbol] = SymbolInfo(name: symbol, section: Section.BSS,
         address: bssEndAddr, isLocal: false, GOTAddress: nil, bssSize: nil)
 
     if GOT.address > 0 {
-        globalMap["__got_start"] = SymbolInfo(name: "__got_start", section: Section.TEXT,
+        symbol = Section.GOT.startSymbol()
+        globalMap[symbol] = SymbolInfo(name: symbol, section: Section.TEXT,
             address: GOT.address, isLocal: false, GOTAddress: nil, bssSize: nil)
-        globalMap["__got_end"] = SymbolInfo(name: "__got_end", section: Section.TEXT,
+
+        symbol = Section.GOT.endSymbol()
+        globalMap[symbol] = SymbolInfo(name: symbol, section: Section.TEXT,
             address: GOT.address + UInt64(GOT.size), isLocal: false, GOTAddress: nil, bssSize: nil)
     }
 }

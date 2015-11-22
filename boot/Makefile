@@ -15,4 +15,4 @@ disk_image : bootsector.bin boot16to64.bin kernel.bin
 	./mkdiskimg.swift bootsector.bin boot16to64.bin kernel.bin disk_image
 
 clean:
-	rm -f *.bin *.o disk_image
+	rm -f *.bin *.o disk_image kernel.map
