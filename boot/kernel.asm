@@ -5,6 +5,8 @@
 
         extern _init_tty
         extern _offset
+        extern __bss_start
+        extern __bss_end
         global _halt
 
 start_of_kernel:
@@ -13,6 +15,14 @@ start_of_kernel:
         mov     rcx, 500                ; Clear 2000 bytes as 500x8
         mov     rax, 0x4F201F204F201F20 ; White on Blue spaces
         rep     stosq
+
+        ;; Clear the BSS
+        xor     rax, rax
+        mov     rdi, __bss_start
+        mov     rcx, __bss_end
+        sub     rcx, rdi
+        rep
+        stosb
 
         mov     rdi, 0xB8000
         mov     rax, 0x1F471F4E1F4F1F4C

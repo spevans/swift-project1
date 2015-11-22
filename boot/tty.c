@@ -5,6 +5,12 @@ extern void halt();
 
 char *const screen = (char *)0xB8000;
 unsigned int offset;
+extern uintptr_t _text_start;
+extern uintptr_t _text_end;
+extern uintptr_t _data_start;
+extern uintptr_t _data_end;
+extern uintptr_t _bss_start;
+extern uintptr_t _bss_end;
 
 
 void newline()
@@ -19,6 +25,20 @@ void print_char(char ch)
 {
         *(screen + offset++) = ch;
         *(screen + offset++) = 0x7;
+}
+
+
+void print_string(char *str)
+{
+        while(*str) {
+                char ch = *str++;
+                if (ch == '\n') {
+                        newline();
+                } else {
+                        *(screen + offset++) = ch;
+                        *(screen + offset++) = 0x7;
+                }
+        }
 }
 
 
@@ -64,34 +84,43 @@ void print_qword(uint64_t value)
         print_dword(value & 0xffffffff);
 }
 
-void print_string(char *str)
+
+void print_sections()
 {
-        while(*str) {
-                *(screen + offset++) = *str++;
-                *(screen + offset++) = 0x7;
-        }
+        print_string("screen: ");
+        print_qword((uintptr_t)screen);
         newline();
+        print_string("_text_start: ");
+        print_qword((uintptr_t)&_text_start);
+        newline();
+        print_string("_text_end:   ");
+        print_qword((uintptr_t)&_text_end);
+        newline();
+
+        print_string("_data_start: ");
+        print_qword((uintptr_t)&_data_start);
+        newline();
+
+        print_string("_data_end:   ");
+        print_qword((uintptr_t)&_data_end);
+        newline();
+
+        print_string("_bss_start:  ");
+        print_qword((uintptr_t)&_bss_start);
+        newline();
+
+        print_string("_bss_end:    ");
+        print_qword((uintptr_t)&_bss_end);
+        newline();
+
 }
 
 void init_tty()
 {
-        unsigned int old_offset = offset;
-        //offset = 0;
-        print_dword(0xFEEBDAED);
-        print_char(' ');
-        print_dword(0xDEADBEEF);
-        print_char(' ');
-        print_dword(old_offset);
+        offset = 0;
+        print_string("init_tty()\n");
         newline();
-        print_dword(0xAABBCCDD);
-        newline();
-        print_dword(0x76543210);
-        newline();
+        print_sections();
         print_qword(0x1234567890ABCDEF);
-        print_string("init_tty()");
-        print_string("line 2");
-        print_string("line 3");
-        print_string("line 4");
-        print_string("line 5");
-        print_string("line 6");
+
 }

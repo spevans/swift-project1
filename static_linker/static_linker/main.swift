@@ -29,6 +29,14 @@ struct SymbolInfo {
 }
 
 
+struct GlobalOffsetTable {
+    let symbols: Set<String>
+    let size: Int
+    let buffer: UnsafeMutableBufferPointer<UInt64>
+    var address: UInt64
+}
+
+
 var globalMap: [String:SymbolInfo] = [:]
 var bssSymbols: [String:Int] = [:]
 
@@ -85,6 +93,7 @@ class binarySection {
 
         let addr = UInt64(sectionData.length)
         sectionData.appendData(space)
+        currentOffset = UInt64(sectionData.length)
 
         let ptr = UnsafeMutablePointer<T>(sectionData.bytes + Int(addr))
         let buffer = UnsafeMutableBufferPointer<T>(start: ptr, count: count)
@@ -117,7 +126,6 @@ class binarySection {
             for symIdx in offset..<lastIdx {
                 let symbol = fileInfo.machOFile.symbolTable.symbols[symIdx]
                 if Int(symbol.sectionNumber) == section.sectionNumber && symbol.type != .UNDF {
-                    print("\(symIdx): \(symbol.name)")
                     if globalMap[symbol.name] == nil {
                         let address = (symbol.value - section.addr) + sectionStart
                         globalMap[symbol.name] = SymbolInfo(name: symbol.name, section: Section(rawValue: name)!,
@@ -164,13 +172,10 @@ class binarySection {
                     guard reloc.extern else {
                         throw LinkerError.UnrecoverableError(reason: "Found GOT relocation that is not external")
                     }
-                    let symbolName: String? = reloc.extern ? symbols[Int(reloc.symbolNum)].name : nil
-
-                    if bssSymbols[symbolName!] == nil {
-                        throw LinkerError.UnrecoverableError(reason: "Undefined symbol: \(symbolName!)")
+                    guard let symbolName: String! = symbols[Int(reloc.symbolNum)].name else {
+                        throw LinkerError.UnrecoverableError(reason: "Missing symbol")
                     }
-                    result.insert(symbolName!)
-                    print("GOT entry: \(symbolName!)")
+                    result.insert(symbolName)
                 }
             }
         }
@@ -302,7 +307,9 @@ class binarySection {
                     throw LinkerError.UnrecoverableError(reason: "Bad reloc length \(reloc.length) for RELOC_UNSIGNED")
                 }
                 if (reloc.extern) {
-                    throw LinkerError.UnrecoverableError(reason: "UNSIGNED reloc with extern")
+                    let symbol = try externalSymbol()
+                    address = Int64(symbol.address)
+
                 } else {
                     // Target is in another section
                     let section = Int(reloc.symbolNum)
@@ -358,32 +365,36 @@ func openOutput(filename: String) throws -> NSFileHandle {
 
 
 func writeMapToFile(filename: String, textAddr: UInt64, dataAddr: UInt64, bssAddr: UInt64) throws {
+    let mapFile = try openOutput(filename)
+    let sortedSymbols = globalMap.keys.sort({ return globalMap[$0]!.address < globalMap[$1]!.address })
 
-        let mapFile = try openOutput(filename)
-        let sortedSymbols = globalMap.keys.sort({ return globalMap[$0]!.address < globalMap[$1]!.address })
-
-        func writeSection(name:String, _ section: Section, _ baseAddr: UInt64) {
-            mapFile.writeString(String(format: "%@ section baseAddress: %08X\n\n", name, baseAddr))
-            for name in sortedSymbols {
-                let symbol = globalMap[name]!
-                if symbol.section == section {
-                    var extra = ""
-                    let addr = symbol.address
-                    if let gAddr = symbol.GOTAddress {
-                        extra = String(format: " [GOT = %08X]", gAddr)
-                    }
-                    mapFile.writeString(String(format: "%08X [%10d]:%@: %@ %@ \n", addr, addr, symbol.isLocal ? "L" : "G",
-                        extra, symbol.name))
-                }
+    func writeSection(name:String, _ section: Section, _ baseAddr: UInt64) {
+        mapFile.writeString(String(format: "%@ section baseAddress: %08X\n\n", name, baseAddr))
+        for name in sortedSymbols {
+            let symbol = globalMap[name]!
+            if symbol.section == section {
+                let addr = symbol.address
+                mapFile.writeString(String(format: "%08X [%10d]:%@: %@\n", addr, addr, symbol.isLocal ? "L" : "G",
+                    symbol.name))
             }
         }
+    }
 
-        writeSection(".text", Section.TEXT, textAddr)
-        mapFile.writeString("\n\n")
-        writeSection(".data", Section.DATA, dataAddr)
-        mapFile.writeString("\n\n")
-        writeSection(".bss", Section.BSS, bssAddr)
-        mapFile.closeFile()
+    writeSection(".text", Section.TEXT, textAddr)
+    mapFile.writeString("\n\n")
+    writeSection(".data", Section.DATA, dataAddr)
+    mapFile.writeString("\n\n")
+    writeSection(".bss", Section.BSS, bssAddr)
+
+    mapFile.writeString(String(format: "\nGlobal Offset Table:\n"))
+    for name in sortedSymbols {
+        let symbol = globalMap[name]!
+        if let gAddr = symbol.GOTAddress {
+            mapFile.writeString(String(format: "[GOT = %08X]: %08X  %@\n", gAddr, symbol.address, name))
+        }
+    }
+
+    mapFile.closeFile()
 }
 
 
@@ -505,20 +516,7 @@ func processSourceFile(args: [String:AnyObject]) throws {
         dataSection.startAddress = addr
     }
 
-    let GOTSymbols = try textSection.findGOTSymbols().union(dataSection.findGOTSymbols())
-    let GOTSize = GOTSymbols.count * 8      // 8 byte pointer per entry
-    print("GOT: \(GOTSymbols) size: \(GOTSize)")
-
-    // If there are GOT symbols create a GOT and add to the end of the text section
-    // GOTBase / GOTAddr are initialised so they can be updated in a tuple return
-    // Probably needs fixin
-    var GOTBase: UnsafeMutableBufferPointer<UInt64> = UnsafeMutableBufferPointer<UInt64>(start: nil, count: 0)
-    var GOTAddr: UInt64 = 0
-    if (GOTSize > 0) {
-        let count = GOTSymbols.count
-        (GOTAddr, GOTBase) = textSection.reserveSpace(count, align:3)
-        GOTAddr += textSection.startAddress
-    }
+    var GOT = try computeGOTSize(textSection, dataSection)
 
     var dataAddr = textSection.baseAddress + textSection.currentOffset
     dataAddr = (dataAddr + sectionAlign-1) & ~(sectionAlign-1)
@@ -527,7 +525,6 @@ func processSourceFile(args: [String:AnyObject]) throws {
     // Put the BSS after the data section and align to 8 bytes
     let dataEnd = dataSection.baseAddress + dataSection.currentOffset
     let bssBaseAddr: UInt64 = (dataEnd + 7) & ~7
-    let bssFileOffset = bssBaseAddr - dataEnd
 
     // Create bss from BSS symbols
     var bssOffset: UInt64 = 0
@@ -538,21 +535,19 @@ func processSourceFile(args: [String:AnyObject]) throws {
         bssOffset += UInt64(symbol.1.value)
     }
 
-
-    var GOTEntry = 0
     for symbol in globalMap.keys {
         if (globalMap[symbol]!.section == .TEXT) {
             globalMap[symbol]!.address += textSection.baseAddress
         } else if (globalMap[symbol]!.section == .DATA) {
             globalMap[symbol]!.address += dataSection.baseAddress
         }
-        if (GOTSymbols.contains(symbol)) {
-            globalMap[symbol]!.GOTAddress = GOTAddr + (8 * UInt64(GOTEntry))
-            GOTBase[GOTEntry] = globalMap[symbol]!.address
-            GOTEntry++
-        }
+    }
+    if GOT.address > 0 {
+        GOT.address += textSection.startAddress
     }
 
+    addSectionSymbols(textSection, dataSection, bssBaseAddr: bssBaseAddr, bssEndAddr: bssBaseAddr + bssOffset, GOT: GOT)
+    addGOTSymbols(GOT)
 
     try textSection.relocate()
     try dataSection.relocate()
@@ -562,19 +557,73 @@ func processSourceFile(args: [String:AnyObject]) throws {
     let dataOffset = dataSection.baseAddress - textSection.baseAddress
     outputFile.seekToFileOffset(dataOffset)
     outputFile.writeData(dataSection.sectionData)
-
-    print("bssFileOffset = \(bssFileOffset)")
-    let bssFileSz = bssOffset
-    print("bssFileSz = \(bssFileSz)")
-    let bss = NSMutableData()
-    bss.increaseLengthBy(Int(bssFileOffset + bssFileSz))
-    outputFile.writeData(bss)
-
-
     outputFile.closeFile()
+
     if let mapfile = args["--mapfile"] as? String {
         try writeMapToFile(mapfile, textAddr: textSection.baseAddress, dataAddr: dataSection.baseAddress,
             bssAddr: bssBaseAddr)
+    }
+}
+
+
+func computeGOTSize(textSection: binarySection, _ dataSection: binarySection) throws -> GlobalOffsetTable {
+    let sectionSymbols = Set(["__text_start", "__text_end", "__data_start", "__data_end",
+        "__bss_start", "__bss_end", "__got_start", "__got_end"])
+    let GOTSymbols = try textSection.findGOTSymbols().union(dataSection.findGOTSymbols()).union(sectionSymbols)
+
+    let GOTSize = GOTSymbols.count * sizeof(UInt64)      // 8 byte pointer per entry
+
+    // If there are GOT symbols create a GOT and add to the end of the text section
+    // GOTBase / GOTAddr are initialised so they can be updated in a tuple return
+    // Probably needs fixin
+    var GOTBase: UnsafeMutableBufferPointer<UInt64> = UnsafeMutableBufferPointer<UInt64>(start: nil, count: 0)
+    var GOTAddr: UInt64 = 0
+    if (GOTSize > 0) {
+        let count = GOTSymbols.count
+        (GOTAddr, GOTBase) = textSection.reserveSpace(count, align:3)
+    }
+
+    return GlobalOffsetTable(symbols: GOTSymbols, size: GOTSize, buffer: GOTBase, address: GOTAddr)
+}
+
+
+func addSectionSymbols(textSection: binarySection, _ dataSection: binarySection, bssBaseAddr: UInt64, bssEndAddr: UInt64,
+    GOT: GlobalOffsetTable) {
+    globalMap["__text_start"] = SymbolInfo(name: "__text_start", section: Section.TEXT,
+        address: textSection.baseAddress, isLocal: false, GOTAddress: nil, bssSize: nil)
+    globalMap["__text_end"] = SymbolInfo(name: "__text_end", section: Section.TEXT,
+        address: textSection.baseAddress + textSection.currentOffset, isLocal: false, GOTAddress: nil, bssSize: nil)
+
+    globalMap["__data_start"] = SymbolInfo(name: "__data_start", section: Section.DATA,
+        address: dataSection.baseAddress, isLocal: false, GOTAddress: nil, bssSize: nil)
+    globalMap["__data_end"] = SymbolInfo(name: "__data_end", section: Section.DATA,
+        address: dataSection.baseAddress + dataSection.currentOffset, isLocal: false, GOTAddress: nil, bssSize: nil)
+
+    globalMap["__bss_start"] = SymbolInfo(name: "__bss_start", section: Section.BSS,
+        address: bssBaseAddr, isLocal: false, GOTAddress: nil, bssSize: nil)
+    globalMap["__bss_end"] = SymbolInfo(name: "__bss_end", section: Section.BSS,
+        address: bssEndAddr, isLocal: false, GOTAddress: nil, bssSize: nil)
+
+    if GOT.address > 0 {
+        globalMap["__got_start"] = SymbolInfo(name: "__got_start", section: Section.TEXT,
+            address: GOT.address, isLocal: false, GOTAddress: nil, bssSize: nil)
+        globalMap["__got_end"] = SymbolInfo(name: "__got_end", section: Section.TEXT,
+            address: GOT.address + UInt64(GOT.size), isLocal: false, GOTAddress: nil, bssSize: nil)
+    }
+}
+
+
+func addGOTSymbols(GOT: GlobalOffsetTable) {
+    if (GOT.size > 0) {
+        var GOTEntry = 0
+        let sortedKeys = globalMap.keys.sort({ return globalMap[$0]!.address < globalMap[$1]!.address })
+        for symbol in sortedKeys {
+            if (GOT.symbols.contains(symbol)) {
+                globalMap[symbol]!.GOTAddress = GOT.address + (8 * UInt64(GOTEntry))
+                GOT.buffer[GOTEntry] = globalMap[symbol]!.address
+                GOTEntry++
+            }
+        }
     }
 }
 
