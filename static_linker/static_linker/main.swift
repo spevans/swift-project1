@@ -517,8 +517,7 @@ func findBssSymbols(symbols: [LoadCommandSymTab.Symbol]) throws {
 }
 
 
-func rebaseSegments(rebaseInfos: [RebaseInfo]) throws
-{
+func rebaseSegments(rebaseInfos: [RebaseInfo]) throws {
     for ri in rebaseInfos {
         guard let dyldInfo = ri.machOFile.dyldInfo else {
             continue

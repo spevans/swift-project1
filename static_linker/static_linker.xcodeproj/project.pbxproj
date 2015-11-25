@@ -16,6 +16,7 @@
 		B9658CA61BEE7BA0000F3E67 /* LoadCommandSegment64.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9658CA51BEE7BA0000F3E67 /* LoadCommandSegment64.swift */; };
 		B98CD3291BF36393007F5042 /* LoadCommandDySymTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98CD3281BF36393007F5042 /* LoadCommandDySymTab.swift */; };
 		B9B984781C059F6E00F26177 /* MachO.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9B984771C059F6E00F26177 /* MachO.swift */; };
+		B9B9847A1C06670700F26177 /* MemoryBufferReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9B984791C06670700F26177 /* MemoryBufferReader.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -41,6 +42,7 @@
 		B9658CA51BEE7BA0000F3E67 /* LoadCommandSegment64.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LoadCommandSegment64.swift; sourceTree = "<group>"; };
 		B98CD3281BF36393007F5042 /* LoadCommandDySymTab.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LoadCommandDySymTab.swift; sourceTree = "<group>"; };
 		B9B984771C059F6E00F26177 /* MachO.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MachO.swift; sourceTree = "<group>"; };
+		B9B984791C06670700F26177 /* MemoryBufferReader.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = MemoryBufferReader.swift; path = ../MemoryBufferReader.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -76,6 +78,7 @@
 				B9658C961BE96A36000F3E67 /* main.swift */,
 				B9B984771C059F6E00F26177 /* MachO.swift */,
 				B9658C9D1BEB6811000F3E67 /* MachOReader.swift */,
+				B9B984791C06670700F26177 /* MemoryBufferReader.swift */,
 				B9658CA11BEBAA73000F3E67 /* LoadCommand.swift */,
 				B98CD3281BF36393007F5042 /* LoadCommandDySymTab.swift */,
 				B95674BF1BF173330015BA28 /* LoadCommandDyldInfo.swift */,
@@ -144,6 +147,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B9658CA61BEE7BA0000F3E67 /* LoadCommandSegment64.swift in Sources */,
+				B9B9847A1C06670700F26177 /* MemoryBufferReader.swift in Sources */,
 				B98CD3291BF36393007F5042 /* LoadCommandDySymTab.swift in Sources */,
 				B9658C971BE96A36000F3E67 /* main.swift in Sources */,
 				B95674C01BF173330015BA28 /* LoadCommandDyldInfo.swift in Sources */,
