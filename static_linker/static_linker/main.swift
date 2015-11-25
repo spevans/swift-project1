@@ -41,11 +41,45 @@ struct GlobalOffsetTable {
 }
 
 
+class FileInfo {
+    let machOFile: MachOReader
+    var sectionBaseAddrs: [Int:UInt64] = [:]
+    var offsetInSegment: [Int:UInt64] = [:]
+
+    init(file: MachOReader) {
+        self.machOFile = file
+    }
+
+
+    private func checkUndefinedSymbolsExist() throws -> Bool {
+        // Check all of the undefined symbols are available
+        var haveUndefined = false
+        if machOFile.dySymbolTable != nil {
+            let offset = Int(machOFile.dySymbolTable!.idxUndefSym)
+            let lastIdx = offset + Int(machOFile.dySymbolTable!.numUndefSym)
+            for symIdx in offset..<lastIdx {
+                let symbol = machOFile.symbolTable.symbols[symIdx]
+                guard symbol.type == .UNDF else {
+                    throw LinkerError.UnrecoverableError(reason: "\(symbol.name) is in undef list but not marked as UNDF")
+                }
+                if symbol.name != "dyld_stub_binder" && globalMap[symbol.name] == nil {
+                    haveUndefined = true
+                    //throw LinkerError.UnrecoverableError(reason: "\(symbol.name) is not defined")
+                    print("\(symbol.name) is not defined")
+                }
+            }
+        }
+
+        return haveUndefined
+    }
+}
+
+
 var globalMap: [String:SymbolInfo] = [:]
 var bssSymbols: [String:Int] = [:]
 
 
-class binarySection {
+class BinarySection {
     let sectionType:   Section
     var baseAddress:   UInt64 = 0               // base address of this section
     var startAddress:  UInt64 = 0               // base address of complete binary (--baseAddress argument)
@@ -106,6 +140,60 @@ class binarySection {
     }
 
 
+    private func addSymbols(fileInfo: FileInfo, pc: UInt64, sectionNumber: Int, sectionAddr: UInt64,
+        offset: Int, count: Int) throws {
+        let dupes = Set(["__ZL11unreachablePKc", "__ZN5swiftL11STDLIB_NAMEE", "__ZN5swiftL20MANGLING_MODULE_OBJCE", "__ZN5swiftL17MANGLING_MODULE_CE", "GCC_except_table2"])
+        let lastIdx = offset + count
+        for symIdx in offset..<lastIdx {
+            let symbol = fileInfo.machOFile.symbolTable.symbols[symIdx]
+            if Int(symbol.sectionNumber) == sectionNumber && symbol.type != .UNDF {
+                if globalMap[symbol.name] == nil {
+                    let address = (symbol.value - sectionAddr) + pc
+                    globalMap[symbol.name] = SymbolInfo(name: symbol.name, section: sectionType,
+                        address: address, isLocal: symbol.privateExternalBit, GOTAddress: nil, bssSize: nil)
+                } else {
+                    if !dupes.contains(symbol.name) {
+                        throw LinkerError.UnrecoverableError(reason: "Found \(symbol.name) already in globalMap")
+                    }
+                }
+            }
+        }
+    }
+
+
+    func addSegment(segment: LoadCommandSegment64, fileInfo: FileInfo) throws -> (UInt64, UInt64) {
+        print("Adding segment nr \(segment.segnumber): \(segment.segname)")
+        expandSectionToAlignment(Int(segment.sections[0].align))
+        let dataStart = UInt64(sectionData.length)
+
+        // FIXME: currently doesnt check if zerofills are only at the end
+        for section in segment.sections {
+            guard let data = section.sectionData else {
+                throw LinkerError.UnrecoverableError(reason: "Cant read data")
+            }
+            sectionData.appendData(data)
+
+            // If there is a dynamic symbol table, use that to get a list of the declared symbols contained in the obj/lib
+            if fileInfo.machOFile.dySymbolTable != nil {
+                // Add in exported symbols
+                try addSymbols(fileInfo, pc: dataStart, sectionNumber: section.sectionNumber, sectionAddr: section.addr,
+                    offset: Int(fileInfo.machOFile.dySymbolTable!.idxExtDefSym),
+                    count: Int(fileInfo.machOFile.dySymbolTable!.numExtDefSym))
+
+                // Add in local symbols
+                try addSymbols(fileInfo, pc: dataStart, sectionNumber: section.sectionNumber, sectionAddr: section.addr,
+                    offset: Int(fileInfo.machOFile.dySymbolTable!.idxLocalSym),
+                    count:Int(fileInfo.machOFile.dySymbolTable!.numLocalSym))
+            }
+        }
+        let dataSize = UInt64(sectionData.length) - dataStart
+
+
+
+        return (dataStart, dataSize)
+    }
+
+
     func addSection(segment: LoadCommandSegment64, section: LoadCommandSegmentSection64, fileInfo: FileInfo) throws -> UInt64 {
         print("Adding section nr \(section.sectionNumber): \(section.segmentName):\(section.sectionName)")
 
@@ -123,35 +211,8 @@ class binarySection {
             sectionData.appendData(data)
         }
 
-        // If there is a dynamic symbol table, use that to get a list of the declared symbols contained in the obj/lib
-        // otherwise assume all of the symbols are
-        func addSymbols(offset offset: Int, count: Int) throws {
-            let lastIdx = offset + count
-            for symIdx in offset..<lastIdx {
-                let symbol = fileInfo.machOFile.symbolTable.symbols[symIdx]
-                if Int(symbol.sectionNumber) == section.sectionNumber && symbol.type != .UNDF {
-                    if globalMap[symbol.name] == nil {
-                        let address = (symbol.value - section.addr) + sectionStart
-                        globalMap[symbol.name] = SymbolInfo(name: symbol.name, section: sectionType,
-                            address: address, isLocal: symbol.privateExternalBit, GOTAddress: nil, bssSize: nil)
-                    } else {
-                        throw LinkerError.UnrecoverableError(reason: "Found \(symbol.name) already in globalMap")
-                    }
-                }
-            }
-        }
-
-        if fileInfo.machOFile.dySymbolTable != nil {
-            // Add in exported symbols
-            try addSymbols(offset: Int(fileInfo.machOFile.dySymbolTable!.idxExtDefSym),
-                count: Int(fileInfo.machOFile.dySymbolTable!.numExtDefSym))
-
-            // Add in local symbols
-            try addSymbols(offset: Int(fileInfo.machOFile.dySymbolTable!.idxLocalSym),
-                count:Int(fileInfo.machOFile.dySymbolTable!.numLocalSym))
-        } else {
-            try addSymbols(offset: 0, count: fileInfo.machOFile.symbolTable.symbols.count)
-        }
+        try addSymbols(fileInfo, pc: sectionStart, sectionNumber: section.sectionNumber, sectionAddr: section.addr,
+            offset: 0, count: fileInfo.machOFile.symbolTable.symbols.count)
 
         let tuple = (section, fileInfo)
         relocations.append(tuple)
@@ -256,7 +317,9 @@ class binarySection {
             throw LinkerError.UnrecoverableError(reason: "Null relocations")
         }
 
-
+        if relocs.count == 0 {
+            return
+        }
         for reloc in relocs {
             // Offset into the bytes of this segment that will updated
             let offset = Int(reloc.address) + Int(fileInfo.sectionBaseAddrs[section.sectionNumber]!)
@@ -349,6 +412,28 @@ class binarySection {
 }
 
 
+class RebaseInfo {
+    struct SegmentMapInfo {
+        let section: BinarySection
+        let offset: UInt64          // The offset into the sectionData that the segment was stored
+        let dataSize: UInt64        // The number of bytes of the segment's data that was stored (excludes ZEROFILL etc)
+    }
+
+    let machOFile: MachOReader
+    var segmentMap: [Int:SegmentMapInfo] = [:]
+
+
+    init(file: MachOReader) {
+        machOFile = file
+    }
+
+
+    func addSegment(segment: Int, section: BinarySection, offset: UInt64, dataSize: UInt64) {
+        segmentMap[segment] = SegmentMapInfo(section: section, offset: offset, dataSize: dataSize)
+    }
+}
+
+
 extension NSFileHandle {
     func writeString(string: String) {
         self.writeData(string.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: true)!)
@@ -413,17 +498,6 @@ func parseNumber(number: String) -> UInt64? {
 }
 
 
-class FileInfo {
-    let machOFile: MachOReader
-    var sectionBaseAddrs: [Int:UInt64] = [:]
-    var offsetInSegment: [Int:UInt64] = [:]
-
-    init(file: MachOReader) {
-        self.machOFile = file
-    }
-}
-
-
 // Look through all of the symbols to find the ones which are BSS and store them along with their
 // size (which is that symbol.value).
 func findBssSymbols(symbols: [LoadCommandSymTab.Symbol]) throws {
@@ -443,11 +517,104 @@ func findBssSymbols(symbols: [LoadCommandSymTab.Symbol]) throws {
 }
 
 
+func rebaseSegments(rebaseInfos: [RebaseInfo]) throws
+{
+    for ri in rebaseInfos {
+        guard let dyldInfo = ri.machOFile.dyldInfo else {
+            continue
+        }
+
+        let pointerSize: UInt64 = 8     // pointer size in bytes for X86_64
+        var rebaseType = RebaseType.NONE
+        var segmentIndex: Int = 0
+        var segmentOffset: UInt64 = 0
+        var slide: UInt64?
+
+
+        func rebaseAtAddress() throws {
+            let seg = ri.segmentMap[segmentIndex]?.section.sectionType.rawValue
+            let rebaseAddress = ri.machOFile.loadCommandSegments[segmentIndex].vmaddr + segmentOffset
+            print(String(format: "Rebase @ \(seg!) 0x%08X  ", rebaseAddress), terminator: "")
+
+            switch(rebaseType) {
+            case .POINTER, .ABSOLUTE32:
+                // FIXME: do the update
+                print(String(rebaseType).lowercaseString)
+
+            default:
+                throw LinkerError.UnrecoverableError(reason: "Bad rebaseType: \(rebaseType)")
+            }
+        }
+
+
+        func rebaseCallback(opcode opcode: RebaseOpcode, immValue: UInt8, val1: UInt64?, val2: UInt64?, opcodeAddr: Int) throws {
+
+                switch (opcode) {
+                case .REBASE_OPCODE_DONE:
+                    print("Rebase finished")
+                    return
+
+                case .REBASE_OPCODE_SET_TYPE_IMM:
+                    rebaseType = RebaseType(rawValue: immValue)!
+
+                case .REBASE_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB:
+                    segmentIndex = Int(immValue)
+                    segmentOffset = val1!
+                    // Calculate the displacement of where the section is v where it preferred to be (vmaddr)
+                    let originalAddr = ri.machOFile.loadCommandSegments[segmentIndex].vmaddr
+                    let actualAddr = ri.segmentMap[segmentIndex]!.section.baseAddress
+                    slide = actualAddr - originalAddr
+
+                case .REBASE_OPCODE_ADD_ADDR_ULEB:
+                    segmentOffset += val1!
+
+                case .REBASE_OPCODE_ADD_ADDR_IMM_SCALED:
+                    segmentOffset += UInt64(immValue) * pointerSize
+
+                case .REBASE_OPCODE_DO_REBASE_IMM_TIMES:
+                    let count = Int(immValue)
+                    let inc = pointerSize
+                    for _ in 0..<count {
+                        try rebaseAtAddress()
+                        segmentOffset += inc
+                    }
+
+                case .REBASE_OPCODE_DO_REBASE_ULEB_TIMES:
+                    let count = val1!
+                    let inc = pointerSize
+                    for _ in 0..<count {
+                        try rebaseAtAddress()
+                        segmentOffset += inc
+                    }
+
+                case .REBASE_OPCODE_DO_REBASE_ADD_ADDR_ULEB:
+                    let inc = val1! + pointerSize
+                    try rebaseAtAddress()
+                    segmentOffset += inc
+
+                case .REBASE_OPCODE_DO_REBASE_ULEB_TIMES_SKIPPING_ULEB:
+                    let count = val1!
+                    let skip = val2!
+                    let inc = skip + pointerSize
+                    for _ in 0..<count {
+                        try rebaseAtAddress()
+                        segmentOffset += inc
+                    }
+                }
+        }
+
+        try dyldInfo.runRebase(rebaseCallback)
+    }
+}
+
+
 func processSourceFile(args: [String:AnyObject]) throws {
     let sources = args["sources"] as! [String]
     let destBinary = args["--output"] as! String
-    let textSection = binarySection(Section.TEXT)
-    let dataSection = binarySection(Section.DATA)
+    let textSection = BinarySection(Section.TEXT)
+    let dataSection = BinarySection(Section.DATA)
+    var fileInfos: [FileInfo] = []
+    var rebaseInfos: [RebaseInfo] = []
 
     for source in sources {
         print("Processing \(source)")
@@ -467,7 +634,17 @@ func processSourceFile(args: [String:AnyObject]) throws {
             guard srcLibData.loadCommandSegments[0].vmaddr == 0 else {
                 throw LinkerError.UnrecoverableError(reason: "OBJECT file has vmaddr set!")
             }
+
+            let name = srcLibData.loadCommandSegments[0].segname
+            guard name == "" else {
+                throw LinkerError.UnrecoverableError(reason: "OBJECT file has segment named \(name)")
+            }
+        } else if (srcLibData.header.fileType == MachOReader.FileType.DYLIB) {
+
+        } else {
+            throw LinkerError.UnrecoverableError(reason: "Cant process source file of type \(srcLibData.header.fileType)")
         }
+
 
         for idx in 0..<srcLibData.loadCommands.count {
             print("\(idx): \(srcLibData.loadCommands[idx].description)")
@@ -478,36 +655,51 @@ func processSourceFile(args: [String:AnyObject]) throws {
         // object file not the start of the total output
         var textAddress: UInt64?
         var dataAddress: UInt64?
+        let fileInfo = FileInfo(file: srcLibData)
+        fileInfos.append(fileInfo)
+        let rebaseInfo = RebaseInfo(file: srcLibData)
+        rebaseInfos.append(rebaseInfo)
 
         try findBssSymbols(srcLibData.symbolTable.symbols)
         for loadSegment in srcLibData.loadCommandSegments {
             print(loadSegment)
-            let fileInfo = FileInfo(file: srcLibData) //symbolTable: srcLibData.symbolTable, dySymbolTable: srcLibData.dySymbolTable)
-            for section in loadSegment.sections {
-                if section.segmentName == Section.TEXT.rawValue {
-                    var curaddr = textSection.currentOffset
-                    let sectionStart = try textSection.addSection(loadSegment, section: section, fileInfo: fileInfo)
-                    if textAddress == nil {
-                        textAddress = sectionStart
-                        curaddr = sectionStart
+
+            if (loadSegment.segname == Section.TEXT.rawValue) {
+                let (start, size) = try textSection.addSegment(loadSegment, fileInfo: fileInfo)
+                rebaseInfo.addSegment(loadSegment.segnumber, section: textSection, offset: start, dataSize: size)
+            } else if (loadSegment.segname == Section.DATA.rawValue) {
+                let (start, size) = try dataSection.addSegment(loadSegment, fileInfo: fileInfo)
+                rebaseInfo.addSegment(loadSegment.segnumber, section: dataSection, offset: start, dataSize: size)
+            } else if (loadSegment.segname == "") {
+                for section in loadSegment.sections {
+                    if section.segmentName == Section.TEXT.rawValue {
+                        var curaddr = textSection.currentOffset
+                        let sectionStart = try textSection.addSection(loadSegment, section: section, fileInfo: fileInfo)
+                        if textAddress == nil {
+                            textAddress = sectionStart
+                            curaddr = sectionStart
+                        }
+                        fileInfo.sectionBaseAddrs[section.sectionNumber] = sectionStart
+                        fileInfo.offsetInSegment[section.sectionNumber] = curaddr - textAddress!
+                    } else if section.segmentName == Section.DATA.rawValue {
+                        var curaddr = dataSection.currentOffset
+                        let sectionStart = try dataSection.addSection(loadSegment, section: section, fileInfo: fileInfo)
+                        if dataAddress == nil {
+                            dataAddress = sectionStart
+                            curaddr = sectionStart
+                        }
+                        fileInfo.sectionBaseAddrs[section.sectionNumber] = sectionStart
+                        fileInfo.offsetInSegment[section.sectionNumber] = curaddr - dataAddress!
+                    } else {
+                        print("Skipping section: \(section.segmentName)");
                     }
-                    fileInfo.sectionBaseAddrs[section.sectionNumber] = sectionStart
-                    fileInfo.offsetInSegment[section.sectionNumber] = curaddr - textAddress!
-                } else if section.segmentName == Section.DATA.rawValue {
-                    var curaddr = dataSection.currentOffset
-                    let sectionStart = try dataSection.addSection(loadSegment, section: section, fileInfo: fileInfo)
-                    if dataAddress == nil {
-                        dataAddress = sectionStart
-                        curaddr = sectionStart
-                    }
-                    fileInfo.sectionBaseAddrs[section.sectionNumber] = sectionStart
-                    fileInfo.offsetInSegment[section.sectionNumber] = curaddr - dataAddress!
-                } else {
-                    print("Skipping section: \(section.segmentName)");
                 }
+            } else {
+                print("Skipping segment: \(loadSegment.segname)")
             }
         }
     }
+
 
     let sectionAlign:UInt64 = 4096 // page size
     if let baseAddr = args["--baseAddress"] as? String {
@@ -537,9 +729,15 @@ func processSourceFile(args: [String:AnyObject]) throws {
         }
     }
 
+    try rebaseSegments(rebaseInfos)
+
     let (bssBaseAddr, bssSize) = createBSS(dataSection)
     addSectionSymbols(textSection, dataSection, bssBaseAddr: bssBaseAddr, bssEndAddr: bssBaseAddr + bssSize, GOT: GOT)
     addGOTSymbols(GOT)
+
+    for fi in fileInfos {
+        try fi.checkUndefinedSymbolsExist()
+    }
 
     try textSection.relocate()
     try dataSection.relocate()
@@ -558,7 +756,7 @@ func processSourceFile(args: [String:AnyObject]) throws {
 }
 
 
-func computeGOTSize(textSection: binarySection, _ dataSection: binarySection) throws -> GlobalOffsetTable {
+func computeGOTSize(textSection: BinarySection, _ dataSection: BinarySection) throws -> GlobalOffsetTable {
     let sectionSymbols = Set([
         Section.TEXT.startSymbol(), Section.TEXT.endSymbol(),
         Section.DATA.startSymbol(), Section.DATA.endSymbol(),
@@ -584,7 +782,7 @@ func computeGOTSize(textSection: binarySection, _ dataSection: binarySection) th
 }
 
 
-func createBSS(dataSection: binarySection) -> (UInt64, UInt64) {
+func createBSS(dataSection: BinarySection) -> (UInt64, UInt64) {
 
     // Put the BSS after the data section and align to 8 bytes
     let dataEnd = dataSection.baseAddress + dataSection.currentOffset
@@ -603,7 +801,7 @@ func createBSS(dataSection: binarySection) -> (UInt64, UInt64) {
 }
 
 
-func addSectionSymbols(textSection: binarySection, _ dataSection: binarySection, bssBaseAddr: UInt64, bssEndAddr: UInt64,
+func addSectionSymbols(textSection: BinarySection, _ dataSection: BinarySection, bssBaseAddr: UInt64, bssEndAddr: UInt64,
     GOT: GlobalOffsetTable) {
 
     var symbol = textSection.sectionType.startSymbol()

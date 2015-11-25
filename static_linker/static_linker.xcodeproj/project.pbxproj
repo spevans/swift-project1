@@ -15,6 +15,7 @@
 		B9658CA41BED265D000F3E67 /* LoadCommandSymTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9658CA31BED265D000F3E67 /* LoadCommandSymTab.swift */; };
 		B9658CA61BEE7BA0000F3E67 /* LoadCommandSegment64.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9658CA51BEE7BA0000F3E67 /* LoadCommandSegment64.swift */; };
 		B98CD3291BF36393007F5042 /* LoadCommandDySymTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98CD3281BF36393007F5042 /* LoadCommandDySymTab.swift */; };
+		B9B984781C059F6E00F26177 /* MachO.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9B984771C059F6E00F26177 /* MachO.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -39,6 +40,7 @@
 		B9658CA31BED265D000F3E67 /* LoadCommandSymTab.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LoadCommandSymTab.swift; sourceTree = "<group>"; };
 		B9658CA51BEE7BA0000F3E67 /* LoadCommandSegment64.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LoadCommandSegment64.swift; sourceTree = "<group>"; };
 		B98CD3281BF36393007F5042 /* LoadCommandDySymTab.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LoadCommandDySymTab.swift; sourceTree = "<group>"; };
+		B9B984771C059F6E00F26177 /* MachO.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MachO.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,6 +74,7 @@
 			isa = PBXGroup;
 			children = (
 				B9658C961BE96A36000F3E67 /* main.swift */,
+				B9B984771C059F6E00F26177 /* MachO.swift */,
 				B9658C9D1BEB6811000F3E67 /* MachOReader.swift */,
 				B9658CA11BEBAA73000F3E67 /* LoadCommand.swift */,
 				B98CD3281BF36393007F5042 /* LoadCommandDySymTab.swift */,
@@ -147,6 +150,7 @@
 				B9658CA41BED265D000F3E67 /* LoadCommandSymTab.swift in Sources */,
 				B9658C9E1BEB6811000F3E67 /* MachOReader.swift in Sources */,
 				B9658CA21BEBAA73000F3E67 /* LoadCommand.swift in Sources */,
+				B9B984781C059F6E00F26177 /* MachO.swift in Sources */,
 				B90997C91BF81D17006DE13C /* LoadCommandSegmentSection64.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

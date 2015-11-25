@@ -13,6 +13,9 @@ extern uintptr_t _bss_start;
 extern uintptr_t _bss_end;
 
 
+
+const char *strings[] = { "hello", "there" };
+
 void newline()
 {
         // move to next line

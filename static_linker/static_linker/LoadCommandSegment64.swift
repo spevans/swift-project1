@@ -10,7 +10,8 @@ import Foundation
 
 
 class LoadCommandSegment64 : LoadCommand {
-    var segname : String      = ""
+    var segname               = ""
+    var segnumber             = 0
     var vmaddr : UInt64       = 0
     var vmsize : UInt64       = 0
     var fileOffset : UInt64   = 0
@@ -55,6 +56,7 @@ class LoadCommandSegment64 : LoadCommand {
 
 
     init?(_ header: LoadCommandHdr, _ reader: MachOReader) {
+        self.segnumber = reader.loadCommandSegments.count
         super.init(header: header, reader: reader)
 
         do {

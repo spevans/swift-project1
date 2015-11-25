@@ -17,6 +17,7 @@ class MachOReader {
     var loadCommandSections: [LoadCommandSegmentSection64] = []
     var symbolTable: LoadCommandSymTab!
     var dySymbolTable: LoadCommandDySymTab?
+    var dyldInfo: LoadCommandDyldInfo?
     var totalSections = 0
 
 
@@ -145,6 +146,13 @@ class MachOReader {
                                 return nil
                             }
                             dySymbolTable = loadCmd as? LoadCommandDySymTab
+
+                        case is LoadCommandDyldInfo:
+                            guard dyldInfo == nil else {
+                                print("2nd Dyldinfo found!")
+                                return nil
+                            }
+                            dyldInfo = loadCmd as? LoadCommandDyldInfo
 
                         default: break
                         }

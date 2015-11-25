@@ -11,7 +11,7 @@ import Foundation
 
 class LoadCommandSymTab : LoadCommand {
     var symbols : [Symbol] = []
-
+    var symbolsBySection: [[Symbol]?]
     // File format of a symbol
     private struct nlist64 {
         var strIdx  : UInt32
@@ -38,11 +38,11 @@ class LoadCommandSymTab : LoadCommand {
     struct Symbol {
         let name : String
         // Next 3 fields expanded from type in file format
-        let type                : SymbolType
-        let privateExternalBit  : Bool
-        let externalBit         : Bool
-        let sectionNumber       : UInt8
-        let value               : UInt64  // Value or stab offset
+        let type                : SymbolType    // N_TYPE
+        let privateExternalBit  : Bool          // N_PEXT
+        let externalBit         : Bool          // N_EXT
+        let sectionNumber       : UInt8         // section if N_TYPE == N_SECT
+        let value               : UInt64        // Value or stab offset
 
         var description : String {
             return "Type: \(type) Section: \(sectionNumber) Value: \(value) : \(name)"
@@ -67,6 +67,8 @@ class LoadCommandSymTab : LoadCommand {
 
 
     init?(_ header: LoadCommandHdr, _ reader: MachOReader) {
+        // There are 255 possible sections (1-255) so precreate the array so that sections can be filled in random order
+        symbolsBySection = Array(count: 256, repeatedValue: nil)
         super.init(header: header, reader: reader)
 
         do {
@@ -91,6 +93,11 @@ class LoadCommandSymTab : LoadCommand {
                         return nil
                     }
                     symbols.append(sym!)
+                    let sectionIdx = Int(symbol.section)
+                    if (symbolsBySection[sectionIdx] == nil) {
+                        symbolsBySection[sectionIdx] = []
+                    }
+                    symbolsBySection[sectionIdx]!.append(sym!)
                 }
             }
         } catch {

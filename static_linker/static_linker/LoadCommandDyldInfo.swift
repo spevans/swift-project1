@@ -20,7 +20,7 @@ class LoadCommandDyldInfo: LoadCommand {
     var lazyBindSize: UInt32   = 0
     var exportOffset: UInt32   = 0
     var exportSize: UInt32     = 0
-
+    var opcodeCounter = 0
 
     init?(_ header: LoadCommandHdr, _ reader: MachOReader) {
         super.init(header: header, reader: reader)
@@ -40,69 +40,19 @@ class LoadCommandDyldInfo: LoadCommand {
             exportOffset = try buffer.read()
             exportSize = try buffer.read()
 
-            let rebase = MemoryBufferReader(reader, offset: Int(rebaseOffset), size: Int(rebaseSize))
-            try rebaseInfo(rebase!)
-
             let bind = MemoryBufferReader(reader, offset: Int(bindOffset), size: Int(rebaseSize))
-            bindInfo(bind!, isLazy: false)
+            bindInfo(bind!, isLazy: false, sectionType: "bind")
 
             let weakBind = MemoryBufferReader(reader, offset: Int(weakBindOffset), size: Int(weakBindSize))
-            bindInfo(weakBind!, isLazy: false)
+            bindInfo(weakBind!, isLazy: false, sectionType: "weak")
 
             let lazyBind = MemoryBufferReader(reader, offset: Int(lazyBindOffset), size: Int(lazyBindSize))
-            bindInfo(lazyBind!, isLazy: true)
+            bindInfo(lazyBind!, isLazy: true, sectionType: "lazy")
+
 
         } catch {
             return nil
         }
-    }
-
-    enum RebaseOpcode: UInt8 {
-        static let OPCODE_MASK: UInt8   = 0xF0
-        static let IMMEDIATE_MASK: UInt8 = 0x0F
-
-        case DONE                               = 0x00
-        case SET_TYPE_IMM                       = 0x10
-        case SET_SEGMENT_AND_OFFSET_ULEB        = 0x20
-        case ADD_ADDR_ULEB                      = 0x30
-        case ADD_ADDR_IMM_SCALED                = 0x40
-        case DO_REBASE_IMM_TIMES                = 0x50
-        case DO_REBASE_ULEB_TIMES               = 0x60
-        case DO_REBASE_ADD_ADDR_ULEB            = 0x70
-        case DO_REBASE_ULEB_TIMES_SKIPPING_ULEB = 0x80
-    }
-
-    enum RebaseType: UInt8 {
-        case NONE       = 0
-        case POINTER    = 1
-        case ABSOLUTE32 = 2
-        case PCREL32    = 3
-    }
-
-    enum BindOpcode: UInt8 {
-        static let OPCODE_MASK: UInt8      = 0xF0
-        static let IMMEDIATE_MASK: UInt8   = 0x0F
-
-        case DONE                               = 0x00
-        case SET_DYLIB_ORDINAL_IMM              = 0x10
-        case SET_DYLIB_ORDINAL_ULEB             = 0x20
-        case SET_DYLIB_SPECIAL_IMM              = 0x30
-        case SET_SYMBOL_TRAILING_FLAGS_IMM      = 0x40
-        case SET_TYPE_IMM                       = 0x50
-        case SET_ADDEND_SLEB                    = 0x60
-        case SET_SEGMENT_AND_OFFSET_ULEB        = 0x70
-        case ADD_ADDR_ULEB                      = 0x80
-        case DO_BIND                            = 0x90
-        case DO_BIND_ADD_ADDR_ULEB              = 0xA0
-        case DO_BIND_ADD_ADDR_IMM_SCALED        = 0xB0
-        case DO_BIND_ULEB_TIMES_SKIPPING_ULEB   = 0xC0
-    }
-
-    enum BindType: UInt8 {
-        case NONE       = 0
-        case POINTER    = 1
-        case ABSOLUTE32 = 2
-        case PCREL32    = 3
     }
 
 
@@ -126,75 +76,112 @@ class LoadCommandDyldInfo: LoadCommand {
     }
 
 
-    func rebaseInfo(r: MemoryBufferReader) throws {
-        //dumpBuffer(r)
+    typealias rebaseCallback = (RebaseOpcode, UInt8, UInt64?, UInt64?, Int) throws -> ()
+
+
+    func showRebaseOpcodes() throws {
+        let pointerSize: UInt64 = 8
         var rebaseType = RebaseType.NONE
         var segmentIndex: Int = 0
         var segmentOffset: UInt64 = 0
-        var advanceAmt: UInt64 = 0
-        var remainingLoopCount: UInt64 = 0
-        let pointerSize: UInt64 = 8
 
-        repeat {
-            let startOffset = r.offset
-            let (opcode, immValue) = try decodeRebaseOp(r.read())
+
+        func rebaseCallback(opcode opcode: RebaseOpcode, immValue: UInt8, val1: UInt64?, val2: UInt64?,
+            opcodeAddr: Int) throws {
 
             switch (opcode) {
-            case .DONE:
+            case .REBASE_OPCODE_DONE:
+                print(String(format: "0x%04X \(opcode)()", opcodeAddr))
+
+            case .REBASE_OPCODE_SET_TYPE_IMM:
+                rebaseType = RebaseType(rawValue: immValue)!
+                print(String(format: "0x%04X \(opcode)(%d)", opcodeAddr, rebaseType.rawValue))
+
+            case .REBASE_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB:
+                print(String(format: "0x%04X \(opcode)(%d, 0x%08X)", opcodeAddr, Int(immValue), val1!))
+
+            case .REBASE_OPCODE_ADD_ADDR_ULEB:
+                print(String(format: "0x%04X \(opcode)(0x%02X)", opcodeAddr, val1!))
+
+            case .REBASE_OPCODE_ADD_ADDR_IMM_SCALED:
+                let val = UInt64(immValue) * pointerSize
+                print(String(format: "0x%04X \(opcode)(0x%X)", opcodeAddr, val))
+
+            case .REBASE_OPCODE_DO_REBASE_IMM_TIMES:
+                print(String(format: "0x%04X \(opcode)(%d)", opcodeAddr, immValue))
+
+            case .REBASE_OPCODE_DO_REBASE_ULEB_TIMES:
+                print(String(format: "0x%04X \(opcode)(%d)", opcodeAddr, val1!))
+
+            case .REBASE_OPCODE_DO_REBASE_ADD_ADDR_ULEB:
+                let advanceAmt = val1! + pointerSize
+                print(String(format: "0x%04X \(opcode)(%d)", opcodeAddr, advanceAmt))
+
+            case .REBASE_OPCODE_DO_REBASE_ULEB_TIMES_SKIPPING_ULEB:
+                print(String(format: "0x%04X \(opcode)(%d, %d)", opcodeAddr, val1!, val2!))
+            }
+        }
+
+        try runRebase(rebaseCallback)
+    }
+
+
+    func runRebase(callback: rebaseCallback) throws {
+        let rebase = MemoryBufferReader(reader, offset: Int(rebaseOffset), size: Int(rebaseSize))
+        try rebaseInfo(rebase!, callback: callback)
+    }
+
+
+    func rebaseInfo(r: MemoryBufferReader, callback: rebaseCallback) throws {
+        let startOffset = r.offset
+
+        repeat {
+            let opcodeAddr = r.offset - startOffset
+            let (opcode, immValue) = try decodeRebaseOp(r.read())
+            var val1: UInt64? = nil
+            var val2: UInt64? = nil
+
+            switch (opcode) {
+            case .REBASE_OPCODE_DONE:
                 break
 
-            case .SET_TYPE_IMM:
-                guard let type = RebaseType(rawValue: immValue) else {
+            case .REBASE_OPCODE_SET_TYPE_IMM:
+                if RebaseType(rawValue: immValue) == nil {
                     throw MachOReader.ReadError.InvalidData(reason: "Invalid RebaseType")
                 }
-                rebaseType = type
+
+            case .REBASE_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB:
+                val1 = try readULEB128(r)
+
+            case .REBASE_OPCODE_ADD_ADDR_ULEB:
+                val1 = try readULEB128(r)
+
+            case .REBASE_OPCODE_ADD_ADDR_IMM_SCALED:
                 break
 
-            case .SET_SEGMENT_AND_OFFSET_ULEB:
-                segmentIndex = Int(immValue)
-                segmentOffset = try readULEB128(r)
+            case .REBASE_OPCODE_DO_REBASE_IMM_TIMES:
                 break
 
-            case .ADD_ADDR_ULEB:
-                segmentOffset += try readULEB128(r)
-                break
+            case .REBASE_OPCODE_DO_REBASE_ULEB_TIMES:
+                val1 = try readULEB128(r)
 
-            case .ADD_ADDR_IMM_SCALED:
-                segmentOffset += UInt64(immValue) * pointerSize
-                break
+            case .REBASE_OPCODE_DO_REBASE_ADD_ADDR_ULEB:
+                val1 = try readULEB128(r)
 
-            case .DO_REBASE_IMM_TIMES:
-                advanceAmt = pointerSize
-                remainingLoopCount = UInt64(immValue) - 1
-                break
-
-            case .DO_REBASE_ULEB_TIMES:
-                advanceAmt = pointerSize
-                remainingLoopCount = try readULEB128(r) - 1
-                break
-
-            case .DO_REBASE_ADD_ADDR_ULEB:
-                advanceAmt = try readULEB128(r) + pointerSize
-                remainingLoopCount = 0
-                break
-
-            case .DO_REBASE_ULEB_TIMES_SKIPPING_ULEB:
-                remainingLoopCount = try readULEB128(r) - 1
-                advanceAmt  = try readULEB128(r) + pointerSize
-                break
+            case .REBASE_OPCODE_DO_REBASE_ULEB_TIMES_SKIPPING_ULEB:
+                val1 = try readULEB128(r)
+                val2 = try readULEB128(r)
             }
-            let ops = dumpBuffer(r, startOffset, r.offset)
-            var str = "\(ops): \(opcode): rebaseType: \(rebaseType) segmentIdx: \(segmentIndex) segmentOff: \(segmentOffset) "
-            str += "advance: \(advanceAmt) rlc: \(remainingLoopCount)"
-            //print(str)
-            if opcode == .DONE {
+            try callback(opcode, immValue, val1, val2, opcodeAddr)
+
+            if opcode == .REBASE_OPCODE_DONE {
                 return
             }
         } while true
     }
 
 
-    func bindInfo(r: MemoryBufferReader, isLazy: Bool) {
+    func bindInfo(r: MemoryBufferReader, isLazy: Bool, sectionType: String) {
         //dumpBuffer(r)
 
         do {
@@ -202,20 +189,23 @@ class LoadCommandDyldInfo: LoadCommand {
             var ordinal: Int64 = 0
             var flags: UInt8 = 0
             var symbolName = ""
-            var bindType = BindType.NONE
             var addend: Int64 = 0
             var segmentIndex: Int = 0
             var segmentOffset: UInt64 = 0
             var advanceAmt: UInt64 = 0
             let pointerSize: UInt64 = 8
             var remainingLoopCount: UInt64 = 0
+            let startOffset = r.offset
 
             while !done {
-                let startOffset = r.offset
+
+                let opcodeAddr = r.offset - startOffset
                 let (opcode, immValue) = try decodeBindOp(r.read())
+                print(String(format: "\(sectionType): 0x%04X \(opcode)", opcodeAddr), terminator: "")
 
                 switch (opcode) {
-                case .DONE:
+                case .BIND_OPCODE_DONE:
+                    print("")
                     if (isLazy) {
                         // DONE opcodes appear between instruction so check end of data stream
                         if r.bytesRemaining > 0 {
@@ -223,94 +213,90 @@ class LoadCommandDyldInfo: LoadCommand {
                         }
                     }
                     done = true
-                    break
 
-                case .SET_DYLIB_ORDINAL_IMM:
+                case .BIND_OPCODE_SET_DYLIB_ORDINAL_IMM:
                     ordinal = Int64(immValue)
-                    break
+                    print(String(format: "(%d)", ordinal))
 
-                case .SET_DYLIB_ORDINAL_ULEB:
+                case .BIND_OPCODE_SET_DYLIB_ORDINAL_ULEB:
                     ordinal = try Int64(readULEB128(r))
-                    break
+                    print(String(format: "(%d)", ordinal))
 
-                case .SET_DYLIB_SPECIAL_IMM:
+                case .BIND_OPCODE_SET_DYLIB_SPECIAL_IMM:
                     if immValue != 0 {
                         let signExtend = Int8(BindOpcode.OPCODE_MASK | immValue)
                         ordinal = Int64(signExtend)
                     } else {
                         ordinal = 0
                     }
-                    break
+                    print(String(format: "(%d)", ordinal))
 
-                case .SET_SYMBOL_TRAILING_FLAGS_IMM:
+                case .BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM:
                     flags = immValue
                     symbolName = try r.scanASCIIZString()
-                    // FIXME
+                    // FIXME:
                     // if (ImmValue & MachO::BIND_SYMBOL_FLAGS_NON_WEAK_DEFINITION)
                     //  return
-                    break
+                    print(String(format: "(0x%02X, %@)", flags, symbolName))
 
-                case .SET_TYPE_IMM:
+                case .BIND_OPCODE_SET_TYPE_IMM:
                     guard let type = BindType(rawValue: immValue) else {
                         throw MachOReader.ReadError.InvalidData(reason: "Invalud BindType")
                     }
-                    bindType = type
-                    break
+                    //bindType = type
+                    print(String(format: "(%d)", type.rawValue))
 
-                case .SET_ADDEND_SLEB:
+                case .BIND_OPCODE_SET_ADDEND_SLEB:
                     if (isLazy) {
                         throw MachOReader.ReadError.InvalidData(reason: "SET_ADDEND_SLEB found in lazy bind")
                     }
                     addend = try readSLEB128(r)
-                    break
+                    print(String(format: "(%lld)", addend))
 
-                case .SET_SEGMENT_AND_OFFSET_ULEB:
+                case .BIND_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB:
                     segmentIndex = Int(immValue)
                     segmentOffset = try readULEB128(r)
-                    break
+                    print(String(format: "(0x%02X, 0x%08llX)", segmentIndex, segmentOffset))
 
-                case .ADD_ADDR_ULEB:
-                    // FIXME
+                case .BIND_OPCODE_ADD_ADDR_ULEB:
                     let val = try readULEB128(r)
-                    segmentOffset = segmentOffset &+ val
-                    break
+                    segmentOffset = val
+                    print(String(format: "(0x%08X)", val))
 
-                case .DO_BIND:
+                case .BIND_OPCODE_DO_BIND:
                     advanceAmt = pointerSize
                     remainingLoopCount = 0
-                    break
+                    print("()")
 
-                case .DO_BIND_ADD_ADDR_ULEB:
+                case .BIND_OPCODE_DO_BIND_ADD_ADDR_ULEB:
                     if (isLazy) {
                         throw MachOReader.ReadError.InvalidData(reason: "DO_BIND_ADD_ADDR_ULEB found in lazy bind")
                     }
                     advanceAmt = try readULEB128(r)
-                    // FIXME
-                    advanceAmt = (advanceAmt &+ pointerSize)
-                    remainingLoopCount = 0
-                    break
+                    //advanceAmt = (advanceAmt &+ pointerSize)
+                    print(String(format: "(0x%08X)", advanceAmt))
 
-                case .DO_BIND_ADD_ADDR_IMM_SCALED:
+                case .BIND_OPCODE_DO_BIND_ADD_ADDR_IMM_SCALED:
                     if (isLazy) {
                         throw MachOReader.ReadError.InvalidData(reason: "DO_BIND_ADD_ADDR_IMM_SCALED found in lazy bind")
                     }
                     advanceAmt = UInt64(immValue) * pointerSize
                     advanceAmt += pointerSize
                     remainingLoopCount = 0
-                    break
+                    print(String(format: "(0x%08X)", advanceAmt))
 
-                case .DO_BIND_ULEB_TIMES_SKIPPING_ULEB:
+                case .BIND_OPCODE_DO_BIND_ULEB_TIMES_SKIPPING_ULEB:
                     if (isLazy) {
                         throw MachOReader.ReadError.InvalidData(reason: "DO_BIND_ULEB_TIMES_SKIPPING_ULEB found in lazy bind")
                     }
-                    remainingLoopCount = try readULEB128(r) - 1
-                    advanceAmt = try readULEB128(r) + pointerSize
-                    break
+                    remainingLoopCount = try readULEB128(r)
+                    advanceAmt = try readULEB128(r)
+                    print(String(format: "(%d, 0x%08X)", remainingLoopCount, advanceAmt))
                 }
-                let ops = dumpBuffer(r, startOffset, r.offset)
-                var str = "\(ops): \(opcode): bindType: \(bindType) segmentIdx: \(segmentIndex) segmentOff: \(segmentOffset) "
-                str += "advance: \(advanceAmt) rlc: \(remainingLoopCount) flags: \(flags) "
-                str += "ordinal: \(ordinal) addend: \(addend) symbol: \(symbolName)"
+                //let ops = "" //dumpBuffer(r, startOffset, r.offset)
+                //var str = "\(ops): \(opcode): bindType: \(bindType) segmentIdx: \(segmentIndex) segmentOff: \(segmentOffset) "
+                //str += "advance: \(advanceAmt) rlc: \(remainingLoopCount) flags: \(flags) "
+                //str += "ordinal: \(ordinal) addend: \(addend) symbol: \(symbolName)"
                 //print(str)
             }
         } catch MachOReader.ReadError.InvalidData(let reason) {
