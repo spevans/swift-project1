@@ -283,7 +283,7 @@ class BinarySection {
             guard absolute == false || ptr.memory == 0 else {
                 throw LinkerError.UnrecoverableError(reason: "Addend found in absolute patch")
             }
-            ptr.memory += Int16(littleEndian: Int16(address))
+            ptr.memory = (Int16(littleEndian: ptr.memory) + Int16(address)).littleEndian
 
 
         case 4:
@@ -294,7 +294,7 @@ class BinarySection {
             guard absolute == false || ptr.memory == 0 else {
                 throw LinkerError.UnrecoverableError(reason: "Addend found in absolute patch")
             }
-            ptr.memory += Int32(littleEndian: Int32(address))
+            ptr.memory = (Int32(littleEndian: ptr.memory) + Int32(address)).littleEndian
 
 
         case 8:
@@ -302,7 +302,7 @@ class BinarySection {
             guard absolute == false || ptr.memory == 0 else {
                 throw LinkerError.UnrecoverableError(reason: "Addend found in absolute patch")
             }
-            ptr.memory += Int64(littleEndian: address)
+            ptr.memory = (Int64(littleEndian: ptr.memory) + address).littleEndian
 
 
         default:
@@ -607,6 +607,119 @@ func rebaseSegments(rebaseInfos: [RebaseInfo]) throws {
 }
 
 
+func bindSegments(bindInfos: [RebaseInfo]) throws {
+    for bi in bindInfos {
+        guard let dyldInfo = bi.machOFile.dyldInfo else {
+            continue
+        }
+
+        let pointerSize: UInt64 = 8     // pointer size in bytes for X86_64
+        var bindType = BindType.NONE
+        var segmentIndex: Int = 0
+        var segmentOffset: UInt64 = 0
+        var addend: Int64 = 0
+        var slide: UInt64?
+        var section = ""
+        var symbolName = ""
+        var ordinal = 0
+        var weak_import = ""
+
+
+        func bindAtAddress() throws {
+            let seg = bi.segmentMap[segmentIndex]?.section.sectionType.rawValue
+            let bindAddress = bi.machOFile.loadCommandSegments[segmentIndex].vmaddr &+ segmentOffset // allow wrap
+            print(String(format: "bindAtAddress \(section) bind @ \(seg!) 0x%08X  ", bindAddress), terminator: "")
+
+            switch(bindType) {
+            case .POINTER, .ABSOLUTE32:
+                // FIXME: do the update
+                print(String(format: "%@ %d %@", String(bindType).lowercaseString, addend, symbolName))
+
+            default:
+                throw LinkerError.UnrecoverableError(reason: "Bad bindType: \(bindType)")
+            }
+        }
+
+
+        func bindCallback(opcode opcode: BindOpcode, immValue: UInt8, uval1: UInt64?, uval2: UInt64?, sval: Int64?,
+            symbol:String, opcodeAddr: Int) throws {
+
+                switch opcode {
+                case .BIND_OPCODE_DONE:
+                    break
+
+                case .BIND_OPCODE_SET_DYLIB_ORDINAL_IMM:
+                    ordinal = Int(immValue)
+
+                case .BIND_OPCODE_SET_DYLIB_ORDINAL_ULEB:
+                    ordinal = Int(uval1!)
+
+                case .BIND_OPCODE_SET_DYLIB_SPECIAL_IMM:
+                    if immValue != 0 {
+                        let signExtend = Int8(BindOpcode.OPCODE_MASK | immValue)
+                        ordinal = Int(signExtend)
+                    } else {
+                        ordinal = 0
+                    }
+
+                case .BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM:
+                    symbolName = symbol
+                    if (immValue & UInt8(BindOpcode.BIND_SYMBOL_FLAGS_WEAK_IMPORT)) != 0 {
+                        weak_import = "weak"
+                    } else {
+                        weak_import = ""
+                    }
+
+
+                case .BIND_OPCODE_SET_TYPE_IMM:
+                    bindType = BindType(rawValue: immValue)!
+
+                case .BIND_OPCODE_SET_ADDEND_SLEB:
+                    addend = sval!
+
+                case .BIND_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB:
+                    segmentIndex = Int(immValue)
+                    segmentOffset = uval1!
+
+                case .BIND_OPCODE_ADD_ADDR_ULEB:
+                    // Allow overflow as wrap
+                    segmentOffset = segmentOffset &+ uval1! &+ pointerSize
+
+                case .BIND_OPCODE_DO_BIND:
+                    try bindAtAddress()
+                    segmentOffset = segmentOffset &+ pointerSize
+
+                case .BIND_OPCODE_DO_BIND_ADD_ADDR_ULEB:
+                    try bindAtAddress()
+                    // Allow overflow as wrap
+                    segmentOffset = segmentOffset &+ uval1! &+ pointerSize
+
+                case .BIND_OPCODE_DO_BIND_ADD_ADDR_IMM_SCALED:
+                    try bindAtAddress()
+                    let inc = UInt64(immValue) * pointerSize
+                    segmentOffset += inc + pointerSize
+
+                case .BIND_OPCODE_DO_BIND_ULEB_TIMES_SKIPPING_ULEB:
+                    try bindAtAddress()
+                    let count = uval1!
+                    let inc = uval2!
+                    for _ in 0..<count {
+                        try bindAtAddress()
+                        segmentOffset += inc
+                    }
+                }
+        }
+
+        section = "bind"
+        try dyldInfo.runBindSection("bind", callback: bindCallback)
+        section = "weak"
+        try dyldInfo.runBindSection("weak", callback: bindCallback)
+        section = "lazy"
+        try dyldInfo.runBindSection("lazy", callback: bindCallback)
+    }
+}
+
+
 func processSourceFile(args: [String:AnyObject]) throws {
     let sources = args["sources"] as! [String]
     let destBinary = args["--output"] as! String
@@ -729,6 +842,7 @@ func processSourceFile(args: [String:AnyObject]) throws {
     }
 
     try rebaseSegments(rebaseInfos)
+    try bindSegments(rebaseInfos)
 
     let (bssBaseAddr, bssSize) = createBSS(dataSection)
     addSectionSymbols(textSection, dataSection, bssBaseAddr: bssBaseAddr, bssEndAddr: bssBaseAddr + bssSize, GOT: GOT)

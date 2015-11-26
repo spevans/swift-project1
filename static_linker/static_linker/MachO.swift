@@ -34,6 +34,12 @@ enum RebaseType: UInt8 {
 enum BindOpcode: UInt8 {
     static let OPCODE_MASK: UInt8      = 0xF0
     static let IMMEDIATE_MASK: UInt8   = 0x0F
+    static let BIND_SPECIAL_DYLIB_SELF                  = 0
+    static let BIND_SPECIAL_DYLIB_MAIN_EXECUTABLE       = -1
+    static let BIND_SPECIAL_DYLIB_FLAT_LOOKUP           = -2
+    static let BIND_SYMBOL_FLAGS_WEAK_IMPORT            = 0x1
+    static let BIND_SYMBOL_FLAGS_NON_WEAK_DEFINITION    = 0x8
+
 
     case BIND_OPCODE_DONE                               = 0x00
     case BIND_OPCODE_SET_DYLIB_ORDINAL_IMM              = 0x10

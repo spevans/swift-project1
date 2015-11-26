@@ -129,12 +129,12 @@ class LoadCommandDyldInfo: LoadCommand {
 
     func showBindOpcodes() throws {
         let pointerSize: UInt64 = 8
-
+        var section = ""
 
         func bindCallback(opcode opcode: BindOpcode, immValue: UInt8, uval1: UInt64?, uval2: UInt64?, sval: Int64?,
             symbol:String, opcodeAddr: Int) throws {
 
-                print(String(format: "0x%04X \(opcode)", opcodeAddr), terminator:"")
+                print(String(format: "\(section) 0x%04X \(opcode)", opcodeAddr), terminator:"")
                 switch opcode {
                 case .BIND_OPCODE_DONE:
                     print("")
@@ -184,8 +184,11 @@ class LoadCommandDyldInfo: LoadCommand {
                 }
         }
 
+        section = "bind"
         try runBindSection("bind", callback: bindCallback)
+        section = "weak"
         try runBindSection("weak", callback: bindCallback)
+        section = "lazy"
         try runBindSection("lazy", callback: bindCallback)
     }
 
