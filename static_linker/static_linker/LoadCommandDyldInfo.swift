@@ -54,8 +54,8 @@ class LoadCommandDyldInfo: LoadCommand {
             exportOffset = try buffer.read()
             exportSize = try buffer.read()
 
-            try showRebaseOpcodes()
-            try showBindOpcodes()
+            //try showRebaseOpcodes()
+            //try showBindOpcodes()
         } catch {
             return nil
         }
@@ -270,6 +270,10 @@ class LoadCommandDyldInfo: LoadCommand {
 
     private func bindInfo(r: MemoryBufferReader, isLazy: Bool, callback: bindCallback) throws {
 
+        let badLazyOpcodes = [BIND_OPCODE_SET_ADDEND_SLEB, BIND_OPCODE_ADD_ADDR_ULEB,
+            BIND_OPCODE_DO_BIND_ADD_ADDR_ULEB, BIND_OPCODE_DO_BIND_ADD_ADDR_IMM_SCALED,
+            BIND_OPCODE_DO_BIND_ULEB_TIMES_SKIPPING_ULEB]
+
         var done = false
         var symbolName = ""
         let startOffset = r.offset
@@ -280,6 +284,10 @@ class LoadCommandDyldInfo: LoadCommand {
             var uval1: UInt64? = nil
             var uval2: UInt64? = nil
             var sval: Int64? = nil
+
+            if (isLazy && badLazyOpcodes.contains(Int32(opcode.rawValue))) {
+                throw MachOReader.ReadError.InvalidData(reason: "Bad lazy bind opcode: \(opcode)")
+            }
 
             switch (opcode) {
             case .BIND_OPCODE_DONE:
@@ -308,13 +316,10 @@ class LoadCommandDyldInfo: LoadCommand {
 
             case .BIND_OPCODE_SET_TYPE_IMM:
                 if BindType(rawValue: immValue) == nil {
-                    throw MachOReader.ReadError.InvalidData(reason: "Invalud BindType")
+                    throw MachOReader.ReadError.InvalidData(reason: "Invalid BindType")
                 }
 
             case .BIND_OPCODE_SET_ADDEND_SLEB:
-                if (isLazy) {
-                    throw MachOReader.ReadError.InvalidData(reason: "SET_ADDEND_SLEB found in lazy bind")
-                }
                 sval = try r.readSLEB128()
 
             case .BIND_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB:
@@ -327,20 +332,12 @@ class LoadCommandDyldInfo: LoadCommand {
                 break
 
             case .BIND_OPCODE_DO_BIND_ADD_ADDR_ULEB:
-                if (isLazy) {
-                    throw MachOReader.ReadError.InvalidData(reason: "DO_BIND_ADD_ADDR_ULEB found in lazy bind")
-                }
                 uval1 = try r.readULEB128()
 
             case .BIND_OPCODE_DO_BIND_ADD_ADDR_IMM_SCALED:
-                if (isLazy) {
-                    throw MachOReader.ReadError.InvalidData(reason: "DO_BIND_ADD_ADDR_IMM_SCALED found in lazy bind")
-                }
+                break
 
             case .BIND_OPCODE_DO_BIND_ULEB_TIMES_SKIPPING_ULEB:
-                if (isLazy) {
-                    throw MachOReader.ReadError.InvalidData(reason: "DO_BIND_ULEB_TIMES_SKIPPING_ULEB found in lazy bind")
-                }
                 uval1 = try r.readULEB128()
                 uval2 = try r.readULEB128()
             }

@@ -65,8 +65,7 @@ class MemoryBufferReader {
         repeat {
             ch = try read()
             str.append(ch)
-        }
-            while ch != 0
+        } while ch != 0
         if let result = String(CString: str, encoding: NSASCIIStringEncoding) {
             return result
         } else {

@@ -105,6 +105,7 @@ class LoadCommand {
         case .FUNCTION_STARTS:      return LoadCommandLinkEditDataCommand(header, reader)
         case .DATA_IN_CODE:         return LoadCommandLinkEditDataCommand(header, reader)
         case .CODE_SIGNATURE:       return LoadCommandLinkEditDataCommand(header, reader)
+        case .LINKER_OPTION:        return LoadCommandLinkerOption(header, reader)
 
         default: return nil
         }
@@ -256,5 +257,33 @@ class LoadCommandLinkEditDataCommand : LoadCommand {
 
     override var description: String {
         return String("LinkEdit: \(header.cmd) : ") + String(format: "offset: %016X size: %016X", dataOffset, dataSize)
+    }
+}
+
+
+class LoadCommandLinkerOption : LoadCommand {
+    var stringCount: UInt32 = 0
+    var options: [String] = []
+
+    override var description: String {
+        return "\(options)"
+    }
+
+
+    init?(_ header: LoadCommandHdr, _ reader: MachOReader) {
+        super.init(header: header, reader: reader)
+
+        do {
+            guard let buffer = MemoryBufferReader(reader, offset: header.cmdOffset + 8, size: Int(header.cmdSize)-8) else {
+                return nil
+            }
+            stringCount = try buffer.read()
+            for _ in 0..<stringCount {
+                let option = try buffer.scanASCIIZString()
+                options.append(option)
+            }
+        } catch {
+            return nil
+        }
     }
 }

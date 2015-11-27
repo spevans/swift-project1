@@ -195,18 +195,25 @@ func rebaseSegments(rebaseInfos: [RebaseInfo]) throws {
         var rebaseType = RebaseType.NONE
         var segmentIndex: Int = 0
         var segmentOffset: UInt64 = 0
-        var slide: UInt64?
+        var slide: Int64 = 0
 
 
         func rebaseAtAddress() throws {
-            let seg = ri.segmentMap[segmentIndex]?.section.sectionType.rawValue
-            let rebaseAddress = ri.machOFile.loadCommandSegments[segmentIndex].vmaddr + segmentOffset
-            print(String(format: "Rebase @ \(seg!) 0x%08X  ", rebaseAddress), terminator: "")
+            let section = ri.segmentMap[segmentIndex]?.section
+            let seg = section!.sectionType.rawValue
+            let rebaseAddress = ri.segmentMap[segmentIndex]!.offset + segmentOffset  // Offset into complete section
+            print(String(format: "Rebase @ \(seg) 0x%08X  Offset: 0x%08X Slide: 0x%X ",
+                rebaseAddress, segmentOffset, slide), terminator: "")
 
             switch(rebaseType) {
             case .POINTER, .ABSOLUTE32:
                 // FIXME: do the update
                 print(String(rebaseType).lowercaseString)
+                guard rebaseAddress < UInt64(Int.max) else {
+                    throw LinkerError.UnrecoverableError(reason: "rebaseAddress is out of range")
+                }
+                let off = Int(rebaseAddress)
+                try section!.patchAddress(offset: off, length: 8, address: slide, absolute: false)
 
             default:
                 throw LinkerError.UnrecoverableError(reason: "Bad rebaseType: \(rebaseType)")
@@ -230,7 +237,8 @@ func rebaseSegments(rebaseInfos: [RebaseInfo]) throws {
                     // Calculate the displacement of where the section is v where it preferred to be (vmaddr)
                     let originalAddr = ri.machOFile.loadCommandSegments[segmentIndex].vmaddr
                     let actualAddr = ri.segmentMap[segmentIndex]!.section.baseAddress
-                    slide = actualAddr - originalAddr
+                    slide = Int64(actualAddr - originalAddr)
+
 
                 case .REBASE_OPCODE_ADD_ADDR_ULEB:
                     segmentOffset += val1!
@@ -286,22 +294,38 @@ func bindSegments(bindInfos: [RebaseInfo]) throws {
         var segmentIndex: Int = 0
         var segmentOffset: UInt64 = 0
         var addend: Int64 = 0
-        var slide: UInt64?
+        //var slide: Int64 = 0
         var section = ""
         var symbolName = ""
         var ordinal = 0
         var weak_import = ""
 
 
+
         func bindAtAddress() throws {
-            let seg = bi.segmentMap[segmentIndex]?.section.sectionType.rawValue
-            let bindAddress = bi.machOFile.loadCommandSegments[segmentIndex].vmaddr &+ segmentOffset // allow wrap
-            print(String(format: "bindAtAddress \(section) bind @ \(seg!) 0x%08X  ", bindAddress), terminator: "")
+            let section = bi.segmentMap[segmentIndex]?.section
+            let seg = section!.sectionType.rawValue
+            //let bindAddress = bi.machOFile.loadCommandSegments[segmentIndex].vmaddr &+ segmentOffset // allow wrap
+            //let bind = bi.segmentMap[segmentIndex]!.offset + UInt64(slide)  // Offset into complete section
+            let vmaddr = bi.machOFile.loadCommandSegments[segmentIndex].vmaddr &+ segmentOffset
+            let bindAddress = bi.segmentMap[segmentIndex]!.offset &+ segmentOffset
+
+            print(String(format: "bindAtAddress \(section) bind @ \(seg) 0x%08X [0x%08X] ",
+                bindAddress, vmaddr), terminator: "")
 
             switch(bindType) {
             case .POINTER, .ABSOLUTE32:
                 // FIXME: do the update
                 print(String(format: "%@ %d %@", String(bindType).lowercaseString, addend, symbolName))
+                guard bindAddress < UInt64(Int.max) else {
+                    throw LinkerError.UnrecoverableError(reason: "bindAddress is out of range")
+                }
+                let off = Int(bindAddress)
+                guard let symbol = globalMap[symbolName] else {
+                    throw LinkerError.UnrecoverableError(reason: "Undefined symbol \(symbolName)")
+                }
+                let address = Int64(symbol.address)
+                try section!.patchAddress(offset: off, length: 8, address: address, absolute: false)
 
             default:
                 throw LinkerError.UnrecoverableError(reason: "Bad bindType: \(bindType)")
@@ -332,6 +356,9 @@ func bindSegments(bindInfos: [RebaseInfo]) throws {
 
                 case .BIND_OPCODE_SET_SYMBOL_TRAILING_FLAGS_IMM:
                     symbolName = symbol
+                    if (symbolName == "dyld_stub_binder") {
+                        symbolName = "_dyld_stub_binder"
+                    }
                     if (immValue & UInt8(BindOpcode.BIND_SYMBOL_FLAGS_WEAK_IMPORT)) != 0 {
                         weak_import = "weak"
                     } else {
@@ -348,10 +375,14 @@ func bindSegments(bindInfos: [RebaseInfo]) throws {
                 case .BIND_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB:
                     segmentIndex = Int(immValue)
                     segmentOffset = uval1!
+                    // Calculate the displacement of where the section is v where it preferred to be (vmaddr)
+                    //let originalAddr = bi.machOFile.loadCommandSegments[segmentIndex].vmaddr
+                    //let actualAddr = bi.segmentMap[segmentIndex]!.section.baseAddress
+                    //slide = Int64(actualAddr - originalAddr)
 
                 case .BIND_OPCODE_ADD_ADDR_ULEB:
                     // Allow overflow as wrap
-                    segmentOffset = segmentOffset &+ uval1! &+ pointerSize
+                    segmentOffset = segmentOffset &+ uval1! //&+ pointerSize
 
                 case .BIND_OPCODE_DO_BIND:
                     try bindAtAddress()
@@ -373,7 +404,7 @@ func bindSegments(bindInfos: [RebaseInfo]) throws {
                     let inc = uval2!
                     for _ in 0..<count {
                         try bindAtAddress()
-                        segmentOffset += inc
+                        segmentOffset += inc + pointerSize
                     }
                 }
         }

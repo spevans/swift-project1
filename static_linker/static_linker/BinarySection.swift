@@ -186,7 +186,7 @@ class BinarySection {
     }
 
 
-    private func patchAddress(offset offset: Int, length: Int, address: Int64, absolute: Bool) throws {
+    func patchAddress(offset offset: Int, length: Int, address: Int64, absolute: Bool) throws {
         guard (offset + length) <= sectionData.length else {
             throw LinkerError.UnrecoverableError(reason: "Bad offset \(offset + length) > \(sectionData.length)")
         }
