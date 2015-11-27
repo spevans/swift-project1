@@ -7,6 +7,7 @@
         extern _offset
         extern __bss_start
         extern __bss_end
+        extern __TF7startup7startupFT_T_ ; startup:startup()
         global _halt
 
 start_of_kernel:
@@ -23,7 +24,7 @@ start_of_kernel:
         sub     rcx, rdi
         rep
         stosb
-
+        jmp     startup
         mov     rdi, 0xB8000
         mov     rax, 0x1F471F4E1F4F1F4C
         mov     [rdi], rax
@@ -53,8 +54,9 @@ msgend:
         jne     msgend.loop
 
         mov     dword [_offset], 640
+startup:
         call    _init_tty
-
+        call    __TF7startup7startupFT_T_
 
 _halt:
         hlt

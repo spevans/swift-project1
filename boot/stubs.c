@@ -1,3 +1,4 @@
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 
 void print_string(char *);
 void halt();
@@ -268,7 +269,11 @@ void cosf() { print_and_halt("Calling cosf\n"); }
 
 void dispatch_once() { print_and_halt("Calling dispatch_once\n"); }
 
-void dispatch_once_f() { print_and_halt("Calling dispatch_once_f\n"); }
+//void dispatch_once_f() { print_and_halt("Calling dispatch_once_f\n"); }
+typedef long dispatch_once_t;
+void dispatch_once_f(dispatch_once_t *predicate, void *context, void (*function)(void *)) {
+        print_and_halt("Calling dispatch_once_f");
+}
 
 void dladdr() { print_and_halt("Calling dladdr\n"); }
 

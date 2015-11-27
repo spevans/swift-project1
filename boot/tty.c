@@ -125,5 +125,5 @@ void init_tty()
         newline();
         print_sections();
         print_qword(0x1234567890ABCDEF);
-
+        newline();
 }

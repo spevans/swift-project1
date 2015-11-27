@@ -72,4 +72,10 @@ output.writeData(loader)
 let seek = kernelLBA * 512
 output.seekToFileOffset(seek)
 output.writeData(kernel)
+
+// FIXME: make padding a cmd line arg
+let padding = UInt64(20 * 16 * 63 * 512) - 1
+output.seekToFileOffset(padding)
+let oneByte = NSMutableData(length:1)
+output.writeData(oneByte!)
 output.closeFile()

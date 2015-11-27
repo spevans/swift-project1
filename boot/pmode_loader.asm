@@ -120,11 +120,11 @@ boot_dev:       db      0               ; BIOS disk number
 
         ;; ESI: 32bit source addr EDI: 32bit dest addr ECX: count
 pm32_memcpy:
-        mov     word [ebp], 0x0721
-        add     ebp, 2
         mov     ax, DATA_SEG
         mov     ds, ax
         mov     es, ax
+        mov     word [ds:ebp], 0x0721 ; Print a '!' for each block copied
+        add     ebp, 2
         shr     ecx, 2
         cld
         rep     movsd           ; copy data
