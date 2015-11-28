@@ -85,6 +85,7 @@ class RebaseInfo {
         let section: BinarySection
         let offset: UInt64          // The offset into the sectionData that the segment was stored
         let dataSize: UInt64        // The number of bytes of the segment's data that was stored (excludes ZEROFILL etc)
+        let vmaddr: UInt64          // The preferred VM addr of the data added into the sectionData
     }
 
     let machOFile: MachOReader
@@ -96,8 +97,8 @@ class RebaseInfo {
     }
 
 
-    func addSegment(segment: Int, section: BinarySection, offset: UInt64, dataSize: UInt64) {
-        segmentMap[segment] = SegmentMapInfo(section: section, offset: offset, dataSize: dataSize)
+    func addSegment(segment: Int, section: BinarySection, offset: UInt64, dataSize: UInt64, vmaddr: UInt64) {
+        segmentMap[segment] = SegmentMapInfo(section: section, offset: offset, dataSize: dataSize, vmaddr: vmaddr)
     }
 }
 
@@ -105,6 +106,17 @@ class RebaseInfo {
 extension NSFileHandle {
     func writeString(string: String) {
         self.writeData(string.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: true)!)
+    }
+}
+
+
+extension String {
+    func basename() -> String {
+        if let parts: [String]? = self.componentsSeparatedByString("/") {
+            return parts![parts!.count-1]
+        } else {
+            return self
+        }
     }
 }
 
@@ -195,25 +207,43 @@ func rebaseSegments(rebaseInfos: [RebaseInfo]) throws {
         var rebaseType = RebaseType.NONE
         var segmentIndex: Int = 0
         var segmentOffset: UInt64 = 0
-        var slide: Int64 = 0
+
+        // For a given absolute address, work out which segment it is in and return the pointer adjusted for the
+        // segment's displacement
+        func pointerDisplacement(addr: UInt64) throws -> Int64 {
+
+            for idx in ri.segmentMap {
+                let vmaddr = ri.machOFile.loadCommandSegments[idx.0].vmaddr
+                let vmsize = ri.machOFile.loadCommandSegments[idx.0].vmsize
+                if (addr >= vmaddr) && (addr < vmaddr + vmsize) {
+                    let map = ri.segmentMap[idx.0]!
+                    var displacement: Int64 = Int64(map.section.baseAddress)
+                    displacement -= Int64(map.vmaddr)
+                    displacement += Int64(map.offset)
+                    return Int64(displacement + Int64(addr))
+                }
+            }
+            throw LinkerError.UnrecoverableError(reason: "Cant find segment containing address: \(addr)")
+        }
 
 
         func rebaseAtAddress() throws {
             let section = ri.segmentMap[segmentIndex]?.section
-            let seg = section!.sectionType.rawValue
-            let rebaseAddress = ri.segmentMap[segmentIndex]!.offset + segmentOffset  // Offset into complete section
-            print(String(format: "Rebase @ \(seg) 0x%08X  Offset: 0x%08X Slide: 0x%X ",
-                rebaseAddress, segmentOffset, slide), terminator: "")
+
+            // The absolute offset into the binary section's data is the offset that the segment was stored at + the
+            // rebase offset
+            let rebaseAddress = Int(ri.segmentMap[segmentIndex]!.offset + segmentOffset)
+            let addr: UInt64 = try section!.readAddress(offset: Int(rebaseAddress))
+            let newAddr = try pointerDisplacement(addr)
+
+            print(String(format: "Rebase @ \(section!.sectionType.rawValue) 0x%08X  Offset: 0x%08X 0x%08X -> 0x%08X ",
+                rebaseAddress, segmentOffset, addr, newAddr), terminator: "")
 
             switch(rebaseType) {
             case .POINTER, .ABSOLUTE32:
                 // FIXME: do the update
                 print(String(rebaseType).lowercaseString)
-                guard rebaseAddress < UInt64(Int.max) else {
-                    throw LinkerError.UnrecoverableError(reason: "rebaseAddress is out of range")
-                }
-                let off = Int(rebaseAddress)
-                try section!.patchAddress(offset: off, length: 8, address: slide, absolute: false)
+                try section!.writeAddress(offset: rebaseAddress, value: newAddr)
 
             default:
                 throw LinkerError.UnrecoverableError(reason: "Bad rebaseType: \(rebaseType)")
@@ -234,11 +264,6 @@ func rebaseSegments(rebaseInfos: [RebaseInfo]) throws {
                 case .REBASE_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB:
                     segmentIndex = Int(immValue)
                     segmentOffset = val1!
-                    // Calculate the displacement of where the section is v where it preferred to be (vmaddr)
-                    let originalAddr = ri.machOFile.loadCommandSegments[segmentIndex].vmaddr
-                    let actualAddr = ri.segmentMap[segmentIndex]!.section.baseAddress
-                    slide = Int64(actualAddr - originalAddr)
-
 
                 case .REBASE_OPCODE_ADD_ADDR_ULEB:
                     segmentOffset += val1!
@@ -294,19 +319,15 @@ func bindSegments(bindInfos: [RebaseInfo]) throws {
         var segmentIndex: Int = 0
         var segmentOffset: UInt64 = 0
         var addend: Int64 = 0
-        //var slide: Int64 = 0
         var section = ""
         var symbolName = ""
         var ordinal = 0
         var weak_import = ""
 
 
-
         func bindAtAddress() throws {
             let section = bi.segmentMap[segmentIndex]?.section
             let seg = section!.sectionType.rawValue
-            //let bindAddress = bi.machOFile.loadCommandSegments[segmentIndex].vmaddr &+ segmentOffset // allow wrap
-            //let bind = bi.segmentMap[segmentIndex]!.offset + UInt64(slide)  // Offset into complete section
             let vmaddr = bi.machOFile.loadCommandSegments[segmentIndex].vmaddr &+ segmentOffset
             let bindAddress = bi.segmentMap[segmentIndex]!.offset &+ segmentOffset
 
@@ -324,8 +345,8 @@ func bindSegments(bindInfos: [RebaseInfo]) throws {
                 guard let symbol = globalMap[symbolName] else {
                     throw LinkerError.UnrecoverableError(reason: "Undefined symbol \(symbolName)")
                 }
-                let address = Int64(symbol.address)
-                try section!.patchAddress(offset: off, length: 8, address: address, absolute: false)
+                let address = UInt64(symbol.address)
+                try section!.writeAddress(offset: off, value: address)
 
             default:
                 throw LinkerError.UnrecoverableError(reason: "Bad bindType: \(bindType)")
@@ -370,19 +391,16 @@ func bindSegments(bindInfos: [RebaseInfo]) throws {
                     bindType = BindType(rawValue: immValue)!
 
                 case .BIND_OPCODE_SET_ADDEND_SLEB:
+                    // FIXME: Need to do something with the addend
                     addend = sval!
 
                 case .BIND_OPCODE_SET_SEGMENT_AND_OFFSET_ULEB:
                     segmentIndex = Int(immValue)
                     segmentOffset = uval1!
-                    // Calculate the displacement of where the section is v where it preferred to be (vmaddr)
-                    //let originalAddr = bi.machOFile.loadCommandSegments[segmentIndex].vmaddr
-                    //let actualAddr = bi.segmentMap[segmentIndex]!.section.baseAddress
-                    //slide = Int64(actualAddr - originalAddr)
 
                 case .BIND_OPCODE_ADD_ADDR_ULEB:
                     // Allow overflow as wrap
-                    segmentOffset = segmentOffset &+ uval1! //&+ pointerSize
+                    segmentOffset = segmentOffset &+ uval1!
 
                 case .BIND_OPCODE_DO_BIND:
                     try bindAtAddress()
@@ -468,20 +486,20 @@ func processSourceFile(args: [String:AnyObject]) throws {
         var dataAddress: UInt64?
         let fileInfo = FileInfo(file: srcLibData)
         fileInfos.append(fileInfo)
-        let rebaseInfo = RebaseInfo(file: srcLibData)
-        rebaseInfos.append(rebaseInfo)
+
 
         try findBssSymbols(srcLibData.symbolTable.symbols)
+        if (srcLibData.header.fileType == MachOReader.FileType.DYLIB) {
+            let rebaseInfo = try textSection.addDyLib(srcLibData)
+            rebaseInfos.append(rebaseInfo)
+            continue
+        }
+
+        let rebaseInfo = RebaseInfo(file: srcLibData)
+        rebaseInfos.append(rebaseInfo)
         for loadSegment in srcLibData.loadCommandSegments {
             print(loadSegment)
-
-            if (loadSegment.segname == Section.TEXT.rawValue) {
-                let (start, size) = try textSection.addSegment(loadSegment, fileInfo: fileInfo)
-                rebaseInfo.addSegment(loadSegment.segnumber, section: textSection, offset: start, dataSize: size)
-            } else if (loadSegment.segname == Section.DATA.rawValue) {
-                let (start, size) = try dataSection.addSegment(loadSegment, fileInfo: fileInfo)
-                rebaseInfo.addSegment(loadSegment.segnumber, section: dataSection, offset: start, dataSize: size)
-            } else if (loadSegment.segname == "") {
+            if (loadSegment.segname == "") {
                 for section in loadSegment.sections {
                     if section.segmentName == Section.TEXT.rawValue {
                         var curaddr = textSection.currentOffset

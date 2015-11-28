@@ -9,6 +9,8 @@
 import Foundation
 
 
+
+
 class BinarySection {
     let sectionType:   Section
     var baseAddress:   UInt64 = 0               // base address of this section
@@ -70,17 +72,18 @@ class BinarySection {
     }
 
 
-    private func addSymbols(fileInfo: FileInfo, pc: UInt64, sectionNumber: Int, sectionAddr: UInt64,
+    private func addSymbols(symbolTable: LoadCommandSymTab, pc: UInt64, sectionNumber: Int, sectionAddr: UInt64,
         offset: Int, count: Int) throws {
             let dupes = Set(["__ZL11unreachablePKc", "__ZN5swiftL11STDLIB_NAMEE", "__ZN5swiftL20MANGLING_MODULE_OBJCE", "__ZN5swiftL17MANGLING_MODULE_CE", "GCC_except_table2"])
             let lastIdx = offset + count
             for symIdx in offset..<lastIdx {
-                let symbol = fileInfo.machOFile.symbolTable.symbols[symIdx]
+                let symbol = symbolTable.symbols[symIdx]
                 if Int(symbol.sectionNumber) == sectionNumber && symbol.type != .UNDF {
                     if globalMap[symbol.name] == nil {
                         let address = (symbol.value - sectionAddr) + pc
                         globalMap[symbol.name] = SymbolInfo(name: symbol.name, section: sectionType,
                             address: address, isLocal: symbol.privateExternalBit, GOTAddress: nil, bssSize: nil)
+                            print(String(format: "Adding %08X: %@", address, symbol.name))
                     } else {
                         if !dupes.contains(symbol.name) {
                             throw LinkerError.UnrecoverableError(reason: "Found \(symbol.name) already in globalMap")
@@ -91,16 +94,122 @@ class BinarySection {
     }
 
 
-    func addSegment(segment: LoadCommandSegment64, fileInfo: FileInfo) throws -> (UInt64, UInt64) {
-        print("Adding segment nr \(segment.segnumber): \(segment.segname)")
-        expandSectionToAlignment(Int(segment.sections[0].align))
+
+    func addDyLib(lib: MachOReader) throws -> RebaseInfo {
+        let filename = lib.filename.basename()
+
+        let rebaseInfo = RebaseInfo(file: lib)
+        print("Adding dylib: \(filename)")
+        // Align to PAGE_SIZE
+        // FIXME: Add better constant for page_size
+        expandSectionToAlignment(12) // align to page boundary
         let dataStart = UInt64(sectionData.length)
+        let segments = lib.loadCommandSegments
+
+        // FIXME, dont hardcode
+        let totalSize = Int(segments[0].fileSize + segments[1].fileSize)
+        print(String(format: "Adding: 0x%08X bytes @ file offset 0x%08X\n", totalSize, dataStart))
+        for segment in segments {
+            if segment.segname != "__TEXT" && segment.segname != "__DATA" {
+                print("Skipping segment \(segment.segname)")
+                continue
+            }
+
+            guard (UInt64(sectionData.length) % 4096) == 0 else {
+                throw LinkerError.UnrecoverableError(reason: "segment doesnt fall page boundary")
+            }
+
+            // Now add in padding between segment file offset and first section offset
+            let padding = Int(segment.sections[0].fileOffset) - Int(segment.fileOffset)
+            sectionData.increaseLengthBy(padding)
+            print(String(format: "Adding 0x%08X bytes of padding", padding))
+
+
+
+
+            for section in segment.sections {
+                let outputOffset = dataStart + UInt64(section.fileOffset)
+                print(String(format: "Section: %@/%@ fileoffset = 0x%08 output offset = 0x%08X", segment.segname,
+                section.sectionName, section.fileOffset, outputOffset))
+                expandSectionToAlignment(Int(section.align))
+
+                if (section.sectionType == .S_ZEROFILL) {
+                    print("Adding \(section.size) bytes of zerofill")
+                    sectionData.increaseLengthBy(Int(section.size))
+                    continue
+                }
+
+                guard let data = section.sectionData else {
+                    throw LinkerError.UnrecoverableError(reason: "Cant read data")
+                }
+
+
+                guard (sectionData.length % Int(1 << section.align)) == 0 else {
+                    throw LinkerError.UnrecoverableError(reason: "section doesnt fall on alignment boundary")
+                }
+
+                let symbolName = "\(filename):\(segment.segname).\(section.sectionName)"
+                globalMap[symbolName] = SymbolInfo(name: symbolName, section: sectionType,
+                    address: UInt64(sectionData.length), isLocal: false, GOTAddress: nil, bssSize: nil)
+                print(String(format: "Adding %08X: %@", UInt64(sectionData.length), symbolName))
+
+                sectionData.appendData(data)
+                // If there is a dynamic symbol table, use that to get a list of the declared symbols contained in the obj/lib
+                if lib.dySymbolTable != nil {
+                    // Add in exported symbols
+                    try addSymbols(lib.symbolTable, pc: outputOffset, sectionNumber: section.sectionNumber, sectionAddr: section.addr,
+                        offset: Int(lib.dySymbolTable!.idxExtDefSym),
+                        count: Int(lib.dySymbolTable!.numExtDefSym))
+
+                    // Add in local symbols
+                    try addSymbols(lib.symbolTable, pc: outputOffset, sectionNumber: section.sectionNumber, sectionAddr: section.addr,
+                        offset: Int(lib.dySymbolTable!.idxLocalSym),
+                        count:Int(lib.dySymbolTable!.numLocalSym))
+                }
+            }
+            rebaseInfo.addSegment(segment.segnumber, section: self, offset: dataStart + segment.fileOffset,
+                dataSize: segment.fileSize, vmaddr: segment.vmaddr)
+        }
+
+        return rebaseInfo
+    }
+
+
+    // Add a whole segment at once. Its added on the next page boundary and as one block. This means the first
+    // segment (usually __TEXT) which includes the mach-o header wastes some space
+
+/***    func addSegment(segment: LoadCommandSegment64, fileInfo: FileInfo) throws -> (UInt64, UInt64, UInt64) {
+        print("Adding segment nr \(segment.segnumber): \(segment.segname)")
+        // FIXME: Add better constant for page_size
+        //expandSectionToAlignment(Int(segment.sections[0].align))
+        expandSectionToAlignment(4) // align to page boundary
+
+        // Now add in padding between segment file offset and first section offset
+//        let padding = Int(segment.sections[0].fileOffset) - Int(segment.fileOffset)
+//        sectionData.increaseLengthBy(padding)
+//        print(String(format: "Adding 0x%08X bytes of padding", padding))
+
+        let newVMaddr = segment.vmaddr + (UInt64(segment.sections[0].fileOffset) - segment.fileOffset)
+        let dataStart = UInt64(sectionData.length)
+        let filename = fileInfo.machOFile.filename.basename()
 
         // FIXME: currently doesnt check if zerofills are only at the end
         for section in segment.sections {
+            print("Adding section: \(section.sectionName)")
+            let before = sectionData.length
+            expandSectionToAlignment(Int(section.align))
+            print("Aligned from \(before) to \(sectionData.length)")
             guard let data = section.sectionData else {
                 throw LinkerError.UnrecoverableError(reason: "Cant read data")
             }
+            // Pad section upto next alignment
+            guard (sectionData.length % Int(1 << section.align)) == 0 else {
+                throw LinkerError.UnrecoverableError(reason: "section doesnt fall on alignment boundary")
+            }
+
+            let symbolName = "\(filename):\(segment.segname).\(section.sectionName)"
+            globalMap[symbolName] = SymbolInfo(name: symbolName, section: sectionType,
+                address: UInt64(sectionData.length), isLocal: false, GOTAddress: nil, bssSize: nil)
             sectionData.appendData(data)
 
             // If there is a dynamic symbol table, use that to get a list of the declared symbols contained in the obj/lib
@@ -118,10 +227,8 @@ class BinarySection {
         }
         let dataSize = UInt64(sectionData.length) - dataStart
 
-
-
-        return (dataStart, dataSize)
-    }
+        return (dataStart, dataSize, newVMaddr)
+    }***/
 
 
     func addSection(segment: LoadCommandSegment64, section: LoadCommandSegmentSection64, fileInfo: FileInfo) throws -> UInt64 {
@@ -141,7 +248,7 @@ class BinarySection {
             sectionData.appendData(data)
         }
 
-        try addSymbols(fileInfo, pc: sectionStart, sectionNumber: section.sectionNumber, sectionAddr: section.addr,
+        try addSymbols(fileInfo.machOFile.symbolTable, pc: sectionStart, sectionNumber: section.sectionNumber, sectionAddr: section.addr,
             offset: 0, count: fileInfo.machOFile.symbolTable.symbols.count)
 
         let tuple = (section, fileInfo)
@@ -183,6 +290,26 @@ class BinarySection {
         for (section, fileInfo) in relocations {
             try relocateSection(section, fileInfo)
         }
+    }
+
+
+    func readAddress<T>(offset offset: Int) throws -> T {
+        let length = sizeof(T)
+        guard (offset + length) <= sectionData.length else {
+            throw LinkerError.UnrecoverableError(reason: "Bad offset \(offset + length) > \(sectionData.length)")
+        }
+        let addr = UnsafePointer<T>(sectionData.bytes + offset)
+        return addr.memory
+    }
+
+
+    func writeAddress<T>(offset offset: Int, value: T) throws {
+        let length = sizeof(T)
+        guard (offset + length) <= sectionData.length else {
+            throw LinkerError.UnrecoverableError(reason: "Bad offset \(offset + length) > \(sectionData.length)")
+        }
+        let addr = UnsafeMutablePointer<T>(sectionData.bytes + offset)
+        addr.memory = value
     }
 
 

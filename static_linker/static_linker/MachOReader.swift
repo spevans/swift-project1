@@ -10,6 +10,7 @@ import Foundation
 
 
 class MachOReader {
+    let filename: String
     var file: NSData!
     var header: MachOHeader!
     var loadCommands: [LoadCommand] = []
@@ -117,6 +118,7 @@ class MachOReader {
 
 
     init?(filename: String) {
+        self.filename = filename
         do {
             file = try NSData(contentsOfFile: filename, options: .DataReadingMapped)
             guard file.length > MachOHeader.size() else {
