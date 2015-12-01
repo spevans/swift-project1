@@ -247,6 +247,11 @@ class BinarySection {
             }
             sectionData.appendData(data)
         }
+        let filename = fileInfo.machOFile.filename.basename()
+
+        let symbolName = "\(filename):\(segment.segname).\(section.sectionName)"
+        globalMap[symbolName] = SymbolInfo(name: symbolName, section: sectionType,
+            address: sectionStart, isLocal: false, GOTAddress: nil, bssSize: nil)
 
         try addSymbols(fileInfo.machOFile.symbolTable, pc: sectionStart, sectionNumber: section.sectionNumber, sectionAddr: section.addr,
             offset: 0, count: fileInfo.machOFile.symbolTable.symbols.count)
@@ -398,8 +403,12 @@ class BinarySection {
             }
 
 
+            /*
+             * SIGNED_4 doesnt seem to need any extra changes v SIGNED as the addend is stored in the location
+             * being patched. I assume its just to inform the linker of the byte offset relative to the pc
+             */
             switch reloc.type {
-            case .X86_64_RELOC_BRANCH, .X86_64_RELOC_SIGNED:
+            case .X86_64_RELOC_BRANCH, .X86_64_RELOC_SIGNED, .X86_64_RELOC_SIGNED_4:
                 guard reloc.PCRelative == true else {
                     throw LinkerError.UnrecoverableError(reason: "reloc is not PCRelative")
                 }

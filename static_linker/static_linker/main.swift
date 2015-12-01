@@ -502,23 +502,19 @@ func processSourceFile(args: [String:AnyObject]) throws {
             if (loadSegment.segname == "") {
                 for section in loadSegment.sections {
                     if section.segmentName == Section.TEXT.rawValue {
-                        var curaddr = textSection.currentOffset
                         let sectionStart = try textSection.addSection(loadSegment, section: section, fileInfo: fileInfo)
                         if textAddress == nil {
                             textAddress = sectionStart
-                            curaddr = sectionStart
                         }
                         fileInfo.sectionBaseAddrs[section.sectionNumber] = sectionStart
-                        fileInfo.offsetInSegment[section.sectionNumber] = curaddr - textAddress!
+                        fileInfo.offsetInSegment[section.sectionNumber] = sectionStart - textAddress!
                     } else if section.segmentName == Section.DATA.rawValue {
-                        var curaddr = dataSection.currentOffset
                         let sectionStart = try dataSection.addSection(loadSegment, section: section, fileInfo: fileInfo)
                         if dataAddress == nil {
                             dataAddress = sectionStart
-                            curaddr = sectionStart
                         }
                         fileInfo.sectionBaseAddrs[section.sectionNumber] = sectionStart
-                        fileInfo.offsetInSegment[section.sectionNumber] = curaddr - dataAddress!
+                        fileInfo.offsetInSegment[section.sectionNumber] = sectionStart - dataAddress!
                     } else {
                         print("Skipping section: \(section.segmentName)");
                     }
