@@ -2,17 +2,19 @@
 
 import Foundation
 
+
+
+
+
 let args = Process.arguments
 guard args.count == 5 else {
-      print("usage: \(args[0]) <bootsector.bin> <loader.bin> <kernel.bin> <output>")
-      exit(EXIT_FAILURE)
+      fatalError("usage: \(args[0]) <bootsector.bin> <loader.bin> <kernel.bin> <output>")
 }
 //print("Bootsect: \(args[1]) loader: \(args[2]) kernel: \(args[3]) output: \(args[4])")
 
 func openOrQuit(filename: String) -> NSData {
     guard let file = NSData(contentsOfFile: filename) else {
-        print("Cant open \(filename)")
-        exit(EXIT_FAILURE)
+        fatalError("Cant open \(filename)")
     }
     return file
 }
@@ -26,15 +28,13 @@ func openOutput(filename: String) -> NSFileHandle {
         }
     }
 
-    print("Cant open output file: \(filename)")
-    exit(EXIT_FAILURE)
+    fatalError("Cant open output file: \(filename)")
 }
 
 
 func patchValue<T>(data: NSData, offset: Int, value: T) {
     guard offset >= 0 && offset < data.length else {
-        print("Invalid offset: \(offset)")
-        exit(EXIT_FAILURE)
+        fatalError("Invalid offset: \(offset)")
     }
     let ptr = UnsafeMutablePointer<T>(data.bytes + offset)
     ptr.memory = value
@@ -43,8 +43,7 @@ func patchValue<T>(data: NSData, offset: Int, value: T) {
 
 let bootsect = openOrQuit(args[1])
 guard bootsect.length == 512 else {
-    print("Bootsector should be 512 bytes but is \(bootsect.length)")
-    exit(EXIT_FAILURE)
+    fatalError("Bootsector should be 512 bytes but is \(bootsect.length)")
 }
 let loader = openOrQuit(args[2])
 let kernel = openOrQuit(args[3])
@@ -79,3 +78,4 @@ output.seekToFileOffset(padding)
 let oneByte = NSMutableData(length:1)
 output.writeData(oneByte!)
 output.closeFile()
+

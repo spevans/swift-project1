@@ -111,7 +111,10 @@ GDT:
         dq      0x00209A0000000000
         ;; Data descriptor, base=0, limit=0 Present, Ring 0, RW Longmode
         dq      0x0000920000000000
+        ;; TLS descriptor, base=0x1FF8, limit=0 Present, Ring 0, RW Longmode
+        dq      0x000092001FF80000
 
+        
  .pointer:
         dw      ($ - GDT) - 1   ; 16bit length -1
         dq      0x90000 + GDT   ; 32bit base address

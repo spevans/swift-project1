@@ -1,16 +1,38 @@
+#include <stdint.h>
+#include <stddef.h>
+
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
-void print_string(char *);
+extern uintptr_t _bss_end;
+
+void kprintf(const char *fmt, ...);
+//void print_string(char *);
+//void print_pointer(const void *restrict ptr);
+//void print_byte(int value);
+//void print_word(int value);
+//void print_dword(unsigned int value);
+//void print_qword(uint64_t value);
 void halt();
+void *malloc(size_t size);
+
+
+
+unsigned long vm_page_mask = 4095;
+
+
+typedef long dispatch_once_t;
+//typedef uint64_t size_t;
+//typedef int64_t ssize_t
+
 
 static void print_and_halt(char *str) {
-        print_string(str);
+        kprintf("%s", str);
         halt();
 }
 
 
 void dyld_stub_binder() {
-print_and_halt("dyld_stub_binder");
+        print_and_halt("dyld_stub_binder");
 }
 
 void CFErrorGetTypeID() { print_and_halt("Calling CFErrorGetTypeID\n"); }
@@ -93,7 +115,13 @@ void _ZNSt3__111__call_onceERVmPvPFvS2_E() { print_and_halt("Calling _ZNSt3__111
 
 void _ZNSt3__112__next_primeEm() { print_and_halt("Calling _ZNSt3__112__next_primeEm\n"); }
 
-void _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6__initEPKcm() { print_and_halt("Calling _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6__initEPKcm\n"); }
+//std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >::__init(char const*, unsigned long)
+void *_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6__initEPKcm(void *this, char const *str, unsigned long len) {
+        kprintf("Calling %p->_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6__initEPKcm(%s,%d)\n",
+                this, str, len);
+        halt();
+        return NULL;
+}
 
 void _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6__initEmc() { print_and_halt("Calling _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6__initEmc\n"); }
 
@@ -169,11 +197,23 @@ void _ZNSt3__119__shared_weak_countD2Ev() { print_and_halt("Calling _ZNSt3__119_
 
 void _ZNSt3__15ctypeIcE2idE() { print_and_halt("Calling _ZNSt3__15ctypeIcE2idE\n"); }
 
-void _ZNSt3__15mutex4lockEv() { print_and_halt("Calling _ZNSt3__15mutex4lockEv\n"); }
+// std::__1::mutex::lock()
+void _ZNSt3__15mutex4lockEv(void *this) {
+        printf("(_ZNSt3__15mutex4lockEv)mutex_lock this=%p\n", this);
+}
 
-void _ZNSt3__15mutex6unlockEv() { print_and_halt("Calling _ZNSt3__15mutex6unlockEv\n"); }
+void _ZNSt3__15mutex6unlockEv(void *this) {
+        printf("(_ZNSt3__15mutex6unlockEv)mutex_unlock this=%p\n", this);
+}
 
-void _ZNSt3__16__sortIRNS_6__lessImmEEPmEEvT0_S5_T_() { print_and_halt("Calling _ZNSt3__16__sortIRNS_6__lessImmEEPmEEvT0_S5_T_\n"); }
+void _ZNSt3__16__sortIRNS_6__lessImmEEPmEEvT0_S5_T_(unsigned long *start, unsigned long *end, void *cmpfunc) {
+        printf("Calling _ZNSt3__16__sortIRNS_6__lessImmEEPmEEvT0_S5_T_(%p, %p, %p)\n", start, end, cmpfunc);
+        if (start == end) {
+                return; // no sort needed
+        } else {
+                halt();
+        }
+}
 
 void _ZNSt3__16localeD1Ev() { print_and_halt("Calling _ZNSt3__16localeD1Ev\n"); }
 
@@ -199,13 +239,37 @@ void _ZTv0_n24_NSt3__114basic_iostreamIcNS_11char_traitsIcEEED0Ev() { print_and_
 
 void _ZTv0_n24_NSt3__114basic_iostreamIcNS_11char_traitsIcEEED1Ev() { print_and_halt("Calling _ZTv0_n24_NSt3__114basic_iostreamIcNS_11char_traitsIcEEED1Ev\n"); }
 
-void _ZdaPv() { print_and_halt("Calling _ZdaPv\n"); }
+// _operator delete[](void*)
+void _ZdaPv(void *this) {
+        printf("(_ZdaPv)delete[](%p)\n", this);
+        halt();
+}
 
-void _ZdlPv() { print_and_halt("Calling _ZdlPv\n"); }
 
-void _Znam() { print_and_halt("Calling _Znam\n"); }
+//_operator delete(void*)
+void _ZdlPv(void *this) {
+        printf("(_ZdlPv)delete(%p)\n", this);
+        halt();
+}
 
-void _Znwm() { print_and_halt("Calling _Znwm\n"); }
+
+//_operator new[](unsigned long)
+void *_Znam(unsigned long size) {
+        printf("(_Znam)new[](%lu)", size);
+        void *result = malloc(size);
+        printf("=%p\n", result);
+        return result;
+}
+
+
+//_operator new(unsigned long)
+void *_Znwm(unsigned long size) {
+        printf("(_Znwm)new(%lu)", size);
+        void *result = malloc(size);
+        printf("=%p\n", result);
+        return result;
+}
+
 
 void __CFConstantStringClassReference() { print_and_halt("Calling __CFConstantStringClassReference\n"); }
 
@@ -272,7 +336,19 @@ void dispatch_once() { print_and_halt("Calling dispatch_once\n"); }
 //void dispatch_once_f() { print_and_halt("Calling dispatch_once_f\n"); }
 typedef long dispatch_once_t;
 void dispatch_once_f(dispatch_once_t *predicate, void *context, void (*function)(void *)) {
-        print_and_halt("Calling dispatch_once_f");
+        print_string("Calling dispatch_once_f\n");
+        print_string("predicate=");
+        print_dword(*predicate);
+        print_string("  context=");
+        print_pointer(context);
+        print_string("  function=");
+        print_pointer(function);
+        print_string("\n");
+        if(*predicate == 0) {
+                *predicate = ~0L;
+                function(context);
+        }
+        //halt();
 }
 
 void dladdr() { print_and_halt("Calling dladdr\n"); }
@@ -301,7 +377,8 @@ void fmodl() { print_and_halt("Calling fmodl\n"); }
 
 void fprintf() { print_and_halt("Calling fprintf\n"); }
 
-void free() { print_and_halt("Calling free\n"); }
+void free(void *ptr) {
+        print_and_halt("Calling free\n"); }
 
 void freelocale() { print_and_halt("Calling freelocale\n"); }
 
@@ -325,7 +402,20 @@ void log2f() { print_and_halt("Calling log2f\n"); }
 
 void logf() { print_and_halt("Calling logf\n"); }
 
-void malloc() { print_and_halt("Calling malloc\n"); }
+void *malloc(size_t size)
+{
+        const int align = 16-1;
+        static uint64_t heap = (uint64_t)&_bss_end;
+
+        heap = (heap + align) & ~align;
+        char *result = (char *)heap;
+        heap += size;
+
+        kprintf("malloc(%d), result=%p heap=%p\n", size, result, heap);
+
+        return result;
+}
+
 
 void malloc_default_zone() { print_and_halt("Calling malloc_default_zone\n"); }
 
@@ -337,11 +427,27 @@ void memchr() { print_and_halt("Calling memchr\n"); }
 
 void memcmp() { print_and_halt("Calling memcmp\n"); }
 
-void memcpy() { print_and_halt("Calling memcpy\n"); }
+//void memcpy() { print_and_halt("Calling memcpy\n"); }
+void *__memcpy(void *dest, const void *src, size_t n);
+
+void *memcpy(void *restrict dst, const void *restrict src, size_t n)
+{
+        kprintf("memcpy(dst=%p,src=%p,count=%d\n", dst, src, n);
+        __memcpy(dst, src, n);
+        return dst;
+}
+
 
 void memmove() { print_and_halt("Calling memmove\n"); }
 
-void mmap() { print_and_halt("Calling mmap\n"); }
+void *mmap(void *addr, size_t len, int prot, int flags, int fd, int64_t offset) {
+        kprintf("mmap=(addr=%lX,len=%lX,prot=%X,flags=%X,fd=%d,offset=%X)\n",
+               addr, len, prot, flags, fd, offset);
+        void *result = (void *)0x500000;
+        return result;
+}
+
+//void mmap() { print_and_halt("Calling mmap\n"); }
 
 void nearbyint() { print_and_halt("Calling nearbyint\n"); }
 
@@ -367,7 +473,10 @@ void objc_loadWeakRetained() { print_and_halt("Calling objc_loadWeakRetained\n")
 
 void objc_moveWeak() { print_and_halt("Calling objc_moveWeak\n"); }
 
-void objc_msgSend() { print_and_halt("Calling objc_msgSend\n"); }
+void *objc_msgSend(void *self, void *sel) {
+        kprintf("objc_msgSend(%p, %p)\n", self, sel);
+        return 0;
+}
 
 void objc_msgSendSuper2() { print_and_halt("Calling objc_msgSendSuper2\n"); }
 
@@ -427,7 +536,21 @@ void strcmp() { print_and_halt("Calling strcmp\n"); }
 
 void strdup() { print_and_halt("Calling strdup\n"); }
 
-void strlen() { print_and_halt("Calling strlen\n"); }
+//void strlen() { print_and_halt("Calling strlen\n"); }
+size_t
+strlen(const char *s)
+{
+        int d0;
+        size_t res;
+        asm volatile("cld\n\t"
+                     "repne\n\t"
+                     "scasb"
+                     : "=c" (res), "=&D" (d0)
+                     : "1" (s), "a" (0), "0" (0xffffffffu)
+                     : "memory");
+        return ~res - 1;
+}
+
 
 void strncmp() { print_and_halt("Calling strncmp\n"); }
 
@@ -447,6 +570,5 @@ void truncf() { print_and_halt("Calling truncf\n"); }
 
 void vasprintf() { print_and_halt("Calling vasprintf\n"); }
 
-void vm_page_mask() { print_and_halt("Calling vm_page_mask\n"); }
 
 void write() { print_and_halt("Calling write\n"); }

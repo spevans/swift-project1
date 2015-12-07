@@ -3,12 +3,16 @@
         DEFAULT REL
         SECTION .text
 
-        extern _init_tty
+        extern init_tty
         extern __bss_start
-        extern __bss_end
-        extern __TF7startup7startupFT_T_ ; startup:startup()
-        global _halt
+        extern _end
 
+        extern _TF7startup7startupFT_T_ ; startup:startup()
+        global main
+        global _start
+
+_start: 
+main:   
 start_of_kernel:
         mov     esp, 0xA0000            ; Set the stack to the top of 640K
         mov     rdi, 0xB8000
@@ -19,46 +23,26 @@ start_of_kernel:
         ;; Clear the BSS
         xor     rax, rax
         mov     rdi, __bss_start
-        mov     rcx, __bss_end
+        mov     rcx, _end
         sub     rcx, rdi
         rep
         stosb
         call    enable_sse
 
-        jmp     startup
-        mov     rdi, 0xB8000
-        mov     rax, 0x1F471F4E1F4F1F4C
-        mov     [rdi], rax
-        jmp     start2
-
-        ALIGN   16
-start2:
-        mov     rax, 0x1F451F441F4F1F4D
-        mov     [rdi+8], rax
-        add     rdi, 160
-        lea     rsi, [msg1]
-        mov     ah, 0x7
-.loop:
-        lodsb
-        cmp     al, 0
-        je      msgend
-        stosw
-        jmp     .loop
-
-msgend:
-        lea     eax,[counter]
-        xor     eax,eax
-        mov     [counter], eax
-.loop:
-        inc     dword [counter]
-        cmp     dword [counter], 10
-        jne     msgend.loop
-
 startup:
-        call    _init_tty
-        call    __TF7startup7startupFT_T_
+        mov     ax,0x18
+        mov     fs,ax
+        mov     rax, 0x1FF8
+        mov     [fs:0], rax
+        mov     rax, 0x3f39e0
+        mov     [fs:-8], rax
+        mov     rax, 0x3f39e8
+        mov     [fs:-16], rax
+        
 
-_halt:
+        
+        call    init_tty
+        call    _TF7startup7startupFT_T_
         hlt
 
         ;; SSE instuctions cause an undefined opcode until enabled in CR0/CR4

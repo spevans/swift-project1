@@ -7,7 +7,7 @@ PAGE_WRITEABLE  EQU     2
 
 
 ;;; Setup pagetables a 48KB region @ 0000:3000
-;;; PML4 @ 0000:3000, PDP @ 0000:4000, PD @ 0000:5000 PT @ 0000:6000 - 0000:9FFF
+;;; PML4 @ 0000:3000, PDP @ 0000:4000, PD @ 0000:5000 PT @ 0000:6000 - 1000:0000
 
 setup_pagetables:
         push    es
@@ -30,7 +30,7 @@ setup_pagetables:
 
         ;; Page Directory (PD), 8 entries
         mov     eax, 0x6000 | PAGE_PRESENT | PAGE_WRITEABLE
-        mov     cx, 8
+        mov     cx, 16
 
 pde_loop:
         mov     [es:di + 0x2000], eax
@@ -43,8 +43,10 @@ pde_loop:
         ;; maps linear 0-16MB to physical 0-16MB
 
         mov     eax, PAGE_PRESENT | PAGE_WRITEABLE ; EAX -> physical addr 0
-        mov     di, 0x6000
-        mov     cx, 4096        ; entry count
+        mov     di, 0x600
+        mov     es, di
+        mov     di, 0
+        mov     cx, 8192        ; entry count
 
 pte_loop:
         mov     [es:di], eax
@@ -53,8 +55,8 @@ pte_loop:
         dec     cx
         jnz     pte_loop
         xor     eax, eax
-        mov     [es:0x6000], eax        ; Unmap page 0 and page 2 to catch null ptr and
-        mov     [es:0x6010], eax        ; stack underflow and overflow. The SP will be set to
+        mov     [es:0x0000], eax        ; Unmap page 0 and page 2 to catch null ptr and
+        mov     [es:0x0010], eax ;stack underflow and overflow. The SP will be set to
                                         ; page 1 (0x2000 is the top)
         mov     di, 0x3000
         mov     cl, 16
