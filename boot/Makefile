@@ -1,21 +1,20 @@
 UNAME_S := $(shell uname -s)
 
 KERNEL_OBJS := kernel.o klib.o startup.o
+KLIB_OBJS := klibc.o tty.o libc.o libcpp.o
 
 ifeq ($(UNAME_S), Linux)
 	SWIFTC := /home/spse/swift-2.2-SNAPSHOT-2015-12-01-b-ubuntu14.04/usr/bin/swiftc
 	NASM_OBJ_FLAGS := -felf64
-	# initial link must be via ELF to produce a GOT
-#	LINKER_CMD := ld -static -Tlinker_script1 -o kernel_prebin.o kernel.o startup.o /home/spse/swift-2.2-SNAPSHOT-2015-12-01-b-ubuntu14.04/usr/lib/swift_static/linux/libswiftCore.a klib.o -Map=kernel2.map && ld  -T linker.script -Map=kernel.map -o kernel.bin
-	LINKER_CMD := ld -static -Tlinker.script -Map=kernel.map -o kernel.elf
+	KLIB_OBJS := $(KLIB_OBJS)
 endif
 
 ifeq ($(UNAME_S), Darwin)
 	SWIFTC := /usr/bin/swiftc
 	NASM_OBJ_FLAGS := -fmacho64
 	LINKER := ../static_linker/build/Debug/static_linker
-	LINKER_CMD := $(LINKER) --output=$@ --baseAddress=0x100000 --mapfile=kernel.map kernel.o startup.o klib.o ../libswiftCore.dylib
-	KERNEL_OBJS := $(KERNEL_OBJS) $(LINKER)
+	KERNEL_OBJS := $(KERNEL_LIBS) $(LINKER)
+	KLIB_OBJS := $(KLIB_OBJS) libobj.o
 endif
 
 
@@ -41,14 +40,14 @@ startup.o: startup.swift
 kernel.o: kernel.asm
 	nasm $(NASM_OBJ_FLAGS) -o $@ $<
 
-klib.o: libc.o libcpp.o libobj.o tty.o
+klib.o: $(KLIB_OBJS)
+	echo KLIB_OBJS = $(KLIB_OBJS)
 	ld -r -no_eh_labels -o $@ $^
-
-
 
 kernel.bin: $(KERNEL_OBJS)
 ifeq ($(UNAME_S), Linux)
-	ld -static -Tlinker.script -Map=kernel.map -o kernel.elf
+	# initial link must be via ELF to produce a GOT
+	ld --no-demangle -static -Tlinker.script -Map=kernel.map -o kernel.elf
 	objcopy -O binary kernel.elf kernel.bin
 endif
 

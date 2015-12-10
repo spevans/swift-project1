@@ -1,43 +1,27 @@
-#include <stdint.h>
-#include <stddef.h>
-#include <stdarg.h>
-#include "klib.h"
-
-#define UNIMPLEMENTED(x)  void x() { koops(__func__); }
+#include "klibc.h"
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
-extern uintptr_t _bss_end;
 typedef long dispatch_once_t;
 
 
-
-void
-hlt()
-{
-        asm volatile ("hlt" : : : "memory");
-        __builtin_unreachable ();
-}
-
 // defined constants
-unsigned long vm_page_mask = 4095;
-void *__stderrp = NULL; // FILE *
-void *__stdinp = NULL; // FILE *
-void *__stdoutp = NULL; // FILE *
-void *stderr = NULL; // FILE *
-void *stdin = NULL; // FILE *
-void *stdout = NULL; // FILE *
+void *__stderrp = (void *)0xF2; // FILE *
+void *__stdinp = (void *)0xF0; // FILE *
+void *__stdoutp = (void *)0xF1; // FILE *
+void *stderr = (void *)0xF2; // FILE *
+void *stdin = (void *)0xF0; // FILE *
+void *stdout = (void *)0xF1; // FILE *
 
 
 
-void dyld_stub_binder() {
-        koops("dyld_stub_binder");
-}
+UNIMPLEMENTED(abort)
 
 void
 __assert_rtn(const char *function, const char *file, int line, const char *err)
 {
         kprintf("assert:%s:%s:%d:%s\n", file, function, line, err);
+        hlt();
 }
 
 
@@ -48,31 +32,16 @@ __assert_fail()
 }
 
 
-//void __bzero() { koops("Calling __bzero\n"); }
-
-void __divti3() { koops("Calling __divti3\n"); }
-
-void __error() { koops("Calling __error\n"); }
-
-void _dyld_register_func_for_add_image() { koops("Calling _dyld_register_func_for_add_image\n"); }
-
-void __getdelim() {
-        koops("__getdelim");
-}
+UNIMPLEMENTED(__divti3)
+UNIMPLEMENTED(__error)
+UNIMPLEMENTED(__errno_location)
+UNIMPLEMENTED(__getdelim)
+UNIMPLEMENTED(_IO_putc)
+UNIMPLEMENTED(arc4random)
+UNIMPLEMENTED(arc4random_uniform)
+UNIMPLEMENTED(close)
 
 
-int *__errno_location (void) 
-{
-        koops("__errno_location\n");
-}
-
-
-void _IO_putc()
-{
-        koops("_IO_putc\n");
-}
-
-//typedef struct __asl_object_s *asl_object_t;
 typedef void *asl_object_t;
 int asl_log(asl_object_t client, asl_object_t msg, int level, const char *format, ...)
 {
@@ -84,11 +53,28 @@ int asl_log(asl_object_t client, asl_object_t msg, int level, const char *format
         return 0;
 }
 
-void abort() { koops("Calling abort\n"); }
 
-void asprintf() { koops("Calling asprintf\n"); }
+int
+asprintf(char **strp, const char * restrict format, ...)
+{
+        char buf[2048];
+        // FIXME: use the size
 
-void ceil() { koops("Calling ceil\n"); }
+        va_list argp;
+        va_start(argp, format);
+        kvsprintf(buf, format, argp);
+        va_end(argp);
+
+        size_t len = strlen(buf);
+        char *result = malloc(len);
+        memcpy(result, buf, len+1);
+        *strp = result;
+
+        return len;
+}
+
+
+UNIMPLEMENTED(ceil)
 
 float ceilf(float f)
 {
@@ -103,9 +89,8 @@ float ceilf(float f)
 }
 
 
-void cos() { koops("Calling cos\n"); }
-
-void cosf() { koops("Calling cosf\n"); }
+UNIMPLEMENTED(cos)
+UNIMPLEMENTED(cosf)
 
 //void dispatch_once() { koops("Calling dispatch_once\n"); }
 
@@ -121,176 +106,82 @@ void dispatch_once_f(dispatch_once_t *predicate, void *context, void (*function)
 
 //void dladdr() { koops("Calling dladdr\n"); }
 
-void dlopen()
+UNIMPLEMENTED(_dyld_register_func_for_add_image)
+UNIMPLEMENTED(dyld_stub_binder)
+UNIMPLEMENTED(dlopen)
+UNIMPLEMENTED(dlclose)
+UNIMPLEMENTED(dlsym)
+
+// FIXME
+int
+dl_iterate_phdr(void *funcptr, void *data)
 {
-        koops("dlopen\n");
+        kprintf("dl_iterate_phdr(%p,%p)\n", funcptr, data);
+        return 0;
 }
 
 
-void dlclose()
+
+UNIMPLEMENTED(exp)
+UNIMPLEMENTED(exp2)
+UNIMPLEMENTED(exp2f)
+UNIMPLEMENTED(expf)
+
+void
+flockfile(void *file)
 {
-        koops("dlclose\n");
-}
-
-void dl_iterate_phdr()
-{
-        koops("dl_iterate_phdr\n");
+        kprintf("flockfile(%p)\n", file);
 }
 
 
-
-void dlsym() { koops("Calling dlsym\n"); }
-
-void exp() { koops("Calling exp\n"); }
-
-void exp2() { koops("Calling exp2\n"); }
-
-void exp2f() { koops("Calling exp2f\n"); }
-
-void expf() { koops("Calling expf\n"); }
-
-void flockfile() { koops("Calling flockfile\n"); }
-
-void floor() { koops("Calling floor\n"); }
-
-void floorf() { koops("Calling floorf\n"); }
-
-void fmod() { koops("Calling fmod\n"); }
-
-void fmodf() { koops("Calling fmodf\n"); }
-
-void fmodl() { koops("Calling fmodl\n"); }
-
-void fprintf() { koops("Calling fprintf\n"); }
-
-void fputc()
-{
-        koops("fputc\n");
-}
-
-void fwrite()
-{
-        koops("fwrite\n");
-}
-
-void free(void *ptr)
-{
-        kprintf("free(%p)\n", ptr);
-}
+UNIMPLEMENTED(floor)
+UNIMPLEMENTED(floorf)
+UNIMPLEMENTED(fmod)
+UNIMPLEMENTED(fmodf)
+UNIMPLEMENTED(fmodl)
+UNIMPLEMENTED(fprintf)
+UNIMPLEMENTED(fputc)
+UNIMPLEMENTED(fwrite)
 
 
 
-//void freelocale() { koops("Calling freelocale\n"); }
+UNIMPLEMENTED(funlockfile)
+UNIMPLEMENTED(getline)
+UNIMPLEMENTED(getsectiondata)
+UNIMPLEMENTED(log)
+UNIMPLEMENTED(log10)
+UNIMPLEMENTED(log10f)
+UNIMPLEMENTED(log2)
+UNIMPLEMENTED(log2f)
+UNIMPLEMENTED(logf)
 
-void funlockfile() { koops("Calling funlockfile\n"); }
+UNIMPLEMENTED(malloc_default_zone)
+UNIMPLEMENTED(malloc_size)
+UNIMPLEMENTED(malloc_usable_size)
+UNIMPLEMENTED(malloc_zone_from_ptr)
+UNIMPLEMENTED(memchr)
 
-void getline() { koops("Calling getline\n"); }
-
-void getsectiondata() { koops("Calling getsectiondata\n"); }
-
-void log() { koops("Calling log\n"); }
-
-void log10() { koops("Calling log10\n"); }
-
-void log10f() { koops("Calling log10f\n"); }
-
-void log2() { koops("Calling log2\n"); }
-
-void log2f() { koops("Calling log2f\n"); }
-
-void logf() { koops("Calling logf\n"); }
-
-static uint64_t heap = (uint64_t)&_bss_end;
-
-void *mmap(void *addr, size_t len, int prot, int flags, int fd, int64_t offset) {
-        const int align = 4096-1;
-
-        heap = (heap + align) & ~align;
-        char *result = (char *)heap;
-        heap += len;
-
-        kprintf("mmap=(addr=%p,len=%lX,prot=%X,flags=%X,fd=%d,offset=%lX)=%p\n",
-                addr, len, prot, flags, fd, offset, result);
-
-        return result;
-}
-
-
-void *malloc(size_t size)
-{
-        const int align = 16-1;
-
-        heap = (heap + align) & ~align;
-        char *result = (char *)heap;
-        heap += size;
-
-        kprintf("malloc(%lu), result=%p heap=%lX\n", size, result, heap);
-
-        return result;
-}
-
-void malloc_default_zone() { koops("Calling malloc_default_zone\n"); }
-
-void malloc_size() { koops("Calling malloc_size\n"); }
-
-void malloc_usable_size()
-{
-        koops("malloc_usable_size\n");
-}
-
-void malloc_zone_from_ptr() { koops("Calling malloc_zone_from_ptr\n"); }
-
-void memchr() { koops("Calling memchr\n"); }
-
-void memcmp() { koops("Calling memcmp\n"); }
-
-//void memcpy() { koops("Calling memcpy\n"); }
-
-void *memcpy(void *restrict dst, const void *restrict src, size_t n)
-{
-        kprintf("memcpy(dst=%p,src=%p,count=%lu\n", dst, src, n);
-        __memcpy(dst, src, n);
-        return dst;
-}
-
-
-void memmove() { koops("Calling memmove\n"); }
-
-
-void *
-memset(void *s, char c, size_t count)
-{
-        kprintf("memset(%p,%d,%lu)\n", s, c, count);
-
-        int d0, d1, d2;
-        asm volatile ("cld\n\t"
-                      "rep\n\t"
-                      "stosb"
-                      : "=&D" (d0), "=&a" (d1), "=&c" (d2)
-                      : "0" (s), "1" (c), "2" (count) : "memory");
-        return s;
-}
-
-
-void memset_pattern8()
-{
-        koops("memset_pattern8");
-}
-
-
-void nearbyint() { koops("Calling nearbyint\n"); }
-
-void nearbyintf() { koops("Calling nearbyintf\n"); }
-
-void newlocale() {
-        koops("Calling newlocale\n");
-}
-
-void uselocale() {
-        koops("uselocale\n");
-}
+UNIMPLEMENTED(nearbyint)
+UNIMPLEMENTED(nearbyintf)
+UNIMPLEMENTED(newlocale)
+UNIMPLEMENTED(uselocale)
 
 //void printf() { koops("Calling printf\n"); }
+
+
+
+
+__thread void* _ZSt15__once_callable;
+__thread void (*_ZSt11__once_call)();
+
+void __once_proxy()
+{
+        kprintf("__once_proxy_func() __once_call=%p\n", _ZSt11__once_call);
+        if (_ZSt11__once_call) _ZSt11__once_call();
+        print_string("__once_proxy_func() finished\n");
+}
+
+
 
 typedef int pthread_once_t;
 
@@ -303,53 +194,133 @@ pthread_once(pthread_once_t *once_control, void (*init_routine)(void))
         return 0;
 }
 
-UNIMPLEMENTED(__pthread_key_create)
 
-void pthread_mutex_init() { koops("Calling pthread_mutex_init\n"); }
+#  define __SIZEOF_PTHREAD_MUTEX_T 40
+#  define __SIZEOF_PTHREAD_MUTEXATTR_T 4
 
-void pthread_mutex_lock() { koops("Calling pthread_mutex_lock\n"); }
-
-void pthread_mutex_unlock() { koops("Calling pthread_mutex_unlock\n"); }
-
-void pthread_rwlock_rdlock()
+typedef struct __pthread_internal_list
 {
-        koops("pthread_rwlock_rdlock");
+  struct __pthread_internal_list *__prev;
+  struct __pthread_internal_list *__next;
+} __pthread_list_t;
+typedef union
+{
+  struct __pthread_mutex_s
+  {
+    int __lock;
+    unsigned int __count;
+    int __owner;
+    unsigned int __nusers;
+    /* KIND must stay at this position in the structure to maintain
+       binary compatibility.  */
+    int __kind;
+    short __spins;
+    short __elision;
+    __pthread_list_t __list;
+# define __PTHREAD_MUTEX_HAVE_PREV      1
+# define __PTHREAD_MUTEX_HAVE_ELISION   1
+  } __data;
+  char __size[__SIZEOF_PTHREAD_MUTEX_T];
+  long int __align;
+} pthread_mutex_t;
+
+typedef union
+{
+  char __size[__SIZEOF_PTHREAD_MUTEXATTR_T];
+  int __align;
+} pthread_mutexattr_t;
+
+typedef unsigned int pthread_key_t;
+
+int __pthread_key_create (pthread_key_t *key,
+                          void (*destructor) (void *))
+{
+        kprintf("pthread_key_create(%p,%p)\n", key, destructor);
+        koops("unimplemented");
 }
 
 
-void pthread_rwlock_unlock()
+int
+pthread_mutex_init(pthread_mutex_t *restrict mutex, const pthread_mutexattr_t *restrict attr)
 {
-        koops("pthread_rwlock_unlock");
+        kprintf("pthread_mutex_init(%p,%p)\n", mutex, attr);
+        return 0;
 }
 
 
-void pthread_rwlock_wrlock()
+int
+pthread_mutex_lock(pthread_mutex_t *mutex)
 {
-        koops("pthread_rwlock_wrlock");
+        kprintf("pthread_mutex_lock(%p)\n", mutex);
+        return 0;
 }
 
-void putc() { koops("Calling putc\n"); }
-
-void putchar() { koops("Calling putchar\n"); }
-
-void read()
+int
+pthread_mutex_unlock(pthread_mutex_t *mutex)
 {
-        koops("read");
+        kprintf("pthread_mutex_unlock(%p)\n", mutex);
+        return 0;
+}
+
+#  define __SIZEOF_PTHREAD_RWLOCK_T 56
+
+typedef union
+{
+  struct
+  {
+    int __lock;
+    unsigned int __nr_readers;
+    unsigned int __readers_wakeup;
+    unsigned int __writer_wakeup;
+    unsigned int __nr_readers_queued;
+    unsigned int __nr_writers_queued;
+    int __writer;
+    int __shared;
+    unsigned long int __pad1;
+    unsigned long int __pad2;
+    /* FLAGS must stay at this position in the structure to maintain
+       binary compatibility.  */
+    unsigned int __flags;
+# define __PTHREAD_RWLOCK_INT_FLAGS_SHARED      1
+  } __data;
+  char __size[__SIZEOF_PTHREAD_RWLOCK_T];
+  long int __align;
+} pthread_rwlock_t;
+
+
+
+int
+pthread_rwlock_rdlock(pthread_rwlock_t *rwlock)
+{
+        //kprintf("pthread_rwlock_rdlock(%p)\n", rwlock);
+        return 0;
 }
 
 
-void rint() { koops("Calling rint\n"); }
+int
+pthread_rwlock_unlock(pthread_rwlock_t *rwlock)
+{
+        //kprintf("pthread_rwlock_unlock(%p)\n", rwlock);
+        return 0;
+}
 
-void rintf() { koops("Calling rintf\n"); }
 
-void round() { koops("Calling round\n"); }
+int
+pthread_rwlock_wrlock(pthread_rwlock_t *rwlock)
+{
+        //kprintf("pthread_rwlock_wrlock(%p)\n", rwlock);
+        return 0;
+}
 
-void roundf() { koops("Calling roundf\n"); }
-
-
-void sin() { koops("Calling sin\n"); }
-
-void sinf() { koops("Calling sinf\n"); }
+UNIMPLEMENTED(putc)
+UNIMPLEMENTED(putchar)
+UNIMPLEMENTED(read)
+UNIMPLEMENTED(rint)
+UNIMPLEMENTED(rintf)
+UNIMPLEMENTED(round)
+UNIMPLEMENTED(roundf)
+UNIMPLEMENTED(sin)
+UNIMPLEMENTED(sinf)
 
 int
 snprintf(char * restrict buf, size_t size, const char * restrict format, ...)
@@ -365,129 +336,45 @@ snprintf(char * restrict buf, size_t size, const char * restrict format, ...)
 }
 
 
-void snprintf_l() { koops("Calling snprintf_l\n"); }
+UNIMPLEMENTED(snprintf_l)
+UNIMPLEMENTED(strtod_l)
+UNIMPLEMENTED(strtof_l)
+UNIMPLEMENTED(strtold_l)
 
-void strchr() { koops("Calling strchr\n"); }
+UNIMPLEMENTED(sysconf)
+UNIMPLEMENTED(trunc)
+UNIMPLEMENTED(truncf)
+UNIMPLEMENTED(vasprintf)
+UNIMPLEMENTED(vsnprintf)
 
-int
-strcmp(const char *cs, const char *ct)
+ssize_t
+write(int fd, const void *buf, size_t nbyte)
 {
-        kprintf("strcmp(%s, %s)\n", cs, ct);
-        int d0, d1;
-        int res;
-        asm volatile("cld\n\t"
-                     "1:\tlodsb\n\t"
-                     "scasb\n\t"
-                     "jne 2f\n\t"
-                     "testb %%al,%%al\n\t"
-                     "jne 1b\n\t"
-                     "xorl %%eax,%%eax\n\t"
-                     "jmp 3f\n"
-                     "2:\tsbbl %%eax,%%eax\n\t"
-                     "orb $1,%%al\n"
-                     "3:"
-                     : "=a" (res), "=&S" (d0), "=&D" (d1)
-                     : "1" (cs), "2" (ct)
-                     : "memory");
-        return res;
-}
+        kprintf("write(fd=%d, buf=%p nbyte=%lu\n",
+                fd, buf, nbyte);
 
-void strdup() { koops("Calling strdup\n"); }
-
-
-size_t
-strlen(const char *s)
-{
-        int d0;
-        size_t res;
-        asm volatile("cld\n\t"
-                     "repne\n\t"
-                     "scasb"
-                     : "=c" (res), "=&D" (d0)
-                     : "1" (s), "a" (0), "0" (0xffffffffu)
-                     : "memory");
-        return ~res - 1;
+        if (fd == 1 || fd == 2) {
+                print_string_len(buf, nbyte);
+        } else {
+                koops("write() with fd = %d\n", fd);
+        }
+        return nbyte;
 }
 
 
-void strncmp() { koops("Calling strncmp\n"); }
 
-void strndup() { koops("Calling strndup\n"); }
-
-void strtod_l() { koops("Calling strtod_l\n"); }
-
-void strtof_l() { koops("Calling strtof_l\n"); }
-
-void strtold_l() { koops("Calling strtold_l\n"); }
-
-
-void sysconf() { koops("Calling sysconf\n"); }
-
-void trunc() { koops("Calling trunc\n"); }
-
-void truncf() { koops("Calling truncf\n"); }
-
-void vasprintf() { koops("Calling vasprintf\n"); }
-
-
-void vsnprintf()
-{
-        koops("vsnprintf()\n");
-}
-
-void write() { koops("Calling write\n"); }
-
-void __stack_chk_fail()
-{
-        koops("__stack_chk_fail");
-}
-
-void __stack_chk_guard() {
-        koops("__stack_chk_guard");
-}
+UNIMPLEMENTED(__stack_chk_fail)
+UNIMPLEMENTED(__stack_chk_guard)
 
 // Unicode
-void ucol_closeElements_52()
-{
-        koops(__func__);
-}
-
-void ucol_next_52() {
-        koops(__func__);
-}
-
-void ucol_open_52() {
-        koops(__func__);
-}
-
-void ucol_openElements_52() {
-        koops(__func__);
-}
-
-void ucol_setAttribute_52() {
-        koops(__func__);
-}
-
-void ucol_strcoll_52() {
-        koops(__func__);
-}
-void ucol_strcollIter_52()
-{
-        koops(__func__);
-}
-
-void uiter_setString_52()
-{
-        koops(__func__);
-}
-void uiter_setUTF8_52()
-{
-        koops(__func__);
-}
-void u_strToLower_52()
-{
-        koops(__func__);
-}
-void u_strToUpper_52() {
-        koops(__func__);
-}
+UNIMPLEMENTED(ucol_closeElements_52)
+UNIMPLEMENTED(ucol_next_52)
+UNIMPLEMENTED(ucol_open_52)
+UNIMPLEMENTED(ucol_openElements_52)
+UNIMPLEMENTED(ucol_setAttribute_52)
+UNIMPLEMENTED(ucol_strcoll_52)
+UNIMPLEMENTED(uiter_setString_52)
+UNIMPLEMENTED(uiter_setUTF8_52)
+UNIMPLEMENTED(u_strToLower_52)
+UNIMPLEMENTED(u_strToUpper_52)
+UNIMPLEMENTED(ucol_strcollIter_52)

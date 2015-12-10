@@ -1,21 +1,13 @@
-#include <stdint.h>
-#include <stdarg.h>
-#include <stddef.h>
-#include "klib.h"
-
-//void *memcpy(void *restrict dst, const void *restrict src, size_t n);
-//size_t strlen(const char *s);
+#include "klibc.h"
 
 
 char *const screen = (char *)0xB8000;
-//unsigned int offset;
 extern uintptr_t _text_start;
 extern uintptr_t _text_end;
 extern uintptr_t _data_start;
 extern uintptr_t _data_end;
 extern uintptr_t _bss_start;
 extern uintptr_t _bss_end;
-void print_string(const char *str);
 
 
 const char *strings[] = { "hello", "there" };
@@ -89,16 +81,15 @@ __memcpy(void *dest, const void *src, size_t n)
 
 
 
-/* Print LENGTH characters from the string TEXT. This is only used until
-   the shell has been loaded. */
 void
-print_string(const char *text)
+print_string_len(const char *text, size_t len)
 {
         static int cursor_x, cursor_y;
         char *cursor_char = (screen + (cursor_y * 80 * 2) + (cursor_x * 2));
         char c;
-        while((c = *text++)) {
-                //c = *text++;
+
+        while(len--) {
+                c = *text++;
                 if((c == '\n') || (cursor_x >= 80)) {
                         cursor_x = 0;
                         if(++cursor_y >= 25) {
@@ -123,9 +114,15 @@ print_string(const char *text)
                 *cursor_char++ = 0x07;
                 cursor_x++;
         }
-        //outb(14, 0x3d4); outb((cursor_y * 80 + cursor_x) >> 8, 0x3d5);
-        //outb(15, 0x3d4); outb((cursor_y * 80 + cursor_x) & 0xff, 0x3d5);
 }
+
+
+void
+print_string(const char *text)
+{
+        print_string_len(text, strlen(text));
+}
+
 
 static char printf_buf[1024];
 #define IS_DIGIT(c) (((c) >= '0') && ((c) <= '9'))
@@ -238,6 +235,7 @@ kvsprintf(char *buf, const char *fmt, va_list args)
                     goto again;
 
                 case 'l':
+                case 'z':
                     flags |= PF_LONG;
                     goto again;
 
@@ -515,36 +513,13 @@ void newline()
 void print_char(char ch)
 {
         kprintf("%c", ch);
-        //*(screen + offset++) = ch;
-        //*(screen + offset++) = 0x7;
 }
-
-/**
-void print_string(char *str)
-{
-        while(*str) {
-                char ch = *str++;
-                if (ch == '\n') {
-                        newline();
-                } else {
-                        *(screen + offset++) = ch;
-                        *(screen + offset++) = 0x7;
-                }
-        }
-        }**/
 
 
 void print_nibble(int value)
 {
         static char *hex = "0123456789ABCDEF";
         print_char(hex[value & 0xf]);
-}
-
-
-void print_nibble2(int value)
-{
-        char *hex2 = "0123456789abcdef";
-        print_char(hex2[value & 0xf]);
 }
 
 
@@ -624,16 +599,14 @@ void init_tty()
         newline();
 }
 
-
-void print_and_halt(const char *str)
+void
+koops(const char *fmt, ...)
 {
-        print_string(str);
-        hlt();
+    va_list args;
+    va_start(args, fmt);
+    print_string("OOPS: ");
+    kvprintf(fmt, args);
+    va_end(args);
+    hlt();
 }
 
-
-void koops(const char *str)
-{
-        kprintf("OOPS: %s\n", str);
-        hlt();
-}

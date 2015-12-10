@@ -34,10 +34,7 @@ startup:
         mov     fs,ax
         mov     rax, 0x1FF8
         mov     [fs:0], rax
-        mov     rax, 0x3f39e0
-        mov     [fs:-8], rax
-        mov     rax, 0x3f39e8
-        mov     [fs:-16], rax
+;;; ;        mov     rax, 0x3f3a10        mov     [fs:-8], rax        mov     rax, 0x3f3a18        mov     [fs:-16], rax
         
 
         
