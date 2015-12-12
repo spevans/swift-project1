@@ -1,3 +1,7 @@
+;;; boot/utils.asm
+;;;
+;;; Copyright © 2015 Simon Evans. All rights reserved.
+
 ;;; print_string - print ASCIIZ string in DS:SI via BIOS
 print:
         lodsb

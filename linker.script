@@ -1,16 +1,12 @@
 ENTRY(main)
-/*OUTPUT_FORMAT(binary) */
-OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64",
-              "elf64-x86-64")
-INPUT(kernel.o startup.o  /home/spse/swift-2.2-SNAPSHOT-2015-12-01-b-ubuntu14.04/usr/lib/swift_static/linux/libswiftCore.a klib.o)
-/*INPUT(kernel_prebin.o)*/
-
+OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
+INPUT(kernel/kernel.o /home/spse/swift-2.2-SNAPSHOT-2015-12-10-a-ubuntu14.04/usr/lib/swift_static/linux/libswiftCore.a fakelib/fakelib.o)
 
 SECTIONS
 {
   .text.start (0x100000) : {
     _text_start = .;
-    kernel.o( .text )
+    kernel/kernel.o( .text )
     *(.text .text.*)
     _text_end = .;
   }
@@ -20,26 +16,23 @@ SECTIONS
     *(.rodata .rodata.*)
     *(.got) *(.igot)
     *(.got.plt)  *(.igot.plt)
-
     _rodata_end = .;
   }
-
 
   .data : ALIGN(0x1000) {
     _data_start = .;
     *(.data .data.*)
     _data_end = .;
   }
+
  /* Thread Local Storage sections  */
   .tdata          : { *(.tdata .tdata.* .gnu.linkonce.td.*) }
   .tbss           : { *(.tbss .tbss.* .gnu.linkonce.tb.*) *(.tcommon) }
-  
+
   .bss : {
     _bss_start = .;
-    __bss_start = .;
     *(.bss .bss.*)
     _bss_end = .;
-    __bss_end = .;
   }
 
   . = ALIGN(4);

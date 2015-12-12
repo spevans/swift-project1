@@ -1,6 +1,10 @@
+;;; boot/bootsector.asm
+;;;
+;;; Copyright © 2015 Simon Evans. All rights reserved.
+;;; 
 ;;; Simple bootsector to load in the boot16to64 code
-;;; Start sector, sector count and hard drive are currently hardcoded
-;;; and uses extended BIOS to load
+;;; Start sector, sector count and hard drive are currently
+;;; hardcoded and uses extended BIOS to load
 
 LOAD_SEG        EQU       0x9000  ; 16bit code loaded here
 

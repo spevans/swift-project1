@@ -1,4 +1,8 @@
-;;; pmode_loader.asm loads the kernel into the memory starting @ 1MB
+;;; boot/pmode_loader.asm
+;;; 
+;;; Copyright © 2015 Simon Evans. All rights reserved.
+;;;
+;;; Loads the kernel into the memory starting @ 1MB
 ;;; It uses multiple bios calls to load the code in chunks and then
 ;;; switches into 32bit PM to copy the code to the correct place before
 ;;; switching back to realmode to load the next chunk switching back and

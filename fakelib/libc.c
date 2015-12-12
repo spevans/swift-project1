@@ -1,3 +1,12 @@
+/*
+ * fakelib/libc.c
+ *
+ * Copyright © 2015 Simon Evans. All rights reserved.
+ *
+ * Fake libc calls used by both Linux/ELF and OSX/Mach-O libswiftCore
+ *
+ */
+
 #include "klibc.h"
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -6,6 +15,7 @@ typedef long dispatch_once_t;
 
 
 // defined constants
+unsigned long vm_page_mask = 4095;
 void *__stderrp = (void *)0xF2; // FILE *
 void *__stdinp = (void *)0xF0; // FILE *
 void *__stdoutp = (void *)0xF1; // FILE *
@@ -14,8 +24,12 @@ void *stdin = (void *)0xF0; // FILE *
 void *stdout = (void *)0xF1; // FILE *
 
 
+void
+abort()
+{
+        koops("abort() called");
+}
 
-UNIMPLEMENTED(abort)
 
 void
 __assert_rtn(const char *function, const char *file, int line, const char *err)

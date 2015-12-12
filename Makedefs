@@ -1,0 +1,24 @@
+UNAME_S := $(shell uname -s)
+CC := clang
+NASM := nasm
+CFLAGS := -Wall -Wextra -Werror -fno-builtin -fno-stack-protector -O2 -I$(TOPDIR)/kernel
+
+
+ifeq ($(UNAME_S), Linux)
+	SWIFTC := /home/spse/swift-2.2-SNAPSHOT-2015-12-10-a-ubuntu14.04/usr/bin/swiftc
+	NASM_OBJ_FLAGS := -felf64
+endif
+
+ifeq ($(UNAME_S), Darwin)
+	SWIFTC := /Users/spse/Files/src/swift/build/Ninja-DebugAssert/swift-macosx-x86_64/bin/swiftc
+	SWIFTLIB := /Users/spse/Files/src/swift/build/Ninja-DebugAssert/swift-macosx-x86_64/lib/swift/macosx/x86_64/libswiftCore.dylib
+	NASM_OBJ_FLAGS := -fmacho64 --prefix _
+endif
+
+
+%.o: %.c
+	$(CC) $(CFLAGS) -S -o $(patsubst %.o,%.s,$@) $<
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+%.o: %.asm
+	$(NASM) $(NASM_OBJ_FLAGS) -o $@ $<

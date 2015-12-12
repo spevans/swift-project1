@@ -1,3 +1,7 @@
+;;; boot/page_tables.asm
+;;;
+;;; Copyright © 2015 Simon Evans. All rights reserved.
+;;;
 ;;; Setup 4 level page tables with the PGD at 0x3000
 ;;; Identity maps the first 16MB so only needs 1 entry
 ;;; in the PML4/PDP 8 in the PD and 2048 PTEs in the PT

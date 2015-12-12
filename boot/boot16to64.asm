@@ -1,9 +1,12 @@
+;;; boot/boot16to64.asm
+;;; 
+;;; Copyright © 2015 Simon Evans. All rights reserved.
+;;; 
 ;;; Enter 64bit (long mode) from 16bit (real mode)
-;;; Doenst go via 32bit so there are no exception
+;;; Doesnt go via 32bit so there are no exception
 ;;; handlers. If a fault occurs in the transition
 ;;; then a triple fault will occur and the CPU will
 ;;; reset.
-
 
 CODE_SEG        EQU     0x8
 DATA_SEG        EQU     0x10
@@ -114,7 +117,7 @@ GDT:
         ;; TLS descriptor, base=0x1FF8, limit=0 Present, Ring 0, RW Longmode
         dq      0x000092001FF80000
 
-        
+
  .pointer:
         dw      ($ - GDT) - 1   ; 16bit length -1
         dq      0x90000 + GDT   ; 32bit base address

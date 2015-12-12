@@ -1,5 +1,8 @@
+;;; boot/a20.asm
+;;; 
+;;; Copyright © 2015 Simon Evans. All rights reserved.
+;;; 
 ;;; Enable the A20 gate using various methods.
-;;;
 ;;; Starts with a check to see if its even needed
 
 FAST_A20_GATE   EQU     0x92

@@ -1,19 +1,24 @@
+;;; kernel/init.asm
+;;;
+;;; Copyright © 2015 Simon Evans. All rights reserved.
+;;;
+;;; Entry point from jump into long mode. Minimal setup
+;;; before calling SwiftKernel.startup
+
         BITS 64
 
         DEFAULT REL
         SECTION .text
 
         extern init_tty
-        extern __bss_start
-        extern _end
-
+        extern _bss_start
+        extern _bss_end
         extern _TF7startup7startupFT_T_ ; startup:startup()
         global main
         global _start
 
-_start: 
-main:   
-start_of_kernel:
+_start:
+main:
         mov     esp, 0xA0000            ; Set the stack to the top of 640K
         mov     rdi, 0xB8000
         mov     rcx, 500                ; Clear 2000 bytes as 500x8
@@ -22,8 +27,8 @@ start_of_kernel:
 
         ;; Clear the BSS
         xor     rax, rax
-        mov     rdi, __bss_start
-        mov     rcx, _end
+        mov     rdi, _bss_start
+        mov     rcx, _bss_end
         sub     rcx, rdi
         rep
         stosb
@@ -34,10 +39,7 @@ startup:
         mov     fs,ax
         mov     rax, 0x1FF8
         mov     [fs:0], rax
-;;; ;        mov     rax, 0x3f3a10        mov     [fs:-8], rax        mov     rax, 0x3f3a18        mov     [fs:-16], rax
-        
 
-        
         call    init_tty
         call    _TF7startup7startupFT_T_
         hlt
@@ -53,7 +55,3 @@ enable_sse:
         mov     cr4, rax
         ret
 
-
-        SECTION .data
-msg1:           db      "Hello There", 0
-counter:        dd 0

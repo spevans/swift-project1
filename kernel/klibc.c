@@ -1,3 +1,12 @@
+/*
+ * kernel/klibc.c
+ *
+ * Copyright © 2015 Simon Evans. All rights reserved.
+ *
+ * Miscellaneous functions mostly string/memory
+ *
+ */
+
 #include "klibc.h"
 
 
@@ -15,15 +24,13 @@ hlt()
 }
 
 
-
-void free(void *ptr)
+void
+free(void *ptr)
 {
-        kprintf("free(%p)\n", ptr);
 }
 
 
-
-void *mmap(void *addr, size_t len, int prot, int flags, int fd, int64_t offset) {
+void *mmap(void *addr, size_t len, int prot, int flags, int fd, unsigned long offset) {
         const int align = 4096-1;
 
         heap = (heap + align) & ~align;
@@ -76,12 +83,9 @@ memcmp(const void *s1, const void *s2, size_t n)
 }
 
 
-
-//void memcpy() { koops("Calling memcpy\n"); }
-
 void *memcpy(void *restrict dst, const void *restrict src, size_t n)
 {
-        kprintf("memcpy(dst=%p,src=%p,count=%lu\n", dst, src, n);
+        //kprintf("memcpy(dst=%p,src=%p,count=%lu\n", dst, src, n);
         __memcpy(dst, src, n);
         return dst;
 }

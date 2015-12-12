@@ -1,11 +1,14 @@
-;;; cpu_check.asm - Check the CPU is sufficient for 64bit long mode
+;;; boot/cpu_check.asm
+;;; 
+;;; Copyright © 2015 Simon Evans. All rights reserved.
+;;; 
+;;; Check the CPU is sufficient for 64bit long mode
 
 FEATURE_BIT_LONG_MODE   EQU     1 << 29
 
 ;;; Returns carry set if cpu not good enough
 cpu_check:
         ;; check CPUID supported by seeing if ID bit in EFLAGS can be toggled
-
         pushfd
 
         pushfd

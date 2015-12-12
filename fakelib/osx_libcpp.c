@@ -1,3 +1,88 @@
+/*
+ * fakelib/osx_libcpp.c
+ *
+ * Copyright © 2015 Simon Evans. All rights reserved.
+ *
+ * Fake libcpp calls used by OSX/Mach-O libswiftCore
+ *
+ */
+
+#include "klibc.h"
+
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
+
+/*
+ * memory
+ */
+
+struct ptr {
+        unsigned long r1;
+        unsigned long shared_count;
+        unsigned long weak_count;
+};
+
+
+//_operator new(unsigned long)
+void *
+_Znwm(unsigned long size) {
+
+        void *result = malloc(size);
+        //kprintf("(_Znwm)new(%lu)=%p\n", size, result);
+        return result;
+}
+
+
+//_operator delete(void*)
+void
+_ZdlPv(void *this) {
+        //kprintf("%p->delete()\n", this);
+}
+
+
+//_operator new[](unsigned long)
+void *_Znam(unsigned long size) {
+        kprintf("(_Znam)new[](%lu)", size);
+        void *result = malloc(size);
+        return result;
+}
+
+
+// _operator delete[](void*)
+void
+_ZdaPv(void *this) {
+        kprintf("%p->delete[]()\n", this);
+}
+
+
+UNIMPLEMENTED(_ZTVNSt3__114__shared_countE)
+UNIMPLEMENTED(_ZTVNSt3__119__shared_weak_countE)
+
+
+void
+_ZNSt3__119__shared_weak_count10__add_weakEv(struct ptr *this)
+{
+        //kprintf("%p->_ZNSt3__119__shared_weak_count10__add_weakEv()\n", this);
+        // FIXME: should use LOCK
+        __atomic_fetch_add(&this->weak_count, 1, __ATOMIC_RELAXED);
+}
+
+
+void
+_ZNSt3__119__shared_weak_count12__add_sharedEv(struct ptr *this)
+{
+        //kprintf("%p->_ZNSt3__119__shared_weak_count12__add_sharedEv()\n", this);
+        // FIXME: needs locking
+        this->shared_count++;
+}
+
+
+UNIMPLEMENTED(_ZNSt3__119__shared_weak_count14__release_weakEv)
+UNIMPLEMENTED(_ZNSt3__119__shared_weak_count16__release_sharedEv)
+UNIMPLEMENTED(_ZNSt3__119__shared_weak_countD2Ev)
+UNIMPLEMENTED(_ZNKSt3__119__shared_weak_count13__get_deleterERKSt9type_info)
+UNIMPLEMENTED(_ZNKSt3__120__vector_base_commonILb1EE20__throw_length_errorEv)
+
 
 /*
  * basic_string
@@ -36,6 +121,7 @@ is_long_string(struct basic_string *this)
         return this->ss.len & 1;
 }
 
+
 /* string capacity */
 
 static inline size_t
@@ -43,6 +129,7 @@ best_str_capacity(size_t len)
 {
         return (len + 16) & ~0xf;
 }
+
 
 static inline size_t
 get_long_str_capacity(struct basic_string *this)
@@ -73,13 +160,11 @@ set_long_str_capacity(struct basic_string *this, size_t capacity)
 }
 
 
-
 static inline size_t
 get_str_size(struct basic_string *this)
 {
         return is_long_string(this) ? this->ls.curlen : this->ss.len >> 1;
 }
-
 
 
 static inline void
@@ -135,7 +220,6 @@ set_long_str_ptr(struct basic_string *this, char *p)
 }
 
 
-
 void
 _ZNKSt3__121__basic_string_commonILb1EE20__throw_length_errorEv(struct basic_string *this)
 {
@@ -146,7 +230,7 @@ _ZNKSt3__121__basic_string_commonILb1EE20__throw_length_errorEv(struct basic_str
 
 int
 _ZNKSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE7compareEPKc(struct basic_string *this,
-                                                                                  const char *str)
+                                                                             const char *str)
 {
         kprintf("%p->compare(%s)=", this, str);
         int result = strcmp(get_str_ptr(this), str);
@@ -155,17 +239,18 @@ _ZNKSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE7compareEPKc(str
         return result;
 }
 
-// std::__1::basic_string<char, std::__1::char_traits<char>,
-// std::__1::allocator<char> >::__init(char const*, unsigned long)
-void _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6__initEPKcm(struct basic_string *this,
-                                                                                 char const *str,
-                                                                                 uint32_t len) {
 
+// std::__1::basic_string<char, std::__1::char_traits<char>,
+void
+_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6__initEPKcm(struct basic_string *this,
+                                                                                 char const *str,
+                                                                                 uint32_t len)
+{
         kprintf("%p->_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_"
                 "9allocatorIcEEE6__initEPKcm(%s, %u)\n",
                 this, str, len);
         char *dest;
-        
+
         if (unlikely(len == (uint32_t)~0)) {
                 _ZNKSt3__121__basic_string_commonILb1EE20__throw_length_errorEv(this);
                 __builtin_unreachable ();
@@ -187,7 +272,9 @@ void _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6__initEPKcm
 }
 
 
-void _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6__initEmc(struct basic_string *this,
+// std::__1::allocator<char> >::__init(char const*, unsigned long)
+void
+_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6__initEmc(struct basic_string *this,
                                                                                uint32_t len,
                                                                                char ch)
 {
@@ -287,11 +374,12 @@ _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEPKcm(stru
 struct basic_string *
 _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEPKc(struct basic_string *this,
                                                                            const char *string)
-{        
+{
         kprintf("%p->append(%s)\n", this, string);
         _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEPKcm(this, string, strlen(string));
         return this;
 }
+
 
 struct basic_string *
 _ZNSsC1EPKcmRKSaIcE(struct basic_string *this, const char *string, uint32_t len, void *allocator)
@@ -337,9 +425,6 @@ __ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE9__grow_byEmmmmm
 }
 
 
- 
-                
-
 struct basic_string *
 __ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEmc(struct basic_string *this,
                                                                            unsigned long newlen, char ch)
@@ -374,17 +459,20 @@ _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6resizeEmc(struct
         if (size < newlen) {
                 char *p = get_str_ptr(this);
                 p[newlen+1] = '\0';
-        } else {                
+        } else {
                 __ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEmc(this, newlen - size, ch);
         }
 }
 
 
-void _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE7reserveEm() {
+void
+_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE7reserveEm()
+{
         koops("Calling "
                        "_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_"
                        "9allocatorIcEEE7reserveEm\n");
 }
+
 
 void
 _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE9push_backEc(struct basic_string *this, char ch)
@@ -410,7 +498,9 @@ _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEC1ERKS5_() {
                        "9allocatorIcEEEC1ERKS5_\n");
 }
 
-void _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEED1Ev(struct basic_string *this)
+
+void
+_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEED1Ev(struct basic_string *this)
 {
         kprintf("%p->_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_"
                 "9allocatorIcEEED1Ev\n", this);
@@ -428,7 +518,7 @@ __ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6assignEPKcm(str
 {
         kprintf("%p->__ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6assignEPKcm(%s, %lu)",
                 this, string, len);
-        
+
         size_t capacity = get_str_capacity(this);
         if (capacity >= len) {
                 char *p = get_str_ptr(this);
@@ -457,7 +547,7 @@ _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEaSERKS5_(struct b
 {
         kprintf("%p->_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_"
                 "9allocatorIcEEEaSERKS5_(%p)\n", this, that);
-        
+
         if (this != that) {
                 __ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6assignEPKcm(this,
                                                                                              get_str_ptr(that),
@@ -465,9 +555,6 @@ _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEaSERKS5_(struct b
         }
         return this;
 }
-
-
-
 
 
 // std::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(std::string const&)
@@ -486,22 +573,11 @@ _ZNSsC1ERKSs(struct basic_string *this, struct basic_string *that)
 }
 
 
-
-void __cxa_guard_abort() {
-        koops("Calling __cxa_guard_abort\n");
-}
-
-void __gxx_personality_v0() {
-        koops("Calling __gxx_personality_v0\n");
-}
-
-void _Unwind_Resume() {
-        koops("Calling _Unwind_Resume\n");
-}
-
-
-
-
+UNIMPLEMENTED(__cxa_guard_abort)
+UNIMPLEMENTED(__cxa_guard_acquire)
+UNIMPLEMENTED(__cxa_guard_release)
+UNIMPLEMENTED(__gxx_personality_v0)
+UNIMPLEMENTED(_Unwind_Resume)
 
 
 /*
@@ -528,9 +604,7 @@ void _ZNSt3__111__call_onceERVmPvPFvS2_E() {
  * hash
  */
 
-void _ZNSt3__112__next_primeEm() {
-        koops("Calling _ZNSt3__112__next_primeEm\n");
-}
+UNIMPLEMENTED(_ZNSt3__112__next_primeEm)
 
 
 void _ZNSt3__16__sortIRNS_6__lessImmEEPmEEvT0_S5_T_(unsigned long *start,
@@ -544,80 +618,4 @@ void _ZNSt3__16__sortIRNS_6__lessImmEEPmEEvT0_S5_T_(unsigned long *start,
         } else {
                 hlt();
         }
-}
-
-
-
-
-struct ptr {
-        unsigned long r1;
-        unsigned long shared_count;
-        unsigned long weak_count;
-};
-
-
-void
-_ZTVNSt3__114__shared_countE(void *this)
-{
-        koops("_ZTVNSt3__114__shared_countE");
-}
-
-void
-_ZTVNSt3__119__shared_weak_countE(void *this)
-{
-        koops("_ZTVNSt3__119__shared_weak_countE");
-}
-
-
-void _ZNS::append(char const*, unsigned long)t3__119__shared_weak_count10__add_weakEv(struct ptr *this) {
-        //kprintf("%p->_ZNSt3__119__shared_weak_count10__add_weakEv()\n", this);
-        // FIXME: should use LOCK
-        __atomic_fetch_add(&this->weak_count, 1, __ATOMIC_RELAXED);
-}
-
-void _ZNSt3__119__shared_weak_count12__add_sharedEv(struct ptr *this) {
-        //kprintf("%p->_ZNSt3__119__shared_weak_count12__add_sharedEv()\n", this);
-        this->shared_count++;
-}
-
-void _ZNSt3__119__shared_weak_count14__release_weakEv(void *this) {
-        kprintf("%p->_ZNSt3__119__shared_weak_count14__release_weakEv\n", this);
-        
-}
-
-void _ZNSt3__119__shared_weak_count16__release_sharedEv(void *this) {
-        kprintf("%p->Calling _ZNSt3__119__shared_weak_count16__release_sharedEv\n",
-                this);
-}
-
-void _ZNSt3__119__shared_weak_countD2Ev() {
-        koops("Calling _ZNSt3__119__shared_weak_countD2Ev\n");
-}
-
-
-void _ZNKSt3__119__shared_weak_count13__get_deleterERKSt9type_info() {
-        koops("Calling "
-                       "_ZNKSt3__119__shared_weak_count13__get_deleterERKSt9type_"
-                       "info\n");
-}
-
-void _ZNKSt3__120__vector_base_commonILb1EE20__throw_length_errorEv() {
-        koops("Calling "
-                       "_ZNKSt3__120__vector_base_commonILb1EE20__throw_length_"
-                       "errorEv\n");
-}
-
-
-// _operator delete[](void*)
-void _ZdaPv(void *this) {
-        kprintf("%p->delete[]()\n", this);
-}
-
-
-
-//_operator new[](unsigned long)
-void *_Znam(unsigned long size) {
-        kprintf("(_Znam)new[](%lu)", size);
-        void *result = malloc(size);
-        return result;
 }

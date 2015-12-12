@@ -1,3 +1,12 @@
+/*
+ * fakelib/linux_libcpp.c
+ *
+ * Copyright © 2015 Simon Evans. All rights reserved.
+ *
+ * Fake libcpp calls used by Linux/ELF libswiftCore
+ *
+ */
+
 #include "klibc.h"
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -23,14 +32,12 @@ void *_Znwm(unsigned long size) {
 }
 
 
-
 // std::__throw_length_error(char const*)
 void
 _ZSt20__throw_length_errorPKc(char const *error)
 {
         koops("OOPS! Length error: %s", error);
 }
-
 
 
 // std::__throw_bad_alloc()
@@ -50,8 +57,9 @@ _ZSt20__throw_system_errori(int error)
         asm volatile ("hlt" : : : "memory");
 }
 
+
 /*
- * std::string
+ * std::string / std::basic_string
  *
  */
 
@@ -61,8 +69,7 @@ struct basic_string {
         uint64_t capacity;
         int refcount;           // Atomic_word
         char padding[4];
-        //char *_M_p;             // _M_dataplus
-        char data[0];
+        char data[0];           // this pointer for std::basic_string -> end of basic_string
 };
 
 
@@ -78,6 +85,8 @@ this_from_string(char *str)
 // Empty string with all fields set to 0
 struct basic_string _ZNSs4_Rep20_S_empty_rep_storageE[2] = {};
 
+// std::string::_Rep::_S_terminal Terminating character
+char _ZNSs4_Rep11_S_terminalE = '\0';
 
 static const size_t str_max_size = 0x3ffffffffffffff9;
 static const size_t npos = 0xffffffffffffffff;
@@ -89,6 +98,7 @@ is_string_shared(struct basic_string *str)
         return str->refcount > 0;
 }
 
+
 static inline void
 string_set_shareable(struct basic_string *str)
 {
@@ -99,18 +109,17 @@ string_set_shareable(struct basic_string *str)
 static inline void
 dump_basic_string(struct basic_string *this)
 {
+        // FIXME: This overflow memory due to large strings exceeding kprintf's internal buffer. That needs to be fixed.
+        // Also indicates some strings are not being NUL terminated. Uncommenting this causes an OOPS at startup
         //kprintf("DBS %p->(%lu,%lu,%d,\"%s\")\n", this, this->length, this->capacity, this->refcount, this->data);
 }
+
 
 static inline void
 dump_string(char *str)
 {
         dump_basic_string(this_from_string(str));
 }
-
-
-// std::string::_Rep::_S_terminal Terminating character
-char _ZNSs4_Rep11_S_terminalE = '\0';
 
 
 // Returns pointer to basic_string structure (Rep)
@@ -143,6 +152,7 @@ _ZNSs4_Rep9_S_createEmmRKSaIcE(size_t capacity, size_t old_capacity, void *alloc
 }
 
 
+// std::string::_Rep::_M_clone(std::allocator<char> const&, unsigned long)
 struct basic_string *
 _ZNSs4_Rep8_M_cloneERKSaIcEm(struct basic_string *this, void *allocator, size_t len)
 {
@@ -170,15 +180,6 @@ _ZNSs4_Rep8_M_cloneERKSaIcEm(struct basic_string *this, void *allocator, size_t 
 }
 
 
-// std::string::_M_mutate(unsigned long, unsigned long, unsigned long)
-void
-_ZNSs9_M_mutateEmmm(struct basic_string *this, size_t pos, size_t len1, size_t len2)
-{
-        kprintf("UNIMPLEMENTED:%p->_ZNSs9_M_mutateEmmm(%lu, %lu, %lu)\n", this, pos, len1, len2);
-        hlt();
-}
-
-
 // this = pointer to basic_string structure (Rep)
 // std::string::_Rep::_M_destroy(std::allocator<char> const&)
 void
@@ -187,6 +188,15 @@ _ZNSs4_Rep10_M_destroyERKSaIcE(struct basic_string *this, void *allocator)
         //kprintf("%p->_M_destroy(%p)\n", this, allocator);
         dump_basic_string(this);
         free(this);
+}
+
+
+// std::string::_M_mutate(unsigned long, unsigned long, unsigned long)
+void
+_ZNSs9_M_mutateEmmm(struct basic_string *this, size_t pos, size_t len1, size_t len2)
+{
+        kprintf("UNIMPLEMENTED:%p->_ZNSs9_M_mutateEmmm(%lu, %lu, %lu)\n", this, pos, len1, len2);
+        hlt();
 }
 
 
@@ -335,6 +345,7 @@ _ZNKSs7compareEPKc(struct basic_string **this_p, const char *string)
         return result;
 }
 
+
 // std::string::reserve(unsigned long)
 void
 _ZNSs7reserveEm(struct basic_string **this_p, size_t capacity)
@@ -388,7 +399,6 @@ _ZNSs6appendEPKcm(struct basic_string **this_p, char const *string, size_t len)
                         this = (*this_p)-1;
                         string_data = (char *)(*this_p);
                         dump_basic_string(this);
-
 
                         __memcpy(string_data + oldlen, string, len);
                         string_data[oldlen + len] = '\0';
