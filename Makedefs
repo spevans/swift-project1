@@ -5,11 +5,13 @@ CFLAGS := -Wall -Wextra -Werror -fno-builtin -fno-stack-protector -O2 -I$(TOPDIR
 
 
 ifeq ($(UNAME_S), Linux)
+	SWIFT := /home/spse/swift-2.2-SNAPSHOT-2015-12-10-a-ubuntu14.04/usr/bin/swift
 	SWIFTC := /home/spse/swift-2.2-SNAPSHOT-2015-12-10-a-ubuntu14.04/usr/bin/swiftc
 	NASM_OBJ_FLAGS := -felf64
 endif
 
 ifeq ($(UNAME_S), Darwin)
+	SWIFT := /usr/bin/swift
 	SWIFTC := /Users/spse/Files/src/swift/build/Ninja-DebugAssert/swift-macosx-x86_64/bin/swiftc
 	SWIFTLIB := /Users/spse/Files/src/swift/build/Ninja-DebugAssert/swift-macosx-x86_64/lib/swift/macosx/x86_64/libswiftCore.dylib
 	NASM_OBJ_FLAGS := -fmacho64 --prefix _
