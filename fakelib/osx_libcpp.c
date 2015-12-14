@@ -267,7 +267,7 @@ _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6__initEPKcm(stru
                 set_long_str_ptr(this, dest);
                 set_long_str_size(this, len);
         }
-        __memcpy(dest, str, len);
+        memcpy(dest, str, len);
         dest[len+1] = '\0';
 }
 
@@ -320,16 +320,16 @@ __ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE21__grow_by_and_
         char *old_str = get_str_ptr(this);
         char *p = malloc(new_capacity + 1);
         if (bytes_to_copy != 0) {
-                __memcpy(p, old_str, bytes_to_copy);
+                memcpy(p, old_str, bytes_to_copy);
                 p[bytes_to_copy] = '\0';
         }
         if (bytes_to_add != 0) {
-                __memcpy(p + bytes_to_copy, string, bytes_to_add);
+                memcpy(p + bytes_to_copy, string, bytes_to_add);
                 p[bytes_to_copy + bytes_to_add] = '\0';
         }
         size_t sec_cp_sz = cursize - bytes_to_del - bytes_to_copy;
         if (sec_cp_sz != 0) {
-                __memcpy(p + bytes_to_copy + bytes_to_add, old_str + bytes_to_copy + bytes_to_del, sec_cp_sz);
+                memcpy(p + bytes_to_copy + bytes_to_add, old_str + bytes_to_copy + bytes_to_del, sec_cp_sz);
                 p[bytes_to_copy + bytes_to_add + sec_cp_sz] = '\0';
         }
         if (is_long_string(this)) {
@@ -353,7 +353,7 @@ _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEPKcm(stru
         if (capacity - size >= len) {
                 if (len) {
                         char *p = get_str_ptr(this);
-                        __memcpy(p + size, string, len);
+                        memcpy(p + size, string, len);
                         p[size + len] = '\0';
                         set_str_size(this, size + len);
                 }
@@ -409,12 +409,12 @@ __ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE9__grow_byEmmmmm
         char *p = malloc(new_capacity + 1);
         char *old_str = get_str_ptr(this);
         if (bytes_to_copy != 0) {
-                __memcpy(p, old_str, bytes_to_copy);
+                memcpy(p, old_str, bytes_to_copy);
                 p[bytes_to_copy] = '\0';
         }
         size_t sec_cp_sz = cursize - bytes_to_del - bytes_to_copy;
         if (sec_cp_sz !=  0) {
-                __memcpy(p + bytes_to_copy + bytes_to_add, old_str + bytes_to_copy + bytes_to_del, sec_cp_sz);
+                memcpy(p + bytes_to_copy + bytes_to_add, old_str + bytes_to_copy + bytes_to_del, sec_cp_sz);
                 p[bytes_to_copy + bytes_to_add + sec_cp_sz] = '\0';
         }
         if (is_long_string(this)) {
@@ -522,7 +522,7 @@ __ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6assignEPKcm(str
         size_t capacity = get_str_capacity(this);
         if (capacity >= len) {
                 char *p = get_str_ptr(this);
-                __memcpy(p, string, len);
+                memcpy(p, string, len);
                 p[len] = '\0';
                 set_str_size(this, len);
         } else {

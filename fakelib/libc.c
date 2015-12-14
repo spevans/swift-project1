@@ -50,7 +50,6 @@ UNIMPLEMENTED(__divti3)
 UNIMPLEMENTED(__error)
 UNIMPLEMENTED(__errno_location)
 UNIMPLEMENTED(__getdelim)
-UNIMPLEMENTED(_IO_putc)
 UNIMPLEMENTED(arc4random)
 UNIMPLEMENTED(arc4random_uniform)
 UNIMPLEMENTED(close)
@@ -154,7 +153,6 @@ UNIMPLEMENTED(fmod)
 UNIMPLEMENTED(fmodf)
 UNIMPLEMENTED(fmodl)
 UNIMPLEMENTED(fprintf)
-UNIMPLEMENTED(fputc)
 UNIMPLEMENTED(fwrite)
 
 
@@ -326,8 +324,41 @@ pthread_rwlock_wrlock(pthread_rwlock_t *rwlock)
         return 0;
 }
 
-UNIMPLEMENTED(putc)
-UNIMPLEMENTED(putchar)
+
+int
+putchar(int ch)
+{
+        print_char(ch);
+        return ch;
+}
+
+
+int
+_IO_putc(int ch, void *stream)
+{
+        kprintf("putc:(%c,%p)\n", ch, stream);
+        if (stream != stderr && stream != stdout) {
+                koops("putc stream = %p", stream);
+        }
+        print_char(ch);
+        return ch;
+}
+
+
+int
+fputc(int ch, void *stream)
+{
+        return _IO_putc(ch, stream);
+}
+
+
+int
+putc(int ch, void *stream)
+{
+        return _IO_putc(ch, stream);
+}
+
+
 UNIMPLEMENTED(read)
 UNIMPLEMENTED(rint)
 UNIMPLEMENTED(rintf)

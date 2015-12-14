@@ -10,25 +10,7 @@ extern uintptr_t _bss_start;
 extern uintptr_t _bss_end;
 
 
-const char *strings[] = { "hello", "there" };
-
-
-
-
-static inline void *
-memset(void *s, char c, size_t count)
-{
-        int d0, d1, d2;
-        asm volatile ("cld\n\t"
-                      "rep\n\t"
-                      "stosb"
-                      : "=&D" (d0), "=&a" (d1), "=&c" (d2)
-                      : "0" (s), "1" (c), "2" (count) : "memory");
-        return s;
-}
-
-
-static inline void *
+static void *
 memsetw(void *s, uint16_t w, size_t count)
 {
         int d0, d1, d2;
@@ -40,7 +22,8 @@ memsetw(void *s, uint16_t w, size_t count)
         return s;
 }
 
-static inline char *
+
+static char *
 stpcpy(char *dest, const char *src)
 {
     /* Need the `volatile' keyword so gcc doesn't assume it's free
@@ -58,61 +41,44 @@ stpcpy(char *dest, const char *src)
 }
 
 
-void *
-__memcpy(void *dest, const void *src, size_t n)
+void
+print_char(const char c)
 {
-        int d0, d1, d2, d3;
-        asm volatile ("cld\n\t"
-                      "movl %%edx, %%ecx\n\t"
-                      "shrl $2,%%ecx\n\t"
-                      "rep ; movsl\n\t"
-                      "testb $1,%%dl\n\t"
-                      "je 1f\n\t"
-                      "movsb\n"
-                      "1:\ttestb $2,%%dl\n\t"
-                      "je 2f\n\t"
-                      "movsw\n"
-                      "2:\n"
-                      : "=&S" (d0), "=&D" (d1), "=&d" (d2), "=&a" (d3)
-                      : "0" (src), "1" (dest), "2" (n)
-                      : "memory", "cx");
-    return dest;
-}
+        static int cursor_x, cursor_y;
+        char *cursor_char = (screen + (cursor_y * 80 * 2) + (cursor_x * 2));
 
+        if((c == '\n') || (cursor_x >= 80)) {
+                cursor_x = 0;
+                if(++cursor_y >= 25) {
+                        memcpy(screen, screen + 160, 24 * 160);
+                        memsetw(screen + (24 * 160), 0x0720, 160);
+                        cursor_y--;
+                }
+                cursor_char = (screen + (cursor_y * 80 * 2)
+                               + (cursor_x * 2));
+                if(c == '\n') {
+                        return;
+                }
+        }
+        else if(c == '\t') {
+                int new_x = (cursor_x + 8) & ~7;
+                memsetw(cursor_char, 0x0720, new_x - cursor_x);
+                cursor_x = new_x;
+                cursor_char = (screen + (cursor_y * 80 * 2)
+                               + (cursor_x * 2));
+                return;
+        }
+        *cursor_char++ = c;
+        *cursor_char++ = 0x07;
+        cursor_x++;
+}
 
 
 void
 print_string_len(const char *text, size_t len)
 {
-        static int cursor_x, cursor_y;
-        char *cursor_char = (screen + (cursor_y * 80 * 2) + (cursor_x * 2));
-        char c;
-
         while(len--) {
-                c = *text++;
-                if((c == '\n') || (cursor_x >= 80)) {
-                        cursor_x = 0;
-                        if(++cursor_y >= 25) {
-                                __memcpy(screen, screen + 160, 24 * 160);
-                                memsetw(screen + (24 * 160), 0x0720, 160);
-                                cursor_y--;
-                        }
-                        cursor_char = (screen + (cursor_y * 80 * 2)
-                                       + (cursor_x * 2));
-                        if(c == '\n')
-                                continue;
-                }
-                else if(c == '\t') {
-                        int new_x = (cursor_x + 8) & ~7;
-                        memsetw(cursor_char, 0x0720, new_x - cursor_x);
-                        cursor_x = new_x;
-                        cursor_char = (screen + (cursor_y * 80 * 2)
-                                       + (cursor_x * 2));
-                        continue;
-                }
-                *cursor_char++ = c;
-                *cursor_char++ = 0x07;
-                cursor_x++;
+                print_char(*text++);
         }
 }
 
@@ -120,7 +86,9 @@ print_string_len(const char *text, size_t len)
 void
 print_string(const char *text)
 {
-        print_string_len(text, strlen(text));
+        while(*text) {
+                print_char(*text++);
+        }
 }
 
 
@@ -459,7 +427,7 @@ kvsprintf(char *buf, const char *fmt, va_list args)
                     }
                     else
                     {
-                        __memcpy(buf, (char *)arg, len);
+                        memcpy(buf, (char *)arg, len);
                         buf += len;
                         *buf = 0;
                     }
@@ -499,20 +467,6 @@ kprintf(const char *fmt, ...)
     va_start(args, fmt);
     kvprintf(fmt, args);
     va_end(args);
-}
-
-void newline()
-{
-        // move to next line
-        //offset += 159;
-        //offset -= offset % 160;
-        print_string("\n");
-}
-
-
-void print_char(char ch)
-{
-        kprintf("%c", ch);
 }
 
 
@@ -561,43 +515,23 @@ void print_pointer(void *ptr)
 
 void print_sections()
 {
-        print_string("screen: ");
-        print_qword((uintptr_t)screen);
-        newline();
-        print_string("_text_start: ");
-        print_qword((uintptr_t)&_text_start);
-        newline();
-        print_string("_text_end:   ");
-        print_qword((uintptr_t)&_text_end);
-        newline();
-
-        print_string("_data_start: ");
-        print_qword((uintptr_t)&_data_start);
-        newline();
-
-        print_string("_data_end:   ");
-        print_qword((uintptr_t)&_data_end);
-        newline();
-
-        print_string("_bss_start:  ");
-        print_qword((uintptr_t)&_bss_start);
-        newline();
-
-        print_string("_bss_end:    ");
-        print_qword((uintptr_t)&_bss_end);
-
-        newline();
+        kprintf("screen:      %p\n", screen);
+        kprintf("_text_start: %p\n", &_text_start);
+        kprintf("_text_end:   %p\n", &_text_end);
+        kprintf("_data_start: %p\n", &_data_start);
+        kprintf("_data_end:   %p\n", &_data_end);
+        kprintf("_bss_start:  %p\n", &_bss_start);
+        kprintf("_bss_end:    %p\n", &_bss_end);
 }
+
 
 void init_tty()
 {
-        //offset = 0;
-        print_string("init_tty()");
-        newline();
+        kprintf("init_tty()\n");
         print_sections();
-        print_qword(0x1234567890ABCDEF);
-        newline();
+        kprintf("%#"PRIX64 "\n", 0x1234567890ABCDEF);
 }
+
 
 void
 koops(const char *fmt, ...)

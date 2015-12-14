@@ -383,7 +383,7 @@ _ZNSs6appendEPKcm(struct basic_string **this_p, char const *string, size_t len)
                         string_data = (char *)(*this_p);
                         dump_basic_string(this);
 
-                        __memcpy(string_data + oldlen, string, len);
+                        memcpy(string_data + oldlen, string, len);
                         string_data[oldlen + len] = '\0';
                         string_set_shareable(this);
                         this->length = newlen;

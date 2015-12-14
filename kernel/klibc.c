@@ -59,9 +59,9 @@ void *malloc(size_t size)
 
 
 int
-memcmp(const void *s1, const void *s2, size_t n)
+memcmp(const void *s1, const void *s2, size_t count)
 {
-        kprintf("memcmp(%p,%p,%lu)=", s1, s2, n);
+        kprintf("memcmp(%p,%p,%lu)=", s1, s2, count);
 
         int d0, d1, d2;
         int res;
@@ -75,7 +75,7 @@ memcmp(const void *s1, const void *s2, size_t n)
                       "negl %%eax\n"
                       "1:"
                       : "=&D" (d0), "=&S" (d1), "=&c" (d2), "=&a" (res)
-                      : "0" (s1), "1" (s2), "2" (n)
+                      : "0" (s1), "1" (s2), "2" (count)
                       : "memory");
 
         kprintf("%d\n", res);
@@ -83,11 +83,25 @@ memcmp(const void *s1, const void *s2, size_t n)
 }
 
 
-void *memcpy(void *restrict dst, const void *restrict src, size_t n)
+void
+*memcpy(void *restrict dest, const void *restrict src, size_t count)
 {
-        //kprintf("memcpy(dst=%p,src=%p,count=%lu\n", dst, src, n);
-        __memcpy(dst, src, n);
-        return dst;
+        int d0, d1, d2, d3;
+        asm volatile ("cld\n\t"
+                      "movl %%edx, %%ecx\n\t"
+                      "shrl $2,%%ecx\n\t"
+                      "rep ; movsl\n\t"
+                      "testb $1,%%dl\n\t"
+                      "je 1f\n\t"
+                      "movsb\n"
+                      "1:\ttestb $2,%%dl\n\t"
+                      "je 2f\n\t"
+                      "movsw\n"
+                      "2:\n"
+                      : "=&S" (d0), "=&D" (d1), "=&d" (d2), "=&a" (d3)
+                      : "0" (src), "1" (dest), "2" (count)
+                      : "memory", "cx");
+        return dest;
 }
 
 
@@ -95,22 +109,23 @@ UNIMPLEMENTED(memmove)
 
 
 void *
-memset(void *s, char c, size_t count)
+memset(void *dest, char c, size_t count)
 {
-        kprintf("memset(%p,%d,%lu)\n", s, c, count);
+        kprintf("memset(%p,%u,%lu)\n", dest, (uint8_t)c, count);
 
         int d0, d1, d2;
         asm volatile ("cld\n\t"
                       "rep\n\t"
                       "stosb"
                       : "=&D" (d0), "=&a" (d1), "=&c" (d2)
-                      : "0" (s), "1" (c), "2" (count) : "memory");
-        return s;
+                      : "0" (dest), "1" (c), "2" (count) : "memory");
+        return dest;
 }
 
 
 UNIMPLEMENTED(memset_pattern8)
-UNIMPLEMENTED(strchr)
+
+
 
 int
 strcmp(const char *cs, const char *ct)
@@ -135,7 +150,20 @@ strcmp(const char *cs, const char *ct)
         return res;
 }
 
-void strdup() { koops("Calling strdup\n"); }
+
+char *
+strcpy(char *restrict dest, const char *restrict src)
+{
+        int d0, d1, d2;
+        asm volatile("cld\n\t"
+                     "1:\tlodsb\n\t"
+                     "stosb\n\t"
+                     "testb %%al,%%al\n\t"
+                     "jne 1b"
+                     : "=&S" (d0), "=&D" (d1), "=&a" (d2)
+                     : "0" (src), "1" (dest) : "memory");
+        return dest;
+}
 
 
 size_t
@@ -153,5 +181,7 @@ strlen(const char *s)
 }
 
 
+UNIMPLEMENTED(strchr)
+UNIMPLEMENTED(strdup)
 UNIMPLEMENTED(strncmp)
 UNIMPLEMENTED(strndup)
