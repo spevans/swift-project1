@@ -11,6 +11,7 @@
         SECTION .text
 
         extern init_tty
+        extern init_mm
         extern _bss_start
         extern _bss_end
         extern _TF7startup7startupFT_T_ ; startup:startup()
@@ -40,6 +41,7 @@ startup:
         mov     rax, 0x1FF8
         mov     [fs:0], rax
 
+        call    init_mm
         call    init_tty
         call    _TF7startup7startupFT_T_
         hlt
@@ -54,4 +56,3 @@ enable_sse:
         or      ax, 3 << 9		; Set CR4.OSFXSR and CR4.OSXMMEXCPT
         mov     cr4, rax
         ret
-

@@ -12,49 +12,12 @@
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
-extern uintptr_t _bss_end;
-static uint64_t heap = (uint64_t)&_bss_end;
-
 
 void
 hlt()
 {
         asm volatile ("hlt" : : : "memory");
         __builtin_unreachable ();
-}
-
-
-void
-free(void *ptr)
-{
-}
-
-
-void *mmap(void *addr, size_t len, int prot, int flags, int fd, unsigned long offset) {
-        const int align = 4096-1;
-
-        heap = (heap + align) & ~align;
-        char *result = (char *)heap;
-        heap += len;
-
-        kprintf("mmap=(addr=%p,len=%lX,prot=%X,flags=%X,fd=%d,offset=%lX)=%p\n",
-                addr, len, prot, flags, fd, offset, result);
-
-        return result;
-}
-
-
-void *malloc(size_t size)
-{
-        const int align = 16-1;
-
-        heap = (heap + align) & ~align;
-        char *result = (char *)heap;
-        heap += size;
-
-        //kprintf("malloc(%lu), result=%p heap=%lX\n", size, result, heap);
-
-        return result;
 }
 
 

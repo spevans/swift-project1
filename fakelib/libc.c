@@ -15,7 +15,6 @@ typedef long dispatch_once_t;
 
 
 // defined constants
-unsigned long vm_page_mask = 4095;
 void *__stderrp = (void *)0xF2; // FILE *
 void *__stdinp = (void *)0xF0; // FILE *
 void *__stdoutp = (void *)0xF1; // FILE *
@@ -167,10 +166,9 @@ UNIMPLEMENTED(log2)
 UNIMPLEMENTED(log2f)
 UNIMPLEMENTED(logf)
 
-UNIMPLEMENTED(malloc_default_zone)
-UNIMPLEMENTED(malloc_size)
-UNIMPLEMENTED(malloc_usable_size)
-UNIMPLEMENTED(malloc_zone_from_ptr)
+
+//UNIMPLEMENTED(malloc_zone_from_ptr)
+
 UNIMPLEMENTED(memchr)
 
 UNIMPLEMENTED(nearbyint)

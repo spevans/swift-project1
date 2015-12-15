@@ -1,7 +1,7 @@
 UNAME_S := $(shell uname -s)
 CC := clang
 NASM := nasm
-CFLAGS := -Wall -Wextra -Werror -fno-builtin -fno-stack-protector -O2 -I$(TOPDIR)/kernel
+CFLAGS := -Wall -Wextra -Werror -fno-builtin -fno-stack-protector -fno-common -O2 -I$(TOPDIR)/kernel
 
 
 ifeq ($(UNAME_S), Linux)

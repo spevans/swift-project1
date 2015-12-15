@@ -1,7 +1,7 @@
 TOPDIR := ..
 include $(TOPDIR)/Makedefs
 
-KERNEL_OBJS := init.o klibc.o startup.o tty.o
+KERNEL_OBJS := init.o klibc.o startup.o tty.o mm.o
 
 
 all: kernel.o
@@ -14,4 +14,7 @@ kernel.o: $(KERNEL_OBJS)
 	ld -r -no_eh_labels -o $@ $^
 
 clean:
-	rm -f *.bin *.o *.s
+	rm -f *.bin *.o *.s mm_test
+
+mm_test: mm_test.c mm.c
+	$(CC) -ggdb -Wall -Wextra -Werror -fno-builtin -fno-stack-protector -I$(TOPDIR)/kernel -o $@ $^

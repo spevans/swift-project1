@@ -48,3 +48,9 @@ void print_byte(int value);
 void print_word(int value);
 void print_dword(unsigned int value);
 void print_qword(uint64_t value);
+
+#ifdef DEBUG
+#define dprintf(fmt, ...) kprintf(fmt, __VA_ARGS__)
+#else
+#define dprintf(fmt, ...) do {} while(0)
+#endif
