@@ -24,7 +24,7 @@ hlt()
 int
 memcmp(const void *s1, const void *s2, size_t count)
 {
-        kprintf("memcmp(%p,%p,%lu)=", s1, s2, count);
+        dprintf("memcmp(%p,%p,%lu)=", s1, s2, count);
 
         int d0, d1, d2;
         int res;
@@ -41,7 +41,8 @@ memcmp(const void *s1, const void *s2, size_t count)
                       : "0" (s1), "1" (s2), "2" (count)
                       : "memory");
 
-        kprintf("%d\n", res);
+        dprintf("%d\n", res);
+
         return res;
 }
 
@@ -74,7 +75,7 @@ UNIMPLEMENTED(memmove)
 void *
 memset(void *dest, char c, size_t count)
 {
-        kprintf("memset(%p,%u,%lu)\n", dest, (uint8_t)c, count);
+        dprintf("memset(%p,%u,%lu)\n", dest, (uint8_t)c, count);
 
         int d0, d1, d2;
         asm volatile ("cld\n\t"
@@ -93,7 +94,7 @@ UNIMPLEMENTED(memset_pattern8)
 int
 strcmp(const char *cs, const char *ct)
 {
-        kprintf("strcmp(%s, %s)\n", cs, ct);
+        dprintf("strcmp(%s, %s)\n", cs, ct);
         int d0, d1;
         int res;
         asm volatile("cld\n\t"

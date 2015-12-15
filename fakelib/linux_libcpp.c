@@ -19,7 +19,7 @@
 
 //_operator delete(void*)
 void _ZdlPv(void *this) {
-        //kprintf("%p->delete()\n", this);
+        dprintf("%p->delete()\n", this);
         free(this);
 }
 
@@ -28,7 +28,7 @@ void _ZdlPv(void *this) {
 void *_Znwm(unsigned long size) {
 
         void *result = malloc(size);
-        //kprintf("(_Znwm)new(%lu)=%p\n", size, result);
+        dprintf("(_Znwm)new(%lu)=%p\n", size, result);
         return result;
 }
 
@@ -102,7 +102,7 @@ string_set_shareable(struct basic_string *str)
 static inline void
 dump_basic_string(struct basic_string *this)
 {
-        kprintf("DBS %p->(%lu,%lu,%d,\"%s\")\n", this, this->length, this->capacity, this->refcount, this->data);
+        dprintf("DBS %p->(%lu,%lu,%d,\"%s\")\n", this, this->length, this->capacity, this->refcount, this->data);
 }
 
 
@@ -111,7 +111,7 @@ dump_basic_string(struct basic_string *this)
 struct basic_string * __attribute__((noinline))
 _ZNSs4_Rep9_S_createEmmRKSaIcE(size_t capacity, size_t old_capacity, void *allocator)
 {
-        kprintf("_ZNSs4_Rep9_S_createEmmRKSaIcE(%lu,%lu,%p)\n", capacity, old_capacity, allocator);
+        dprintf("_ZNSs4_Rep9_S_createEmmRKSaIcE(%lu,%lu,%p)\n", capacity, old_capacity, allocator);
         if (capacity > str_max_size) {
                 _ZSt20__throw_length_errorPKc("string too long");
         }
@@ -125,12 +125,12 @@ _ZNSs4_Rep9_S_createEmmRKSaIcE(size_t capacity, size_t old_capacity, void *alloc
         }
 
         size_t size = sizeof(struct basic_string) + capacity + 1;
-        //kprintf("creating string size= %lu capacity = %lu\n", size, capacity);
+        dprintf("creating string size= %lu capacity = %lu\n", size, capacity);
 
         struct basic_string *result = _Znwm(size); // new
         result->capacity = capacity;
         result->refcount = 0;
-        kprintf("_S_create(%lu,%lu,%p)=%p\n", capacity, old_capacity, allocator, result);
+        dprintf("_S_create(%lu,%lu,%p)=%p\n", capacity, old_capacity, allocator, result);
 
         return result;
 }
@@ -179,7 +179,7 @@ _ZNSs4_Rep10_M_destroyERKSaIcE(struct basic_string *this, void *allocator)
 void
 _ZNSs9_M_mutateEmmm(struct basic_string *this, size_t pos, size_t len1, size_t len2)
 {
-        kprintf("UNIMPLEMENTED:%p->_ZNSs9_M_mutateEmmm(%lu, %lu, %lu)\n", this, pos, len1, len2);
+        dprintf("UNIMPLEMENTED:%p->_ZNSs9_M_mutateEmmm(%lu, %lu, %lu)\n", this, pos, len1, len2);
         hlt();
 }
 
@@ -188,11 +188,11 @@ _ZNSs9_M_mutateEmmm(struct basic_string *this, size_t pos, size_t len1, size_t l
 struct basic_string *
 _ZNSs12_S_constructIPKcEEPcT_S3_RKSaIcESt20forward_iterator_tag(const char *str_start, const char *str_end, void *allocator, int tag)
 {
-        //kprintf("_S_construct(%s, %s, %p, %p, %p, %d) sizeof=%lu\n", str_start, str_end, str_start, str_end, allocator, tag, sizeof(struct basic_string));
+        dprintf("_S_construct(%s, %s, %p, %p, %p, %d) sizeof=%lu\n", str_start, str_end, str_start, str_end, allocator, tag, sizeof(struct basic_string));
 
         if (str_start == str_end) {
                 // return statically allocated empty string
-                kprintf("returning empty storage %p", _ZNSs4_Rep20_S_empty_rep_storageE + 1);
+                dprintf("returning empty storage %p", _ZNSs4_Rep20_S_empty_rep_storageE + 1);
                 dump_basic_string(_ZNSs4_Rep20_S_empty_rep_storageE);
                 return _ZNSs4_Rep20_S_empty_rep_storageE + 1;
         }
@@ -224,7 +224,7 @@ _ZNSs12_S_constructIPKcEEPcT_S3_RKSaIcESt20forward_iterator_tag(const char *str_
 void
 _ZNSsC1EPKcmRKSaIcE(struct basic_string **this_p, char const *string, unsigned int len, void **allocator)
 {
-        //kprintf("_ZNSsC1EPKcmRKSaIcE(%p,%s,%u,%p)\n", this_p, string, len, allocator);
+        dprintf("_ZNSsC1EPKcmRKSaIcE(%p,%s,%u,%p)\n", this_p, string, len, allocator);
         struct basic_string *result = _ZNSs12_S_constructIPKcEEPcT_S3_RKSaIcESt20forward_iterator_tag(string, string + len, allocator, 0);
         dump_basic_string(result - 1);
         *this_p = result;
@@ -237,7 +237,7 @@ _ZNSsC1ERKSs(struct basic_string **this_p, struct basic_string **that_p)
 {
         struct basic_string *this = (*this_p) - 1;
         struct basic_string *that = (*that_p) - 1;
-        //kprintf("_ZNSsC1ERKSs(%p[%p],%p[%p]): ", this_p, this, that_p, that);
+        dprintf("_ZNSsC1ERKSs(%p[%p],%p[%p]): ", this_p, this, that_p, that);
 
         if (that->refcount >= 0) {
                 if (that == _ZNSs4_Rep20_S_empty_rep_storageE) {
@@ -249,7 +249,7 @@ _ZNSsC1ERKSs(struct basic_string **this_p, struct basic_string **that_p)
         } else {
                 *this_p = _ZNSs4_Rep8_M_cloneERKSaIcEm(that, NULL, 0);
         }
-        //kprintf("= %p\n", *this_p);
+        dprintf("= %p\n", *this_p);
 }
 
 
@@ -258,7 +258,7 @@ void
 _ZNSsC1EPKcRKSaIcE(struct basic_string **this_p, char const *string, void *allocator)
 {
         struct basic_string *this = (*this_p)-1;
-        kprintf("%p->basic_string(%s,%p)", this, string, allocator);
+        dprintf("%p->basic_string(%s,%p)", this, string, allocator);
         char const *end =  string;
         end += (string != NULL) ? strlen(string) : npos;
 
@@ -278,7 +278,7 @@ _ZNKSs4findEPKcmm(struct basic_string **this_p, const char *string, size_t pos, 
         char *string_data = (char *)(*this_p);
         size_t size = this->length;
 
-        kprintf("find(%s, %s, %lu,%lu)\n", (char *)this_p, string, pos, len);
+        dprintf("find(%s, %s, %lu,%lu)\n", (char *)this_p, string, pos, len);
         hlt();
         dump_basic_string(this);
         if (len == 0) {
@@ -310,7 +310,7 @@ _ZNKSs7compareEPKc(struct basic_string **this_p, const char *string)
         size_t osize = strlen(string);
         size_t len = size < osize ? size : osize;
 
-        kprintf("compare(%s, %s, %lu)\n", (char *)this_p, string, size);
+        dprintf("compare(%s, %s, %lu)\n", (char *)this_p, string, size);
         hlt();
         dump_basic_string(this);
 
@@ -334,7 +334,7 @@ void
 _ZNSs7reserveEm(struct basic_string **this_p, size_t capacity)
 {
         struct basic_string *this = (*this_p)-1;
-        kprintf("reserve: %lu: ", capacity);
+        dprintf("reserve: %lu: ", capacity);
         dump_basic_string(this);
 
         if (capacity != this->capacity || is_string_shared(this)) {
@@ -361,7 +361,7 @@ _ZNSs6appendEPKcm(struct basic_string **this_p, char const *string, size_t len)
         char *string_data = (char *)(*this_p);
         size_t oldlen = this->length;
 
-        kprintf("%p->_ZNSs6appendEPKcm(%s,%lu)\n", this, string, len);
+        dprintf("%p->_ZNSs6appendEPKcm(%s,%lu)\n", this, string, len);
         dump_basic_string(this);
 
         if (len) {
@@ -401,7 +401,7 @@ _ZNSs6appendERKSs(struct basic_string **this_p, struct basic_string **that_p)
 {
         struct basic_string *this = (*this_p) - 1;
         struct basic_string *that = (*that_p) - 1;
-        kprintf("_ZNSs6appendERKSs(%p[%p],%p[%p])\n", this_p, this, that_p, that);
+        dprintf("_ZNSs6appendERKSs(%p[%p],%p[%p])\n", this_p, this, that_p, that);
         return _ZNSs6appendEPKcm(this_p, that->data, that->length);
 }
 
@@ -409,11 +409,11 @@ _ZNSs6appendERKSs(struct basic_string **this_p, struct basic_string **that_p)
 int
 __cxa_guard_acquire(void *guard)
 {
-        kprintf("__cxa_guard_acquire(%p)\n", guard);
+        dprintf("__cxa_guard_acquire(%p)\n", guard);
         return 0;
 }
 
 void __cxa_guard_release(void *guard)
 {
-        kprintf("__cxa_guard_release(%p)\n", guard);
+        dprintf("__cxa_guard_release(%p)\n", guard);
 }

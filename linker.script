@@ -19,6 +19,12 @@ SECTIONS
     _rodata_end = .;
   }
 
+  .swift2_protocol_conformances : {
+    swift2_protocol_conformances_start = . ;
+    QUAD(SIZEOF(.swift2_protocol_conformances) - 8) ;
+    *(.swift2_protocol_conformances) ;
+  }
+
   .data : ALIGN(0x1000) {
     _data_start = .;
     *(.data .data.*)
