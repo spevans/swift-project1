@@ -204,7 +204,7 @@ kvsprintf(char *buf, const char *fmt, va_list args)
                                 case 'p':
                                         if(arg == 0) {
                                                 /* NULL pointer */
-                                                arg = (uint32_t)"(nil)";
+                                                arg = (uint64_t)"(nil)";
                                                 goto do_string;
                                         }
                                         flags |= PF_HASH;
@@ -302,7 +302,7 @@ kvsprintf(char *buf, const char *fmt, va_list args)
                                 case 's':
                                 do_string:
                                         if((char *)arg == NULL) {
-                                                arg = (uint32_t)"(nil)";
+                                                arg = (uint64_t)"(nil)";
                                         }
                                         len = strlen((char *)arg);
                                         if(precision > 0 && len > precision) {

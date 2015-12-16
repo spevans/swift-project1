@@ -31,11 +31,10 @@
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
-extern uintptr_t _bss_end;
-const unsigned long PAGE_SIZE = 4096;
+#define PAGE_SIZE 4096
 const unsigned long vm_page_mask = PAGE_SIZE-1;
-static const int MAX_MALLOC_SIZE = 4032;        // Anything over this gets pages
-static const int MAX_PAGES = 2048;
+static const size_t MAX_MALLOC_SIZE = 4032;     // Anything over this gets pages
+static const size_t MAX_PAGES = 2048;
 
 // Used for alloc_pages()
 char pages[2048][4096]  __attribute__((aligned(4096)));

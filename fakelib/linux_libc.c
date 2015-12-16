@@ -19,7 +19,7 @@ typedef unsigned int pthread_key_t;
 
 extern void *swift2_protocol_conformances_start;
 // Dummy empty structure for dl_iterate_phdr
-static struct dl_phdr_info empty_dl_phdr_info = {};
+static struct dl_phdr_info empty_dl_phdr_info = { .dlpi_addr = 0 };
 
 
 void

@@ -1,7 +1,7 @@
 UNAME_S := $(shell uname -s)
 CC := clang
 NASM := nasm
-CFLAGS := -Wall -Wextra -Werror -fno-builtin -fno-stack-protector -fno-common -O2 -I$(TOPDIR)/kernel
+CFLAGS := -Wall -std=gnu99 -Wextra -Werror -fno-builtin -fno-stack-protector -fno-common -O2 -I$(TOPDIR)/kernel
 SWIFTC_FLAGS := -gnone -O -parse-as-library -import-objc-header $(TOPDIR)/kernel/kernel.h -emit-object
 
 ifeq ($(UNAME_S), Linux)

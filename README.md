@@ -17,7 +17,7 @@ Swift to do the printing.
 
 Curently it only builds on linux. It requires:
 
-* clang
+* clang or gcc
 * nasm (known to work with 2.11.09rc1 but earlier should be ok)
 * The linux snapshots from https://swift.org/download/#latest-development-snapshots
   - it might work with a version compiled from github but Swift is
