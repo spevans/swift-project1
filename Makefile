@@ -19,7 +19,7 @@ kernel.bin:
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir; done
 ifeq ($(UNAME_S), Linux)
 	# initial link must be via ELF to produce a GOT
-	ld --no-demangle -static -Tlinker.script -Map=kernel.map -o kernel.elf
+	ld --no-demangle -static -Tlinker.script -Map=kernel.map -o kernel.elf $(KERNEL_OBJS) $(SWIFTLIB)
 	objcopy -O binary kernel.elf kernel.bin
 endif
 

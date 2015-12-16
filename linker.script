@@ -1,6 +1,5 @@
 ENTRY(main)
 OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
-INPUT(kernel/kernel.o /home/spse/swift-2.2-SNAPSHOT-2015-12-10-a-ubuntu14.04/usr/lib/swift_static/linux/libswiftCore.a fakelib/fakelib.o)
 
 SECTIONS
 {

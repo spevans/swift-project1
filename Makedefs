@@ -5,15 +5,18 @@ CFLAGS := -Wall -Wextra -Werror -fno-builtin -fno-stack-protector -fno-common -O
 SWIFTC_FLAGS := -gnone -O -parse-as-library -import-objc-header $(TOPDIR)/kernel/kernel.h -emit-object
 
 ifeq ($(UNAME_S), Linux)
-	SWIFT := /home/spse/swift-2.2-SNAPSHOT-2015-12-10-a-ubuntu14.04/usr/bin/swift
-	SWIFTC := /home/spse/swift-2.2-SNAPSHOT-2015-12-10-a-ubuntu14.04/usr/bin/swiftc
+	SWIFTDIR := ~/swift-2.2-SNAPSHOT-2015-12-10-a-ubuntu14.04
+	SWIFT := $(SWIFTDIR)/usr/bin/swift
+	SWIFTC := $(SWIFTDIR)/usr/bin/swiftc
+	SWIFTLIB := $(SWIFTDIR)/usr/lib/swift_static/linux/libswiftCore.a
 	NASM_OBJ_FLAGS := -felf64
 endif
 
 ifeq ($(UNAME_S), Darwin)
-	SWIFT := /usr/bin/swift
-	SWIFTC := /Users/spse/Files/src/swift/build/Ninja-ReleaseAssert/swift-macosx-x86_64/bin/swiftc
-	SWIFTLIB := /Users/spse/Files/src/swift/build/Ninja-ReleaseAssert/swift-macosx-x86_64/lib/swift/macosx/x86_64/libswiftCore.dylib
+	SWIFTDIR := ~/Files/src/swift/build/Ninja-ReleaseAssert/swift-macosx-x86_64
+	SWIFT := $(SWIFTDIR)/bin/swift
+	SWIFTC := $(SWIFTDIR)/bin/swiftc
+	SWIFTLIB := $(SWIFTDIR)/lib/swift/macosx/x86_64/libswiftCore.dylib
 	NASM_OBJ_FLAGS := -fmacho64 --prefix _
 endif
 
