@@ -1,2 +1,8 @@
 static_linker/build
 xcuserdata
+kernel.elf
+kernel.map
+disk_image
+*.o
+*.bin
+*.dSYM
