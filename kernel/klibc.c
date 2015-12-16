@@ -13,6 +13,28 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 
+#define EXPORT_SYMBOL_TO_SWIFT(x) extern uintptr_t x; void *x##_addr() { return &x; }
+
+EXPORT_SYMBOL_TO_SWIFT(_text_start);
+EXPORT_SYMBOL_TO_SWIFT(_text_end);
+EXPORT_SYMBOL_TO_SWIFT(_data_start);
+EXPORT_SYMBOL_TO_SWIFT(_data_end);
+EXPORT_SYMBOL_TO_SWIFT(_bss_start);
+EXPORT_SYMBOL_TO_SWIFT(_bss_end);
+
+
+void
+koops(const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    print_string("OOPS: ");
+    kvprintf(fmt, args);
+    va_end(args);
+    hlt();
+}
+
+
 void
 hlt()
 {
@@ -70,6 +92,7 @@ void
 
 
 UNIMPLEMENTED(memmove)
+UNIMPLEMENTED(memset_pattern8)
 
 
 void *
@@ -85,10 +108,6 @@ memset(void *dest, char c, size_t count)
                       : "0" (dest), "1" (c), "2" (count) : "memory");
         return dest;
 }
-
-
-UNIMPLEMENTED(memset_pattern8)
-
 
 
 int

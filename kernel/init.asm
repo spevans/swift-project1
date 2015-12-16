@@ -10,21 +10,16 @@
         DEFAULT REL
         SECTION .text
 
-        extern init_tty
         extern init_mm
         extern _bss_start
         extern _bss_end
-        extern _TF7startup7startupFT_T_ ; startup:startup()
-        global main
-        global _start
+        extern _TF11SwiftKernel7startupFT_T_ ; SwiftKernel.startup () -> ()
 
-_start:
+        global main
+
+        ;; Entry point after switching to Long Mode
 main:
         mov     esp, 0xA0000            ; Set the stack to the top of 640K
-        mov     rdi, 0xB8000
-        mov     rcx, 500                ; Clear 2000 bytes as 500x8
-        mov     rax, 0x4F201F204F201F20 ; White on Blue spaces
-        rep     stosq
 
         ;; Clear the BSS
         xor     rax, rax
@@ -35,18 +30,18 @@ main:
         stosb
         call    enable_sse
 
-startup:
+        ;; Setup TLS
         mov     ax,0x18
         mov     fs,ax
         mov     rax, 0x1FF8
         mov     [fs:0], rax
 
-        call    init_mm
-        call    init_tty
-        call    _TF7startup7startupFT_T_
+        call    init_mm                         ; required for malloc/free
+        call    _TF11SwiftKernel7startupFT_T_   ; SwiftKernel.startup
         hlt
 
         ;; SSE instuctions cause an undefined opcode until enabled in CR0/CR4
+        ;; Swift requires this at it uses the SSE registers
 enable_sse:
         mov     rax, cr0
         and     ax, 0xFFFB		; Clear coprocessor emulation CR0.EM

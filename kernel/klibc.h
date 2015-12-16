@@ -25,8 +25,6 @@ void kvsprintf(char *buf, const char *fmt, va_list args) __attribute__ ((format 
 void ksprintf(char *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 void kvprintf(const char *fmt, va_list args) __attribute__ ((format (printf, 1, 0)));
 void kprintf(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
-void halt();
-
 void koops(const char *fmt, ...) __attribute__ ((format (printf, 1, 2))) __attribute__((noreturn));
 void hlt() __attribute__((noreturn));
 
@@ -40,9 +38,10 @@ size_t strlen(const char *s);
 void *malloc(size_t size);
 void free(void *ptr);
 
-void print_string(const char *str);
-void print_string_len(const char *str, size_t len);
-void print_char(const char ch);
+extern void (*print_char)(const char ch);
+extern void (*print_string)(const char *str);
+extern void (*print_string_len)(const char *str, size_t len);
+
 void print_nibble(int value);
 void print_byte(int value);
 void print_word(int value);

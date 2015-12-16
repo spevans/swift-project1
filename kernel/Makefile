@@ -1,17 +1,19 @@
 TOPDIR := ..
 include $(TOPDIR)/Makedefs
 
-KERNEL_OBJS := init.o klibc.o startup.o tty.o mm.o
+SWIFT_MODULE := SwiftKernel
+SWIFT_OBJS := startup.o tty.o
+SWIFT_SRCS := $(patsubst %.o,%.swift,$(SWIFT_OBJS))
+KERNEL_OBJS := init.o klibc.o early_tty.o mm.o kprintf.o $(SWIFT_OBJS)
 
 
 all: kernel.o
 
-startup.o: startup.swift
-	$(SWIFTC) -emit-object -parse-as-library -o startup.o startup.swift
-	$(SWIFTC) -emit-assembly -parse-as-library -o startup.s startup.swift
-
 kernel.o: $(KERNEL_OBJS)
 	ld -r -no_eh_labels -o $@ $^
+
+$(SWIFT_OBJS): $(SWIFT_SRCS)
+	$(SWIFTC) $(SWIFTC_FLAGS) -module-name $(SWIFT_MODULE) $^
 
 clean:
 	rm -f *.bin *.o *.s mm_test

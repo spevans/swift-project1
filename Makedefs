@@ -2,7 +2,7 @@ UNAME_S := $(shell uname -s)
 CC := clang
 NASM := nasm
 CFLAGS := -Wall -Wextra -Werror -fno-builtin -fno-stack-protector -fno-common -O2 -I$(TOPDIR)/kernel
-
+SWIFTC_FLAGS := -gnone -O -parse-as-library -import-objc-header $(TOPDIR)/kernel/kernel.h -emit-object
 
 ifeq ($(UNAME_S), Linux)
 	SWIFT := /home/spse/swift-2.2-SNAPSHOT-2015-12-10-a-ubuntu14.04/usr/bin/swift
@@ -12,15 +12,17 @@ endif
 
 ifeq ($(UNAME_S), Darwin)
 	SWIFT := /usr/bin/swift
-	SWIFTC := /Users/spse/Files/src/swift/build/Ninja-DebugAssert/swift-macosx-x86_64/bin/swiftc
-	SWIFTLIB := /Users/spse/Files/src/swift/build/Ninja-DebugAssert/swift-macosx-x86_64/lib/swift/macosx/x86_64/libswiftCore.dylib
+	SWIFTC := /Users/spse/Files/src/swift/build/Ninja-ReleaseAssert/swift-macosx-x86_64/bin/swiftc
+	SWIFTLIB := /Users/spse/Files/src/swift/build/Ninja-ReleaseAssert/swift-macosx-x86_64/lib/swift/macosx/x86_64/libswiftCore.dylib
 	NASM_OBJ_FLAGS := -fmacho64 --prefix _
 endif
 
 
 %.o: %.c
-	$(CC) $(CFLAGS) -S -o $(patsubst %.o,%.s,$@) $<
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 %.o: %.asm
 	$(NASM) $(NASM_OBJ_FLAGS) -o $@ $<
+
+%.o: %.swift
+	$(SWIFTC) $(SWIFTC_FLAGS) -o $@ $<
