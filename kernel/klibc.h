@@ -21,10 +21,10 @@ typedef int64_t off_t;
 #define unlikely(x)    __builtin_expect(!!(x), 0)
 
 
-void kvsprintf(char *buf, const char *fmt, va_list args) __attribute__ ((format (printf, 2, 0)));
-void ksprintf(char *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
-void kvprintf(const char *fmt, va_list args) __attribute__ ((format (printf, 1, 0)));
-void kprintf(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+int kvsprintf(char *buf, const char *fmt, va_list args) __attribute__ ((format (printf, 2, 0)));
+int ksprintf(char *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+int kvprintf(const char *fmt, va_list args) __attribute__ ((format (printf, 1, 0)));
+int kprintf(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 void koops(const char *fmt, ...) __attribute__ ((format (printf, 1, 2))) __attribute__((noreturn));
 void hlt() __attribute__((noreturn));
 

@@ -73,7 +73,7 @@ static char printf_buf[1024];
         `s'		A string.  */
 
 
-void
+int
 kvsprintf(char *buf, const char *fmt, va_list args)
 {
         static const int FALSE = 0;
@@ -335,32 +335,40 @@ kvsprintf(char *buf, const char *fmt, va_list args)
                 }
         }
         *buf++ = 0;
+
+        return buf - orig;
 }
 
 
-void
+int
 ksprintf(char *buf, const char *fmt, ...)
 {
         va_list args;
         va_start(args, fmt);
-        kvsprintf(buf, fmt, args);
+        int len = kvsprintf(buf, fmt, args);
         va_end(args);
+
+        return len;
 }
 
 
-void
+int
 kvprintf(const char *fmt, va_list args)
 {
-        kvsprintf(printf_buf, fmt, args);
+        int len = kvsprintf(printf_buf, fmt, args);
         print_string(printf_buf);
+
+        return len;
 }
 
 
-void
+int
 kprintf(const char *fmt, ...)
 {
         va_list args;
         va_start(args, fmt);
-        kvprintf(fmt, args);
+        int len = kvprintf(fmt, args);
         va_end(args);
+
+        return len;
 }

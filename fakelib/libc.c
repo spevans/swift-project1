@@ -136,9 +136,20 @@ flockfile(void *stream)
 
 }
 
+size_t
+fwrite(const void *ptr, size_t size, size_t nmemb, void *stream)
+{
+        if (stream != stderr && stream != stdout) {
+                koops("fwrite stream = %p", stream);
+        }
+        size_t len;
+        if (__builtin_umull_overflow(size, nmemb, &len)) {
+                koops("fwrite size too large (%lu,%lu)", size, nmemb);
+        }
+        print_string_len(ptr, len);
 
-UNIMPLEMENTED(fprintf)
-UNIMPLEMENTED(fwrite)
+        return len;
+}
 
 
 void
@@ -173,20 +184,51 @@ write(int fd, const void *buf, size_t nbyte)
  */
 
 int
-asprintf(char **strp, const char * restrict format, ...)
+fprintf(void *stream, const char *format, ...)
 {
-        char buf[2048];
-        // FIXME: use the size
-
+        if (stream != stderr && stream != stdout) {
+                koops("fprintf stream = %p", stream);
+        }
         va_list argp;
         va_start(argp, format);
-        kvsprintf(buf, format, argp);
+        int len = kvprintf(format, argp);
         va_end(argp);
 
-        size_t len = strlen(buf);
-        char *result = malloc(len);
-        memcpy(result, buf, len+1);
-        *strp = result;
+        return len;
+}
+
+
+int
+vasprintf(char **strp, const char * restrict format, va_list argp)
+{
+        // FIXME, needs a ksnprintf
+        dprintf("vasprintf(%p,%s)\n", strp, format);
+        *strp = malloc(4080);
+        int len = kvsprintf(*strp, format, argp);
+
+        return len;
+}
+
+
+int
+asprintf(char **strp, const char * restrict format, ...)
+{
+        dprintf("asprintf(%p,%s)\n", strp, format);
+        va_list argp;
+        va_start(argp, format);
+        int len = vasprintf(strp, format, argp);
+        va_end(argp);
+
+        return len;
+}
+
+
+int
+vsnprintf(char * restrict buf, size_t size, const char *format, va_list argp)
+{
+        // FIXME: use the size, would need an ksnprintf
+        dprintf("vsnprintf(%s)\n", format);
+        int len = ksprintf(buf, format, argp);
 
         return len;
 }
@@ -195,18 +237,15 @@ asprintf(char **strp, const char * restrict format, ...)
 int
 snprintf(char * restrict buf, size_t size, const char * restrict format, ...)
 {
-        // FIXME: use the size
-        dprintf("snprintf(%s)=", format);
+        // FIXME: use the size, would need an ksnprintf
+        dprintf("snprintf(%s)\n", format);
         va_list argp;
-        ksprintf(buf, format, argp);
+        va_start(argp, format);
+        int len = ksprintf(buf, format, argp);
         va_end(argp);
-        print_string(buf);
 
-        return strlen(buf);
+        return len;
 }
-
-UNIMPLEMENTED(vasprintf)
-UNIMPLEMENTED(vsnprintf)
 
 
 /*
