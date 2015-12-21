@@ -25,19 +25,6 @@ void (*print_string_len)(const char *, size_t) = early_print_string_len;
 static char *const screen = (char *)0xB8000;
 
 
-static void *
-memsetw(void *s, uint16_t w, size_t count)
-{
-        int d0, d1, d2;
-        asm volatile ("cld\n\t"
-                      "rep\n\t"
-                      "stosw"
-                      : "=&D" (d0), "=&a" (d1), "=&c" (d2)
-                      : "0" (s), "1" (w), "2" (count) : "memory");
-        return s;
-}
-
-
 static void
 early_print_char(const char c)
 {

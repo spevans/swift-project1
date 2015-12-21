@@ -29,10 +29,12 @@ void koops(const char *fmt, ...) __attribute__ ((format (printf, 1, 2))) __attri
 void hlt() __attribute__((noreturn));
 
 int memcmp(const void *s1, const void *s2, size_t count);
-void *memcpy(void *restrict dest, const void *restrict src, size_t count);
+void *memcpy(void *dest, const void *src, size_t count);
 void *memset(void *dest, char c, size_t count);
+void *memsetw(void *dest, uint16_t w, size_t count);
+char *stpcpy(char *dest, const char *src);
 int strcmp(const char *s1, const char *s2);
-char *strcpy(char *restrict dest, const char *restrict src);
+char *strcpy(char *dest, const char *src);
 size_t strlen(const char *s);
 
 void *malloc(size_t size);

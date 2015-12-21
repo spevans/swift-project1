@@ -123,7 +123,6 @@ int __pthread_key_create (pthread_key_t *key,
 
 UNIMPLEMENTED(__getdelim)
 UNIMPLEMENTED(__errno_location)
-UNIMPLEMENTED(memchr)
 UNIMPLEMENTED(newlocale)
 UNIMPLEMENTED(uselocale)
 

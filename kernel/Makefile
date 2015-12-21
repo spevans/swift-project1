@@ -4,7 +4,7 @@ include $(TOPDIR)/Makedefs
 SWIFT_MODULE := SwiftKernel
 SWIFT_OBJS := startup.o tty.o
 SWIFT_SRCS := $(patsubst %.o,%.swift,$(SWIFT_OBJS))
-KERNEL_OBJS := init.o klibc.o early_tty.o mm.o kprintf.o $(SWIFT_OBJS)
+KERNEL_OBJS := init.o klibc.o early_tty.o mm.o kprintf.o string.o $(SWIFT_OBJS)
 
 
 all: kernel.o

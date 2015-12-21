@@ -49,7 +49,7 @@ memcmp(const void *s1, const void *s2, size_t count)
         dprintf("memcmp(%p,%p,%lu)=", s1, s2, count);
 
         int d0, d1, d2;
-        int res;
+        int res = 0;
 
         asm volatile ("cld\n\t"
                       "repe\n\t"
@@ -70,7 +70,7 @@ memcmp(const void *s1, const void *s2, size_t count)
 
 
 void
-*memcpy(void *restrict dest, const void *restrict src, size_t count)
+*memcpy(void * dest, const void *src, size_t count)
 {
         int d0, d1, d2, d3;
         asm volatile ("cld\n\t"
@@ -89,10 +89,6 @@ void
                       : "memory", "cx");
         return dest;
 }
-
-
-UNIMPLEMENTED(memmove)
-UNIMPLEMENTED(memset_pattern8)
 
 
 void *
@@ -135,7 +131,7 @@ strcmp(const char *cs, const char *ct)
 
 
 char *
-strcpy(char *restrict dest, const char *restrict src)
+strcpy(char *dest, const char *src)
 {
         int d0, d1, d2;
         asm volatile("cld\n\t"
@@ -164,7 +160,36 @@ strlen(const char *s)
 }
 
 
-UNIMPLEMENTED(strchr)
-UNIMPLEMENTED(strdup)
+char *
+strdup(const char *s)
+{
+        size_t len = strlen(s);
+        char *dup = malloc(len);
+        if (dup != NULL) {
+                strcpy(dup, s);
+        }
+
+        return dup;
+}
+
+
+char *
+strndup(const char *s, size_t n)
+{
+        size_t len = strlen(s);
+        if (len > n) {
+                len = n;
+        }
+
+        char *dup = malloc(len);
+        if (dup != NULL) {
+                memcpy(dup, s, n);
+                *(dup+n) = '\0';
+        }
+
+        return dup;
+}
+
+
+UNIMPLEMENTED(memset_pattern8)
 UNIMPLEMENTED(strncmp)
-UNIMPLEMENTED(strndup)

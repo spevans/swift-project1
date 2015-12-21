@@ -42,10 +42,16 @@ __assert_rtn(const char *function, const char *file, int line, const char *err)
 }
 
 
+void
+__bzero(void *dest, size_t count)
+{
+        memset(dest, 0, count);
+}
+
 
 UNIMPLEMENTED(_dyld_register_func_for_add_image)
 UNIMPLEMENTED(dyld_stub_binder)
-
+UNIMPLEMENTED(dlsym)
 UNIMPLEMENTED(getline)
 UNIMPLEMENTED(getsectiondata)
 UNIMPLEMENTED(__error)

@@ -10,24 +10,6 @@
 #include "klibc.h"
 
 
-static char *
-stpcpy(char *dest, const char *src)
-{
-    /* Need the `volatile' keyword so gcc doesn't assume it's free
-       of side-effects (because of the output operand). */
-    asm volatile ("cld\n\t"
-                  "1:\tlodsb\n\t"
-                  "stosb\n\t"
-                  "testb %%al,%%al\n\t"
-                  "jne 1b\n\t"
-                  "decl %%edi"
-                  : "=D" (dest)
-                  : "S" (src), "0" (dest)
-                  : "ax", "memory");
-    return dest;
-}
-
-
 static char printf_buf[1024];
 #define IS_DIGIT(c) (((c) >= '0') && ((c) <= '9'))
 
