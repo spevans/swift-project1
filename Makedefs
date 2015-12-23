@@ -5,7 +5,7 @@ CFLAGS := -Wall -std=gnu99 -Wextra -Werror -fno-builtin -fno-stack-protector -fn
 SWIFTC_FLAGS := -gnone -O -parse-as-library -import-objc-header $(TOPDIR)/kernel/kernel.h -emit-object
 
 ifeq ($(UNAME_S), Linux)
-	SWIFTDIR := ~/swift-2.2-SNAPSHOT-2015-12-10-a-ubuntu14.04
+	SWIFTDIR := ~/swift-2.2-SNAPSHOT-2015-12-22-a-ubuntu14.04
 	SWIFT := $(SWIFTDIR)/usr/bin/swift
 	SWIFTC := $(SWIFTDIR)/usr/bin/swiftc
 	SWIFTLIB := $(SWIFTDIR)/usr/lib/swift_static/linux/libswiftCore.a

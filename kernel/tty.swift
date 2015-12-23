@@ -82,7 +82,7 @@ class TTY {
 
         if (ch == newline || cursorX >= 80) {
             cursorX = 0
-            cursorY++
+            cursorY += 1
             if (cursorY >= totalLines) {
                 // Scroll screen up by one line
                 let byteCount = (totalLines - 1) * bytesPerLine
@@ -99,7 +99,7 @@ class TTY {
                     idx += 2
                 }
 
-                cursorY--
+                cursorY -= 1
             }
         }
         else if ch == tab {
@@ -115,7 +115,7 @@ class TTY {
         } else {
             screen[offset] = ch
             screen[offset + 1] = 0x7
-            cursorX++
+            cursorX += 1
         }
     }
 
