@@ -1,17 +1,16 @@
 /*
- * kernel/mm.c
+ * kernel/mm/malloc.c
  *
  * Copyright © 2015 Simon Evans. All rights reserved.
  *
- * Simple memory management for now just enough to provice a simple malloc()
- * and alloc_pages() (provided from the BSS)
+ * Simple memory management for now just enough to provide a simple malloc()
  *
  * Sizes of memory regions supported and number of regions on a page.
- * Uses a 64bit unsigned in to hold an allocation bitmap - wasteful in
- * the case of slabs of size 32 as only have the page is used.
+ * Uses a 64bit unsigned int to hold an allocation bitmap - wasteful in
+ * the case of slabs of size 32 as only half the page is used.
  *
  * The sizes were chosen as they are all aligned to 16bytes and they
- * exactly fill a 4096K page with a 64byte header (expect the 32byte one
+ * exactly fill a 4096K page with a 64byte header - expect the 32byte one
  * although there is enough space in the header to have a second allocation
  * bitmap for that case.
  *
@@ -29,17 +28,6 @@
 #include "klibc.h"
 
 
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
-#define PAGE_SIZE 4096
-const unsigned long vm_page_mask = PAGE_SIZE-1;
-static const size_t MAX_MALLOC_SIZE = 4032;     // Anything over this gets pages
-static const size_t MAX_PAGES = 2048;
-
-// Used for alloc_pages()
-char pages[2048][4096]  __attribute__((aligned(4096)));
-static size_t next_free_page = 0;
-
 struct slab_block_info {
         uint32_t slab_size;
         uint32_t slab_count;
@@ -48,7 +36,6 @@ struct slab_block_info {
 
 struct slab_block_info slab_info[] = { {32, 64}, {64, 63}, {192, 21}, {448, 9},
                                        {1008, 4}, {2016, 2}, {4032, 1} };
-#define SLAB_SIZES 7
 
 // Should be 64 bytes
 struct slab_header {
@@ -64,26 +51,21 @@ struct slab_header {
 } __attribute__((aligned(4096),packed));
 
 
+struct malloc_region {
+        uint32_t region_size;
+        char padding[12];
+        char data[0];
+};
+
+
 // List of pages that have free slabs on them, 1 list per slab size
-struct slab_header *slabs[SLAB_SIZES];
-
-
-// Simply alloc out of a fixed pool from the BSS for now
-void *
-alloc_pages(size_t count)
-{
-        if (next_free_page + count <= MAX_PAGES) {
-                void *result = pages[next_free_page];
-                next_free_page += count;
-                dprintf("alloc_pages(%lu) = %p\n", count, result);
-                return result;
-        }
-        koops("alloc_pages! next_free_page = %lu count = %lu", next_free_page, count);
-}
+#define SLAB_SIZES 7
+static struct slab_header *slabs[SLAB_SIZES];
+static const int MAX_SLAB_SIZE = 4032;        // Anything over this gets pages
 
 
 // Convert a page into a slab
-struct slab_header *
+static struct slab_header *
 add_new_slab(int slab_idx)
 {
         struct slab_header *slab = alloc_pages(1);
@@ -118,6 +100,13 @@ validate_is_slab(struct slab_header *slab)
 }
 
 
+static int
+region_is_slab(struct slab_header *region)
+{
+        return (region->slab_size <= MAX_SLAB_SIZE);
+}
+
+
 static inline int
 map_size_to_idx(size_t size)
 {
@@ -149,15 +138,19 @@ bitmap_mask(int slab_idx)
 void *
 malloc(size_t size)
 {
-        dprintf("malloc(%lu): ", size);
+        //dprintf("malloc(%lu): ", size);
         if (sizeof(struct slab_header) != PAGE_SIZE) {
                 koops("slab_header is %lu bytes", sizeof(struct slab_header));
         }
 
-        if (size > MAX_MALLOC_SIZE) {
-                size_t pages = (size + vm_page_mask) / PAGE_SIZE;
-                return alloc_pages(pages);
+        if (size > MAX_SLAB_SIZE) {
+                size_t pages = (sizeof(uint32_t) + size + PAGE_MASK) / PAGE_SIZE;
+                struct malloc_region *result = alloc_pages(pages);
+                result->region_size = (pages * PAGE_SIZE) - sizeof(struct malloc_region);
+                dprintf("Wanted %lu got %u\n", size, result->region_size);
+                return result->data;
         }
+
         int slab_idx = map_size_to_idx(size);
         struct slab_header *slab = slabs[slab_idx];
         validate_is_slab(slab);
@@ -166,9 +159,9 @@ malloc(size_t size)
         uint64_t free_bits = slab->allocation_bm[0] ^ allocation_mask;
         int freebit = __builtin_ffsl(free_bits);
 
-        dprintf("slab for idx:%d has [%3lu/%3lu/%0.16lX/%0.16lX/%0.16lX]   ", slab_idx,
-                slab->malloc_cnt, slab->free_cnt, slab->allocation_bm[0], free_bits,
-                allocation_mask);
+        // dprintf("slab for idx:%d has [%3lu/%3lu/%0.16lX/%0.16lX/%0.16lX]   ", slab_idx,
+        //        slab->malloc_cnt, slab->free_cnt, slab->allocation_bm[0], free_bits,
+        //        allocation_mask);
 
         if (unlikely(freebit == 0)) {
                 slab = add_new_slab(slab_idx);
@@ -185,7 +178,7 @@ malloc(size_t size)
         void *result = &slab->data[offset];
 
         uint64_t free_mask = (uint64_t)1 << freebit;
-        dprintf("free_mask = %16lx allocation_bm = %16lx\n", free_mask,slab->allocation_bm[0]);
+        //dprintf("free_mask = %16lx allocation_bm = %16lx\n", free_mask,slab->allocation_bm[0]);
         slab->allocation_bm[0] |= free_mask;
         slab->malloc_cnt++;
 
@@ -205,7 +198,12 @@ free(void *ptr)
         }
 
         uint64_t p = (uint64_t)ptr;
-        struct slab_header *slab = (struct slab_header *)(p & ~vm_page_mask);
+        struct slab_header *slab = (struct slab_header *)(p & ~PAGE_MASK);
+        if (!region_is_slab(slab)) {
+                size_t pages = (slab->slab_size + sizeof(struct malloc_region)) / PAGE_SIZE;
+                free_pages(slab, pages);
+                return;
+        }
         validate_is_slab(slab);
         dprintf("slab=%p ", slab);
         dprintf("size=%u  ", slab->slab_size);
@@ -233,7 +231,7 @@ free(void *ptr)
 }
 
 
-//UNIMPLEMENTED(malloc_default_zone)
+UNIMPLEMENTED(malloc_default_zone)
 
 // Doesnt currently work if the page being freed came from alloc_pages()
 size_t
@@ -241,8 +239,7 @@ malloc_usable_size(void *ptr)
 {
         dprintf("%s: %p ", __func__, ptr);
         uint64_t p = (uint64_t)ptr;
-        struct slab_header *slab = (struct slab_header *)(p & ~vm_page_mask);
-        validate_is_slab(slab);
+        struct slab_header *slab = (struct slab_header *)(p & ~PAGE_MASK);
         dprintf("size = %u\n", slab->slab_size);
         return slab->slab_size;
 }
@@ -252,20 +249,4 @@ size_t
 malloc_size(void *ptr)
 {
         return malloc_usable_size(ptr);
-}
-
-
-// Only works for anonoymous mmap (fd == -1), ignore protection settings for now
-void *mmap(void *addr, size_t len, int prot, int flags, int fd, unsigned long offset) {
-        if (fd != -1) {
-                koops("mmap with fd=%d!", fd);
-        }
-
-        // round up to page size
-        size_t pages = (len + PAGE_SIZE) / PAGE_SIZE;
-        void *result = alloc_pages(pages);
-        dprintf("mmap=(addr=%p,len=%lX,prot=%X,flags=%X,fd=%d,offset=%lX)=%p\n",
-                addr, len, prot, flags, fd, offset, result);
-
-        return result;
 }

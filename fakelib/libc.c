@@ -302,6 +302,24 @@ UNIMPLEMENTED(sinf)
  * Misc
  */
 
+
+/* Only works for anonymous mmap (fd == -1), ignore protection settings for now
+ * This is used to emulate the large malloc that stdlib does (which is remapped to malloc
+ * here anyway
+ */
+void *mmap(void *addr, size_t len, int prot, int flags, int fd, unsigned long offset) {
+        if (fd != -1) {
+                koops("mmap with fd=%d!", fd);
+        }
+
+        void *result = malloc(len);
+        dprintf("mmap=(addr=%p,len=%lX,prot=%X,flags=%X,fd=%d,offset=%lX)=%p\n",
+                addr, len, prot, flags, fd, offset, result);
+
+        return result;
+}
+
+
 UNIMPLEMENTED(strtod_l)
 UNIMPLEMENTED(strtof_l)
 UNIMPLEMENTED(strtold_l)

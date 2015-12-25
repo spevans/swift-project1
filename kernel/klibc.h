@@ -37,8 +37,6 @@ int strcmp(const char *s1, const char *s2);
 char *strcpy(char *dest, const char *src);
 size_t strlen(const char *s);
 
-void *malloc(size_t size);
-void free(void *ptr);
 
 extern void (*print_char)(const char ch);
 extern void (*print_string)(const char *str);
@@ -55,3 +53,14 @@ void print_qword(uint64_t value);
 #else
 #define dprintf(fmt, ...) do {} while(0)
 #endif
+
+// mm
+
+#define PAGE_SIZE 4096
+#define PAGE_SHIFT 12
+#define PAGE_MASK (PAGE_SIZE-1)
+
+void *alloc_pages(size_t count);
+void free_pages(void *pages, size_t count);
+void *malloc(size_t size);
+void free(void *ptr);
