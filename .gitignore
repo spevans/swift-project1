@@ -6,3 +6,4 @@ disk_image
 *.o
 *.bin
 *.dSYM
+modules

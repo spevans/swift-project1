@@ -1,5 +1,5 @@
 /*
- * kernel/kprintf.c
+ * kernel/klibc/kprintf.c
  *
  * Copyright © 2015 Simon Evans. All rights reserved.
  *

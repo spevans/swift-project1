@@ -1,5 +1,5 @@
 /*
- * kernel/early_tty.c
+ * kernel/init/early_tty.c
  *
  * Copyright © 2015 Simon Evans. All rights reserved.
  *
@@ -83,9 +83,9 @@ early_print_string(const char *text)
 void
 set_print_functions_to_swift()
 {
-        print_char = &_TZFC11SwiftKernel3TTY9printCharfVs4Int8T_;
-        print_string = &_TZFC11SwiftKernel3TTY12printCStringfGSPVs4Int8_T_;
-        print_string_len = &_TZFC11SwiftKernel3TTY15printCStringLenfTGSPVs4Int8_6lengthSi_T_;
+        print_char = &_TZFC7Devices3TTY9printCharfVs4Int8T_;
+        print_string = &_TZFC7Devices3TTY12printCStringfGSPVs4Int8_T_;
+        print_string_len = &_TZFC7Devices3TTY15printCStringLenfTGSPVs4Int8_6lengthSi_T_;
 }
 
 

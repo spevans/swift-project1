@@ -1,5 +1,5 @@
 /*
- * kernel/klibc.c
+ * kernel/klibc/misc.c
  *
  * Copyright © 2015 Simon Evans. All rights reserved.
  *

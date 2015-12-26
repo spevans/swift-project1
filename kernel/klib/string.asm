@@ -1,3 +1,9 @@
+;;; kernel/init/string.asm
+;;;
+;;; Copyright © 2015 Simon Evans. All rights reserved.
+;;;
+;;; Misc mem* and str* functions that are easier to do directly in asm
+
         global  memchr
         global  memmove
         global  memsetw

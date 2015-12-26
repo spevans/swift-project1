@@ -1,6 +1,7 @@
 /*
- * kernel/tty.swift
+ * kernel/devices/tty.swift
  *
+ * Created by Simon Evans on 16/12/2015.
  * Copyright © 2015 Simon Evans. All rights reserved.
  *
  * TTY output only driver - assumes a PC style video card with
@@ -8,7 +9,7 @@
  *
  */
 
-class TTY {
+public class TTY {
     static let totalLines = 25;
     static let charsPerLine = 80
     static let totalChars = totalLines * charsPerLine
@@ -24,14 +25,14 @@ class TTY {
     static var cursorY = 0
 
 
-    static func initTTY() {
+    public static func initTTY() {
         clearScreen()
         set_print_functions_to_swift();
         print("Swift TTY driver initialised");
     }
 
 
-    static func clearScreen() {
+    public static func clearScreen() {
         var idx = 0
         while idx < totalBytes {
             screen[idx] = 0x20  // space
@@ -41,14 +42,14 @@ class TTY {
     }
 
 
-    static func printString(string: String) {
+    public static func printString(string: String) {
         for ch in string.utf8 {
             printChar(CChar(ch))
         }
     }
 
 
-    static func printCStringLen(string: UnsafePointer<CChar>, length: Int) {
+    public static func printCStringLen(string: UnsafePointer<CChar>, length: Int) {
         let buffer = UnsafeBufferPointer(start: string, count: length)
         for ch in buffer {
             printChar(ch)
@@ -56,7 +57,7 @@ class TTY {
     }
 
 
-    static func printCString(string: UnsafePointer<CChar>) {
+    public static func printCString(string: UnsafePointer<CChar>) {
         let maxLength = 2000; // hard limit
         let buffer = UnsafeBufferPointer(start: string, count: maxLength)
         for idx in 0..<maxLength {
@@ -69,12 +70,12 @@ class TTY {
     }
 
 
-    static func printChar(character: Character) {
+    public static func printChar(character: Character) {
         printString(String(character))
     }
 
 
-    static func printChar(character: CChar) {
+    public static func printChar(character: CChar) {
         let ch = CUnsignedChar(character)
         let offset = (cursorY * 80 * 2) + (cursorX * 2)
         let tab: CUnsignedChar = 0x09
@@ -120,7 +121,7 @@ class TTY {
     }
 
 
-    static func testTTY() {
+    public static func testTTY() {
         printChar(0x0A)
         printChar(65)
         printChar(66)

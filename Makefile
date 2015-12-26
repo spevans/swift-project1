@@ -16,6 +16,7 @@ SUBDIRS := boot kernel fakelib
 all: kernel.bin disk_image
 
 kernel.bin:
+	mkdir -p $(MODULE_DIR)
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir; done
 ifeq ($(UNAME_S), Linux)
 	# initial link must be via ELF to produce a GOT

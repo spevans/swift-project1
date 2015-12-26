@@ -1,4 +1,4 @@
-;;; kernel/init.asm
+;;; kernel/init/main.asm
 ;;;
 ;;; Copyright © 2015 Simon Evans. All rights reserved.
 ;;;
@@ -13,7 +13,7 @@
         extern init_mm
         extern _bss_start
         extern _bss_end
-        extern _TF11SwiftKernel7startupFT_T_ ; SwiftKernel.startup () -> ()
+        extern _TF4Init7startupFT_T_ ; Init.startup () -> ()
 
         global main
 
@@ -36,8 +36,8 @@ main:
         mov     rax, 0x1FF8
         mov     [fs:0], rax
 
-        call    init_mm                         ; required for malloc/free
-        call    _TF11SwiftKernel7startupFT_T_   ; SwiftKernel.startup
+        call    init_mm                 ; required for malloc/free
+        call    _TF4Init7startupFT_T_   ; Init.startup
         hlt
 
         ;; SSE instuctions cause an undefined opcode until enabled in CR0/CR4
