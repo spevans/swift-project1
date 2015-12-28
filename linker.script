@@ -1,9 +1,12 @@
 ENTRY(main)
 OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
 
+PAGE_SIZE = 0x1000;
+STACK_SIZE = 2 * PAGE_SIZE;
+
 SECTIONS
 {
-  .text.start (0x100000) : {
+  .text.start (0x40100000) : {
     _text_start = .;
     kernel/kernel.o( .text )
     *(.text .text.*)
@@ -40,7 +43,13 @@ SECTIONS
     _bss_end = .;
   }
 
-  . = ALIGN(4);
+  .stacks : ALIGN(0x1000) {
+    _stack_start = .;
+    . += STACK_SIZE;
+    _kernel_stack = .;          /* Top of stack so label comes after */
+  }
+
+  . = ALIGN(PAGE_SIZE);
   _kernel_end = .;
-  _end = .;
+  _heap_start = .;
 }

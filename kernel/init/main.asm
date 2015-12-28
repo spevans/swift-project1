@@ -10,24 +10,25 @@
         DEFAULT REL
         SECTION .text
 
+        extern _kernel_stack
         extern init_mm
         extern _bss_start
-        extern _bss_end
+        extern _kernel_end
         extern _TF4Init7startupFT_T_ ; Init.startup () -> ()
 
         global main
 
         ;; Entry point after switching to Long Mode
 main:
-        mov     esp, 0xA0000            ; Set the stack to the top of 640K
+        mov     esp, _kernel_stack      ; Set the stack to just after the BSS
 
         ;; Clear the BSS
         xor     rax, rax
         mov     rdi, _bss_start
-        mov     rcx, _bss_end
+        mov     rcx, _kernel_end
         sub     rcx, rdi
-        rep
-        stosb
+        shr     rcx, 3
+        rep     stosq
         call    enable_sse
 
         ;; Setup TLS

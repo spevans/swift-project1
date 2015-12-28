@@ -11,7 +11,7 @@
 
 
 BUFFER_SEG              EQU     0x8000
-KERNEL_ADDR             EQU     0x100000
+KERNEL_LOAD_ADDR        EQU     0x100000
 SECTORS_PER_READ        EQU     128
 
         BITS 16
@@ -105,8 +105,8 @@ loading_kernel: db      "Loading kernel", 0x0A, 0x0D, 0
 lba_read_fail:  db      "Load failed", 0
 read_finished:  db      "Kernel read finished", 0x0A, 0x0D, 0
 
-kernel_addr:    dd      KERNEL_ADDR     ; Destination address for kernel
-sector_count    dw      0               ; Total sectors to load
+kernel_addr:    dd      KERNEL_LOAD_ADDR ; Destination address for kernel
+sector_count:   dw      0               ; Total sectors to load
 
 ;;; DAP (Disk Address Packet) used for LBA BIOS interface
 dap:            db      16              ; DAP size

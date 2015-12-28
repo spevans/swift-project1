@@ -9,12 +9,15 @@
  */
 
 import Devices
+import MM
 
 
 func startup() {
     TTY.initTTY()
     print("\nHello world\n")
     printSections()
+    let params = BootParams()
+    params.print()
     PCI.scanPCI()
 }
 

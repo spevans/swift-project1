@@ -4,14 +4,15 @@
 ;;;
 ;;; Setup 4 level page tables with the PGD at 0x3000
 ;;; Identity maps the first 16MB so only needs 1 entry
-;;; in the PML4/PDP 8 in the PD and 2048 PTEs in the PT
+;;; in the PML4/PDP 8 in the PD and 4096 PTEs in the PT
+;;; Also maps the first 16MB at the 1GB mark
 
 PAGE_PRESENT    EQU     1
 PAGE_WRITEABLE  EQU     2
 
 
 ;;; Setup pagetables a 48KB region @ 0000:3000
-;;; PML4 @ 0000:3000, PDP @ 0000:4000, PD @ 0000:5000 PT @ 0000:6000 - 1000:0000
+;;; PML4 @ 0000:3000, PDP @ 0000:4000, PD @ 0000:5000 PT @ 0000:6000 - 0000:E000
 
 setup_pagetables:
         push    es
@@ -29,12 +30,15 @@ setup_pagetables:
         mov     [es:di], eax
 
         ;; Page Directory Pointer (PDP)
+        ;; Each entry maps 1GB so add 2 entries mapping the
+        ;; first 16MB from 0GB and the first 16MB from 1GB
         mov     eax, 0x5000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di + 0x1000], eax
+        mov     [es:di + 0x1008], eax
 
         ;; Page Directory (PD), 8 entries
         mov     eax, 0x6000 | PAGE_PRESENT | PAGE_WRITEABLE
-        mov     cx, 16
+        mov     cx, 8
 
 pde_loop:
         mov     [es:di + 0x2000], eax
@@ -43,25 +47,30 @@ pde_loop:
         dec     cx
         jnz     pde_loop
 
-        ;; Page Table Entries (PTEs), 2048 entries of 4KB pages
+        ;; Page Table Entries (PTEs), 4096 entries of 4KB pages
         ;; maps linear 0-16MB to physical 0-16MB
 
         mov     eax, PAGE_PRESENT | PAGE_WRITEABLE ; EAX -> physical addr 0
+        xor     ebx, ebx
         mov     di, 0x600
-        mov     es, di
-        mov     di, 0
-        mov     cx, 8192        ; entry count
+        mov     cx, 2048        ; entry count /2 will add 2 PTEs per loop
 
 pte_loop:
-        mov     [es:di], eax
+        mov     es, di
+        mov     [es:0], eax
+        mov     [es:4], ebx
         add     eax, 0x1000
-        add     di, 8
+        mov     [es:8], eax
+        mov     [es:12], ebx
+        add     eax, 0x1000
+        inc     di
         dec     cx
         jnz     pte_loop
         xor     eax, eax
-        mov     [es:0x0000], eax        ; Unmap page 0 and page 2 to catch null ptr and
-        mov     [es:0x0010], eax ;stack underflow and overflow. The SP will be set to
-                                        ; page 1 (0x2000 is the top)
+        mov     di, 0x600
+        mov     es, di
+        mov     [es:0x0000], eax        ; Unmap page 0 to catch null ptr
+
         mov     di, 0x3000
         mov     cl, 16
         call    HexDump

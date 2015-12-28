@@ -1,7 +1,7 @@
 ;;; boot/boot16to64.asm
-;;; 
+;;;
 ;;; Copyright © 2015 Simon Evans. All rights reserved.
-;;; 
+;;;
 ;;; Enter 64bit (long mode) from 16bit (real mode)
 ;;; Doesnt go via 32bit so there are no exception
 ;;; handlers. If a fault occurs in the transition
@@ -10,6 +10,7 @@
 
 CODE_SEG        EQU     0x8
 DATA_SEG        EQU     0x10
+KERNEL_ENTRY    EQU     0x40100000
 
         ORG 0x0000
 
@@ -23,6 +24,8 @@ DATA_SEG        EQU     0x10
         call    print
         call    cpu_check
         jc      boot_failed
+
+        call    get_memory
 
         mov     si, msg_enable_a20
         call    print
@@ -58,7 +61,7 @@ DATA_SEG        EQU     0x10
         mov     cr0, eax         ; activating longmode
 
         ;; jump to the kernel loading the code selector
-        jmp     dword CODE_SEG:0x100000
+        jmp     dword CODE_SEG:KERNEL_ENTRY
 
         ;; Disable all interrupts including NMI and IRQs
 MASTER_PIC      EQU     0x21
@@ -90,6 +93,7 @@ boot_failed:
 %include "a20.asm"
 %include "page_tables.asm"
 %include "cpu_check.asm"
+%include "memory.asm"
 
 msg_booting:    db      "Booting... checking CPU...", 0x0A, 0x0D, 0
 msg_dis_intr:   db      "Disabling interrupts...", 0x0A, 0x0D, 0
@@ -120,7 +124,7 @@ GDT:
 
  .pointer:
         dw      ($ - GDT) - 1   ; 16bit length -1
-        dq      0x90000 + GDT   ; 32bit base address
+        dq      0x90000 + GDT   ; 64bit base address
 
-
+;;; Include this at the end as it changes the BITS settings
 %include "pmode_loader.asm"
