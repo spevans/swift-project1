@@ -1,6 +1,7 @@
 /*
- * kernel/init/startup.swfit
+ * kernel/init/startup.swift
  *
+ * Created by Simon Evans on 12/12/2015.
  * Copyright © 2015 Simon Evans. All rights reserved.
  *
  * Simple test hello world 
@@ -9,10 +10,12 @@
 
 import Devices
 
+
 func startup() {
     TTY.initTTY()
     print("\nHello world\n")
     printSections()
+    PCI.scanPCI()
 }
 
 

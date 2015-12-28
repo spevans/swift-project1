@@ -2,7 +2,7 @@ TOPDIR := ../..
 include $(TOPDIR)/Makedefs
 
 SWIFT_MODULE := Devices
-SWIFT_OBJS := tty.o
+SWIFT_OBJS := tty.o pci.o
 SWIFT_SRCS := $(patsubst %.o,%.swift,$(SWIFT_OBJS))
 OBJS := $(SWIFT_OBJS)
 
