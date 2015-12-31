@@ -4,7 +4,7 @@ include $(TOPDIR)/Makedefs
 SWIFT_MODULE := Klib
 SWIFT_OBJS := Extensions.o MemoryBufferReader.o
 SWIFT_SRCS := $(patsubst %.o,%.swift,$(SWIFT_OBJS))
-OBJS := $(SWIFT_OBJS) misc.o string.o kprintf.o io.o
+OBJS := $(SWIFT_OBJS) misc.o string.o kprintf.o cpu.o
 
 all: klib.o
 

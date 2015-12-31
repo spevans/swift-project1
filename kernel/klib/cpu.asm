@@ -1,9 +1,11 @@
-;;; kernel/init/io.asm
+;;; kernel/klib/cpu.asm
 ;;;
 ;;; Created by Simon Evans on 28/12/2015.
 ;;; Copyright © 2015 Simon Evans. All rights reserved.
 ;;;
-;;; x86 port I/O functions
+;;; x86 CPU specific instructions
+
+        BITS    64
 
         global  outb
         global  outw
@@ -11,8 +13,15 @@
         global  inb
         global  inw
         global  inl
+        global  lgdt
+        global  sgdt
+        global  reload_segments
 
-        
+        CODE_SEG        EQU     0x8
+        DATA_SEG        EQU     0x10
+        TLS_SEG         EQU     0x18
+
+
 ;;; void outb(uint16_t port, uint8_t data)
 ;;; RDI: port, RSI: data
 outb:
@@ -61,4 +70,34 @@ inl:
         xor     rax, rax
         mov     dx, di
         in      eax, dx
+        ret
+
+
+;;; void lgdt(const struct dt_info *info)
+;;; RDI: dt_info structure
+lgdt:
+        lgdt    [rdi]
+        ret
+
+
+;;; void sgdt(struct dt_info *info)
+;;; RDI: dt_info structure
+sgdt:
+        sgdt    [rdi]
+        ret
+
+;;; void reload_segments()
+;;; Just a test routine to check the GDT has been set correctly,
+;;; The segment registers are reloaded with the values they already had
+reload_segments:
+        push    qword CODE_SEG
+        push    qword .here
+        db      0x48
+        ;; Effectively a far jmp to .here to reload CS
+        retf
+.here:
+        mov     ax, DATA_SEG
+        mov     ss, ax
+        mov     ax, TLS_SEG
+        mov     fs, ax
         ret

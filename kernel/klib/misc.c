@@ -13,7 +13,7 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 
-#define EXPORT_SYMBOL_TO_SWIFT(x) extern uintptr_t x; void *x##_addr() { return &x; }
+#define EXPORT_SYMBOL_TO_SWIFT(x) extern uintptr_t x; const void *x##_addr = &x;
 
 EXPORT_SYMBOL_TO_SWIFT(_text_start);
 EXPORT_SYMBOL_TO_SWIFT(_text_end);
