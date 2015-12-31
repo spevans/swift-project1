@@ -20,4 +20,4 @@ mm_test: mm_test.c mm.c
 	$(CC) -ggdb -Wall -Wextra -Werror -fno-builtin -fno-stack-protector -I$(TOPDIR)/kernel -o $@ $^
 
 clean:
-	rm -f *.bin *.o *.s mm_test
+	rm -f *.bin *.o *.s $(MODULE_DIR)/$(SWIFT_MODULE).* mm_test

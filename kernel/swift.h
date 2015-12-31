@@ -1,6 +1,7 @@
 /*
  * kernel/swift.h
  *
+ * Created by Simon Evans on 16/12/2015.
  * Copyright © 2015 Simon Evans. All rights reserved.
  *
  * Declarations of Swift functions callable from C

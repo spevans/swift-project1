@@ -129,7 +129,7 @@ putc(int ch, void *stream)
 void
 flockfile(void *stream)
 {
-        dprintf("flockfile(%p)\n", file);
+        dprintf("flockfile(%p)\n", stream);
         if (stream != stderr && stream != stdout) {
                 koops("flockfile stream = %p", stream);
         }

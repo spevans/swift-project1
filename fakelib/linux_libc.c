@@ -31,6 +31,13 @@ __assert_fail (const char *err, const char *file,
 }
 
 
+void
+bzero(void *dest, size_t count)
+{
+        memset(dest, 0, count);
+}
+
+
 // Fake a handle if opening NULL (this binary) else oops
 void *
 dlopen(const char *filename, int flag)

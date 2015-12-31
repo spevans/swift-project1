@@ -1,8 +1,8 @@
 TOPDIR := ..
 include $(TOPDIR)/Makedefs
 
-SWIFT_MODULE := SwiftKernel
-SWIFT_OBJS := startup.o tty.o
+SWIFT_MODULE :=
+SWIFT_OBJS :=
 SWIFT_SRCS := $(patsubst %.o,%.swift,$(SWIFT_OBJS))
 KERNEL_OBJS := init/init.o mm/mm.o devices/devices.o klib/klib.o
 
