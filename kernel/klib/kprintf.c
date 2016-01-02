@@ -7,7 +7,14 @@
  *
  */
 
+#ifndef TESTS
 #include "klibc.h"
+#else
+#include <stdio.h>
+#include <string.h>
+#include <stdint.h>
+extern void (*print_string)(const char *str);
+#endif
 
 
 static char printf_buf[1024];
@@ -128,6 +135,10 @@ kvsprintf(char *buf, const char *fmt, va_list args)
                                                 fmt--;
                                         }
                                         goto again;
+
+                                case 'p':
+                                        flags |= PF_LONG;
+                                        break;
                                 }
 
                                 if(flags & PF_LONG) {
@@ -202,7 +213,7 @@ kvsprintf(char *buf, const char *fmt, va_list args)
                                 case 'X':
                                         digits = "0123456789ABCDEF";
                                         if(flags & PF_HASH) {
-                                                buf = stpcpy(buf, "0X");
+                                                buf = stpcpy(buf, "0x");
                                                 len += 2;
                                         }
                                 do_hex:
@@ -239,8 +250,8 @@ kvsprintf(char *buf, const char *fmt, va_list args)
                                                 }
                                         }
                                         num_len = len - num_len;
-                                        if(precision != 0 && num_len < precision) {
-                                                while(num_len--) {
+                                        if(precision != 0 && len < precision) {
+                                                while(len < precision) {
                                                         *tmp++ = digits[0];
                                                         len++;
                                                 }

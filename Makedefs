@@ -1,13 +1,14 @@
 UNAME_S := $(shell uname -s)
 CC := clang
-NASM := nasm
 CFLAGS := -Wall -std=gnu99 -Wextra -Werror -fno-builtin -fno-stack-protector -fno-common -O2 -I$(TOPDIR)/kernel
+NASM := nasm
+NASM_FLAGS := -Werror
 MODULE_DIR := $(TOPDIR)/modules
 SWIFTC_FLAGS := -gnone -O -parse-as-library -import-objc-header $(TOPDIR)/kernel/kernel.h -I$(MODULE_DIR)
 
 
 ifeq ($(UNAME_S), Linux)
-	SWIFTDIR := ~/swift-2.2-SNAPSHOT-2015-12-31-a-ubuntu14.04
+	SWIFTDIR := $(shell echo ~/swift-2.2-SNAPSHOT-2015-12-31-a-ubuntu14.04)
 	SWIFT := $(SWIFTDIR)/usr/bin/swift
 	SWIFTC := $(SWIFTDIR)/usr/bin/swiftc
 	SWIFTLIB := $(SWIFTDIR)/usr/lib/swift_static/linux/libswiftCore.a
@@ -27,7 +28,4 @@ endif
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 %.o: %.asm
-	$(NASM) $(NASM_OBJ_FLAGS) -o $@ $<
-
-%.o: %.swift
-	$(SWIFTC) $(SWIFTC_FLAGS) -o $@ $<
+	$(NASM) $(NASM_FLAGS) $(NASM_OBJ_FLAGS) -o $@ $<

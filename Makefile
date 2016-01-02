@@ -34,3 +34,4 @@ disk_image: boot kernel.bin
 clean:
 	rm -f disk_image kernel.elf kernel.bin kernel.map
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir clean; done
+	make -C tests clean

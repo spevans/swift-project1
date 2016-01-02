@@ -7,6 +7,10 @@
  * Header file used by Swift to access certain C functions
  *
  */
+
+#ifndef __KERNEL_H__
+#define __KERNEL_H__
+
 #include <stdint.h>
 
 #define EXPORTED_SYMBOL(x) extern const void *x##_addr;
@@ -23,6 +27,7 @@ EXPORTED_SYMBOL(_bss_end);
 void set_print_functions_to_swift();
 void hlt();
 int kvprintf(const char *fmt, va_list args) __attribute__ ((format (printf, 1, 0)));
+int kvsprintf(char *buf, const char *fmt, va_list args) __attribute__ ((format (printf, 2, 0)));
 
 // CPU.asm functions
 
@@ -42,3 +47,5 @@ struct dt_info {
 void lgdt(const struct dt_info *info);
 void sgdt(struct dt_info *info);
 void reload_segments();
+
+#endif  // __KERNEL_H__
