@@ -1,7 +1,8 @@
 /*
  * kernel/klibc.h
  *
- * Copyright © 2015 Simon Evans. All rights reserved.
+ * Created by Simon Evans on 12/12/2015.
+ * Copyright © 2015, 2016 Simon Evans. All rights reserved.
  *
  * Miscellaneous functions mostly string/memory
  *
@@ -12,6 +13,8 @@
 #include <stdint.h>
 #include <limits.h>
 #include <inttypes.h>
+#include "x86funcs.h"
+
 
 typedef int64_t ssize_t;
 typedef int64_t off_t;
@@ -39,7 +42,6 @@ int kprintf(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 // klibc
 
 void koops(const char *fmt, ...) __attribute__ ((format (printf, 1, 2))) __attribute__((noreturn));
-void hlt() __attribute__((noreturn));
 
 int memcmp(const void *s1, const void *s2, size_t count);
 void *memcpy(void *dest, const void *src, size_t count);

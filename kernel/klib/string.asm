@@ -1,6 +1,7 @@
 ;;; kernel/init/string.asm
 ;;;
-;;; Copyright © 2015 Simon Evans. All rights reserved.
+;;; Created by Simon Evans on 21/12/2015.
+;;; Copyright © 2015, 2016 Simon Evans. All rights reserved.
 ;;;
 ;;; Misc mem* and str* functions that are easier to do directly in asm
 
@@ -49,6 +50,7 @@ memmove:
 .forward:
         rep     movsb
 .exit:
+        cld
         ret
 
 

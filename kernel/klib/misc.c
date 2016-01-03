@@ -1,7 +1,8 @@
 /*
  * kernel/klibc/misc.c
  *
- * Copyright © 2015 Simon Evans. All rights reserved.
+ * Created by Simon Evans on 10/12/2015.
+ * Copyright © 2015, 2016 Simon Evans. All rights reserved.
  *
  * Miscellaneous functions mostly string/memory
  *
@@ -32,14 +33,7 @@ koops(const char *fmt, ...)
     kvprintf(fmt, args);
     va_end(args);
     hlt();
-}
-
-
-void
-hlt()
-{
-        asm volatile ("hlt" : : : "memory");
-        __builtin_unreachable ();
+    __builtin_unreachable();
 }
 
 
