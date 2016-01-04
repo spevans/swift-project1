@@ -8,7 +8,6 @@
  *
  */
 
-import Klib
 
 struct E820MemoryEntry {
     let baseAddr: UInt64

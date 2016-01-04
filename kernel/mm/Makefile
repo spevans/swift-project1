@@ -4,7 +4,7 @@ include $(TOPDIR)/Makedefs
 SWIFT_MODULE := MM
 SWIFT_OBJS := memory.o
 SWIFT_SRCS := $(patsubst %.o,%.swift,$(SWIFT_OBJS))
-OBJS := $(SWIFT_OBJS) pages.o malloc.o
+OBJS := pages.o malloc.o
 
 
 all: mm.o

@@ -1,20 +1,18 @@
 /*
-* kernel/traps/IDT.swift
-*
-* Created by Simon Evans on 01/01/2016.
-* Copyright © 2016 Simon Evans. All rights reserved.
-*
-* Setup a new IDT in the BSS as the IDT used for booting was in
-* memory that will be reclaimed. This mostly adds static entries
-* into the idt declared in kernel/init/bss.c and could probably
-* be done more easily in entry.asm without having to export the
-* exceptio stub addresses to Swift but its mostly an exercise in
-* manipulating C structs and arrays with the storage declared
-* in a .c file
-*
-*/
-
-import Klib
+ * kernel/traps/IDT.swift
+ *
+ * Created by Simon Evans on 01/01/2016.
+ * Copyright © 2016 Simon Evans. All rights reserved.
+ *
+ * Setup a new IDT in the BSS as the IDT used for booting was in
+ * memory that will be reclaimed. This mostly adds static entries
+ * into the idt declared in kernel/init/bss.c and could probably
+ * be done more easily in entry.asm without having to export the
+ * exceptio stub addresses to Swift but its mostly an exercise in
+ * manipulating C structs and arrays with the storage declared
+ * in a .c file
+ *
+ */
 
 
 // FIXME when strideof can be used with arrays

@@ -1,10 +1,19 @@
 TOPDIR := ..
 include $(TOPDIR)/Makedefs
 
-SWIFT_MODULE :=
-SWIFT_OBJS :=
-SWIFT_SRCS := $(patsubst %.o,%.swift,$(SWIFT_OBJS))
-KERNEL_OBJS := init/init.o mm/mm.o devices/devices.o klib/klib.o traps/traps.o
+SWIFT_MODULE := SwiftKernel
+SWIFT_OBJS := SwiftKernel.o
+SWIFT_SRCS :=	init/startup.swift		\
+		init/GDT.swift			\
+		klib/Extensions.swift		\
+		klib/MemoryBufferReader.swift	\
+		mm/memory.swift			\
+		devices/PCI.swift		\
+		devices/tty.swift		\
+		traps/exceptions.swift		\
+		traps/IDT.swift
+
+KERNEL_OBJS := init/init.o mm/mm.o klib/klib.o traps/traps.o SwiftKernel.o
 
 SUBDIRS := klib devices mm traps init
 
@@ -13,12 +22,12 @@ all: kernel.o
 
 .PHONY: kernel.o
 
-kernel.o:
+kernel.o: SwiftKernel.o
 	for dir in $(SUBDIRS); do $(MAKE) -C $$dir || exit; done
 	ld -r -no_eh_labels -o $@ $(KERNEL_OBJS)
 
 $(SWIFT_OBJS): $(SWIFT_SRCS)
-	$(SWIFTC) $(SWIFTC_FLAGS) -module-name $(SWIFT_MODULE) $^
+	$(SWIFTC) $(SWIFTC_FLAGS) -whole-module-optimization -module-name $(SWIFT_MODULE) -emit-object -o $@ $^
 
 clean:
 	rm -f *.bin *.o *.s

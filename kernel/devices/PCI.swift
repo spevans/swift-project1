@@ -8,7 +8,6 @@
  *
  */
 
-import Klib
 
 class PCIDeviceFunction {
     let PCI_CONFIG_ADDRESS: UInt16 = 0xCF8

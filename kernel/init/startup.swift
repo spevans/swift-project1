@@ -8,12 +8,8 @@
  *
  */
 
-import Devices
-import MM
-import Traps
 
-
-func startup() {
+public func startup() {
     TTY.initTTY()
     setupGDT()
     setupIDT()

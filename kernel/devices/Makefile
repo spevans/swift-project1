@@ -4,9 +4,9 @@ include $(TOPDIR)/Makedefs
 SWIFT_MODULE := Devices
 SWIFT_OBJS := tty.o pci.o
 SWIFT_SRCS := $(patsubst %.o,%.swift,$(SWIFT_OBJS))
-OBJS := $(SWIFT_OBJS)
+OBJS :=
 
-all: devices.o
+all:
 
 devices.o: $(OBJS)
 	ld -r -no_eh_labels -o $@ $^

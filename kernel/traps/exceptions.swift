@@ -9,8 +9,6 @@
 *
 */
 
-import Klib
-
 
 func dumpRegisters(inout registers: exception_regs) {
     String.printf("RAX: %16.16lx ", registers.rax)
