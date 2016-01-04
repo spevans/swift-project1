@@ -99,8 +99,25 @@ inl(uint16_t port)
 }
 
 
+static inline uintptr_t
+getCR2()
+{
+        uintptr_t res;
+        asm volatile ("mov %%cr2, %0" : "=r" (res) : : );
+        return res;
+}
+
+
+static inline void
+int3()
+{
+        asm volatile ("int $3" :::);
+}
+
+
 // kernel/klib/x86.asm functions
 void reload_segments();
+void test_breakpoint();
 
 
 #endif  // __X86_FUNCS_H__

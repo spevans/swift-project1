@@ -1,5 +1,6 @@
 ;;; kernel/init/main.asm
 ;;;
+;;; Created by Simon Evans on 13/11/2015.
 ;;; Copyright © 2015 Simon Evans. All rights reserved.
 ;;;
 ;;; Entry point from jump into long mode. Minimal setup

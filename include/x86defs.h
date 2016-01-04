@@ -13,9 +13,53 @@
 
 // Descriptor table info used for both GDT and IDT
 struct dt_info {
-        uint16_t size;
+        uint16_t limit;
         void *address;
 } __attribute__((packed));
+
+
+struct idt_entry {
+        uint16_t addr_lo;
+        uint16_t selector;
+        uint8_t unused;
+        uint8_t flags;
+        uint16_t addr_mid;
+        uint32_t addr_hi;
+        uint32_t reserved;
+} __attribute__((packed));
+
+
+struct exception_regs {
+        uint64_t es;
+        uint64_t ds;
+        uint64_t rax;
+        uint64_t rbx;
+        uint64_t rcx;
+        uint64_t rdx;
+        uint64_t rsi;
+        uint64_t rdi;
+        uint64_t r8;
+        uint64_t r9;
+        uint64_t r10;
+        uint64_t r11;
+        uint64_t r12;
+        uint64_t r13;
+        uint64_t r14;
+        uint64_t r15;
+        uint64_t rbp;
+        uint64_t fs;
+        uint64_t gs;
+        uint64_t error_code;
+        uint64_t rip;
+        uint64_t cs;
+        uint64_t eflags;
+        uint64_t rsp;
+        uint64_t ss;
+};
+
+#define NR_TRAPS   256
+extern struct idt_entry idt[NR_TRAPS];
+extern void (*trap_dispatch_table[NR_TRAPS])(struct exception_regs *);
 
 
 #endif  // __X86_DEFS_H__

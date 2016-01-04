@@ -12,7 +12,7 @@
  */
 
 private var gdt = theGDT()
-private var gdtInfo = dt_info(size: UInt16(strideof(theGDT) - 1), address: &gdt)
+private var gdtInfo = dt_info(limit: UInt16(strideof(theGDT) - 1), address: &gdt)
 
 
 // Helper method to construct a GDT entry
@@ -51,13 +51,13 @@ struct theGDT {
 
 public func setupGDT() {
     print("Initialising GDT:")
-    var currentGdtInfo = dt_info(size: 0, address: nil)
+    var currentGdtInfo = dt_info(limit: 0, address: nil)
     sgdt(&currentGdtInfo)
-    String.printf("Current GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.size)
+    String.printf("Current GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.limit)
     lgdt(&gdtInfo)
 
     // Below is not really needed except to validate that the setup worked ok
     sgdt(&currentGdtInfo)
-    String.printf("New GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.size)
+    String.printf("New GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.limit)
     reload_segments()
 }

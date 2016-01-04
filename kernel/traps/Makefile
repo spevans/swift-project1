@@ -1,15 +1,15 @@
 TOPDIR := ../..
 include $(TOPDIR)/Makedefs
 
-SWIFT_MODULE := Init
-SWIFT_OBJS := startup.o GDT.o
+SWIFT_MODULE := Traps
+SWIFT_OBJS := IDT.o exceptions.o
 SWIFT_SRCS := $(patsubst %.o,%.swift,$(SWIFT_OBJS))
-# Note main.o needs to be first so that the entry point is at the correct address
-OBJS := main.o early_tty.o bss.o $(SWIFT_OBJS)
+OBJS := entry.o $(SWIFT_OBJS)
 
-all: init.o
 
-init.o: $(OBJS)
+all: traps.o
+
+traps.o: $(OBJS)
 	ld -r -no_eh_labels -o $@ $^
 
 $(SWIFT_OBJS): $(SWIFT_SRCS)

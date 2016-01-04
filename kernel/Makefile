@@ -4,9 +4,9 @@ include $(TOPDIR)/Makedefs
 SWIFT_MODULE :=
 SWIFT_OBJS :=
 SWIFT_SRCS := $(patsubst %.o,%.swift,$(SWIFT_OBJS))
-KERNEL_OBJS := init/init.o mm/mm.o devices/devices.o klib/klib.o
+KERNEL_OBJS := init/init.o mm/mm.o devices/devices.o klib/klib.o traps/traps.o
 
-SUBDIRS := klib devices mm init
+SUBDIRS := klib devices mm traps init
 
 
 all: kernel.o

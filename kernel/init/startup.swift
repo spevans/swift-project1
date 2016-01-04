@@ -10,16 +10,18 @@
 
 import Devices
 import MM
+import Traps
 
 
 func startup() {
     TTY.initTTY()
     setupGDT()
-    print("\nHello world\n")
-    printSections()
+    setupIDT()
+    //printSections()
     let params = BootParams()
     params.print()
     PCI.scanPCI()
+    print("Hello world")
     hlt()
 }
 
