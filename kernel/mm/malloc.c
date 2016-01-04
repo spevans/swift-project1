@@ -138,7 +138,7 @@ bitmap_mask(int slab_idx)
 void *
 malloc(size_t size)
 {
-        //dprintf("malloc(%lu): ", size);
+        //debugf("malloc(%lu): ", size);
         if (sizeof(struct slab_header) != PAGE_SIZE) {
                 koops("slab_header is %lu bytes", sizeof(struct slab_header));
         }
@@ -147,7 +147,7 @@ malloc(size_t size)
                 size_t pages = (sizeof(uint32_t) + size + PAGE_MASK) / PAGE_SIZE;
                 struct malloc_region *result = alloc_pages(pages);
                 result->region_size = (pages * PAGE_SIZE) - sizeof(struct malloc_region);
-                dprintf("Wanted %lu got %u\n", size, result->region_size);
+                debugf("Wanted %lu got %u\n", size, result->region_size);
                 return result->data;
         }
 
@@ -159,13 +159,13 @@ malloc(size_t size)
         uint64_t free_bits = slab->allocation_bm[0] ^ allocation_mask;
         int freebit = __builtin_ffsl(free_bits);
 
-        // dprintf("slab for idx:%d has [%3lu/%3lu/%0.16lX/%0.16lX/%0.16lX]   ", slab_idx,
+        // debugf("slab for idx:%d has [%3lu/%3lu/%0.16lX/%0.16lX/%0.16lX]   ", slab_idx,
         //        slab->malloc_cnt, slab->free_cnt, slab->allocation_bm[0], free_bits,
         //        allocation_mask);
 
         if (unlikely(freebit == 0)) {
                 slab = add_new_slab(slab_idx);
-                dprintf(" got new slab @ %p ", slab);
+                debugf(" got new slab @ %p ", slab);
                 free_bits = slab->allocation_bm[0] ^ allocation_mask;
                 freebit = __builtin_ffsl(free_bits);
                 if(unlikely(freebit == 0)) {
@@ -178,11 +178,11 @@ malloc(size_t size)
         void *result = &slab->data[offset];
 
         uint64_t free_mask = (uint64_t)1 << freebit;
-        //dprintf("free_mask = %16lx allocation_bm = %16lx\n", free_mask,slab->allocation_bm[0]);
+        //debugf("free_mask = %16lx allocation_bm = %16lx\n", free_mask,slab->allocation_bm[0]);
         slab->allocation_bm[0] |= free_mask;
         slab->malloc_cnt++;
 
-        dprintf("malloc(%lu)=%p slab=%p offset=%lx [%"PRIu64 "/%"PRIu64"]\n",
+        debugf("malloc(%lu)=%p slab=%p offset=%lx [%"PRIu64 "/%"PRIu64"]\n",
                 size, result, slab, offset, slab->malloc_cnt, slab->free_cnt);
         return result;
 }
@@ -192,7 +192,7 @@ malloc(size_t size)
 void
 free(void *ptr)
 {
-        dprintf("free(%p)=", ptr);
+        debugf("free(%p)=", ptr);
         if (unlikely(ptr == NULL)) {
                 return;
         }
@@ -205,10 +205,10 @@ free(void *ptr)
                 return;
         }
         validate_is_slab(slab);
-        dprintf("slab=%p ", slab);
-        dprintf("size=%u  ", slab->slab_size);
+        debugf("slab=%p ", slab);
+        debugf("size=%u  ", slab->slab_size);
         size_t offset = (ptr - (void *)slab);
-        dprintf("offset=%"PRIu64, offset);
+        debugf("offset=%"PRIu64, offset);
         if (unlikely(offset < 64)) {
                 koops("free(%p) offset = %lu", ptr, offset);
         }
@@ -218,11 +218,11 @@ free(void *ptr)
         }
         int bit_idx = (offset-64) / slab->slab_size;
         uint64_t bitmap_mask = (uint64_t)1 << bit_idx;
-        dprintf("  bit_idx = %d mask=%"PRIx64, bit_idx, bitmap_mask);
+        debugf("  bit_idx = %d mask=%"PRIx64, bit_idx, bitmap_mask);
         if (likely(slab->allocation_bm[0] & bitmap_mask)) {
                 slab->allocation_bm[0] &= ~bitmap_mask;
                 slab->free_cnt++;
-                dprintf(" alloc_bm = %"PRIx64 " freecnt=%"PRIu64 " ok\n", slab->allocation_bm[0], slab->free_cnt);
+                debugf(" alloc_bm = %"PRIx64 " freecnt=%"PRIu64 " ok\n", slab->allocation_bm[0], slab->free_cnt);
         } else {
                 koops("%p is not allocated, alloc=%"PRIx64 " mask = %"PRIx64,
                       ptr, slab->allocation_bm[0], bitmap_mask);
@@ -237,10 +237,10 @@ UNIMPLEMENTED(malloc_default_zone)
 size_t
 malloc_usable_size(void *ptr)
 {
-        dprintf("%s: %p ", __func__, ptr);
+        debugf("%s: %p ", __func__, ptr);
         uint64_t p = (uint64_t)ptr;
         struct slab_header *slab = (struct slab_header *)(p & ~PAGE_MASK);
-        dprintf("size = %u\n", slab->slab_size);
+        debugf("size = %u\n", slab->slab_size);
         return slab->slab_size;
 }
 

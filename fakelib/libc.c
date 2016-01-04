@@ -1,7 +1,8 @@
 /*
  * fakelib/libc.c
  *
- * Copyright © 2015 Simon Evans. All rights reserved.
+ * Created by Simon Evans on 07/12/2015.
+ * Copyright © 2015, 2016 Simon Evans. All rights reserved.
  *
  * Fake libc calls used by both Linux/ELF and OSX/Mach-O libswiftCore
  *
@@ -43,7 +44,7 @@ typedef struct pthread_rw_lock pthread_rwlock_t;
 int
 pthread_mutex_init(pthread_mutex_t *restrict mutex, const pthread_mutexattr_t *restrict attr)
 {
-        dprintf("pthread_mutex_init(%p,%p)\n", mutex, attr);
+        debugf("pthread_mutex_init(%p,%p)\n", mutex, attr);
         return 0;
 }
 
@@ -51,14 +52,14 @@ pthread_mutex_init(pthread_mutex_t *restrict mutex, const pthread_mutexattr_t *r
 int
 pthread_mutex_lock(pthread_mutex_t *mutex)
 {
-        dprintf("pthread_mutex_lock(%p)\n", mutex);
+        debugf("pthread_mutex_lock(%p)\n", mutex);
         return 0;
 }
 
 int
 pthread_mutex_unlock(pthread_mutex_t *mutex)
 {
-        dprintf("pthread_mutex_unlock(%p)\n", mutex);
+        debugf("pthread_mutex_unlock(%p)\n", mutex);
         return 0;
 }
 
@@ -66,7 +67,7 @@ pthread_mutex_unlock(pthread_mutex_t *mutex)
 int
 pthread_rwlock_rdlock(pthread_rwlock_t *rwlock)
 {
-        dprintf("pthread_rwlock_rdlock(%p)\n", rwlock);
+        debugf("pthread_rwlock_rdlock(%p)\n", rwlock);
         return 0;
 }
 
@@ -74,7 +75,7 @@ pthread_rwlock_rdlock(pthread_rwlock_t *rwlock)
 int
 pthread_rwlock_unlock(pthread_rwlock_t *rwlock)
 {
-        dprintf("pthread_rwlock_unlock(%p)\n", rwlock);
+        debugf("pthread_rwlock_unlock(%p)\n", rwlock);
         return 0;
 }
 
@@ -82,7 +83,7 @@ pthread_rwlock_unlock(pthread_rwlock_t *rwlock)
 int
 pthread_rwlock_wrlock(pthread_rwlock_t *rwlock)
 {
-        dprintf("pthread_rwlock_wrlock(%p)\n", rwlock);
+        debugf("pthread_rwlock_wrlock(%p)\n", rwlock);
         return 0;
 }
 
@@ -103,7 +104,7 @@ putchar(int ch)
 int
 _IO_putc(int ch, void *stream)
 {
-        dprintf("putc:(%c,%p)\n", ch, stream);
+        debugf("putc:(%c,%p)\n", ch, stream);
         if (stream != stderr && stream != stdout) {
                 koops("putc stream = %p", stream);
         }
@@ -129,7 +130,7 @@ putc(int ch, void *stream)
 void
 flockfile(void *stream)
 {
-        dprintf("flockfile(%p)\n", stream);
+        debugf("flockfile(%p)\n", stream);
         if (stream != stderr && stream != stdout) {
                 koops("flockfile stream = %p", stream);
         }
@@ -168,7 +169,7 @@ UNIMPLEMENTED(read)
 ssize_t
 write(int fd, const void *buf, size_t nbyte)
 {
-        dprintf("write(fd=%d, buf=%p nbyte=%lu\n", fd, buf, nbyte);
+        debugf("write(fd=%d, buf=%p nbyte=%lu\n", fd, buf, nbyte);
 
         if (fd == 1 || fd == 2) {
                 print_string_len(buf, nbyte);
@@ -202,7 +203,7 @@ int
 vasprintf(char **strp, const char * restrict format, va_list argp)
 {
         // FIXME, needs a ksnprintf
-        dprintf("vasprintf(%p,%s)\n", strp, format);
+        debugf("vasprintf(%p,%s)\n", strp, format);
         *strp = malloc(4080);
         int len = kvsprintf(*strp, format, argp);
 
@@ -213,7 +214,7 @@ vasprintf(char **strp, const char * restrict format, va_list argp)
 int
 asprintf(char **strp, const char * restrict format, ...)
 {
-        dprintf("asprintf(%p,%s)\n", strp, format);
+        debugf("asprintf(%p,%s)\n", strp, format);
         va_list argp;
         va_start(argp, format);
         int len = vasprintf(strp, format, argp);
@@ -227,7 +228,7 @@ int
 vsnprintf(char * restrict buf, size_t size, const char *format, va_list argp)
 {
         // FIXME: use the size, would need an ksnprintf
-        dprintf("vsnprintf(%s)\n", format);
+        debugf("vsnprintf(%s)\n", format);
         int len = ksprintf(buf, format, argp);
 
         return len;
@@ -238,7 +239,7 @@ int
 snprintf(char * restrict buf, size_t size, const char * restrict format, ...)
 {
         // FIXME: use the size, would need an ksnprintf
-        dprintf("snprintf(%s)\n", format);
+        debugf("snprintf(%s)\n", format);
         va_list argp;
         va_start(argp, format);
         int len = ksprintf(buf, format, argp);
@@ -265,7 +266,7 @@ float ceilf(float f)
                 result++;
         }
         float resultf = (float)result;
-        dprintf("ceilf(%ld)=%ld\n", (long)f, (long)resultf);
+        debugf("ceilf(%ld)=%ld\n", (long)f, (long)resultf);
 
         return resultf;
 }
@@ -313,7 +314,7 @@ void *mmap(void *addr, size_t len, int prot, int flags, int fd, unsigned long of
         }
 
         void *result = malloc(len);
-        dprintf("mmap=(addr=%p,len=%lX,prot=%X,flags=%X,fd=%d,offset=%lX)=%p\n",
+        debugf("mmap=(addr=%p,len=%lX,prot=%X,flags=%X,fd=%d,offset=%lX)=%p\n",
                 addr, len, prot, flags, fd, offset, result);
 
         return result;

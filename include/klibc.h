@@ -33,9 +33,9 @@ int kprintf(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 
 
 #ifdef DEBUG
-#define dprintf(fmt, ...) kprintf(fmt, __VA_ARGS__)
+#define debugf(...) kprintf(__VA_ARGS__)
 #else
-#define dprintf(fmt, ...) do {} while(0)
+#define debugf(...) do {} while(0)
 #endif
 
 

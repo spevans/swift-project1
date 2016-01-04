@@ -1,7 +1,8 @@
 /*
  * fakelib/linux_libc.c
  *
- * Copyright © 2015 Simon Evans. All rights reserved.
+ * Created by Simon Evans on 15/12/2015.
+ * Copyright © 2015, 2016 Simon Evans. All rights reserved.
  *
  * Fake libc calls used by Linux/ELF libswiftCore
  *
@@ -26,7 +27,7 @@ void
 __assert_fail (const char *err, const char *file,
                unsigned int line, const char *function)
 {
-        dprintf("assert:%s:%s:%d:%s\n", file, function, line, err);
+        debugf("assert:%s:%s:%d:%s\n", file, function, line, err);
         hlt();
 }
 
@@ -46,7 +47,7 @@ dlopen(const char *filename, int flag)
                 koops("dlopen called with filename=%s", filename);
         }
 
-        dprintf("dlopen(%s,%X)\n", filename, flag);
+        debugf("dlopen(%s,%X)\n", filename, flag);
         return (void *)1;
 }
 
@@ -55,12 +56,12 @@ dlopen(const char *filename, int flag)
 void *
 dlsym(void *handle, const char *symbol)
 {
-        dprintf("dlsym(%p,%s)=", handle, symbol);
+        debugf("dlsym(%p,%s)=", handle, symbol);
         if (handle != (void *)1) {
                 koops("dlsym(): bad handle: %p", handle);
         }
         if (!strcmp(symbol, ".swift2_protocol_conformances_start")) {
-                dprintf("%p\n", &swift2_protocol_conformances_start);
+                debugf("%p\n", &swift2_protocol_conformances_start);
 
                 return &swift2_protocol_conformances_start;
         } else {
@@ -73,7 +74,7 @@ dlsym(void *handle, const char *symbol)
 int
 dlclose(void *handle)
 {
-        dprintf("dlclose(%p)\n", handle);
+        debugf("dlclose(%p)\n", handle);
         if (handle != (void *)1) {
                 koops("dlclose(): bad handle: %p", handle);
         }
@@ -87,9 +88,9 @@ int
 dl_iterate_phdr(int (*callback) (struct dl_phdr_info *info,
                                  size_t size, void *data), void *data)
 {
-        dprintf("dl_iterate_phdr(%p,%p)\n", callback, data);
+        debugf("dl_iterate_phdr(%p,%p)\n", callback, data);
         int res = callback(&empty_dl_phdr_info, sizeof(struct dl_phdr_info), data);
-        dprintf("dl_iteratre_phdr finished=%d\n", res);
+        debugf("dl_iteratre_phdr finished=%d\n", res);
         return res;
 }
 
@@ -99,7 +100,7 @@ __thread void (*_ZSt11__once_call)();
 
 void __once_proxy()
 {
-        dprintf("__once_proxy_func() __once_call=%p\n", _ZSt11__once_call);
+        debugf("__once_proxy_func() __once_call=%p\n", _ZSt11__once_call);
         if (_ZSt11__once_call) {
                 _ZSt11__once_call();
         }
@@ -109,11 +110,12 @@ void __once_proxy()
 int
 pthread_once(pthread_once_t *once_control, void (*init_routine)(void))
 {
-        dprintf("pthread_once(%p,%d %p)\n", once_control, *once_control, init_routine);
+        debugf("pthread_once(%p,%d,%p)\n", once_control, *once_control, init_routine);
+
         if (*once_control == 0) {
-                dprintf("running %p ... ", init_routine);
+                debugf("running %p ... ", init_routine);
                 init_routine();
-                dprintf(" finished\n");
+                debugf(" finished\n");
                 (*once_control)++;
         }
         return 0;
@@ -123,7 +125,7 @@ pthread_once(pthread_once_t *once_control, void (*init_routine)(void))
 int __pthread_key_create (pthread_key_t *key,
                           void (*destructor) (void *))
 {
-        dprintf("pthread_key_create(%p,%p)\n", key, destructor);
+        debugf("pthread_key_create(%p,%p)\n", key, destructor);
         koops("unimplemented");
 }
 

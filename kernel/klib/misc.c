@@ -57,7 +57,7 @@ koops(const char *fmt, ...)
 int
 memcmp(const void *s1, const void *s2, size_t count)
 {
-        dprintf("memcmp(%p,%p,%lu)=", s1, s2, count);
+        debugf("memcmp(%p,%p,%lu)=", s1, s2, count);
 
         int d0, d1, d2;
         int res = 0;
@@ -74,7 +74,7 @@ memcmp(const void *s1, const void *s2, size_t count)
                       : "0" (s1), "1" (s2), "2" (count)
                       : "memory");
 
-        dprintf("%d\n", res);
+        debugf("%d\n", res);
 
         return res;
 }
@@ -105,7 +105,7 @@ void
 void *
 memset(void *dest, char c, size_t count)
 {
-        dprintf("memset(%p,%u,%lu)\n", dest, (uint8_t)c, count);
+        debugf("memset(%p,%u,%lu)\n", dest, (uint8_t)c, count);
 
         int d0, d1, d2;
         asm volatile ("cld\n\t"
@@ -120,7 +120,7 @@ memset(void *dest, char c, size_t count)
 int
 strcmp(const char *cs, const char *ct)
 {
-        dprintf("strcmp(%s, %s)\n", cs, ct);
+        debugf("strcmp(%s, %s)\n", cs, ct);
         int d0, d1;
         int res;
         asm volatile("cld\n\t"

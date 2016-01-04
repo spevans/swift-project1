@@ -26,7 +26,7 @@ alloc_pages(size_t count)
         if (next_free_page + count <= MAX_PAGES) {
                 void *result = pages[next_free_page];
                 next_free_page += count;
-                dprintf("alloc_pages(%lu) = %p\n", count, result);
+                debugf("alloc_pages(%lu) = %p\n", count, result);
                 return result;
         }
         koops("alloc_pages! next_free_page = %lu count = %lu", next_free_page,
@@ -37,6 +37,6 @@ alloc_pages(size_t count)
 void
 free_pages(void *pages, size_t count)
 {
-        dprintf("freeing %lu pages @ %p\n", count, pages);
+        debugf("freeing %lu pages @ %p\n", count, pages);
 }
 

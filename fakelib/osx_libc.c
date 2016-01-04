@@ -1,7 +1,8 @@
 /*
  * fakelib/osx_libc.c
  *
- * Copyright © 2015 Simon Evans. All rights reserved.
+ * Created by Simon Evans on 15/12/2015.
+ * Copyright © 2015, 2016 Simon Evans. All rights reserved.
  *
  * Fake libc calls used by OSX/Mach-O libswiftCore
  *
@@ -14,7 +15,7 @@
 
 typedef long dispatch_once_t;
 void dispatch_once_f(dispatch_once_t *predicate, void *context, void (*function)(void *)) {
-        dprintf("dispatch_once_t(%p,%p,%p)\n", predicate, context, function);
+        debugf("dispatch_once_t(%p,%p,%p)\n", predicate, context, function);
         if(*predicate == 0) {
                 *predicate = ~0L;
                 function(context);
@@ -25,7 +26,7 @@ void dispatch_once_f(dispatch_once_t *predicate, void *context, void (*function)
 typedef void *asl_object_t;
 int asl_log(asl_object_t client, asl_object_t msg, int level, const char *format, ...)
 {
-        dprintf("asl_log(level=%d)\n", level);
+        debugf("asl_log(level=%d)\n", level);
         va_list argp;
         kvprintf(format, argp);
         va_end(argp);
@@ -37,7 +38,7 @@ int asl_log(asl_object_t client, asl_object_t msg, int level, const char *format
 void
 __assert_rtn(const char *function, const char *file, int line, const char *err)
 {
-        dprintf("assert:%s:%s:%d:%s\n", file, function, line, err);
+        debugf("assert:%s:%s:%d:%s\n", file, function, line, err);
         hlt();
 }
 

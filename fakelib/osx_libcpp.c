@@ -1,6 +1,7 @@
 /*
  * fakelib/osx_libcpp.c
  *
+ * Created by Simon Evans on 07/12/2015.
  * Copyright © 2015 Simon Evans. All rights reserved.
  *
  * Fake libcpp calls used by OSX/Mach-O libswiftCore
@@ -28,7 +29,7 @@ void *
 _Znwm(unsigned long size) {
 
         void *result = malloc(size);
-        dprintf("(_Znwm)new(%lu)=%p\n", size, result);
+        debugf("(_Znwm)new(%lu)=%p\n", size, result);
         return result;
 }
 
@@ -36,13 +37,13 @@ _Znwm(unsigned long size) {
 //_operator delete(void*)
 void
 _ZdlPv(void *this) {
-        dprintf("%p->delete()\n", this);
+        debugf("%p->delete()\n", this);
 }
 
 
 //_operator new[](unsigned long)
 void *_Znam(unsigned long size) {
-        dprintf("(_Znam)new[](%lu)", size);
+        debugf("(_Znam)new[](%lu)", size);
         void *result = malloc(size);
         return result;
 }
@@ -51,7 +52,7 @@ void *_Znam(unsigned long size) {
 // _operator delete[](void*)
 void
 _ZdaPv(void *this) {
-        dprintf("%p->delete[]()\n", this);
+        debugf("%p->delete[]()\n", this);
 }
 
 
@@ -62,7 +63,7 @@ UNIMPLEMENTED(_ZTVNSt3__119__shared_weak_countE)
 void
 _ZNSt3__119__shared_weak_count10__add_weakEv(struct ptr *this)
 {
-        dprintf("%p->_ZNSt3__119__shared_weak_count10__add_weakEv()\n", this);
+        debugf("%p->_ZNSt3__119__shared_weak_count10__add_weakEv()\n", this);
         // FIXME: should use LOCK
         __atomic_fetch_add(&this->weak_count, 1, __ATOMIC_RELAXED);
 }
@@ -71,7 +72,7 @@ _ZNSt3__119__shared_weak_count10__add_weakEv(struct ptr *this)
 void
 _ZNSt3__119__shared_weak_count12__add_sharedEv(struct ptr *this)
 {
-        dprintf("%p->_ZNSt3__119__shared_weak_count12__add_sharedEv()\n", this);
+        debugf("%p->_ZNSt3__119__shared_weak_count12__add_sharedEv()\n", this);
         // FIXME: needs locking
         this->shared_count++;
 }
@@ -232,9 +233,9 @@ int
 _ZNKSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE7compareEPKc(struct basic_string *this,
                                                                              const char *str)
 {
-        dprintf("%p->compare(%s)=", this, str);
+        debugf("%p->compare(%s)=", this, str);
         int result = strcmp(get_str_ptr(this), str);
-        dprintf("%d\n", result);
+        debugf("%d\n", result);
 
         return result;
 }
@@ -246,7 +247,7 @@ _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6__initEPKcm(stru
                                                                                  char const *str,
                                                                                  uint32_t len)
 {
-        dprintf("%p->_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_"
+        debugf("%p->_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_"
                 "9allocatorIcEEE6__initEPKcm(%s, %u)\n",
                 this, str, len);
         char *dest;
@@ -278,7 +279,7 @@ _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6__initEmc(struct
                                                                                uint32_t len,
                                                                                char ch)
 {
-        dprintf("%p->_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_"
+        debugf("%p->_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_"
                 "9allocatorIcEEE6__initEmc(%u, %d)\n", this, len, ch);
 
         if (len > MAX_STRING_SIZE) {
@@ -309,7 +310,7 @@ __ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE21__grow_by_and_
                                                                                                   size_t bytes_to_add,
                                                                                                   const char *string)
 {
-        dprintf("%p->__ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE21__grow_by_and_replaceEmmmmmmPKc(%ld,%ld,%ld,%ld,%ld,%ld,%s)\n",
+        debugf("%p->__ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE21__grow_by_and_replaceEmmmmmmPKc(%ld,%ld,%ld,%ld,%ld,%ld,%s)\n",
                 this, old_capacity, extra_capacity, cursize, bytes_to_copy, bytes_to_del, bytes_to_add, string);
 
         if (old_capacity + extra_capacity > MAX_STRING_SIZE) {
@@ -346,7 +347,7 @@ _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEPKcm(stru
                                                                             const char *string,
                                                                             uint32_t len)
 {
-        dprintf("%p->append(%s, %u)\n",
+        debugf("%p->append(%s, %u)\n",
                 this, string, len);
         size_t size = get_str_size(this);
         size_t capacity = get_str_capacity(this);
@@ -375,7 +376,7 @@ struct basic_string *
 _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEPKc(struct basic_string *this,
                                                                            const char *string)
 {
-        dprintf("%p->append(%s)\n", this, string);
+        debugf("%p->append(%s)\n", this, string);
         _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEPKcm(this, string, strlen(string));
         return this;
 }
@@ -384,7 +385,7 @@ _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEPKc(struc
 struct basic_string *
 _ZNSsC1EPKcmRKSaIcE(struct basic_string *this, const char *string, uint32_t len, void *allocator)
 {
-        dprintf("%p->%s(%s, %u)", this, __func__, string, len);
+        debugf("%p->%s(%s, %u)", this, __func__, string, len);
         return _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEPKcm(this, string, len);
 }
 
@@ -398,7 +399,7 @@ __ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE9__grow_byEmmmmm
                                                                                   size_t bytes_to_del,
                                                                                   size_t bytes_to_add)
 {
-        dprintf("%p->__ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE9__grow_byEmmmmmm(%ld,%ld,%ld,%ld,%ld,%ld)\n",
+        debugf("%p->__ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE9__grow_byEmmmmmm(%ld,%ld,%ld,%ld,%ld,%ld)\n",
                 this, old_capacity, extra_capacity, cursize, bytes_to_copy, bytes_to_del, bytes_to_add);
 
         if (old_capacity + extra_capacity > MAX_STRING_SIZE) {
@@ -429,7 +430,7 @@ struct basic_string *
 __ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEmc(struct basic_string *this,
                                                                            unsigned long newlen, char ch)
 {
-        dprintf("%p->__ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEmc(%lu,%d)",
+        debugf("%p->__ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6appendEmc(%lu,%d)",
                 this, newlen, ch);
 
         if (newlen) {
@@ -452,7 +453,7 @@ _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6resizeEmc(struct
                                                                           unsigned long newlen, char ch)
 {
 
-        dprintf("%p->_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_"
+        debugf("%p->_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_"
                 "9allocatorIcEEE6resizeEmc(%ld,%d)\n", this, newlen, ch);
 
         size_t size = get_str_size(this);
@@ -477,7 +478,7 @@ _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE7reserveEm()
 void
 _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE9push_backEc(struct basic_string *this, char ch)
 {
-        dprintf("%p->push_back(%c)", this, ch);
+        debugf("%p->push_back(%c)", this, ch);
         size_t capacity = get_str_capacity(this);
         size_t size = get_str_size(this);
         if (size == capacity) {
@@ -487,7 +488,7 @@ _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE9push_backEc(stru
         char *p = get_str_ptr(this);
         p[size] = ch;
         p[size + 1] = '\0';
-        dprintf("=[%u,%s]\n", (uint32_t)get_str_size(this), get_str_ptr(this));
+        debugf("=[%u,%s]\n", (uint32_t)get_str_size(this), get_str_ptr(this));
 }
 
 
@@ -502,7 +503,7 @@ _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEC1ERKS5_() {
 void
 _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEED1Ev(struct basic_string *this)
 {
-        dprintf("%p->_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_"
+        debugf("%p->_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_"
                 "9allocatorIcEEED1Ev\n", this);
 
         if (likely(is_long_string(this))) {
@@ -516,7 +517,7 @@ __ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6assignEPKcm(str
                                                                              const char *string,
                                                                              size_t len)
 {
-        dprintf("%p->__ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6assignEPKcm(%s, %lu)",
+        debugf("%p->__ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6assignEPKcm(%s, %lu)",
                 this, string, len);
 
         size_t capacity = get_str_capacity(this);
@@ -545,7 +546,7 @@ struct basic_string *
 _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEaSERKS5_(struct basic_string *this,
                                                                         struct basic_string *that)
 {
-        dprintf("%p->_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_"
+        debugf("%p->_ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_"
                 "9allocatorIcEEEaSERKS5_(%p)\n", this, that);
 
         if (this != that) {
@@ -561,7 +562,7 @@ _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEaSERKS5_(struct b
 void
 _ZNSsC1ERKSs(struct basic_string *this, struct basic_string *that)
 {
-        dprintf("%p->%s(%p)", this, __func__, that);
+        debugf("%p->%s(%p)", this, __func__, that);
         if (is_long_string(that)) {
                 _ZNSt3__112basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE6__initEPKcm(this,
                                                                                             get_long_str_ptr(that),
@@ -569,7 +570,7 @@ _ZNSsC1ERKSs(struct basic_string *this, struct basic_string *that)
         } else {
                 this->ss = that->ss;
         }
-        dprintf("COPY: %s=%s\n", get_str_ptr(this), get_str_ptr(that));
+        debugf("COPY: %s=%s\n", get_str_ptr(this), get_str_ptr(that));
 }
 
 
@@ -588,11 +589,11 @@ UNIMPLEMENTED(_Unwind_Resume)
 
 // std::__1::mutex::lock()
 void _ZNSt3__15mutex4lockEv(void *this) {
-        dprintf("(_ZNSt3__15mutex4lockEv)mutex_lock this=%p\n", this);
+        debugf("(_ZNSt3__15mutex4lockEv)mutex_lock this=%p\n", this);
 }
 
 void _ZNSt3__15mutex6unlockEv(void *this) {
-        dprintf("(_ZNSt3__15mutex6unlockEv)mutex_unlock this=%p\n", this);
+        debugf("(_ZNSt3__15mutex6unlockEv)mutex_unlock this=%p\n", this);
 }
 
 void _ZNSt3__111__call_onceERVmPvPFvS2_E() {
@@ -611,7 +612,7 @@ void _ZNSt3__16__sortIRNS_6__lessImmEEPmEEvT0_S5_T_(unsigned long *start,
                                                     unsigned long *end,
                                                     void *cmpfunc)
 {
-        dprintf("Calling _ZNSt3__16__sortIRNS_6__lessImmEEPmEEvT0_S5_T_(%p, %p, %p)\n",
+        debugf("Calling _ZNSt3__16__sortIRNS_6__lessImmEEPmEEvT0_S5_T_(%p, %p, %p)\n",
                 start, end, cmpfunc);
         if (start == end) {
                 return; // no sort needed
