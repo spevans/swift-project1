@@ -48,7 +48,7 @@ public func setupIDT() {
     print("Initialising IDT:")
     var currentIdtInfo = dt_info(limit: 0, address: nil)
     sidt(&currentIdtInfo)
-    String.printf("Current IDTInfo: %p/%u\n", currentIdtInfo.address, currentIdtInfo.limit)
+    printf("Current IDTInfo: %p/%u\n", currentIdtInfo.address, currentIdtInfo.limit)
     idt.0 = IDTEntry(address: UInt64(divide_by_zero_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
     idt.1 = IDTEntry(address: UInt64(debug_exception_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
     idt.2 = IDTEntry(address: UInt64(nmi_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
@@ -94,7 +94,7 @@ public func setupIDT() {
 
     // Below is not needed except to validate that the setup worked ok and test some exceptions
     sidt(&currentIdtInfo)
-    String.printf("New IDTInfo: %p/%u\n", currentIdtInfo.address, currentIdtInfo.limit)
+    printf("New IDTInfo: %p/%u\n", currentIdtInfo.address, currentIdtInfo.limit)
     print("Testing Breakpoint:")
     test_breakpoint()
     // Test Null page read fault

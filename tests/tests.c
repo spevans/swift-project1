@@ -12,7 +12,7 @@
 
 extern void _TF5Tests8runTestsFT_T_(void);
 // print function required by kprintf
-int (*print_string)(const char *) = puts;
+int (*early_print_char)(int ch) = putchar;
 
 
 int main()

@@ -13,10 +13,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-extern void (*print_string)(const char *str);
 #endif
 
 
+extern void (early_print_char)(const char ch);
 static char printf_buf[1024];
 #define IS_DIGIT(c) (((c) >= '0') && ((c) <= '9'))
 
@@ -349,7 +349,10 @@ int
 kvprintf(const char *fmt, va_list args)
 {
         int len = kvsprintf(printf_buf, fmt, args);
-        print_string(printf_buf);
+        char *text = printf_buf;
+        while(*text) {
+                early_print_char(*text++);
+        }
 
         return len;
 }

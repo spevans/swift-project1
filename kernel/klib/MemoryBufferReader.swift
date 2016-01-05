@@ -122,7 +122,7 @@ public class MemoryBufferReader {
         offset = startOffset
         for _ in 0..<count {
             let data: UInt8 = try! read()
-            String.printf("%02X ", data)
+            print(String.sprintf("%02X ", data), terminator: "")
         }
         offset = saved
     }

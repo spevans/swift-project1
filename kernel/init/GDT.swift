@@ -53,11 +53,11 @@ public func setupGDT() {
     print("Initialising GDT:")
     var currentGdtInfo = dt_info(limit: 0, address: nil)
     sgdt(&currentGdtInfo)
-    String.printf("Current GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.limit)
+    printf("Current GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.limit)
     lgdt(&gdtInfo)
 
     // Below is not really needed except to validate that the setup worked ok
     sgdt(&currentGdtInfo)
-    String.printf("New GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.limit)
+    printf("New GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.limit)
     reload_segments()
 }

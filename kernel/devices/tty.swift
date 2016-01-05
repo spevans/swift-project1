@@ -18,17 +18,52 @@ public class TTY {
     static let bytesPerLine = charsPerLine * bytesPerChar;
     static let whiteOnBlack: CUnsignedChar = 0x7  // black background white characters
 
-    static let screenBase = UnsafeMutablePointer<CUnsignedChar>(bitPattern: 0xB8000);
-    static let screen = UnsafeMutableBufferPointer(start: screenBase, count: totalBytes);
+    static let screenBase = UnsafeMutablePointer<CUnsignedChar>(bitPattern: 0xB8000)
+    static let screen = UnsafeMutableBufferPointer(start: screenBase, count: totalBytes)
 
-    static var cursorX = 0
-    static var cursorY = 0
+    // Motorola 6845 CRT Controller registers
+    static let crtIdxReg: UInt16 = 0x3d4
+    static let crtDataReg: UInt16 = 0x3d5
+    static let cursorMSB: UInt8 = 0xE;
+    static let cursorLSB: UInt8 = 0xF;
+
+    // return hardware cursor x, y from video card
+    static func readCursor() -> (Int, Int) {
+        outb(crtIdxReg, cursorMSB)
+        let msb = inb(crtDataReg)
+        outb(crtIdxReg, cursorLSB)
+        let lsb = inb(crtDataReg)
+        let address = Int(UInt16(msb: msb, lsb: lsb))
+        return (Int(address % charsPerLine), Int(address / charsPerLine))
+    }
+
+
+    // set hardware cursor x, y on video card
+    static func writeCursor(x: Int, _ y: Int) {
+        let (addressMSB, addressLSB) = UInt16(y * charsPerLine + x).toBytes()
+        outb(crtIdxReg, cursorMSB)
+        outb(crtDataReg, addressMSB)
+        outb(crtIdxReg, cursorLSB)
+        outb(crtDataReg, addressLSB)
+    }
+
+
+    static var cursorX: Int {
+        get { return readCursor().0 }
+        set(newX) { writeCursor(newX, readCursor().1) }
+    }
+
+
+    static var cursorY: Int {
+        get { return readCursor().1 }
+        set(newY) { writeCursor(readCursor().0, newY) }
+    }
 
 
     public static func initTTY() {
         clearScreen()
-        set_print_functions_to_swift();
-        print("Swift TTY driver initialised");
+        set_print_functions_to_swift()
+        print("Swift TTY driver initialised")
     }
 
 
@@ -39,6 +74,8 @@ public class TTY {
             screen[idx + 1] = whiteOnBlack
             idx += 2
         }
+        cursorX = 0
+        cursorY = 0
     }
 
 
@@ -76,48 +113,60 @@ public class TTY {
 
 
     public static func printChar(character: CChar) {
-        let ch = CUnsignedChar(character)
-        let offset = (cursorY * 80 * 2) + (cursorX * 2)
         let tab: CUnsignedChar = 0x09
         let newline: CUnsignedChar = 0x0A
+        let space: CUnsignedChar = 0x20
 
-        if (ch == newline || cursorX >= 80) {
-            cursorX = 0
-            cursorY += 1
-            if (cursorY >= totalLines) {
-                // Scroll screen up by one line
-                let byteCount = (totalLines - 1) * bytesPerLine
-                for idx in 0..<byteCount {
-                    screen[idx] = screen[bytesPerLine + idx]
-                }
+        var x = cursorX
+        var y = cursorY
 
-                // Clear new bottom line with blank cha
-                let bottomLine = (totalLines - 1) * bytesPerLine
-                var idx = 0
-                while idx < bytesPerLine {
-                    screen[bottomLine + idx] = 0x20  // space
-                    screen[bottomLine + idx + 1] = whiteOnBlack
-                    idx += 2
-                }
-
-                cursorY -= 1
-            }
-        }
-        else if ch == tab {
-            let newX = (cursorX + 8) & ~7
-            let spaces = 2 * (newX - cursorX)
+        let ch = CUnsignedChar(character)
+        if ch == newline {
+            x = 0
+            y += 1
+        } else if ch == tab {
+            let newX = (x + 8) & ~7
+            let spaces = bytesPerChar * (newX - x)
+            let offset = bytesPerChar * ((y * 80) + x)
             var idx = 0
             while idx < spaces {
-                screen[offset + idx] = 0x20
-                screen[offset + idx + 1] = 0x7
-                idx += 2
+                screen[offset + idx] = space
+                screen[offset + idx + 1] = whiteOnBlack
+                idx += bytesPerChar
             }
-            cursorX = newX
+            x = newX
         } else {
+            let offset = bytesPerChar * ((y * 80) + x)
             screen[offset] = ch
-            screen[offset + 1] = 0x7
-            cursorX += 1
+            screen[offset + 1] = whiteOnBlack
+            x += 1
         }
+
+        if x >= 80 {
+            x = 0
+            y += 1
+        }
+
+        if (y >= totalLines) {
+            // Scroll screen up by one line
+            let byteCount = (totalLines - 1) * bytesPerLine
+            for idx in 0..<byteCount {
+                screen[idx] = screen[bytesPerLine + idx]
+            }
+
+            // Clear new bottom line with blank characters
+            let bottomLine = (totalLines - 1) * bytesPerLine
+            var idx = 0
+            while idx < bytesPerLine {
+                screen[bottomLine + idx] = space
+                screen[bottomLine + idx + 1] = whiteOnBlack
+                idx += bytesPerChar
+            }
+            y -= 1
+        }
+
+        cursorX = x
+        cursorY = y
     }
 
 
@@ -134,6 +183,11 @@ public class TTY {
         printChar(Character("H"))
         printString("\n12\t12345678\t12345\t123456789\t12\t12\t0\n")
         printString("12345678123456781234567812345678123456781234567812345678123456780")
-        printString("\n\n\n\n\n\n\n\n\n\nNewLine\n\n\n")
+        printString("\n\n\nNewLine\n\n\n")
     }
+}
+
+
+public func printf(format: String, _ arguments: CVarArgType...) {
+    TTY.printString(String.sprintf(format, arguments))
 }

@@ -32,9 +32,9 @@ public class BootParams {
 
 
     public func print() {
-         String.printf("Memory Ranges  From -     To    Type\n")
+         printf("Memory Ranges  From -     To    Type\n")
          for (idx, entry) in memoryRanges.enumerate() {
-             String.printf("%d: %16X - %8X %4.4X\n", idx, entry.baseAddr,
+             printf("%d: %16X - %8X %4.4X\n", idx, entry.baseAddr,
                                 entry.baseAddr + entry.length - 1, entry.type)
          }
     }

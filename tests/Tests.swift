@@ -1,5 +1,5 @@
 /*
- * tests/StringTests.swift
+ * tests/Tests.swift
  *
  * Created by Simon Evans on 01/01/2016.
  * Copyright © 2016 Simon Evans. All rights reserved.
@@ -11,11 +11,12 @@ import XCTest
 import Klib
 
 
-class StringTests: XCTestCase {
+class Tests: XCTestCase {
 
     var allTests : [(String, () -> Void)] {
         return [
-            ("testSprintf", testSprintf)
+            ("testSprintf", testSprintf),
+            ("testUInt16", testUInt16)
         ]
     }
 
@@ -33,9 +34,16 @@ class StringTests: XCTestCase {
         let output4 = String.sprintf("RAX: %#16.16lX", 0xaaaaaaaaaaaaaaaa as UInt64)
         XCTAssertEqual("RAX: 0xAAAAAAAAAAAAAAAA", output4, "`#16.16lx' 64bit number hight bit set")
     }
+
+    func testUInt16() {
+        let x = UInt16(msb: 1, lsb: 2)
+        XCTAssertEqual(0x102, x, "UInt16(msb, lsb)")
+        XCTAssertEqual(1, x.toBytes().0, "UInt16.toBytes() msb")
+        XCTAssertEqual(2, x.toBytes().1, "UInt16.toBytes() lsb")
+    }
 }
 
 
 public func runTests() {
-    XCTMain([StringTests()])
+    XCTMain([Tests()])
 }

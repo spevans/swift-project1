@@ -12,7 +12,7 @@
 #include "swift.h"
 
 
-static void early_print_char(const char c);
+void early_print_char(const char c);
 static void early_print_string(const char *text);
 static void early_print_string_len(const char *text, size_t len);
 
@@ -23,38 +23,69 @@ void (*print_string_len)(const char *, size_t) = early_print_string_len;
 
 // Base address of PC screen RAM
 static char *const screen = (char *)0xB8000;
+// Motorola 6845 CRT Controller registers
+static const uint16_t crt_idx_reg = 0x3D4;
+static const uint16_t crt_data_reg = 0x3D5;
+static const uint8_t cursor_msb = 0xE;
+static const uint8_t cursor_lsb = 0xF;
+
+static void
+get_cursor(int *x, int *y)
+{
+        uint16_t address;
+
+        outb(crt_idx_reg, cursor_msb);
+        address = inb(crt_data_reg) << 8;
+        outb(crt_idx_reg, cursor_lsb);
+        address |= inb(crt_data_reg);
+        *x = address % 80;
+        *y = address / 80;
+}
 
 
 static void
+set_cursor(int x, int y)
+{
+        uint16_t address = (y * 80) + x;
+        outb(crt_idx_reg, cursor_msb);
+        outb(crt_data_reg, address >> 8);
+        outb(crt_idx_reg, cursor_lsb);
+        outb(crt_data_reg, address & 0xff);
+}
+
+
+void
 early_print_char(const char c)
 {
-        static int cursor_x, cursor_y;
-        char *cursor_char = (screen + (cursor_y * 80 * 2) + (cursor_x * 2));
+        int cursor_x, cursor_y;
+        get_cursor(&cursor_x, &cursor_y);
 
-        if((c == '\n') || (cursor_x >= 80)) {
+        if (c == '\n') {
                 cursor_x = 0;
-                if(++cursor_y >= 25) {
-                        memcpy(screen, screen + 160, 24 * 160);
-                        memsetw(screen + (24 * 160), 0x0720, 160);
-                        cursor_y--;
-                }
-                cursor_char = (screen + (cursor_y * 80 * 2)
-                               + (cursor_x * 2));
-                if(c == '\n') {
-                        return;
-                }
-        }
-        else if(c == '\t') {
+                cursor_y++;
+        } else if(c == '\t') {
                 int new_x = (cursor_x + 8) & ~7;
+                char *cursor_char = (screen + (cursor_y * 80 * 2) + (cursor_x * 2));
                 memsetw(cursor_char, 0x0720, new_x - cursor_x);
                 cursor_x = new_x;
-                cursor_char = (screen + (cursor_y * 80 * 2)
-                               + (cursor_x * 2));
-                return;
+        } else {
+                char *cursor_char = (screen + (cursor_y * 80 * 2) + (cursor_x * 2));
+                *cursor_char = c;
+                *(cursor_char + 1) = 0x07;
+                cursor_x++;
         }
-        *cursor_char++ = c;
-        *cursor_char++ = 0x07;
-        cursor_x++;
+
+        if (cursor_x >= 80) {
+                cursor_x = 0;
+                cursor_y++;
+        }
+
+        if(cursor_y >= 25) {
+                memcpy(screen, screen + 160, 24 * 160);
+                memsetw(screen + (24 * 160), 0x0720, 160);
+                cursor_y--;
+        }
+        set_cursor(cursor_x, cursor_y);
 }
 
 

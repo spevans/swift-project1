@@ -10,23 +10,13 @@
 
 
 extension String {
-    public static func printf(format: String, _ arguments: CVarArgType...) {
-        withVaList(arguments) {
-            let len = format.utf8.count + 1
-            let buffer = UnsafeMutablePointer<CChar>.alloc(len)
-            var idx = 0
-            for ch in format.utf8 {
-                buffer[idx] = CChar(ch)
-                idx += 1
-            }
-            buffer[idx] = CChar(0)
-            kvprintf(buffer, $0)
-            buffer.dealloc(len)
-        }
+
+    public static func sprintf(format: String, _ arguments: CVarArgType...) -> String {
+        return sprintf(format, arguments)
     }
 
 
-    public static func sprintf(format: String, _ arguments: CVarArgType...) -> String {
+    static func sprintf(format: String, _ arguments: [CVarArgType]) -> String {
         var result: String?
 
         withVaList(arguments) {
@@ -50,5 +40,17 @@ extension String {
         } else {
              return result!
         }
+    }
+}
+
+
+extension UInt16 {
+    public init(msb: UInt8, lsb: UInt8) {
+        self = UInt16(msb) << 8 | UInt16(lsb)
+    }
+
+    // return (msb, lsb)
+    public func toBytes() -> (UInt8, UInt8) {
+        return (UInt8(self >> 8), UInt8(self & 0xff))
     }
 }

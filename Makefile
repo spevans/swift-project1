@@ -31,6 +31,10 @@ endif
 disk_image: boot kernel.bin
 	$(SWIFT) utils/mkdiskimg.swift boot/bootsector.bin boot/boot16to64.bin kernel.bin disk_image
 
+test:
+	make -C kernel/klib
+	make -C tests
+
 clean:
 	rm -f disk_image kernel.elf kernel.bin kernel.map
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir clean; done
