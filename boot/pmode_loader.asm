@@ -12,7 +12,7 @@
 
 BUFFER_SEG              EQU     0x8000
 KERNEL_LOAD_ADDR        EQU     0x100000
-SECTORS_PER_READ        EQU     128
+SECTORS_PER_READ        EQU     96 ; VMWare doesnt like 128, 96 seems ok
 
         BITS 16
 

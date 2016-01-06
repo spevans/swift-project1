@@ -8,7 +8,7 @@ ifeq ($(UNAME_S), Darwin)
 	LINKER := static_linker/build/Debug/static_linker
 endif
 
-SUBDIRS := boot kernel fakelib
+SUBDIRS := boot kernel fakelib utils
 
 
 .PHONY: kernel.bin clean
@@ -29,7 +29,7 @@ ifeq ($(UNAME_S), Darwin)
 endif
 
 disk_image: boot kernel.bin
-	$(SWIFT) utils/mkdiskimg.swift boot/bootsector.bin boot/boot16to64.bin kernel.bin disk_image
+	utils/mkdiskimg boot/bootsector.bin boot/boot16to64.bin kernel.bin disk_image
 
 test:
 	make -C kernel/klib
