@@ -4,7 +4,7 @@ CFLAGS := -Wall -std=gnu99 -Wextra -Werror -fno-builtin -fno-stack-protector -fn
 NASM := nasm
 NASM_FLAGS := -Werror
 MODULE_DIR := $(TOPDIR)/modules
-SWIFTC_FLAGS := -gnone -O -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -I$(MODULE_DIR)
+SWIFTC_FLAGS := -gnone -Onone -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -I$(MODULE_DIR)
 
 
 ifeq ($(UNAME_S), Linux)

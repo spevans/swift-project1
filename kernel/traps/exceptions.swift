@@ -1,13 +1,38 @@
 /*
-* kernel/traps/exceptions.swift
-*
-* Created by Simon Evans on 01/01/2016.
-* Copyright © 2016 Simon Evans. All rights reserved.
-*
-* Handlers for CPU exceptions, currently they just dump the registers
-* and halt
-*
-*/
+ * kernel/traps/exceptions.swift
+ *
+ * Created by Simon Evans on 01/01/2016.
+ * Copyright © 2016 Simon Evans. All rights reserved.
+ *
+ * Handlers for CPU exceptions, currently they just dump the registers
+ * and halt
+ *
+ */
+
+
+// Simple stack backtrace using rbp to walk the stack
+// Needs an update for eh_frame at some point
+func stackTrace(rsp: UInt64, _ rbp: UInt64) {
+
+    let rsp_ptr = UnsafePointer<UInt>(bitPattern: UInt(rsp))
+    printf("RSP: %p = %p\n", rsp, rsp_ptr.memory);
+
+    var rbp_addr = UInt(rbp)
+
+    var rbp_ptr = UnsafePointer<UInt>(bitPattern: rbp_addr)
+    var idx = 0
+    while rbp_addr < _kernel_stack_addr {
+        printf("[%p]: %p ret=%p\n", rbp_addr, rbp_ptr.memory, (rbp_ptr+1).memory)
+        rbp_addr = rbp_ptr.memory
+        rbp_ptr = UnsafePointer<UInt>(bitPattern: rbp_addr)
+        idx += 1
+        if idx > 10 {
+            // temporary safety check
+            print("Exceeded depth of 10")
+            return
+        }
+    }
+}
 
 
 func dumpRegisters(inout registers: exception_regs) {
@@ -32,7 +57,7 @@ func dumpRegisters(inout registers: exception_regs) {
     printf("CS: %x DS: %x ES: %x FS: %x GS:%x SS: %x\n",
         registers.cs, registers.ds, registers.es,
         registers.fs, registers.gs, registers.ss)
-
+    stackTrace(registers.rsp, registers.rbp)
 }
 
 

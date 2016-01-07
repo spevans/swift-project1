@@ -327,7 +327,7 @@ kvsprintf(char *buf, const char *fmt, va_list args)
                         }
                 }
         }
-        *buf++ = 0;
+        *buf = 0;
 
         return buf - orig;
 }

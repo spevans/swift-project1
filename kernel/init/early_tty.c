@@ -29,23 +29,32 @@ static const uint16_t crt_data_reg = 0x3D5;
 static const uint8_t cursor_msb = 0xE;
 static const uint8_t cursor_lsb = 0xF;
 
-static void
-get_cursor(int *x, int *y)
-{
-        uint16_t address;
 
-        outb(crt_idx_reg, cursor_msb);
-        address = inb(crt_data_reg) << 8;
-        outb(crt_idx_reg, cursor_lsb);
-        address |= inb(crt_data_reg);
-        *x = address % 80;
-        *y = address / 80;
+static void
+fix_cursor(unsigned int *x, unsigned int *y)
+{
+        if (*x > 79) *x = 79;
+        if (*y > 24) *y = 24;
 }
 
 
 static void
-set_cursor(int x, int y)
+get_cursor(unsigned int *x, unsigned int *y)
 {
+        outb(crt_idx_reg, cursor_msb);
+        uint16_t address = inb(crt_data_reg) << 8;
+        outb(crt_idx_reg, cursor_lsb);
+        address |= inb(crt_data_reg);
+        *x = address % 80;
+        *y = address / 80;
+        fix_cursor(x, y);
+}
+
+
+static void
+set_cursor(unsigned int x, unsigned int y)
+{
+        fix_cursor(&x, &y);
         uint16_t address = (y * 80) + x;
         outb(crt_idx_reg, cursor_msb);
         outb(crt_data_reg, address >> 8);
@@ -57,7 +66,7 @@ set_cursor(int x, int y)
 void
 early_print_char(const char c)
 {
-        int cursor_x, cursor_y;
+        unsigned int cursor_x, cursor_y;
         get_cursor(&cursor_x, &cursor_y);
 
         if (c == '\n') {

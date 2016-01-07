@@ -22,6 +22,7 @@ ifeq ($(UNAME_S), Linux)
 	# initial link must be via ELF to produce a GOT
 	ld --no-demangle -static -Tlinker.script -Map=kernel.map -o kernel.elf $(KERNEL_OBJS) $(SWIFTLIB)
 	objcopy -O binary kernel.elf kernel.bin
+	objdump -D kernel.elf > kernel.dmp
 endif
 
 ifeq ($(UNAME_S), Darwin)
@@ -36,6 +37,6 @@ test:
 	make -C tests
 
 clean:
-	rm -f disk_image kernel.elf kernel.bin kernel.map
+	rm -f disk_image kernel.elf kernel.bin kernel.map kernel.dmp
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir clean; done
 	make -C tests clean

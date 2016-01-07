@@ -39,7 +39,7 @@ EXPORT_SYMBOL_TO_SWIFT(fpu_fault_stub);
 EXPORT_SYMBOL_TO_SWIFT(alignment_exception_stub);
 EXPORT_SYMBOL_TO_SWIFT(mce_stub);
 EXPORT_SYMBOL_TO_SWIFT(simd_exception_stub);
-
+EXPORT_SYMBOL_TO_SWIFT(_kernel_stack);
 
 void
 koops(const char *fmt, ...)
@@ -175,7 +175,7 @@ char *
 strdup(const char *s)
 {
         size_t len = strlen(s);
-        char *dup = malloc(len);
+        char *dup = malloc(len + 1);
         if (dup != NULL) {
                 strcpy(dup, s);
         }
@@ -192,10 +192,10 @@ strndup(const char *s, size_t n)
                 len = n;
         }
 
-        char *dup = malloc(len);
+        char *dup = malloc(len + 1);
         if (dup != NULL) {
-                memcpy(dup, s, n);
-                *(dup+n) = '\0';
+                memcpy(dup, s, len);
+                *(dup + len) = '\0';
         }
 
         return dup;

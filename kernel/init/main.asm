@@ -21,7 +21,8 @@
 
         ;; Entry point after switching to Long Mode
 main:
-        mov     esp, _kernel_stack      ; Set the stack to just after the BSS
+        mov     rsp, _kernel_stack      ; Set the stack to just after the BSS
+        mov     rbp, rsp
 
         ;; Clear the BSS
         xor     rax, rax

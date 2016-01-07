@@ -46,6 +46,7 @@ EXPORTED_SYMBOL_AS_UINTPTR(alignment_exception_stub);
 EXPORTED_SYMBOL_AS_UINTPTR(mce_stub);
 EXPORTED_SYMBOL_AS_UINTPTR(simd_exception_stub);
 EXPORTED_SYMBOL_AS_UINTPTR(test_breakpoint);
+EXPORTED_SYMBOL_AS_UINTPTR(_kernel_stack);
 
 
 void set_print_functions_to_swift();

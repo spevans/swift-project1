@@ -183,7 +183,6 @@ test_breakpoint:
         mov     rdx, 0xDDDDDDDDDDDDDDDD
         mov     rdi, 0xD1D1D1D1D1D1D1D1
         mov     rsi, 0x5151515151515151
-        mov     rbp, 0xB0B0B0B0B0B0B0B0
         mov     r8,  0x0808080808080808
         mov     r9,  0x0909090909090909
         mov     r10, 0x1010101010101010
@@ -214,6 +213,6 @@ test_breakpoint:
         pop     r14
         pop     r13
         pop     r12
-        pop     rbp
+        pop     rbx
         pop     rbp
         ret

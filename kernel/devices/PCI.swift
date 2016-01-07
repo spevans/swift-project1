@@ -86,7 +86,7 @@ public class PCI {
 
 
     static func printDev(pciDev: PCIDeviceFunction) {
-        printf("bus/device: %2.2X:%2.2X/%d: vendor/deviceId: %4.4X:%4.4X [%2.2X%2.2X] HT: %2.2X\n",
+        printf("%2.2X:%2.2X/%d: %4.4X:%4.4X [%2.2X%2.2X] HT: %2.2X\n",
             pciDev.bus, pciDev.device, pciDev.function, pciDev.vendor, pciDev.deviceId, pciDev.classCode, pciDev.subClassCode,
             pciDev.headerType)
     }
@@ -106,5 +106,6 @@ public class PCI {
                 }
             }
         }
+        print("Scan finished")
     }
 }
