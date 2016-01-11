@@ -10,6 +10,8 @@ SWIFT_SRCS :=	init/startup.swift		\
 		mm/memory.swift			\
 		devices/PCI.swift		\
 		devices/tty.swift		\
+		devices/pit8254.swift		\
+		devices/pic8259.swift		\
 		traps/exceptions.swift		\
 		traps/IDT.swift
 

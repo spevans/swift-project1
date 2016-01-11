@@ -18,7 +18,12 @@ public func startup() {
     params.print()
     PCI.scanPCI()
     print("Hello world")
-    hlt()
+
+    // Idle, woken up by interrupts
+    while true {
+        hlt()
+    }
+
 }
 
 

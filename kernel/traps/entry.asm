@@ -9,6 +9,7 @@
 ;;; trap_dispatch_table
 
         EXTERN  trap_dispatch_table
+        EXTERN  irq_dispatch_table
         GLOBAL  test_breakpoint
 
 
@@ -63,7 +64,61 @@
         pop     rbp
         pop     fs
         pop     gs
-        add     rsp, 8  ; pop error code
+
+        %endmacro
+
+
+        %macro  SAVE_XMM_REGS 0
+
+        ;; Align the stack to 16bytes required for ABI
+        mov     rdi, rsp
+        push    rsp
+        push    qword [rsp]
+        and     rsp, -16
+
+        ;; Save XMM registers as they are used by Swift 16x 128bit
+        sub     rsp, 256
+        movaps  [rsp +   0], xmm0
+        movaps  [rsp +  16], xmm1
+        movaps  [rsp +  32], xmm2
+        movaps  [rsp +  48], xmm3
+        movaps  [rsp +  64], xmm4
+        movaps  [rsp +  80], xmm5
+        movaps  [rsp +  96], xmm6
+        movaps  [rsp + 112], xmm7
+        movaps  [rsp + 128], xmm8
+        movaps  [rsp + 144], xmm9
+        movaps  [rsp + 160], xmm10
+        movaps  [rsp + 176], xmm11
+        movaps  [rsp + 192], xmm12
+        movaps  [rsp + 208], xmm13
+        movaps  [rsp + 224], xmm14
+        movaps  [rsp + 240], xmm15
+
+        %endmacro
+
+
+        %macro  RESTORE_XMM_REGS 0
+
+        movaps  xmm0, [rsp + 0]
+        movaps  xmm1, [rsp + 16]
+        movaps  xmm2, [rsp + 32]
+        movaps  xmm3, [rsp + 48]
+        movaps  xmm4, [rsp + 64]
+        movaps  xmm5, [rsp + 80]
+        movaps  xmm6, [rsp + 96]
+        movaps  xmm7, [rsp + 112]
+        movaps  xmm8, [rsp + 128]
+        movaps  xmm9, [rsp + 144]
+        movaps  xmm10, [rsp + 160]
+        movaps  xmm11, [rsp + 176]
+        movaps  xmm12, [rsp + 192]
+        movaps  xmm13, [rsp + 208]
+        movaps  xmm14, [rsp + 224]
+        movaps  xmm15, [rsp + 240]
+
+        add     rsp, 256
+        mov     rsp, [rsp+8]
 
         %endmacro
 
@@ -95,58 +150,56 @@
         %endmacro
 
 
+        ;; For IRQs
+        %macro  IRQ_STUB 1
+        GLOBAL  irq%1_stub
+        ALIGN   16
+irq%1_stub:
+        SAVE_REGS
+        mov     rax, %1
+        jmp     _irq_handler
+
+        %endmacro
+
+
+
         ALIGN   16
 _run_handler:
         cld             ; ABI required DF to be cleared
-        ;; Align the stack to 16bytes required for ABI
-        mov     rdi, rsp
-        push    rsp
-        push    qword [rsp]
-        and     rsp, -16
-
-        ;; Save XMM registers as they are used by Swift 16x 128bit
-        sub     rsp, 256
-        movaps  [rsp +   0], xmm0
-        movaps  [rsp +  16], xmm1
-        movaps  [rsp +  32], xmm2
-        movaps  [rsp +  48], xmm3
-        movaps  [rsp +  64], xmm4
-        movaps  [rsp +  80], xmm5
-        movaps  [rsp +  96], xmm6
-        movaps  [rsp + 112], xmm7
-        movaps  [rsp + 128], xmm8
-        movaps  [rsp + 144], xmm9
-        movaps  [rsp + 160], xmm10
-        movaps  [rsp + 176], xmm11
-        movaps  [rsp + 192], xmm12
-        movaps  [rsp + 208], xmm13
-        movaps  [rsp + 224], xmm14
-        movaps  [rsp + 240], xmm15
+        SAVE_XMM_REGS
 
         call    rax
 
-        movaps  xmm0, [rsp + 0]
-        movaps  xmm1, [rsp + 16]
-        movaps  xmm2, [rsp + 32]
-        movaps  xmm3, [rsp + 48]
-        movaps  xmm4, [rsp + 64]
-        movaps  xmm5, [rsp + 80]
-        movaps  xmm6, [rsp + 96]
-        movaps  xmm7, [rsp + 112]
-        movaps  xmm8, [rsp + 128]
-        movaps  xmm9, [rsp + 144]
-        movaps  xmm10, [rsp + 160]
-        movaps  xmm11, [rsp + 176]
-        movaps  xmm12, [rsp + 192]
-        movaps  xmm13, [rsp + 208]
-        movaps  xmm14, [rsp + 224]
-        movaps  xmm15, [rsp + 240]
+        RESTORE_XMM_REGS
+        RESTORE_REGS
+        add     rsp, 8  ; pop error code
+        iretq
 
-        add     rsp, 256
-        mov     rsp, [rsp+8]
 
+        ALIGN   16
+_irq_handler:
+        cld
+        SAVE_XMM_REGS
+        push    rax
+        sub     rsp, 8
+        lea     rbx, [irq_dispatch_table + rax * 8]
+        mov     rax, [rbx]
+        test    rax,rax
+        jz      .no_irq
+        call    rax
+.no_irq:
+        add     rsp, 8
+        pop     rbx
+        mov     al, 0x20
+        cmp     bl, 7
+        jle     .pic1only
+        out     0xA0, al
+.pic1only:
+        out     0x20, al
+        RESTORE_XMM_REGS
         RESTORE_REGS
         iretq
+
 
         TRAP_STUB       0, divide_by_zero_stub
         TRAP_STUB       1, debug_exception_stub
@@ -166,6 +219,23 @@ _run_handler:
         TRAP_STUB_EC    17, alignment_exception_stub
         TRAP_STUB       18, mce_stub
         TRAP_STUB       19, simd_exception_stub
+
+        IRQ_STUB        00
+        IRQ_STUB        01
+        IRQ_STUB        02
+        IRQ_STUB        03
+        IRQ_STUB        04
+        IRQ_STUB        05
+        IRQ_STUB        06
+        IRQ_STUB        07
+        IRQ_STUB        08
+        IRQ_STUB        09
+        IRQ_STUB        10
+        IRQ_STUB        11
+        IRQ_STUB        12
+        IRQ_STUB        13
+        IRQ_STUB        14
+        IRQ_STUB        15
 
 
 ;;; Test function, sets registers to testable patterns

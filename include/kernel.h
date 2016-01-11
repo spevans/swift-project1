@@ -47,11 +47,25 @@ EXPORTED_SYMBOL_AS_UINTPTR(mce_stub);
 EXPORTED_SYMBOL_AS_UINTPTR(simd_exception_stub);
 EXPORTED_SYMBOL_AS_UINTPTR(test_breakpoint);
 EXPORTED_SYMBOL_AS_UINTPTR(_kernel_stack);
-
+EXPORTED_SYMBOL_AS_UINTPTR(irq00_stub);
+EXPORTED_SYMBOL_AS_UINTPTR(irq01_stub);
+EXPORTED_SYMBOL_AS_UINTPTR(irq02_stub);
+EXPORTED_SYMBOL_AS_UINTPTR(irq03_stub);
+EXPORTED_SYMBOL_AS_UINTPTR(irq04_stub);
+EXPORTED_SYMBOL_AS_UINTPTR(irq05_stub);
+EXPORTED_SYMBOL_AS_UINTPTR(irq06_stub);
+EXPORTED_SYMBOL_AS_UINTPTR(irq07_stub);
+EXPORTED_SYMBOL_AS_UINTPTR(irq08_stub);
+EXPORTED_SYMBOL_AS_UINTPTR(irq09_stub);
+EXPORTED_SYMBOL_AS_UINTPTR(irq10_stub);
+EXPORTED_SYMBOL_AS_UINTPTR(irq11_stub);
+EXPORTED_SYMBOL_AS_UINTPTR(irq12_stub);
+EXPORTED_SYMBOL_AS_UINTPTR(irq13_stub);
+EXPORTED_SYMBOL_AS_UINTPTR(irq14_stub);
+EXPORTED_SYMBOL_AS_UINTPTR(irq15_stub);
 
 void set_print_functions_to_swift();
 int kvprintf(const char *fmt, va_list args) __attribute__ ((format (printf, 1, 0)));
 int kvsprintf(char *buf, const char *fmt, va_list args) __attribute__ ((format (printf, 2, 0)));
-
 
 #endif  // __KERNEL_H__

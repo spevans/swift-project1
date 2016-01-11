@@ -17,12 +17,37 @@
 #define __X86_FUNCS_H__
 #include "x86defs.h"
 
+
+static inline void
+cli()
+{
+        asm volatile ("cli" : : : "memory");
+}
+
+
+static inline void
+sti()
+{
+        asm volatile ("sti" : : : "memory");
+}
+
+
 static inline void
 hlt()
 {
         asm volatile ("hlt" : : : "memory");
+}
+
+static inline void stop() __attribute__ ((noreturn));
+
+static inline void
+stop()
+{
+        cli();
+        hlt();
         __builtin_unreachable();
 }
+
 
 static inline void
 lgdt(const struct dt_info *gdt)
@@ -118,6 +143,5 @@ int3()
 // kernel/klib/x86.asm functions
 void reload_segments();
 void test_breakpoint();
-
 
 #endif  // __X86_FUNCS_H__

@@ -192,3 +192,9 @@ func unhandledException(registers: UnsafeMutablePointer<exception_regs>) {
     dumpRegisters(&registers.memory)
     hlt()
 }
+
+
+@noreturn func koops(msg: String) {
+    print("oops: \(msg)")
+    stop()
+}

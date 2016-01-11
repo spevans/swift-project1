@@ -16,7 +16,7 @@
 
 
 // FIXME when strideof can be used with arrays
-let idtSize = Int(NR_TRAPS) * sizeof(idt_entry)
+let idtSize = Int(NR_INTERRUPTS) * sizeof(idt_entry)
 private var idtInfo = dt_info(limit: UInt16(idtSize - 1), address: &idt)
 
 
@@ -46,6 +46,7 @@ private func IDTEntry(address address: UInt64, selector: UInt16, gateType: GateT
 
 public func setupIDT() {
     print("Initialising IDT:")
+    PIC8259.initPIC()
     var currentIdtInfo = dt_info(limit: 0, address: nil)
     sidt(&currentIdtInfo)
     printf("Current IDTInfo: %p/%u\n", currentIdtInfo.address, currentIdtInfo.limit)
@@ -92,6 +93,47 @@ public func setupIDT() {
     trap_dispatch_table.19 = simdException
     lidt(&idtInfo)
 
+    idt.32 = IDTEntry(address: UInt64(irq00_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.33 = IDTEntry(address: UInt64(irq01_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.34 = IDTEntry(address: UInt64(irq02_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.35 = IDTEntry(address: UInt64(irq03_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.36 = IDTEntry(address: UInt64(irq04_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.37 = IDTEntry(address: UInt64(irq05_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.38 = IDTEntry(address: UInt64(irq06_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.39 = IDTEntry(address: UInt64(irq07_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.40 = IDTEntry(address: UInt64(irq08_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.41 = IDTEntry(address: UInt64(irq09_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.42 = IDTEntry(address: UInt64(irq10_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.43 = IDTEntry(address: UInt64(irq11_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.44 = IDTEntry(address: UInt64(irq12_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.45 = IDTEntry(address: UInt64(irq13_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.46 = IDTEntry(address: UInt64(irq14_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.47 = IDTEntry(address: UInt64(irq15_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+
+    irq_dispatch_table.0 = timerInterrupt
+    irq_dispatch_table.1 = unexpectedInterrupt
+    irq_dispatch_table.2 = unexpectedInterrupt
+    irq_dispatch_table.3 = unexpectedInterrupt
+    irq_dispatch_table.4 = unexpectedInterrupt
+    irq_dispatch_table.5 = unexpectedInterrupt
+    irq_dispatch_table.6 = unexpectedInterrupt
+    irq_dispatch_table.7 = unexpectedInterrupt
+    irq_dispatch_table.8 = unexpectedInterrupt
+    irq_dispatch_table.9 = unexpectedInterrupt
+    irq_dispatch_table.10 = unexpectedInterrupt
+    irq_dispatch_table.11 = unexpectedInterrupt
+    irq_dispatch_table.12 = unexpectedInterrupt
+    irq_dispatch_table.13 = unexpectedInterrupt
+    irq_dispatch_table.14 = unexpectedInterrupt
+    irq_dispatch_table.15 = unexpectedInterrupt
+
+    // Set the timer interrupt for 8000Hz
+    PIT8254.setChannel(PIT8254.TimerChannel.CHANNEL_0, mode: PIT8254.OperatingMode.MODE_3, hz: 8000)
+    PIT8254.showStatus()
+    PIC8259.enableIRQ(0)
+    print("Enabling IRQs")
+    sti()
+
     // Below is not needed except to validate that the setup worked ok and test some exceptions
     sidt(&currentIdtInfo)
     printf("New IDTInfo: %p/%u\n", currentIdtInfo.address, currentIdtInfo.limit)
@@ -100,4 +142,9 @@ public func setupIDT() {
     // Test Null page read fault
     //let p = UnsafePointer<UInt8>(bitPattern: 0x123)
     //print("Null: \(p.memory)")
+}
+
+
+func unexpectedInterrupt() {
+    print("unexpected interrupt")
 }
