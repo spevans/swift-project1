@@ -8,7 +8,7 @@ SWIFTC_FLAGS := -gnone -Onone -parse-as-library -import-objc-header $(TOPDIR)/in
 
 
 ifeq ($(UNAME_S), Linux)
-	SWIFTDIR := $(shell echo ~/swift-2.2-SNAPSHOT-2015-12-31-a-ubuntu14.04)
+	SWIFTDIR := $(shell echo ~/swift-2.2-SNAPSHOT-2016-01-06-a-ubuntu14.04)
 	SWIFT := $(SWIFTDIR)/usr/bin/swift
 	SWIFTC := $(SWIFTDIR)/usr/bin/swiftc
 	SWIFTLIB := $(SWIFTDIR)/usr/lib/swift_static/linux/libswiftCore.a
