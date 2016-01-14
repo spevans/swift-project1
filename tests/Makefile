@@ -17,7 +17,7 @@ $(SWIFT_OBJS): $(SWIFT_SRCS)
 	$(SWIFTC) $(SWIFTC_FLAGS)  -emit-object -module-name $(SWIFT_MODULE) $^
 
 tests: $(SWIFT_OBJS) tests.c ../kernel/klib/kprintf.c
-	$(CC) -DTESTS -o $@ tests.c ../kernel/klib/kprintf.c $(SWIFT_OBJS) ../kernel/klib/Extensions.o -Xlinker -rpath=$(SOLIBDIR) $(SOLIB) $(XCTLIB)
+	$(CC) -DTESTS -ggdb -o $@ tests.c ../kernel/klib/kprintf.c $(SWIFT_OBJS) ../kernel/klib/Extensions.o -Xlinker -rpath=$(SOLIBDIR) $(SOLIB) $(XCTLIB)
 
 runtests: tests
 	./tests

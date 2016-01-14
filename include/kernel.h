@@ -11,6 +11,7 @@
 #ifndef __KERNEL_H__
 #define __KERNEL_H__
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdarg.h>
 #include "x86funcs.h"
@@ -66,6 +67,6 @@ EXPORTED_SYMBOL_AS_UINTPTR(irq15_stub);
 
 void set_print_functions_to_swift();
 int kvprintf(const char *fmt, va_list args) __attribute__ ((format (printf, 1, 0)));
-int kvsprintf(char *buf, const char *fmt, va_list args) __attribute__ ((format (printf, 2, 0)));
+int kvsnprintf(char *buf, size_t size, const char *fmt, va_list args) __attribute__ ((format (printf, 3, 0)));
 
 #endif  // __KERNEL_H__

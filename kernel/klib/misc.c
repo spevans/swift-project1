@@ -63,7 +63,7 @@ koops(const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-    print_string("OOPS: ");
+    kprintf("OOPS: ");
     kvprintf(fmt, args);
     va_end(args);
     hlt();

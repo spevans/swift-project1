@@ -202,10 +202,23 @@ fprintf(void *stream, const char *format, ...)
 int
 vasprintf(char **strp, const char * restrict format, va_list argp)
 {
-        // FIXME, needs a ksnprintf
+        char buf[128];
+
         debugf("vasprintf(%p,%s)\n", strp, format);
-        *strp = malloc(4080);
-        int len = kvsprintf(*strp, format, argp);
+
+        // len = number of characters in final string, not that fit in buffer
+        // excludes terminating '\0'
+        int len = kvsnprintf(buf, 128, format, argp);
+        *strp = malloc(len + 1);
+        if (*strp == NULL) {
+                return -1;
+        }
+
+        if (len > 127) {
+                return kvsnprintf(buf, len + 1, format, argp);
+        } else {
+                memcpy(*strp, buf, len + 1);
+        }
 
         return len;
 }
@@ -227,9 +240,8 @@ asprintf(char **strp, const char * restrict format, ...)
 int
 vsnprintf(char * restrict buf, size_t size, const char *format, va_list argp)
 {
-        // FIXME: use the size, would need an ksnprintf
         debugf("vsnprintf(%s)\n", format);
-        int len = ksprintf(buf, format, argp);
+        int len = kvsnprintf(buf, size, format, argp);
 
         return len;
 }
@@ -238,11 +250,10 @@ vsnprintf(char * restrict buf, size_t size, const char *format, va_list argp)
 int
 snprintf(char * restrict buf, size_t size, const char * restrict format, ...)
 {
-        // FIXME: use the size, would need an ksnprintf
         debugf("snprintf(%s)\n", format);
         va_list argp;
         va_start(argp, format);
-        int len = ksprintf(buf, format, argp);
+        int len = kvsnprintf(buf, size, format, argp);
         va_end(argp);
 
         return len;

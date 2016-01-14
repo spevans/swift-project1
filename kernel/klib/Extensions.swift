@@ -17,6 +17,7 @@ extension String {
 
 
     static func sprintf(format: String, _ arguments: [CVarArgType]) -> String {
+        let bufferLen = 1024
         var result: String?
 
         withVaList(arguments) {
@@ -28,11 +29,11 @@ extension String {
                 idx += 1
             }
             buffer[idx] = CChar(0)
-            let output = UnsafeMutablePointer<CChar>.alloc(1024)
-            kvsprintf(output, buffer, $0)
+            let output = UnsafeMutablePointer<CChar>.alloc(bufferLen)
+            kvsnprintf(output, bufferLen, buffer, $0)
             result = String.fromCString(output)
             buffer.dealloc(len)
-            output.dealloc(1024)
+            output.dealloc(bufferLen)
         }
 
         if (result == nil) {

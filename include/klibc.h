@@ -26,14 +26,16 @@ typedef int64_t off_t;
 
 // kprintf
 
-int kvsprintf(char *buf, const char *fmt, va_list args) __attribute__ ((format (printf, 2, 0)));
-int ksprintf(char *buf, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+int kvsnprintf(char *buf, size_t size, const char *fmt, va_list args) __attribute__ ((format (printf, 3, 0)));
 int kvprintf(const char *fmt, va_list args) __attribute__ ((format (printf, 1, 0)));
 int kprintf(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 
+// bochs printf
+int bprintf(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+
 
 #ifdef DEBUG
-#define debugf(...) kprintf(__VA_ARGS__)
+#define debugf(...) bprintf(__VA_ARGS__)
 #else
 #define debugf(...) do {} while(0)
 #endif

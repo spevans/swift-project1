@@ -16,8 +16,9 @@
 #endif
 
 
-extern void (early_print_char)(const char ch);
-static char printf_buf[1024];
+extern void early_print_char(const char ch);
+typedef void (*print_char_func)(void *data, char ch);
+
 #define IS_DIGIT(c) (((c) >= '0') && ((c) <= '9'))
 
 /* Flags */
@@ -62,22 +63,53 @@ static char printf_buf[1024];
         `s'		A string.  */
 
 
-int
-kvsprintf(char *buf, const char *fmt, va_list args)
+static inline void
+_print_char(print_char_func print_func, void *data, int *count, const char ch)
+{
+        print_func(data, ch);
+        (*count)++;
+}
+
+
+static inline void
+_print_string(print_char_func print_func, void *data, int *count, const char *str)
+{
+        while(*str) {
+                print_func(data, *str);
+                str++;
+                (*count)++;
+        }
+}
+
+
+static inline void
+_print_repeat(print_char_func print_func, void *data, int *count, const char ch, size_t repeat)
+{
+        while(repeat--) {
+                print_func(data, ch);
+                (*count)++;
+        }
+}
+
+
+static int
+__kvprintf(print_char_func print_func, void *data, const char *fmt, va_list args)
 {
         static const int FALSE = 0;
         static const int TRUE = 1;
-        char c, *orig = buf;
+        char c;
+        int count = 0;
+
         while((c = *fmt++) != 0) {
                 if(c != '%') {
-                        *buf++ = c;
+                        _print_char(print_func, data, &count, c);
                 } else {
                         if(*fmt != '%') {
                                 int flags = 0;
                                 int width = 0;
                                 int precision = 0;
                                 int len = 0, num_len;
-                                unsigned long arg;
+                                uintptr_t arg;
 
                         again:
                                 switch((c = *fmt++)) {
@@ -146,7 +178,7 @@ kvsprintf(char *buf, const char *fmt, va_list args)
                                 } else if(flags & PF_SHORT) {
                                         arg = (int16_t)va_arg(args, int);
                                 } else {
-                                        arg = (int32_t)va_arg(args, int);
+                                        arg = (uintptr_t)va_arg(args, uintptr_t);
                                 }
 
                                 switch(c) {
@@ -158,7 +190,7 @@ kvsprintf(char *buf, const char *fmt, va_list args)
 
                                 case 'n':
                                         /* Store the number of characters output so far in *arg. */
-                                        *(int *)arg = buf - orig;
+                                        *(int *)arg = count;
                                         break;
 
                                 case 'i':
@@ -179,7 +211,7 @@ kvsprintf(char *buf, const char *fmt, va_list args)
                                         digits = "01234567";
                                         radix = 8;
                                         if(flags & PF_HASH) {
-                                                *buf++ = '0';
+                                                _print_char(print_func, data, &count, '0');
                                                 len++;
                                         }
                                         goto do_number;
@@ -189,7 +221,7 @@ kvsprintf(char *buf, const char *fmt, va_list args)
                                         digits = "01";
                                         radix = 2;
                                         if(flags & PF_HASH) {
-                                                buf = stpcpy(buf, "0b");
+                                                _print_string(print_func, data, &count, "0b");
                                                 len += 2;
                                         }
                                         goto do_number;
@@ -206,14 +238,14 @@ kvsprintf(char *buf, const char *fmt, va_list args)
                                 case 'x':
                                         digits = "0123456789abcdef";
                                         if(flags & PF_HASH) {
-                                                buf = stpcpy(buf, "0x");
+                                                _print_string(print_func, data, &count, "0x");
                                                 len += 2;
                                         }
                                         goto do_hex;
                                 case 'X':
                                         digits = "0123456789ABCDEF";
                                         if(flags & PF_HASH) {
-                                                buf = stpcpy(buf, "0x");
+                                                _print_string(print_func, data, &count, "0x");
                                                 len += 2;
                                         }
                                 do_hex:
@@ -224,16 +256,16 @@ kvsprintf(char *buf, const char *fmt, va_list args)
                                 do_number:
                                         if(is_signed) {
                                                 if((long)arg < 0) {
-                                                        *buf++ = '-';
+                                                        _print_char(print_func, data, &count, '-');
                                                         arg = (uint32_t)(0 - (long)arg);
                                                         len++;
                                                 }
                                                 else if(flags & PF_PLUS) {
-                                                        *buf++ = '+';
+                                                        _print_char(print_func, data, &count, '+');
                                                         len++;
                                                 }
                                                 else if(flags & PF_SPC) {
-                                                        *buf++ = ' ';
+                                                        _print_char(print_func, data, &count, ' ');
                                                         len++;
                                                 }
                                         }
@@ -259,43 +291,42 @@ kvsprintf(char *buf, const char *fmt, va_list args)
                                         if(width > len) {
                                                 if(flags & PF_MINUS) {
                                                         /* left justify. */
-                                                        while(tmp != tmpbuf)
-                                                                *buf++ = *(--tmp);
-                                                        memset(buf, ' ', width - len);
-                                                        buf += width - len;
+                                                        while(tmp != tmpbuf) {
+                                                                _print_char(print_func, data, &count, *(--tmp));
+                                                        }
+                                                        _print_repeat(print_func, data, &count, ' ', width - len);
                                                 } else {
-                                                        memset(buf, (flags & PF_ZERO) ? '0' : ' ',
-                                                               width - len);
-                                                        buf += width - len;
-                                                        while(tmp != tmpbuf)
-                                                                *buf++ = *(--tmp);
+                                                        _print_repeat(print_func, data, &count, (flags & PF_ZERO) ? '0' : ' ', width - len);
+                                                        while(tmp != tmpbuf) {
+                                                                _print_char(print_func, data, &count, *(--tmp));
+                                                        }
                                                 }
                                         } else {
-                                                while(tmp != tmpbuf)
-                                                        *buf++ = *(--tmp);
+                                                while(tmp != tmpbuf) {
+                                                        _print_char(print_func, data, &count, *(--tmp));
+                                                }
                                         }
                                         break;
 
                                 case 'c':
                                         if(width > 1) {
                                                 if(flags & PF_MINUS) {
-                                                        *buf = (char)c;
-                                                        memset(buf+1, ' ', width - 1);
-                                                        buf += width;
+                                                        _print_char(print_func, data, &count, c);
+                                                        _print_repeat(print_func, data, &count, ' ', width - 1);
                                                 } else {
-                                                        memset(buf, (flags & PF_ZERO) ? '0' : ' ', width - 1);
-                                                        *buf += width;
-                                                        buf[-1] = (char)c;
+                                                        _print_repeat(print_func, data, &count,
+                                                                      (flags & PF_ZERO) ? '0' : ' ', width - 1);
+                                                        _print_char(print_func, data, &count, c);
                                                 }
                                         } else {
-                                                *buf++ = (char)arg;
+                                                _print_char(print_func, data, &count, (char)arg);
                                         }
                                         break;
 
                                 case 's':
                                 do_string:
                                         if((char *)arg == NULL) {
-                                                arg = (uint64_t)"(nil)";
+                                                arg = (uintptr_t)"(nil)";
                                         }
                                         len = strlen((char *)arg);
                                         if(precision > 0 && len > precision) {
@@ -303,58 +334,87 @@ kvsprintf(char *buf, const char *fmt, va_list args)
                                         }
                                         if(width > 0) {
                                                 if(width <= len) {
-                                                        buf = stpcpy(buf, (char *)arg);
+                                                        _print_string(print_func, data, &count, (char *)arg);
                                                 } else {
                                                         if(flags & PF_MINUS) {
-                                                                buf = stpcpy(buf, (char *)arg);
-                                                                memset(buf, ' ', width - len);
-                                                                buf += width - len;
+                                                                _print_string(print_func, data, &count, (char *)arg);
+                                                                _print_repeat(print_func, data, &count, ' ', width - len);
                                                         } else {
-                                                                memset(buf, (flags & PF_ZERO) ? '0' : ' ',
-                                                                       width - len);
-                                                                buf = stpcpy(buf + (width - len), (char *)arg);
+                                                                _print_repeat(print_func, data, &count, (flags & PF_ZERO) ? '0' : ' ', width - len);
+                                                                _print_string(print_func, data, &count, (char *)arg);
                                                         }
                                                 }
                                         } else {
-                                                memcpy(buf, (char *)arg, len);
-                                                buf += len;
-                                                *buf = 0;
+                                                char *p = (char *)arg;
+                                                while(len--) {
+                                                        print_func(data, *p++);
+                                                        count++;
+                                                }
                                         }
                                         break;
                                 }
                         } else {
-                                *buf++ = *fmt++;
+                                _print_char(print_func, data, &count, *fmt++);
                         }
                 }
         }
-        *buf = 0;
 
-        return buf - orig;
+        return count;
+}
+
+
+struct string_buf {
+        char *data;
+        size_t count;
+        size_t max_len;
+};
+
+
+static void
+b_print_char(void *buf_p, char ch)
+{
+        struct string_buf *buf = buf_p;
+        if (buf->count+1 < buf->max_len) {
+                *(buf->data + buf->count) = ch;
+                buf->count++;
+                *(buf->data + buf->count) = '\0';
+        }
 }
 
 
 int
-ksprintf(char *buf, const char *fmt, ...)
+kvsnprintf(char *buf, size_t size, const char *fmt, va_list args)
+{
+        struct string_buf string_buf = { .data = buf, .count = 0, .max_len = size };
+        *buf = '\0';
+
+        return __kvprintf(b_print_char, &string_buf, fmt, args);
+}
+
+
+int
+ksnprintf(char *buf, size_t size, const char *fmt, ...)
 {
         va_list args;
         va_start(args, fmt);
-        int len = kvsprintf(buf, fmt, args);
+        int len = kvsnprintf(buf, size, fmt, args);
         va_end(args);
 
         return len;
 }
 
 
+static void
+k_print_char(void *data __attribute__((unused)), char ch)
+{
+        early_print_char(ch);
+}
+
+
 int
 kvprintf(const char *fmt, va_list args)
 {
-        int len = kvsprintf(printf_buf, fmt, args);
-        char *text = printf_buf;
-        while(*text) {
-                early_print_char(*text++);
-        }
-
-        return len;
+        return __kvprintf(k_print_char, NULL, fmt, args);
 }
 
 
@@ -363,8 +423,30 @@ kprintf(const char *fmt, ...)
 {
         va_list args;
         va_start(args, fmt);
-        int len = kvprintf(fmt, args);
+        int len = __kvprintf(k_print_char, NULL, fmt, args);
         va_end(args);
 
         return len;
 }
+
+#ifndef TESTS
+// Print to the bochs console, requires 'port_e9_hack: enabled=1' in the bochsrc
+static void
+bochs_print_char(void *data __attribute__((unused)), const char c)
+{
+        outb(0xe9, c);
+}
+
+
+// bprintf, printf but to the bochs console, used by debugf
+int
+bprintf(const char *fmt, ...)
+{
+        va_list args;
+        va_start(args, fmt);
+        int len = __kvprintf(bochs_print_char, NULL, fmt, args);
+        va_end(args);
+
+        return len;
+}
+#endif // TEST
