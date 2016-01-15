@@ -23,6 +23,7 @@ typedef int64_t off_t;
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
 
+extern int int_nest_count;
 
 // kprintf
 

@@ -11,6 +11,7 @@
         EXTERN  trap_dispatch_table
         EXTERN  irq_dispatch_table
         GLOBAL  test_breakpoint
+        GLOBAL  int_nest_count
 
 
         %macro SAVE_REGS  0
@@ -179,6 +180,8 @@ _run_handler:
         ALIGN   16
 _irq_handler:
         cld
+        lock    inc dword [int_nest_count]
+
         SAVE_XMM_REGS
         push    rax
         sub     rsp, 8
@@ -196,8 +199,10 @@ _irq_handler:
         out     0xA0, al
 .pic1only:
         out     0x20, al
+
         RESTORE_XMM_REGS
         RESTORE_REGS
+        lock    dec dword [int_nest_count]
         iretq
 
 
@@ -286,3 +291,27 @@ test_breakpoint:
         pop     rbx
         pop     rbp
         ret
+
+;;; RDI: asciiz msg
+bochs_msg:
+        ret
+        push    rax
+.loop:
+        lodsb
+        test    al, al
+        je      .end
+        out     0xe9, al
+        jmp     .loop
+.end:
+        pop     rax
+        ret
+
+
+
+in_irq:         db      `\n*** Entering IRQ ***\n`, 0
+out_irq:        db      `\n*** Exiting IRQ ***\n`, 0
+
+
+        section .data
+
+int_nest_count: dd      0

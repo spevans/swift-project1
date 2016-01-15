@@ -25,6 +25,7 @@
  *
  */
 
+#include <stdatomic.h>
 #include "klibc.h"
 
 
@@ -46,7 +47,7 @@ struct slab_header {
         uint64_t free_cnt;
         uint64_t allocation_bm[2];
         char signature[8];
-        char padding[8];                // rather wasteful
+        uint64_t checksum;
         char data[4032];                // upto a page
 } __attribute__((aligned(4096),packed));
 
@@ -58,10 +59,30 @@ struct malloc_region {
 };
 
 
+static atomic_int malloc_lock;
 // List of pages that have free slabs on them, 1 list per slab size
 #define SLAB_SIZES 7
 static struct slab_header *slabs[SLAB_SIZES];
 static const int MAX_SLAB_SIZE = 4032;        // Anything over this gets pages
+
+
+static uint64_t
+compute_checksum(struct slab_header *slab)
+{
+        uint64_t *fields = (uint64_t *)slab;
+        uint64_t checksum = 0;
+        for (size_t i = 0; i < 7; i++) {
+                checksum ^= fields[i];
+        }
+        return checksum;
+}
+
+
+static void
+update_checksum(struct slab_header *slab)
+{
+        slab->checksum = compute_checksum(slab);
+}
 
 
 // Convert a page into a slab
@@ -75,6 +96,7 @@ add_new_slab(int slab_idx)
         slab->allocation_bm[1] = 0;
         strcpy(slab->signature, "MALLOC");      // for debugging
         slab->next = slabs[slab_idx];
+        update_checksum(slab);
         slabs[slab_idx] = slab;
 
         return slab;
@@ -84,6 +106,7 @@ add_new_slab(int slab_idx)
 void
 init_mm()
 {
+        atomic_init(&malloc_lock, 0);
         for (size_t i = 0; i < SLAB_SIZES; i++) {
                 add_new_slab(i);
         }
@@ -97,7 +120,12 @@ validate_is_slab(struct slab_header *slab)
         if (strcmp(slab->signature, "MALLOC")) {
                 koops("slab @ %p is not a slab!", slab);
         }
+        if (compute_checksum(slab) != slab->checksum) {
+                koops("slab @ %p has invalid checksum!", slab);
+        }
 }
+
+
 
 
 static int
@@ -138,9 +166,17 @@ bitmap_mask(int slab_idx)
 void *
 malloc(size_t size)
 {
+        void *retval = NULL;
         //debugf("malloc(%lu): ", size);
         if (sizeof(struct slab_header) != PAGE_SIZE) {
                 koops("slab_header is %lu bytes", sizeof(struct slab_header));
+        }
+        if (int_nest_count > 0) {
+                koops("malloc called in interrupt handler");
+        }
+
+        if (atomic_fetch_add(&malloc_lock, 1) != 0) {
+                koops("(malloc)malloc_lock != 0");
         }
 
         if (size > MAX_SLAB_SIZE) {
@@ -148,47 +184,44 @@ malloc(size_t size)
                 struct malloc_region *result = alloc_pages(pages);
                 result->region_size = (pages * PAGE_SIZE) - sizeof(struct malloc_region);
                 debugf("Wanted %lu got %u\n", size, result->region_size);
-                return result->data;
-        }
+                retval = result->data;
+        } else {
+                int slab_idx = map_size_to_idx(size);
+                struct slab_header *slab = slabs[slab_idx];
+                validate_is_slab(slab);
 
-        int slab_idx = map_size_to_idx(size);
-        struct slab_header *slab = slabs[slab_idx];
-        validate_is_slab(slab);
+                uint64_t allocation_mask = bitmap_mask(slab_idx);
+                uint64_t free_bits = slab->allocation_bm[0] ^ allocation_mask;
+                int freebit = __builtin_ffsl(free_bits);
 
-        uint64_t allocation_mask = bitmap_mask(slab_idx);
-        uint64_t free_bits = slab->allocation_bm[0] ^ allocation_mask;
-        int freebit = __builtin_ffsl(free_bits);
-
-        // debugf("slab for idx:%d has [%3lu/%3lu/%0.16lX/%0.16lX/%0.16lX]   ", slab_idx,
-        //        slab->malloc_cnt, slab->free_cnt, slab->allocation_bm[0], free_bits,
-        //        allocation_mask);
-
-        if (unlikely(freebit == 0)) {
-                slab = add_new_slab(slab_idx);
-                debugf(" got new slab @ %p ", slab);
-                free_bits = slab->allocation_bm[0] ^ allocation_mask;
-                freebit = __builtin_ffsl(free_bits);
-                if(unlikely(freebit == 0)) {
-                        koops("new slab for idx:%d has filled up [%"PRIu64 "/%"PRIu64" /%"PRIX64 "]!", slab_idx,
-                              slab->malloc_cnt, slab->free_cnt, slab->allocation_bm[0]);
+                if (unlikely(freebit == 0)) {
+                        slab = add_new_slab(slab_idx);
+                        debugf(" got new slab @ %p ", slab);
+                        free_bits = slab->allocation_bm[0] ^ allocation_mask;
+                        freebit = __builtin_ffsl(free_bits);
+                        if(unlikely(freebit == 0)) {
+                                koops("new slab for idx:%d has filled up [%"PRIu64 "/%"PRIu64" /%"PRIX64 "]!", slab_idx,
+                                      slab->malloc_cnt, slab->free_cnt, slab->allocation_bm[0]);
+                        }
                 }
+                freebit--;
+                size_t offset = freebit * slab_info[slab_idx].slab_size;
+                retval = &slab->data[offset];
+
+                uint64_t free_mask = (uint64_t)1 << freebit;
+                slab->allocation_bm[0] |= free_mask;
+                slab->malloc_cnt++;
+                update_checksum(slab);
+                debugf("malloc(%lu)=%p slab=%p offset=%lx [%"PRIu64 "/%"PRIu64"]\n",
+                       size, retval, slab, offset, slab->malloc_cnt, slab->free_cnt);
         }
-        freebit--;
-        size_t offset = freebit * slab_info[slab_idx].slab_size;
-        void *result = &slab->data[offset];
-
-        uint64_t free_mask = (uint64_t)1 << freebit;
-        //debugf("free_mask = %16lx allocation_bm = %16lx\n", free_mask,slab->allocation_bm[0]);
-        slab->allocation_bm[0] |= free_mask;
-        slab->malloc_cnt++;
-
-        debugf("malloc(%lu)=%p slab=%p offset=%lx [%"PRIu64 "/%"PRIu64"]\n",
-                size, result, slab, offset, slab->malloc_cnt, slab->free_cnt);
-        return result;
+        if (atomic_fetch_sub(&malloc_lock, 1) != 1) {
+                koops("(malloc)malloc_lock != 1");
+        }
+        return retval;
 }
 
 
-// Doesnt currently work if the page being freed came from alloc_pages()
 void
 free(void *ptr)
 {
@@ -196,38 +229,51 @@ free(void *ptr)
         if (unlikely(ptr == NULL)) {
                 return;
         }
+        if (int_nest_count > 0) {
+                koops("malloc called in interrupt handler");
+        }
+
+        if (atomic_fetch_add(&malloc_lock, 1) != 0) {
+                koops("(free)malloc_lock != 0");
+        }
 
         uint64_t p = (uint64_t)ptr;
         struct slab_header *slab = (struct slab_header *)(p & ~PAGE_MASK);
         if (!region_is_slab(slab)) {
                 size_t pages = (slab->slab_size + sizeof(struct malloc_region)) / PAGE_SIZE;
                 free_pages(slab, pages);
-                return;
-        }
-        validate_is_slab(slab);
-        debugf("slab=%p ", slab);
-        debugf("size=%u  ", slab->slab_size);
-        size_t offset = (ptr - (void *)slab);
-        debugf("offset=%"PRIu64, offset);
-        if (unlikely(offset < 64)) {
-                koops("free(%p) offset = %lu", ptr, offset);
-        }
-        if (unlikely((offset - 64) % slab->slab_size)) {
-                koops("free(%p) is not on a valid boundary for slab size of %u (%lx)",
-                      ptr, slab->slab_size, offset - 64);
-        }
-        int bit_idx = (offset-64) / slab->slab_size;
-        uint64_t bitmap_mask = (uint64_t)1 << bit_idx;
-        debugf("  bit_idx = %d mask=%"PRIx64, bit_idx, bitmap_mask);
-        if (likely(slab->allocation_bm[0] & bitmap_mask)) {
-                slab->allocation_bm[0] &= ~bitmap_mask;
-                slab->free_cnt++;
-                debugf(" alloc_bm = %"PRIx64 " freecnt=%"PRIu64 " ok\n", slab->allocation_bm[0], slab->free_cnt);
         } else {
-                koops("%p is not allocated, alloc=%"PRIx64 " mask = %"PRIx64,
-                      ptr, slab->allocation_bm[0], bitmap_mask);
+                validate_is_slab(slab);
+                debugf("slab=%p ", slab);
+                debugf("cs=%"PRIx64 "\n", slab->checksum);
+                debugf("size=%u  ", slab->slab_size);
+                size_t offset = (ptr - (void *)slab);
+                debugf("offset=%"PRIu64, offset);
+                if (unlikely(offset < 64)) {
+                        koops("free(%p) offset = %lu", ptr, offset);
+                }
+                if (unlikely((offset - 64) % slab->slab_size)) {
+                        koops("free(%p) is not on a valid boundary for slab size of %u (%lx)",
+                              ptr, slab->slab_size, offset - 64);
+                }
+                int bit_idx = (offset-64) / slab->slab_size;
+                uint64_t bitmap_mask = (uint64_t)1 << bit_idx;
+                debugf("  bit_idx = %d mask=%"PRIx64, bit_idx, bitmap_mask);
+                if (likely(slab->allocation_bm[0] & bitmap_mask)) {
+                        slab->allocation_bm[0] &= ~bitmap_mask;
+                        slab->free_cnt++;
+                        debugf(" alloc_bm = %"PRIx64 " freecnt=%"PRIu64 " ", slab->allocation_bm[0], slab->free_cnt);
+                } else {
+                        koops("%p is not allocated, alloc=%"PRIx64 " mask = %"PRIx64,
+                              ptr, slab->allocation_bm[0], bitmap_mask);
+                }
+                memset(ptr, 0xAA, slab->slab_size);
+                update_checksum(slab);
+                debugf("cs=%"PRIx64 "\n", slab->checksum);
         }
-        memset(ptr, 0xAA, slab->slab_size);
+        if (atomic_fetch_sub(&malloc_lock, 1) != 1) {
+                koops("(free)malloc_lock != 1");
+        }
 }
 
 
@@ -237,11 +283,23 @@ UNIMPLEMENTED(malloc_default_zone)
 size_t
 malloc_usable_size(void *ptr)
 {
+        if (atomic_fetch_add(&malloc_lock, 1) != 0) {
+                koops("(usable_size)malloc_lock != 0");
+        }
+        if (int_nest_count > 0) {
+                koops("malloc called in interrupt handler");
+        }
+
         debugf("%s: %p ", __func__, ptr);
         uint64_t p = (uint64_t)ptr;
         struct slab_header *slab = (struct slab_header *)(p & ~PAGE_MASK);
-        debugf("size = %u\n", slab->slab_size);
-        return slab->slab_size;
+        size_t retval = slab->slab_size;
+        debugf("size = %lu\n", retval);
+        if (atomic_fetch_sub(&malloc_lock, 1) != 1) {
+                koops("(usable_size)malloc_lock != 1");
+        }
+
+        return retval;
 }
 
 

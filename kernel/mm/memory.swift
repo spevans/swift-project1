@@ -1,7 +1,7 @@
 /*
  * kernel/mm/memory.swift
  *
- * Created by Simon Evans on 24x/12/2015.
+ * Created by Simon Evans on 24/12/2015.
  * Copyright © 2015 Simon Evans. All rights reserved.
  *
  * Initial setup for available physical memory etc
