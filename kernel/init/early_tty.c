@@ -13,8 +13,8 @@
 
 
 void early_print_char(const char c);
-static void early_print_string(const char *text);
-static void early_print_string_len(const char *text, size_t len);
+void early_print_string(const char *text);
+void early_print_string_len(const char *text, size_t len);
 
 // Initialise the function pointers, later updated to point to TTY.swift
 void (*print_char)(const char) = early_print_char;
@@ -98,7 +98,7 @@ early_print_char(const char c)
 }
 
 
-static void
+void
 early_print_string_len(const char *text, size_t len)
 {
         while(len--) {
@@ -107,7 +107,7 @@ early_print_string_len(const char *text, size_t len)
 }
 
 
-static void
+void
 early_print_string(const char *text)
 {
         while(*text) {

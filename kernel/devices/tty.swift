@@ -86,6 +86,15 @@ public class TTY {
     }
 
 
+    public static func printString(string: StaticString) {
+        if string.hasPointerRepresentation {
+            for ch in UnsafeBufferPointer(start: string.utf8Start, count: Int(string.byteSize)) {
+                printChar(CChar(ch))
+            }
+        }
+    }
+
+
     public static func printCStringLen(string: UnsafePointer<CChar>, length: Int) {
         let buffer = UnsafeBufferPointer(start: string, count: length)
         for ch in buffer {
@@ -184,6 +193,18 @@ public class TTY {
         printString("\n12\t12345678\t12345\t123456789\t12\t12\t0\n")
         printString("12345678123456781234567812345678123456781234567812345678123456780")
         printString("\n\n\nNewLine\n\n\n")
+    }
+}
+
+
+public func kprint(string: StaticString) {
+    early_print_string_len(UnsafePointer<Int8>(string.utf8Start), string.byteSize)
+}
+
+
+public func kprintf(format: StaticString, _ arguments: CVarArgType...) {
+    withVaList(arguments) {
+        kvlprintf(UnsafePointer<Int8>(format.utf8Start), format.byteSize, $0)
     }
 }
 

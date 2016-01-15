@@ -92,27 +92,50 @@ _print_repeat(print_char_func print_func, void *data, int *count, const char ch,
 }
 
 
+static inline char
+next_char(const char **s, size_t *len)
+{
+        if (**s == '\0' || *len == 0) {
+                return 0;
+        }
+        char ch = **s;
+        (*len)--;
+        (*s)++;
+
+        return ch;
+}
+
+
 static int
-__kvprintf(print_char_func print_func, void *data, const char *fmt, va_list args)
+__kvprintf(print_char_func print_func, void *data, const char *fmt, size_t fmtlen, va_list args)
 {
         static const int FALSE = 0;
         static const int TRUE = 1;
         char c;
         int count = 0;
 
-        while((c = *fmt++) != 0) {
+        while((c = next_char(&fmt, &fmtlen)) != 0) {
                 if(c != '%') {
                         _print_char(print_func, data, &count, c);
                 } else {
-                        if(*fmt != '%') {
+                        c = next_char(&fmt, &fmtlen);
+                        if (c == 0) { // Error, incomplete format string
+                                return -1;
+                        } else if(c != '%') {
                                 int flags = 0;
                                 int width = 0;
                                 int precision = 0;
                                 int len = 0, num_len;
                                 uintptr_t arg;
+                                fmt--;
+                                fmtlen++;
 
                         again:
-                                switch((c = *fmt++)) {
+                                c = next_char(&fmt, &fmtlen);
+                                if (c == 0) {
+                                        return -1;
+                                }
+                                switch(c) {
                                 case '-':
                                         flags |= PF_MINUS;
                                         goto again;
@@ -142,9 +165,13 @@ __kvprintf(print_char_func print_func, void *data, const char *fmt, va_list args
                                 case '6': case '7': case '8': case '9':
                                         while(IS_DIGIT(c)) {
                                                 width = width * 10 + (c - '0');
-                                                c = *fmt++;
+                                                c = next_char(&fmt, &fmtlen);
+                                                if (c == 0) {
+                                                        return -1;
+                                                }
                                         }
                                         fmt--;
+                                        fmtlen++;
                                         goto again;
 
                                 case 'h':
@@ -157,14 +184,22 @@ __kvprintf(print_char_func print_func, void *data, const char *fmt, va_list args
                                         goto again;
 
                                 case '.':
-                                        if((c = *fmt++) == '*') {
+                                        c = next_char(&fmt, &fmtlen);
+                                        if (c == 0) {
+                                                return -1;
+                                        }
+                                        if(c == '*') {
                                                 precision = va_arg(args, int);
                                         } else {
                                                 while(IS_DIGIT(c)) {
                                                         precision = precision * 10 + (c - '0');
-                                                        c = *fmt++;
+                                                        c = next_char(&fmt, &fmtlen);
+                                                        if (c == 0) {
+                                                                return -1;
+                                                        }
                                                 }
                                                 fmt--;
+                                                fmtlen++;
                                         }
                                         goto again;
 
@@ -354,7 +389,7 @@ __kvprintf(print_char_func print_func, void *data, const char *fmt, va_list args
                                         break;
                                 }
                         } else {
-                                _print_char(print_func, data, &count, *fmt++);
+                                _print_char(print_func, data, &count, c);
                         }
                 }
         }
@@ -388,7 +423,7 @@ kvsnprintf(char *buf, size_t size, const char *fmt, va_list args)
         struct string_buf string_buf = { .data = buf, .count = 0, .max_len = size };
         *buf = '\0';
 
-        return __kvprintf(b_print_char, &string_buf, fmt, args);
+        return __kvprintf(b_print_char, &string_buf, fmt, SIZE_MAX, args);
 }
 
 
@@ -414,16 +449,22 @@ k_print_char(void *data __attribute__((unused)), char ch)
 int
 kvprintf(const char *fmt, va_list args)
 {
-        return __kvprintf(k_print_char, NULL, fmt, args);
+        return __kvprintf(k_print_char, NULL, fmt, SIZE_MAX, args);
 }
 
+
+int
+kvlprintf(const char *fmt, size_t len, va_list args)
+{
+        return __kvprintf(k_print_char, NULL, fmt, len, args);
+}
 
 int
 kprintf(const char *fmt, ...)
 {
         va_list args;
         va_start(args, fmt);
-        int len = __kvprintf(k_print_char, NULL, fmt, args);
+        int len = __kvprintf(k_print_char, NULL, fmt, SIZE_MAX, args);
         va_end(args);
 
         return len;
@@ -438,13 +479,21 @@ bochs_print_char(void *data __attribute__((unused)), const char c)
 }
 
 
+void
+bochs_print_string(const char *str)
+{
+        while(*str) {
+                outb(0xe9, *str++);
+        }
+}
+
 // bprintf, printf but to the bochs console, used by debugf
 int
 bprintf(const char *fmt, ...)
 {
         va_list args;
         va_start(args, fmt);
-        int len = __kvprintf(bochs_print_char, NULL, fmt, args);
+        int len = __kvprintf(bochs_print_char, NULL, fmt, SIZE_MAX, args);
         va_end(args);
 
         return len;

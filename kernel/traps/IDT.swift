@@ -146,5 +146,5 @@ public func setupIDT() {
 
 
 func unexpectedInterrupt() {
-    print("unexpected interrupt")
+    kprint("unexpected interrupt\n")
 }

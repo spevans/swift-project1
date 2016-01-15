@@ -59,7 +59,8 @@ public class PIC8259 {
 
     static func enableIRQ(irq: Int) {
         guard irq < 16 else {
-            koops("Enabling invalid IRQ: \(irq)")
+            kprintf("Enabling invalid IRQ: %2.2x\n", irq)
+            return
         }
         if (irq <= 7) {
             var mask = inb(PIC1Data)
@@ -75,7 +76,8 @@ public class PIC8259 {
 
     static func disableIRQ(irq: Int) {
         guard irq < 16 else {
-            koops("Enabling invalid IRQ: \(irq)")
+            kprintf("Enabling invalid IRQ: %2.2x\n", irq)
+            return
         }
         if (irq <= 7) {
             var mask = inb(PIC1Data)
@@ -91,7 +93,8 @@ public class PIC8259 {
 
     public static func sendEOI(irq: Int) {
         guard irq < 16 else {
-            koops("EOI invalid IRQ: \(irq)")
+            kprintf("EOI invalid IRQ: %2.2x\n", irq)
+            return
         }
         if (irq > 7) {
             outb(PIC2Cmd, EOI)
