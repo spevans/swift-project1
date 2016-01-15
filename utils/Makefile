@@ -1,6 +1,6 @@
 TOPDIR := ..
 include $(TOPDIR)/Makedefs
-
+SWIFTC := $(SWIFTDIR)/usr/bin/swiftc
 
 all: mkdiskimg
 
