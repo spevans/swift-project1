@@ -480,10 +480,14 @@ bochs_print_char(void *data __attribute__((unused)), const char c)
 
 
 void
-bochs_print_string(const char *str)
+bochs_print_string(const char *str, size_t len)
 {
         while(*str) {
+                if (len == 0) {
+                        return;
+                }
                 outb(0xe9, *str++);
+                len--;
         }
 }
 

@@ -72,7 +72,7 @@ void early_print_string_len(const char *text, size_t len);
 int kvprintf(const char *fmt, va_list args) __attribute__ ((format (printf, 1, 0)));
 int kvsnprintf(char *buf, size_t size, const char *fmt, va_list args) __attribute__ ((format (printf, 3, 0)));
 int kvlprintf(const char *fmt, size_t len, va_list args);
-
+void bochs_print_string(const char *str, size_t len);
 void dump_registers(struct exception_regs *registers);
 
 #endif  // __KERNEL_H__

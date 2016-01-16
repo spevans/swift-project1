@@ -66,6 +66,11 @@ class PCIDeviceFunction {
 
     func subFunctions() -> [PCIDeviceFunction]? {
         var functions: [PCIDeviceFunction] = []
+        // FIXME: Reserve the capacitiy for now, shouldnt really be needed as elements
+        // are just appended and there arent many of them. Seems to mask a bug in VMWare
+        // when too many elements are added when optimisations are enabled. Probably a
+        // bug lower down in possibly malloc or mem* functions or something
+        functions.reserveCapacity(8)
         if (headerType & 0x80) == 0x80 {
             for fidx: UInt8 in 1..<8 {
                 if let dev = PCIDeviceFunction(bus: bus, device: device, function: fidx) {
@@ -86,7 +91,7 @@ public class PCI {
 
 
     static func printDev(pciDev: PCIDeviceFunction) {
-        printf("%2.2X:%2.2X/%d: %4.4X:%4.4X [%2.2X%2.2X] HT: %2.2X\n",
+        kprintf("%2.2X:%2.2X/%d: %4.4X:%4.4X [%2.2X%2.2X] HT: %2.2X\n",
             pciDev.bus, pciDev.device, pciDev.function, pciDev.vendor, pciDev.deviceId, pciDev.classCode, pciDev.subClassCode,
             pciDev.headerType)
     }

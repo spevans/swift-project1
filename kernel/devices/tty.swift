@@ -202,6 +202,11 @@ public func kprint(string: StaticString) {
 }
 
 
+public func bprint(string: StaticString) {
+    bochs_print_string(UnsafePointer<Int8>(string.utf8Start), string.byteSize)
+}
+
+
 public func kprintf(format: StaticString, _ arguments: CVarArgType...) {
     withVaList(arguments) {
         kvlprintf(UnsafePointer<Int8>(format.utf8Start), format.byteSize, $0)
