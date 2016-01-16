@@ -160,10 +160,7 @@ public class PIT8254 {
 
 var ticks: UInt64 = 0;
 func timerInterrupt() {
-    ticks += 1;
-    if (ticks % 8000) == 0 {
-        kprint("timer_interrupt\n")
-    }
+    // Do nothing for now
 }
 
 
