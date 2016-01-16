@@ -16,8 +16,11 @@
 
 
 // FIXME when strideof can be used with arrays
-let idtSize = Int(NR_INTERRUPTS) * sizeof(idt_entry)
+private let idtSize = Int(NR_INTERRUPTS) * sizeof(idt_entry)
 private var idtInfo = dt_info(limit: UInt16(idtSize - 1), address: &idt)
+
+private let irqDispatchTablePtr = UnsafeMutablePointer<irq_handler>(irq_dispatch_table_addr)
+private let irqDispatchTable = UnsafeMutableBufferPointer(start: irqDispatchTablePtr, count:Int(NR_IRQS))
 
 
 enum GateType: UInt8 {
@@ -110,27 +113,16 @@ public func setupIDT() {
     idt.46 = IDTEntry(address: UInt64(irq14_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
     idt.47 = IDTEntry(address: UInt64(irq15_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
 
-    irq_dispatch_table.0 = timerInterrupt
-    irq_dispatch_table.1 = unexpectedInterrupt
-    irq_dispatch_table.2 = unexpectedInterrupt
-    irq_dispatch_table.3 = unexpectedInterrupt
-    irq_dispatch_table.4 = unexpectedInterrupt
-    irq_dispatch_table.5 = unexpectedInterrupt
-    irq_dispatch_table.6 = unexpectedInterrupt
-    irq_dispatch_table.7 = unexpectedInterrupt
-    irq_dispatch_table.8 = unexpectedInterrupt
-    irq_dispatch_table.9 = unexpectedInterrupt
-    irq_dispatch_table.10 = unexpectedInterrupt
-    irq_dispatch_table.11 = unexpectedInterrupt
-    irq_dispatch_table.12 = unexpectedInterrupt
-    irq_dispatch_table.13 = unexpectedInterrupt
-    irq_dispatch_table.14 = unexpectedInterrupt
-    irq_dispatch_table.15 = unexpectedInterrupt
+
+    for idx in 0..<irqDispatchTable.endIndex {
+        irqDispatchTable[idx] = unexpectedInterrupt
+    }
 
     // Set the timer interrupt for 8000Hz
     PIT8254.setChannel(PIT8254.TimerChannel.CHANNEL_0, mode: PIT8254.OperatingMode.MODE_3, hz: 8000)
     PIT8254.showStatus()
-    PIC8259.enableIRQ(0)
+    setIrqHandler(0, handler: timerInterrupt)
+
     print("Enabling IRQs")
     sti()
 
@@ -142,6 +134,18 @@ public func setupIDT() {
     // Test Null page read fault
     //let p = UnsafePointer<UInt8>(bitPattern: 0x123)
     //print("Null: \(p.memory)")
+}
+
+
+public func setIrqHandler(irq: Int, handler: irq_handler) {
+    irqDispatchTable[irq] = handler
+    PIC8259.enableIRQ(irq)
+}
+
+
+public func removeIrqHandler(irq: Int) {
+    PIC8259.disableIRQ(irq)
+    irqDispatchTable[irq] = unexpectedInterrupt
 }
 
 

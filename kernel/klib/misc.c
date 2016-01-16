@@ -56,6 +56,7 @@ EXPORT_SYMBOL_TO_SWIFT(irq12_stub);
 EXPORT_SYMBOL_TO_SWIFT(irq13_stub);
 EXPORT_SYMBOL_TO_SWIFT(irq14_stub);
 EXPORT_SYMBOL_TO_SWIFT(irq15_stub);
+const void *irq_dispatch_table_addr = &irq_dispatch_table;
 
 
 void

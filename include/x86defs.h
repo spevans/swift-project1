@@ -63,7 +63,8 @@ struct exception_regs {
 #define NR_IRQS 16      // hardware IRQs
 extern struct idt_entry idt[NR_INTERRUPTS];
 extern void (*trap_dispatch_table[NR_TRAPS])(struct exception_regs *);
-extern void (*irq_dispatch_table[NR_IRQS])();
 
+typedef void (*irq_handler)(void);
+extern irq_handler irq_dispatch_table[];
 
 #endif  // __X86_DEFS_H__
