@@ -16,48 +16,51 @@ private var gdtInfo = dt_info(limit: UInt16(strideof(theGDT) - 1), address: &gdt
 
 
 // Helper method to construct a GDT entry
-private func GDTEntry(base base: UInt64, limit: UInt64, privLevel: UInt, executable: Bool,
+private func GDTEntry(base base: UInt32, privLevel: UInt, executable: Bool,
     conforming: Bool, readWrite: Bool) -> UInt64 {
 
-        let word0 = limit & 0xffff
-        let word1 = base & 0xffff
+        let loWord = (base << 16) & 0xffff0000   // limit is ignored so set to 0
 
-        var accessByte: UInt64 = 0
-        accessByte |= readWrite ? 2 : 0
-        accessByte |= conforming ? 4 : 0
-        accessByte |= executable ? 8 : 0
-        accessByte |= 16    // must be 1
-        accessByte |= UInt64((privLevel & 3) << 5)
-        accessByte |= 128   // present bit
-        accessByte <<= 8
-        let word2 = ((base >> 16) & 0xff) | accessByte
+        var accessByte: UInt32 = 0
+        accessByte |= readWrite ? 1 << 9 : 0
+        accessByte |= conforming ? 1 << 10 : 0
+        accessByte |= executable ? 1 << 11 : 0
+        accessByte |= 1 << 12    // must be 1    // code/data segment
+        accessByte |= UInt32((privLevel & 3) << 13)
+        accessByte |= 1 << 15   // present bit
+
+        var hiWord = ((base >> 16) & 0xff) | accessByte
 
         // Granularity = 0 (bytes) Sz = 1 (32bit)
-        let flags: UInt64 = executable ? 0x20 : 0
-        let word3: UInt64 = 0 | flags
-        let entry = word0 | word1 << 16 | word2 << 32 | word3 << 48
+        hiWord |= executable ? 1 << 21 : 0
+        hiWord |= (base & 0xff000000)
 
+        let entry = UInt64(hiWord) << 32 | UInt64(loWord)
+        kprintf("entry = %p\n", entry)
         return entry;
 }
 
 
-struct theGDT {
+private struct theGDT {
     var nullDescriptor = 0
-    var codeSeg = GDTEntry(base: 0, limit: 0, privLevel: 0, executable: true, conforming: false, readWrite: true)
-    var dataSeg = GDTEntry(base: 0, limit: 0, privLevel: 0, executable: false, conforming: false, readWrite: true)
-    var TLSSeg = GDTEntry(base: 0x1ff8, limit: 0, privLevel: 0, executable: false, conforming: false, readWrite: true)
+    var codeSeg = GDTEntry(base: 0, privLevel: 0, executable: true, conforming: false, readWrite: true)
+    var dataSeg = GDTEntry(base: 0, privLevel: 0, executable: false, conforming: false, readWrite: true)
+    var TLSSeg = GDTEntry(base: UInt32(initial_tls_end_addr), privLevel: 0, executable: false, conforming: false, readWrite: true)
 }
 
 
 public func setupGDT() {
-    print("Initialising GDT:")
+    kprint("Initialising GDT:")
+    let tlsPtr = UnsafeMutablePointer<UInt>(bitPattern: initial_tls_end_addr)
+    tlsPtr.memory = initial_tls_end_addr
+
     var currentGdtInfo = dt_info(limit: 0, address: nil)
     sgdt(&currentGdtInfo)
-    printf("Current GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.limit)
+    kprintf("Current GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.limit)
     lgdt(&gdtInfo)
 
     // Below is not really needed except to validate that the setup worked ok
     sgdt(&currentGdtInfo)
-    printf("New GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.limit)
+    kprintf("New GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.limit)
     reload_segments()
 }

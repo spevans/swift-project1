@@ -7,6 +7,7 @@ STACK_SIZE = 2 * PAGE_SIZE;
 SECTIONS
 {
   .text.start (0x40100000) : {
+    _kernel_start = .;
     _text_start = .;
     kernel/kernel.o( .text )
     *(.text .text.*)

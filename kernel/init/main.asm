@@ -16,6 +16,7 @@
         extern _bss_start
         extern _kernel_end
         extern _TF11SwiftKernel7startupFT_T_ ; SwiftKernel.startup () -> ()
+        extern initial_tls_end_addr
 
         global main
 
@@ -33,11 +34,30 @@ main:
         rep     stosq
         call    enable_sse
 
-        ;; Setup TLS
+        ;; Setup TLS - Update the GDT entry for select 0x18 to have the address
+        ;; of initial_tls_end which is allocated in the bss for the 1st TLS
+        sgdt    [tempgdt]
+        mov     ebx, [tempgdt.base]
+        add     ebx, 0x18
+        xor     rdx, rdx
+        mov     eax, [initial_tls_end_addr]
+        mov     edx, eax
+        mov     [eax], eax
+        mov     ecx, eax
+        shl     ecx, 16         ; ecx hold low 32bit of descriptor (limit  = 0)
+        mov     [ebx], ecx
+        mov     ecx, eax
+        shr     ecx, 16
+        and     ecx, 0xff
+        or      ecx, 0x9200
+        and     eax, 0xff000000
+        or      eax, ecx
+        mov     [ebx+4], eax
+
         mov     ax,0x18
         mov     fs,ax
-        mov     rax, 0x1FF8
-        mov     [fs:0], rax
+
+        mov     [fs:0], rdx
 
         call    init_mm                 ; required for malloc/free
         call    _TF11SwiftKernel7startupFT_T_   ; SwiftKernel.startup
@@ -54,3 +74,10 @@ enable_sse:
         or      ax, 3 << 9		; Set CR4.OSFXSR and CR4.OSXMMEXCPT
         mov     cr4, rax
         ret
+
+
+        SECTION .bss
+
+tempgdt:
+.length:        resw    1
+.base:          resq    1

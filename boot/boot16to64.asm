@@ -119,7 +119,7 @@ GDT:
         ;; Data descriptor, base=0, limit=0 Present, Ring 0, RW Longmode
         dq      0x0000920000000000
         ;; TLS descriptor, base=0x1FF8, limit=0 Present, Ring 0, RW Longmode
-        dq      0x000092001FF80000
+        dq      0x0000920000000000
 
 
  .pointer:

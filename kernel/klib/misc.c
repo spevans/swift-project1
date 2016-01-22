@@ -21,6 +21,8 @@ EXPORT_SYMBOL_TO_SWIFT(_data_start);
 EXPORT_SYMBOL_TO_SWIFT(_data_end);
 EXPORT_SYMBOL_TO_SWIFT(_bss_start);
 EXPORT_SYMBOL_TO_SWIFT(_bss_end);
+EXPORT_SYMBOL_TO_SWIFT(_kernel_start);
+EXPORT_SYMBOL_TO_SWIFT(_kernel_end);
 EXPORT_SYMBOL_TO_SWIFT(divide_by_zero_stub);
 EXPORT_SYMBOL_TO_SWIFT(debug_exception_stub);
 EXPORT_SYMBOL_TO_SWIFT(nmi_stub);

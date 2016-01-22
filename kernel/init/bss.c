@@ -10,8 +10,16 @@
  *
  */
 
-#include "kernel.h"
+
 #include "klibc.h"
+
+
+#define bss_page  __attribute__((__section__(".bss..allocated_pages"))) __attribute__((aligned(PAGE_SIZE)))
+
+// This is a hardcoded tls section so the TLS selector can be setup early. Should really be sized to the
+// .tbss + .tdata sections but this is more than is needed for now
+uint64_t initial_tls[8];
+const void *initial_tls_end_addr = &initial_tls[7];
 
 // Interrupt Descriptor Table - Swift doesnt support fixed length arrays yet
 struct idt_entry idt[NR_INTERRUPTS]  __attribute__((aligned(PAGE_SIZE)));
