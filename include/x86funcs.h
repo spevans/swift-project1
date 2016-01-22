@@ -124,6 +124,31 @@ inl(uint16_t port)
 }
 
 
+// Returns a pointer to the char array for ease of converting to a String
+static inline const char *
+cpuid(const uint32_t function, struct cpuid_result *result)
+{
+        uint32_t eax, ebx, ecx, edx;
+        asm volatile ("cpuid"
+                      : "=a" (eax), "=b" (ebx), "=c" (ecx), "=d" (edx)
+                      : "a" (function)
+                      :);
+        result->u.regs.eax = eax;
+        result->u.regs.ebx = ebx;
+        if (function == 0) {
+                result->u.regs.ecx = edx;
+                result->u.regs.edx = ecx;
+        } else {
+                result->u.regs.ecx = ecx;
+                result->u.regs.edx = edx;
+        }
+
+        result->u.bytes[32] = '\0';
+
+        return result->u.bytes;
+}
+
+
 static inline uintptr_t
 getCR2()
 {

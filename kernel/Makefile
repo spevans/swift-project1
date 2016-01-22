@@ -8,6 +8,7 @@ SWIFT_SRCS :=	init/startup.swift		\
 		klib/Extensions.swift		\
 		klib/MemoryBufferReader.swift	\
 		mm/memory.swift			\
+		devices/cpu.swift		\
 		devices/PCI.swift		\
 		devices/tty.swift		\
 		devices/pit8254.swift		\

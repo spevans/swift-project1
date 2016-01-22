@@ -57,6 +57,21 @@ struct exception_regs {
         uint64_t ss;
 };
 
+
+struct cpuid_result {
+        union {
+                struct {
+                        uint32_t eax;
+                        uint32_t ebx;
+                        uint32_t ecx;
+                        uint32_t edx;
+                } regs;
+                // Used to access the result as a string
+                // for functions returning cpu name etc
+                char bytes[33];
+        } u;
+};
+
 // NR_INTERRUPTS is a #define and seems to be mapped to an Int32
 #define NR_INTERRUPTS  256
 #define NR_TRAPS 32     // CPU faults and exceptions 0 - 31

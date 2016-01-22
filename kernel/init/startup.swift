@@ -17,6 +17,7 @@ public func startup() {
     let params = BootParams()
     params.print()
     PCI.scanPCI()
+    CPU.description()
     print("Hello world")
 
     // Idle, woken up by interrupts
