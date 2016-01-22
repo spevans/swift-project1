@@ -27,6 +27,7 @@
 
 #include <stdatomic.h>
 #include "klibc.h"
+#include "mm.h"
 
 
 struct slab_block_info {

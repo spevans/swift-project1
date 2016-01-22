@@ -22,6 +22,12 @@
 
         ;; Entry point after switching to Long Mode
 main:
+        mov     rax, cr3
+        and     rax, ~(4096-1)
+        mov     rbx, [rax]
+        mov     qword [rbx], 0
+        invlpg  [rbx]
+
         mov     rsp, _kernel_stack      ; Set the stack to just after the BSS
         mov     rbp, rsp
 

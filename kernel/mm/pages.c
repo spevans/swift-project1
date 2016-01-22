@@ -9,13 +9,14 @@
  */
 
 #include "klibc.h"
+#include "mm.h"
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 const unsigned long vm_page_mask = PAGE_MASK;
 // Use BSS for alloc_pages() for now
 static const size_t MAX_PAGES = 2048;
-static char pages[MAX_PAGES][4096]  __attribute__((aligned(4096)));
+static char pages[MAX_PAGES][PAGE_SIZE]  __attribute__((aligned(PAGE_SIZE)));
 static size_t next_free_page = 0;
 
 

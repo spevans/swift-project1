@@ -8,7 +8,6 @@
  *
  */
 
-
 public class CPU {
     static var maxBasicInput :UInt32 = 0
     static var maxExtendedInput: UInt32 = 0
@@ -47,7 +46,6 @@ public class CPU {
 
 
     static func description() {
-        getInfo()
         printf("maxBasicInput: %#x maxExtendedInput: %#x\n[\(vendorName)] [\(processorBrandString)]\n",
             maxBasicInput, maxExtendedInput);
         print("1GPages = \(pages1G)")

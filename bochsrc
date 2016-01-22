@@ -6,3 +6,4 @@ pci: enabled=1, chipset=i440fx, slot1=cirrus
 cpu: reset_on_triple_fault=0
 port_e9_hack: enabled=1
 magic_break: enabled=1
+cpuid: 1g_pages=1

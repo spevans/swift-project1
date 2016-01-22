@@ -38,16 +38,15 @@ SECTIONS
   .tdata          : { *(.tdata .tdata.* .gnu.linkonce.td.*) }
   .tbss           : { *(.tbss .tbss.* .gnu.linkonce.tb.*) *(.tcommon) }
 
-  .bss : {
+  .bss ALIGN(0x1000) : {
     _bss_start = .;
+    *(.bss..allocated_pages)
     *(.bss .bss.*)
-    _bss_end = .;
-  }
-
-  .stacks : ALIGN(0x1000) {
+    . = ALIGN(PAGE_SIZE);
     _stack_start = .;
     . += STACK_SIZE;
     _kernel_stack = .;          /* Top of stack so label comes after */
+    _bss_end = .;
   }
 
   . = ALIGN(PAGE_SIZE);

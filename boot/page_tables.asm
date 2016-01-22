@@ -5,7 +5,10 @@
 ;;; Setup 4 level page tables with the PGD at 0x3000
 ;;; Identity maps the first 16MB so only needs 1 entry
 ;;; in the PML4/PDP 8 in the PD and 4096 PTEs in the PT
-;;; Also maps the first 16MB at the 1GB mark
+;;; Also maps the first 16MB at the 1GB mark and at the
+;;; 128GB mark for a view of physical memory
+;;; (extended to cover all memory when tables are setup
+;;; in swift)
 
 PAGE_PRESENT    EQU     1
 PAGE_WRITEABLE  EQU     2
@@ -35,6 +38,7 @@ setup_pagetables:
         mov     eax, 0x5000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di + 0x1000], eax
         mov     [es:di + 0x1008], eax
+        mov     [es:di + 0x1400], eax
 
         ;; Page Directory (PD), 8 entries
         mov     eax, 0x6000 | PAGE_PRESENT | PAGE_WRITEABLE

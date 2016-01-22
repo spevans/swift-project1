@@ -158,6 +158,22 @@ getCR2()
 }
 
 
+static inline uint64_t
+getCR3()
+{
+        uint64_t res;
+        asm volatile ("mov %%cr3, %0" : "=r" (res) : : );
+        return res;
+}
+
+
+static inline void
+setCR3(uint64_t value)
+{
+        asm volatile ("mov %0, %%cr3" : : "r" (value) : );
+}
+
+
 static inline void
 int3()
 {

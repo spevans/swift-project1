@@ -10,6 +10,7 @@
 
 #include "klibc.h"
 #include "swift.h"
+#include "mm.h"
 
 
 void early_print_char(const char c);
@@ -22,7 +23,7 @@ void (*print_string)(const char *) = early_print_string;
 void (*print_string_len)(const char *, size_t) = early_print_string_len;
 
 // Base address of PC screen RAM
-static char *const screen = (char *)0xB8000;
+static char *const screen = (char *)(PHYSICAL_MEM_BASE + 0xB8000);
 // Motorola 6845 CRT Controller registers
 static const uint16_t crt_idx_reg = 0x3D4;
 static const uint16_t crt_data_reg = 0x3D5;

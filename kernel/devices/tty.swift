@@ -18,7 +18,7 @@ public class TTY {
     static let bytesPerLine = charsPerLine * bytesPerChar;
     static let whiteOnBlack: CUnsignedChar = 0x7  // black background white characters
 
-    static let screenBase = UnsafeMutablePointer<CUnsignedChar>(bitPattern: 0xB8000)
+    static let screenBase = UnsafeMutablePointer<CUnsignedChar>(bitPattern: PHYSICAL_MEM_BASE + 0xB8000)
     static let screen = UnsafeMutableBufferPointer(start: screenBase, count: totalBytes)
 
     // Motorola 6845 CRT Controller registers

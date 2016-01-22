@@ -10,14 +10,18 @@
 
 
 public func startup() {
-    TTY.initTTY()
+    CPU.getInfo()
     setupGDT()
     setupIDT()
-    //printSections()
+    setupMM()
+    TTY.initTTY()
+
     let params = BootParams()
     params.print()
+
     PCI.scanPCI()
     CPU.description()
+    printSections()
     print("Hello world")
 
     // Idle, woken up by interrupts

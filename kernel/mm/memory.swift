@@ -21,7 +21,7 @@ public class BootParams {
     var memoryRanges: [E820MemoryEntry] = []
 
     public init() {
-        let buf = MemoryBufferReader(0x30000, size: 4096)
+        let buf = MemoryBufferReader(PHYSICAL_MEM_BASE + 0x30000, size: 4096)
         e820MemoryEntryCount = try! buf.read()
         memoryRanges.reserveCapacity(Int(e820MemoryEntryCount))
         for _ in 0..<e820MemoryEntryCount {
