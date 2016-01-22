@@ -73,9 +73,9 @@ struct cpuid_result {
 };
 
 // NR_INTERRUPTS is a #define and seems to be mapped to an Int32
-#define NR_INTERRUPTS  256
+#define NR_INTERRUPTS  256L
 #define NR_TRAPS 32     // CPU faults and exceptions 0 - 31
-#define NR_IRQS 16      // hardware IRQs
+#define NR_IRQS 16L     // hardware IRQs
 extern struct idt_entry idt[NR_INTERRUPTS];
 extern void (*trap_dispatch_table[NR_TRAPS])(struct exception_regs *);
 

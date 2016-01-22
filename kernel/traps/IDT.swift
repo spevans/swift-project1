@@ -16,11 +16,11 @@
 
 
 // FIXME when strideof can be used with arrays
-private let idtSize = Int(NR_INTERRUPTS) * sizeof(idt_entry)
+private let idtSize = NR_INTERRUPTS * sizeof(idt_entry)
 private var idtInfo = dt_info(limit: UInt16(idtSize - 1), address: &idt)
 
 private let irqDispatchTablePtr = UnsafeMutablePointer<irq_handler>(irq_dispatch_table_addr)
-private let irqDispatchTable = UnsafeMutableBufferPointer(start: irqDispatchTablePtr, count:Int(NR_IRQS))
+private let irqDispatchTable = UnsafeMutableBufferPointer(start: irqDispatchTablePtr, count:NR_IRQS)
 
 
 enum GateType: UInt8 {

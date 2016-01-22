@@ -21,7 +21,7 @@ uint64_t initial_tls[8];
 const void *initial_tls_end_addr = &initial_tls[7];
 
 // Interrupt Descriptor Table - Swift doesnt support fixed length arrays yet
-struct idt_entry idt[NR_INTERRUPTS]  __attribute__((aligned(PAGE_SIZE)));
+struct idt_entry idt[NR_INTERRUPTS] bss_page;
 // The dispatch table from the IDT stubs to the actual handlers
 void (*trap_dispatch_table[NR_TRAPS])(struct exception_regs *);
 void (*irq_dispatch_table[NR_IRQS])();
