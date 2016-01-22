@@ -407,6 +407,14 @@ _ZNSs6appendERKSs(struct basic_string **this_p, struct basic_string **that_p)
 }
 
 
+// std::string::swap(std::string&)
+struct basic_string *
+_ZNSs4swapERSs(struct  basic_string **this_p)
+{
+        koops("_ZNSs4swapERSs");
+}
+
+
 int
 __cxa_guard_acquire(void *guard)
 {
