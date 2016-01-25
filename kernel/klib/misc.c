@@ -17,6 +17,8 @@
 
 EXPORT_SYMBOL_TO_SWIFT(_text_start);
 EXPORT_SYMBOL_TO_SWIFT(_text_end);
+EXPORT_SYMBOL_TO_SWIFT(_rodata_start);
+EXPORT_SYMBOL_TO_SWIFT(_rodata_end);
 EXPORT_SYMBOL_TO_SWIFT(_data_start);
 EXPORT_SYMBOL_TO_SWIFT(_data_end);
 EXPORT_SYMBOL_TO_SWIFT(_bss_start);

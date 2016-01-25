@@ -12,6 +12,7 @@ typealias VirtualAddress = UInt
 typealias PhysAddress = UInt
 typealias PageTableDirectory = UnsafeMutableBufferPointer<PageTableEntry>
 typealias PageTableEntry = UInt
+typealias PhysicalRegion = UnsafeBufferPointer<UInt8>
 
 let entriesPerPage: UInt = 512
 let entriesPerPageMask: UInt = entriesPerPage - 1
@@ -21,7 +22,7 @@ let entriesPerPageMask: UInt = entriesPerPage - 1
 private let physAddressMask  :UInt = 0x0000fffffffff000
 private let pagePresent      :UInt = 0b0000000000001
 private let readWriteFlag    :UInt = 0b0000000000010
-private let supervisorFlag   :UInt = 0b0000000000100
+private let userAccessFlag   :UInt = 0b0000000000100
 private let writeThruFlag    :UInt = 0b0000000001000
 private let cacheDisableFlag :UInt = 0b0000000010000
 private let accessedBit      :UInt = 0b0000000100000
@@ -30,17 +31,34 @@ private let largePageFlag    :UInt = 0b0000010000000     // 2MB or 1GB page
 private let PATFlag          :UInt = 0b0000010000000     // PAT flag for 4K pages
 private let largePagePATFlag :UInt = 0b1000000000000
 private let globalFlag       :UInt = 0b0000100000000
-private let executeDisableFlag :UInt = 0b1000000000000000000000000000000000000000000000000000000000000000
+private let executeDisableFlag :UInt = 1 << 63
 
-private var maxPhysicalMem = 1024 * 1024 * 1024 // 1GB
+private var maxPhysicalMem = 16 * 1024 * 1024 * 1024 // 16GB
 private let physicalMemPtr = UnsafeMutablePointer<UInt>(bitPattern: PHYSICAL_MEM_BASE)
 private let physicalMemory = UnsafeMutableBufferPointer(start: physicalMemPtr, count:sizeof(UInt)/maxPhysicalMem)
+
+
+func mapPhysicalRegion(start: PhysAddress, sizeInBytes: Int) -> PhysicalRegion {
+    let region = UnsafePointer<UInt8>(bitPattern: PHYSICAL_MEM_BASE + start)
+    return PhysicalRegion(start: region, count: sizeInBytes)
+}
+
+
+func ptrFromPhysicalPtr<T>(ptr: UnsafePointer<T>) -> UnsafePointer<T> {
+    let ret: UnsafePointer<T> = UnsafePointer(bitPattern: PHYSICAL_MEM_BASE + ptr.ptrValue())
+    return ret;
+}
+
+
+func copyPhysicalRegion<T>(start: PhysAddress) -> T {
+    let region = UnsafePointer<T>(bitPattern: PHYSICAL_MEM_BASE + start)
+    return region.memory
+}
 
 
 func pageTableBuffer(virtualAddress address: VirtualAddress) -> PageTableDirectory {
     return PageTableDirectory(start: UnsafeMutablePointer<PageTableEntry>(bitPattern: address),
         count: Int(entriesPerPage))
-
 }
 
 
@@ -86,14 +104,14 @@ func ptIndex(address: VirtualAddress) -> Int {
 
 
 // 4KB page entry or 2MB/1GB if largePage is set
-func makePTE(address address: PhysAddress, readWrite: Bool, supervisor: Bool, writeThrough: Bool,
+func makePTE(address address: PhysAddress, readWrite: Bool, userAccess: Bool, writeThrough: Bool,
     cacheDisable: Bool, global: Bool, noExec: Bool,
     largePage: Bool, PAT: Bool) -> PageTableEntry {
 
         var entry: UInt = address & physAddressMask
         entry |= pagePresent
         entry |= readWrite ? readWriteFlag : 0
-        entry |= supervisor ? supervisorFlag : 0
+        entry |= userAccess ? userAccessFlag : 0
         entry |= writeThrough ? writeThruFlag : 0
         entry |= cacheDisable ? cacheDisableFlag : 0
         entry |= global ? globalFlag : 0
@@ -110,12 +128,12 @@ func makePTE(address address: PhysAddress, readWrite: Bool, supervisor: Bool, wr
 
 
 // Entry in Page Directory, Page Directory Pointer or Page Map Level 4 tables
-func makePDE(address address: PhysAddress, readWrite: Bool, supervisor: Bool, writeThrough: Bool,
+func makePDE(address address: PhysAddress, readWrite: Bool, userAccess: Bool, writeThrough: Bool,
     cacheDisable: Bool, noExec: Bool) -> PageTableEntry {
         var entry: UInt = address & physAddressMask
         entry |= pagePresent
         entry |= readWrite ? readWriteFlag : 0
-        entry |= supervisor ? supervisorFlag : 0
+        entry |= userAccess ? userAccessFlag : 0
         entry |= writeThrough ? writeThruFlag : 0
         entry |= cacheDisable ? cacheDisableFlag : 0
 

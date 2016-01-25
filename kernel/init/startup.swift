@@ -10,14 +10,13 @@
 
 
 public func startup() {
+    TTY.initTTY()
+    let params = BootParams()
+    params.print()
     CPU.getInfo()
     setupGDT()
     setupIDT()
-    setupMM()
-    TTY.initTTY()
-
-    let params = BootParams()
-    params.print()
+    setupMM(params)
 
     PCI.scanPCI()
     print(CPU.description)

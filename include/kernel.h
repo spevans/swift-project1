@@ -25,6 +25,8 @@
 
 EXPORTED_SYMBOL_AS_VOIDPTR(_text_start);
 EXPORTED_SYMBOL_AS_VOIDPTR(_text_end);
+EXPORTED_SYMBOL_AS_VOIDPTR(_rodata_start);
+EXPORTED_SYMBOL_AS_VOIDPTR(_rodata_end);
 EXPORTED_SYMBOL_AS_VOIDPTR(_data_start);
 EXPORTED_SYMBOL_AS_VOIDPTR(_data_end);
 EXPORTED_SYMBOL_AS_VOIDPTR(_bss_start);
@@ -80,5 +82,14 @@ int kvsnprintf(char *buf, size_t size, const char *fmt, va_list args) __attribut
 int kvlprintf(const char *fmt, size_t len, va_list args);
 void bochs_print_string(const char *str, size_t len);
 void dump_registers(struct exception_regs *registers);
+
+int memcmp(const void *s1, const void *s2, size_t count);
+
+
+static inline uintptr_t
+ptr_value(const void *ptr)
+{
+        return (uintptr_t)ptr;
+}
 
 #endif  // __KERNEL_H__

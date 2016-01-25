@@ -46,6 +46,7 @@ extension String {
 
 
 extension UInt16 {
+
     public init(msb: UInt8, lsb: UInt8) {
         self = UInt16(msb) << 8 | UInt16(lsb)
     }
@@ -54,4 +55,29 @@ extension UInt16 {
     public func toBytes() -> (UInt8, UInt8) {
         return (UInt8(self >> 8), UInt8(self & 0xff))
     }
+}
+
+
+extension UnsafePointer {
+
+    public func ptrValue() -> UInt {
+        return ptr_value(self)
+    }
+}
+
+
+extension UnsafeBufferPointer {
+
+    public func ptrValue() -> UInt {
+        return ptr_value(self.baseAddress)
+    }
+
+
+    public func regionPointer<T>(offset: Int) -> UnsafePointer<T> {
+        let max = offset + strideof(T)
+        assert(max <= self.count)
+        let region = self.baseAddress.ptrValue() + UInt(offset)
+        return UnsafePointer<T>(bitPattern: region)
+    }
+
 }

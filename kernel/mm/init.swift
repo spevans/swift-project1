@@ -8,7 +8,6 @@
  *
  */
 
-private let kernelBase: VirtualAddress = _kernel_start_addr
 private let kernelPhysBase: PhysAddress = 0x100000
 private let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_addr)
 private let maxInitialPageTables: UInt = 10
@@ -30,46 +29,89 @@ private var nextPageTable: UInt = 0
  *
  */
 
-func setupMM() {
+func setupMM(params: BootParams) {
     // Setup initial page tables and map kernel
 
-    // _text_start / _text_end
-    // _rodata_start / _ro_data_end
-    // _data_start / _data_end
-    // _bss_start / _kernel_stack
-    // enable WP bit in CR0
+    let textEnd = ptr_value(_text_end_addr)
+    let rodataStart = ptr_value(_rodata_start_addr)
+    let dataStart = ptr_value(_data_start_addr)
+    let bssEnd = ptr_value(_bss_end_addr)
 
     let pml4Phys = UInt64(virtualToPhys(initial_pml4_addr))
     printf("Physical address of initial_pml4 (%p) = (%p)\n", initial_pml4_addr, pml4Phys)
     printf("Physical address of initial_page_tables (%p) = (%p)\n", initial_page_tables_addr,
         virtualToPhys(initial_page_tables_addr))
 
-    let kernelSize = _kernel_end_addr - kernelBase
-    assert((kernelSize % PAGE_SIZE) == 0)
+    let kernelBase: VirtualAddress = _kernel_start_addr
+    let textSize = roundToPage(textEnd - _kernel_start_addr)
+    let rodataSize = roundToPage(dataStart - rodataStart)
+    let dataSize = roundToPage(bssEnd - dataStart)
 
-    addMapping(start: kernelBase, size: kernelSize, physStart: kernelPhysBase)
-    printf("Physical address of kernelBase (%p) = (%p)\n", kernelBase,
-        virtualToPhys(kernelBase, base: pml4Phys))
-    printf("Physical address of kernelEnd (%p) = (%p)\n", kernelBase + kernelSize,
-        virtualToPhys(kernelBase + kernelSize, base: pml4Phys))
+    // Enable No Execute so data mappings can be set XD (Execute Disable)
+    CPU.enableNXE(true)
+
+    // Add 3 mappings for text, rodata and data + bss with appropiate protections
+    printf("_text: %p - %p\n_rodata: %p - %p\n_data: %p - %p\n",
+        _kernel_start_addr, _kernel_start_addr + textSize,
+        ptr_value(_rodata_start_addr), ptr_value(_rodata_start_addr) + rodataSize,
+        ptr_value(_data_start_addr), ptr_value(_data_start_addr) + dataSize)
+
+    addMapping(start: _kernel_start_addr, size: textSize, physStart: kernelPhysBase,
+        readWrite: false, noExec: false)
+    addMapping(start: rodataStart, size: rodataSize, physStart: kernelPhysBase + textSize,
+        readWrite: false, noExec: true)
+    addMapping(start: dataStart, size: dataSize, physStart: kernelPhysBase + textSize + rodataSize,
+        readWrite: true, noExec: true)
+
+
+    printf("Physical address of kernelBase (%p) = (%p)\n", kernelBase, virtualToPhys(kernelBase, base: pml4Phys))
+    printf("Physical address of rodata (%p) = (%p)\n", kernelBase + textSize,
+        virtualToPhys(kernelBase + textSize, base: pml4Phys))
+    printf("Physical address of data (%p) = (%p)\n", kernelBase + textSize + rodataSize,
+        virtualToPhys(kernelBase + textSize + rodataSize, base: pml4Phys))
+
+    mapPhysicalMemory(params.highestMemoryAddress)
+    setCR3(UInt64(virtualToPhys(initial_pml4_addr)))
+    CPU.enableWP(true)
+    print("CR3 Updated")
+}
+
+
+// FIXME: Should map more closely to the real map, not map holes
+// and map the reserved mem as RO etc
+private func mapPhysicalMemory(maxAddress: UInt64) {
+    var inc: UInt = 0
+    var mapper :(UInt, PhysAddress) -> ()
+
+    printf("Mapping physical memory from 0 - %p\n", maxAddress)
 
     // Map physical memory using 1GB pages if available else 2MB pages
     if CPU.pages1G {
-        add1GBMapping(UInt(PHYSICAL_MEM_BASE), physAddress: 0)
-        print("Added 1GB mapping")
+        inc = 0x40000000    // 1GB
+        printf("Using 1GB mappings: ")
+        mapper = add1GBMapping
     } else {
-        var vaddr = UInt(PHYSICAL_MEM_BASE)
-        var paddr :PhysAddress = 0
-        let inc :UInt = 0x200000  // 2MB
-        for _ in 1...512 {
-            add2MBMapping(vaddr, physAddress: paddr)
-            vaddr += inc
-            paddr += inc
-        }
-        print("Added 2MB mapping")
+        inc = 0x200000      // 2MB
+        mapper = add2MBMapping
+        printf("Using 2MB mappings: ")
     }
-    setCR3(UInt64(virtualToPhys(initial_pml4_addr)))
-    printf("CR3 Updated")
+
+    let pages = (UInt(maxAddress) + (inc - 1)) / inc
+    printf("Mapping %u pages of size %#lx\n", pages, inc)
+    var vaddr = UInt(PHYSICAL_MEM_BASE)
+    var paddr: PhysAddress = 0
+
+    for _ in 1...pages {
+        mapper(vaddr, paddr)
+        vaddr += inc
+        paddr += inc
+    }
+    printf("Added mappings upto: %p\n", vaddr)
+}
+
+
+private func roundToPage(size: UInt) -> UInt {
+    return (size + PAGE_MASK) & ~PAGE_MASK
 }
 
 
@@ -77,7 +119,7 @@ private func getPageAtIndex(dirPage: PageTableDirectory, _ idx: Int) -> PageTabl
     if !pagePresent(dirPage[idx]) {
         let newPage = nextInitialPageTableAddress()
         let paddr = virtualToPhys(newPage)
-        let entry = makePDE(address: paddr, readWrite: true, supervisor: true, writeThrough: true,
+        let entry = makePDE(address: paddr, readWrite: true, userAccess: false, writeThrough: true,
             cacheDisable: false, noExec: false)
         dirPage[idx] = entry
     }
@@ -97,13 +139,15 @@ private func nextInitialPageTableAddress() -> VirtualAddress {
 }
 
 
-private func addMapping(start start: VirtualAddress, size: UInt, physStart: PhysAddress) -> Bool {
-    let endAddress = start + ((size + PAGE_MASK) & ~PAGE_MASK)
-    let pageCnt = ((endAddress - start) / PAGE_SIZE) + 1
+private func addMapping(start start: VirtualAddress, size: UInt, physStart: PhysAddress, readWrite: Bool,
+    noExec: Bool) -> Bool {
+
+    let endAddress = start + size
+    let pageCnt = ((endAddress - start) / PAGE_SIZE)
     var physAddress = physStart
     var addr = start
 
-    for _ in 0...pageCnt {
+    for _ in 0..<pageCnt {
         let idx0 = pml4Index(addr)
         let idx1 = pdpIndex(addr)
         let idx2 = pdIndex(addr)
@@ -114,8 +158,8 @@ private func addMapping(start start: VirtualAddress, size: UInt, physStart: Phys
         let ptPage = getPageAtIndex(pdPage, idx2)
 
         if !pagePresent(ptPage[idx3]) {
-            let entry = makePTE(address: physAddress, readWrite: true, supervisor: true,
-                writeThrough: true, cacheDisable: false, global: false, noExec: false,
+            let entry = makePTE(address: physAddress, readWrite: readWrite, userAccess: false,
+                writeThrough: true, cacheDisable: false, global: false, noExec: noExec,
                 largePage: false, PAT: false)
             ptPage[idx3] = entry
         } else {
@@ -139,8 +183,8 @@ private func add2MBMapping(addr: VirtualAddress, physAddress: PhysAddress) {
     let pdPage = getPageAtIndex(pdpPage, idx1)
 
     if !pagePresent(pdPage[idx2]) {
-        let entry = makePTE(address: physAddress, readWrite: true, supervisor: true,
-            writeThrough: true, cacheDisable: false, global: false, noExec: false,
+        let entry = makePTE(address: physAddress, readWrite: true, userAccess: false,
+            writeThrough: true, cacheDisable: false, global: false, noExec: true,
             largePage: true, PAT: false)
         pdPage[idx2] = entry
     } else {
@@ -155,8 +199,8 @@ private func add1GBMapping(addr: VirtualAddress, physAddress: PhysAddress) {
 
     let pdpPage = getPageAtIndex(pmlPage, idx0)
     if !pagePresent(pdpPage[idx1]) {
-        let entry = makePTE(address: physAddress, readWrite: true, supervisor: true,
-            writeThrough: true, cacheDisable: false, global: false, noExec: false,
+        let entry = makePTE(address: physAddress, readWrite: true, userAccess: false,
+            writeThrough: true, cacheDisable: false, global: false, noExec: true,
             largePage: true, PAT: false)
         pdpPage[idx1] = entry
     } else {
