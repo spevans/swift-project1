@@ -8,13 +8,12 @@ SWIFTC_FLAGS := -gnone -O -Xcc -mno-red-zone -parse-as-library -import-objc-head
 
 
 ifeq ($(UNAME_S), Linux)
-	SWIFTDIR := $(shell echo ~/swift-2.2-SNAPSHOT-2016-01-06-a-ubuntu14.04)
-	#SWIFT := /mnt/hgfs/src/swift/build/Ninja-ReleaseAssert/swift-linux-x86_64/bin/swift
-	#SWIFT := $(SWIFTDIR)/usr/bin/swift
-	#SWIFTC := $(SWIFTDIR)/usr/bin/swiftc
-	#SWIFTLIB := $(SWIFTDIR)/usr/lib/swift_static/linux/libswiftCore.a
-	SWIFTC := /mnt/hgfs/src/swift/build/Ninja-ReleaseAssert/swift-linux-x86_64/bin/swiftc
-	SWIFTLIB := /mnt/hgfs/src/swift/build/Ninja-ReleaseAssert/swift-linux-x86_64/lib/swift_static/linux/libswiftCore.a
+	SWIFTDIR := $(shell readlink -f $(TOPDIR)/../swift/build/Ninja-ReleaseAssert)
+	SWIFT := $(SWIFTDIR)/swift-linux-x86_64/bin/swift
+	SWIFTC := $(SWIFTDIR)/swift-linux-x86_64/bin/swiftc
+	SWIFTLIB := $(SWIFTDIR)/swift-linux-x86_64/lib/swift_static/linux/libswiftCore.a
+	FOUNDATION := $(SWIFTDIR)/foundation-linux-x86_64/Foundation
+	COREFOUNDATION := $(FOUNDATION)/usr/lib/swift
 	NASM_OBJ_FLAGS := -felf64
 endif
 
