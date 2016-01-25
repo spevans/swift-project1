@@ -132,7 +132,7 @@ cpuid(const uint32_t function, struct cpuid_result *result)
         asm volatile ("cpuid"
                       : "=a" (eax), "=b" (ebx), "=c" (ecx), "=d" (edx)
                       : "a" (function)
-                      :);
+                      : );
         result->u.regs.eax = eax;
         result->u.regs.ebx = ebx;
         if (function == 0) {
@@ -146,6 +146,43 @@ cpuid(const uint32_t function, struct cpuid_result *result)
         result->u.bytes[32] = '\0';
 
         return result->u.bytes;
+}
+
+
+struct msr_value {
+        uint32_t eax;
+        uint32_t edx;
+};
+
+static inline struct msr_value
+rdmsr(uint32_t msr)
+{
+        struct msr_value res;
+        asm volatile ("rdmsr" : "=a" (res.eax), "=d" (res.edx) : "c" (msr) : );
+        return res;
+}
+
+
+static inline void
+wrmsr(uint32_t msr, uint32_t eax, uint32_t edx)
+{
+        asm volatile ("wrmsr" : : "c" (msr), "a" (eax), "d" (edx) : );
+}
+
+
+static inline uint64_t
+getCR0()
+{
+        uint64_t res;
+        asm volatile ("mov %%cr0, %0" : "=r" (res) : : );
+        return res;
+}
+
+
+static inline void
+setCR0(uint64_t value)
+{
+        asm volatile ("mov %0, %%cr0" : : "r" (value) : );
 }
 
 

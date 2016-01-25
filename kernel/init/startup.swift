@@ -20,7 +20,7 @@ public func startup() {
     params.print()
 
     PCI.scanPCI()
-    CPU.description()
+    print(CPU.description)
     printSections()
     print("Hello world")
 
