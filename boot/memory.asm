@@ -13,6 +13,7 @@ get_memory:
         push    es
         mov     di, 0x3000
         mov     es, di
+        mov     dword [es:0], 0
         ;; clear the memory region
         cld
         xor     edi, edi
@@ -31,14 +32,13 @@ get_memory:
         jc      .finished
         cmp     eax, E820_SIGNATURE
         jne     .finished
+        inc     dword [es:0]
         cmp     ebx, 0
         je      .finished
         add     di, 20
-        inc     ebp
         cmp     ebp, MAX_SMAP_ENTRIES
         jl      .next_entry
 
 .finished:
-        mov     dword [es:0], ebp
         pop     es
         ret
