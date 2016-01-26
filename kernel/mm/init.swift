@@ -10,8 +10,6 @@
 
 private let kernelPhysBase: PhysAddress = 0x100000
 private let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_addr)
-private let maxInitialPageTables: UInt = 10
-private var nextPageTable: UInt = 0
 
 
 /* After bootup and entry into the kernel the page table setup by the
@@ -39,8 +37,6 @@ func setupMM(params: BootParams) {
 
     let pml4Phys = UInt64(virtualToPhys(initial_pml4_addr))
     printf("Physical address of initial_pml4 (%p) = (%p)\n", initial_pml4_addr, pml4Phys)
-    printf("Physical address of initial_page_tables (%p) = (%p)\n", initial_page_tables_addr,
-        virtualToPhys(initial_page_tables_addr))
 
     let kernelBase: VirtualAddress = _kernel_start_addr
     let textSize = roundToPage(textEnd - _kernel_start_addr)
@@ -51,7 +47,7 @@ func setupMM(params: BootParams) {
     CPU.enableNXE(true)
 
     // Add 3 mappings for text, rodata and data + bss with appropiate protections
-    printf("_text: %p - %p\n_rodata: %p - %p\n_data: %p - %p\n",
+    printf("_text:   %p - %p\n_rodata: %p - %p\n_data:   %p - %p\n",
         _kernel_start_addr, _kernel_start_addr + textSize,
         ptr_value(_rodata_start_addr), ptr_value(_rodata_start_addr) + rodataSize,
         ptr_value(_data_start_addr), ptr_value(_data_start_addr) + dataSize)
@@ -117,7 +113,7 @@ private func roundToPage(size: UInt) -> UInt {
 
 private func getPageAtIndex(dirPage: PageTableDirectory, _ idx: Int) -> PageTableDirectory {
     if !pagePresent(dirPage[idx]) {
-        let newPage = nextInitialPageTableAddress()
+        let newPage = ptr_value(alloc_pages(1))
         let paddr = virtualToPhys(newPage)
         let entry = makePDE(address: paddr, readWrite: true, userAccess: false, writeThrough: true,
             cacheDisable: false, noExec: false)
@@ -125,17 +121,6 @@ private func getPageAtIndex(dirPage: PageTableDirectory, _ idx: Int) -> PageTabl
     }
 
     return pageTableBuffer(physAddress: ptePhysicalAddress(dirPage[idx]))
-}
-
-
-private func nextInitialPageTableAddress() -> VirtualAddress {
-    if (nextPageTable == maxInitialPageTables) {
-        koops("No more free initial page tables")
-    }
-
-    let offset = nextPageTable * PAGE_SIZE
-    nextPageTable += 1
-    return initial_page_tables_addr + offset
 }
 
 
@@ -169,6 +154,7 @@ private func addMapping(start start: VirtualAddress, size: UInt, physStart: Phys
         addr += PAGE_SIZE
         physAddress += PAGE_SIZE
     }
+    printf("Added kernel mapping from %p-%p [%p-%p]\n", start, endAddress, physStart, physAddress)
 
     return true
 }

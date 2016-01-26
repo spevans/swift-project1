@@ -14,6 +14,7 @@
 #include <limits.h>
 #include <inttypes.h>
 #include "x86funcs.h"
+#include "mm.h"
 
 
 typedef int64_t ssize_t;
@@ -67,11 +68,3 @@ void print_byte(int value);
 void print_word(int value);
 void print_dword(unsigned int value);
 void print_qword(uint64_t value);
-
-
-// mm
-
-void *alloc_pages(size_t count);
-void free_pages(void *pages, size_t count);
-void *malloc(size_t size);
-void free(void *ptr);

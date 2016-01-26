@@ -70,8 +70,7 @@ koops(const char *fmt, ...)
     kprintf("OOPS: ");
     kvprintf(fmt, args);
     va_end(args);
-    hlt();
-    __builtin_unreachable();
+    stop();
 }
 
 

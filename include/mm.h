@@ -17,4 +17,9 @@
 #define PAGE_MASK 4095UL
 #define PAGE_SHIFT 12UL
 
+extern void *(*alloc_pages)(size_t count);
+extern void (*free_pages)(void *pages, size_t count);
+void *malloc(size_t size);
+void free(void *ptr);
+
 #endif  // __MM_H__

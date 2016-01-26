@@ -46,10 +46,13 @@ SECTIONS
     _stack_start = .;
     . += STACK_SIZE;
     _kernel_stack = .;          /* Top of stack so label comes after */
+    _heap_start = .;
+    . = ALIGN(0x800000);
+    _heap_end = .;
+
     _bss_end = .;
   }
 
   . = ALIGN(PAGE_SIZE);
   _kernel_end = .;
-  _heap_start = .;
 }

@@ -1,7 +1,8 @@
 /*
  * kernel/mm/pages.c
  *
- * Copyright © 2015 Simon Evans. All rights reserved.
+ * Created by Simon Evans on 25/12/2015.
+ * Copyright © 2015, 2016 Simon Evans. All rights reserved.
  *
  * Simple memory management for now just enough alloc_pages() and
  * free_pages() (provided from the BSS)
@@ -13,31 +14,40 @@
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
+extern const void * const _heap_start;
+extern const void * const _heap_end;
 const unsigned long vm_page_mask = PAGE_MASK;
-// Use BSS for alloc_pages() for now
-static const size_t MAX_PAGES = 2048;
-static char pages[MAX_PAGES][PAGE_SIZE]  __attribute__((aligned(PAGE_SIZE)));
-static size_t next_free_page = 0;
+static void *next_free_page = (void *)&_heap_start;
 
 
-// Simply alloc out of a fixed pool from the BSS for now
-void *
-alloc_pages(size_t count)
+/* These pages are allocated before the MM is setup, mostly for small malloc()s
+ * and the page tables needed to map the kernel. They come from an area in the
+ * BSS between _heap_start and _heap_end defined by the linker script
+ */
+static void *
+early_alloc_pages(size_t count)
 {
-        if (next_free_page + count <= MAX_PAGES) {
-                void *result = pages[next_free_page];
-                next_free_page += count;
+        size_t size = count * PAGE_SIZE;
+        if (next_free_page + size <= (void *)&_heap_end) {
+                void *result = next_free_page;
+                next_free_page += size;
                 debugf("alloc_pages(%lu) = %p\n", count, result);
+
                 return result;
         }
-        koops("alloc_pages! next_free_page = %lu count = %lu", next_free_page,
-              count);
+        koops("alloc_pages(): no more free pages next_free_page=%p count=%lu size=%#lx _heap_end=%p\n",
+              next_free_page, count, size, &_heap_end);
 }
 
 
-void
-free_pages(void *pages, size_t count)
+// Dont acutally free any of these pages though
+static void
+early_free_pages(void *pages, size_t count)
 {
         debugf("freeing %lu pages @ %p\n", count, pages);
 }
+
+// Once the MM is setup these can be pointed at more sophisticated versions
+void *(*alloc_pages)(size_t count) = early_alloc_pages;
+void (*free_pages)(void *pages, size_t count) = early_free_pages;
 

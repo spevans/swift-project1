@@ -27,11 +27,8 @@ void (*trap_dispatch_table[NR_TRAPS])(struct exception_regs *);
 void (*irq_dispatch_table[NR_IRQS])();
 
 uint8_t initial_pml4[PAGE_SIZE] bss_page;
-uint8_t initial_page_tables[10][PAGE_SIZE] bss_page;
-
 
 #define EXPORT_SYMBOL_TO_SWIFT(x) const void *x##_addr = &x;
 
 EXPORT_SYMBOL_TO_SWIFT(irq_dispatch_table)
 EXPORT_SYMBOL_TO_SWIFT(initial_pml4)
-EXPORT_SYMBOL_TO_SWIFT(initial_page_tables)
