@@ -1,5 +1,5 @@
 /*
- * kernel/mm/memory.swift
+ * kernel/init/bootparams.swift
  *
  * Created by Simon Evans on 24/12/2015.
  * Copyright © 2015 Simon Evans. All rights reserved.
@@ -9,7 +9,11 @@
  */
 
 
-public struct BootParams {
+// Singleton that will be initialised by BootParams.parse()
+let memoryRanges = BootParams.parseE820Table()
+
+
+struct BootParams {
     enum E820Type: UInt32 {
         case HOLE     = 0
         case RAM      = 1
@@ -42,57 +46,66 @@ public struct BootParams {
     }
 
 
-    private let e820MemoryEntryCount: UInt32
-    var memoryRanges: [E820MemoryEntry] = []
-    var highestMemoryAddress: UInt64 = 0
+    static func parse() {
+        if memoryRanges.count > 0 {
+            print("E820: Memory Ranges    From -         To      Type")
+            for (idx, entry) in memoryRanges.enumerate() {
+                printf("E820: %2.2d: \(entry)\n", idx)
+            }
+        }
+    }
+
+
+    static func highestMemoryAddress() -> UInt64 {
+        if (memoryRanges.count > 0) {
+            let entry = memoryRanges[memoryRanges.count-1]
+            return entry.baseAddr + entry.length - 1
+        } else {
+            return 0
+        }
+    }
 
 
     // FIXME - still needs to check for overlapping regions
-    init() {
+    static private func parseE820Table() -> [E820MemoryEntry] {
         let buf = MemoryBufferReader(PHYSICAL_MEM_BASE + 0x30000, size: 4096)
-        e820MemoryEntryCount = try! buf.read()
-        memoryRanges.reserveCapacity(Int(e820MemoryEntryCount))
+        let e820MemoryEntryCount: UInt32 = try! buf.read()
+        var ranges: [E820MemoryEntry] = []
+        ranges.reserveCapacity(Int(e820MemoryEntryCount))
+
         for _ in 0..<e820MemoryEntryCount {
             let entry: E820MemoryEntry = try! buf.read()
-            memoryRanges.append(entry)
+            ranges.append(entry)
         }
-        sortRanges()
-        findHoles()
-        if (memoryRanges.count > 0) {
-            let entry = memoryRanges[memoryRanges.count-1]
-            highestMemoryAddress = entry.baseAddr + entry.length - 1
-        }
+        sortRanges(&ranges)
+        findHoles(&ranges)
+
+        return ranges
     }
 
 
-    public func print() {
-        printf("Memory Ranges    From -         To      Type\n")
-        for (idx, entry) in memoryRanges.enumerate() {
-            printf("E820 %2.2d: \(entry)\n", idx)
-        }
-    }
 
 
-    private mutating func sortRanges() {
-        memoryRanges.sortInPlace({
+    static private func sortRanges(inout ranges: [E820MemoryEntry]) {
+        ranges.sortInPlace({
             $0.baseAddr < $1.baseAddr
         })
     }
 
 
-    private mutating func findHoles() {
+    static private func findHoles(inout ranges: [E820MemoryEntry]) {
         var addr: UInt64 = 0
-        for entry in memoryRanges {
+        for entry in ranges {
             if addr < entry.baseAddr {
                 let length = entry.baseAddr - addr
                 // BUG - Appending to a 2nd list and then adding this list to memoryRanges
                 // somehow lost the first entry after the sort and caused an invalid opcode
                 //holes.append(hole)
                 //memoryRanges.appendContentsOf(holes)
-                memoryRanges.append(E820MemoryEntry(baseAddr: addr, length: length, type: E820Type.HOLE.rawValue))
+                ranges.append(E820MemoryEntry(baseAddr: addr, length: length, type: E820Type.HOLE.rawValue))
             }
             addr = entry.baseAddr + entry.length
         }
-        sortRanges()
+        sortRanges(&ranges)
     }
 }

@@ -4,11 +4,11 @@ include $(TOPDIR)/Makedefs
 SWIFT_MODULE := SwiftKernel
 SWIFT_OBJS := SwiftKernel.o
 SWIFT_SRCS :=	init/startup.swift		\
+		init/bootparams.swift		\
 		init/GDT.swift			\
 		klib/Extensions.swift		\
 		klib/MemoryBufferReader.swift	\
 		mm/init.swift			\
-		mm/memory.swift			\
 		mm/page.swift			\
 		devices/cpu.swift		\
 		devices/PCI.swift		\

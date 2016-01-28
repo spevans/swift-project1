@@ -27,16 +27,14 @@ private let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_addr)
  *
  */
 
-func setupMM(params: BootParams) {
+func setupMM() {
     // Setup initial page tables and map kernel
 
     let textEnd = ptr_value(_text_end_addr)
     let rodataStart = ptr_value(_rodata_start_addr)
     let dataStart = ptr_value(_data_start_addr)
     let bssEnd = ptr_value(_bss_end_addr)
-
     let pml4Phys = UInt64(virtualToPhys(initial_pml4_addr))
-    printf("Physical address of initial_pml4 (%p) = (%p)\n", initial_pml4_addr, pml4Phys)
 
     let kernelBase: VirtualAddress = _kernel_start_addr
     let textSize = roundToPage(textEnd - _kernel_start_addr)
@@ -66,7 +64,7 @@ func setupMM(params: BootParams) {
     printf("Physical address of data (%p) = (%p)\n", kernelBase + textSize + rodataSize,
         virtualToPhys(kernelBase + textSize + rodataSize, base: pml4Phys))
 
-    mapPhysicalMemory(params.highestMemoryAddress)
+    mapPhysicalMemory(BootParams.highestMemoryAddress())
     setCR3(UInt64(virtualToPhys(initial_pml4_addr)))
     CPU.enableWP(true)
     print("CR3 Updated")
