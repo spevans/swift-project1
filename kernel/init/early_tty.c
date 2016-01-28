@@ -103,7 +103,7 @@ void
 early_print_string_len(const char *text, size_t len)
 {
         while(len--) {
-                print_char(*text++);
+                early_print_char(*text++);
         }
 }
 
@@ -112,7 +112,7 @@ void
 early_print_string(const char *text)
 {
         while(*text) {
-                print_char(*text++);
+                early_print_char(*text++);
         }
 }
 
@@ -135,7 +135,7 @@ set_print_functions_to_swift()
 void print_nibble(int value)
 {
         static char *hex = "0123456789ABCDEF";
-        print_char(hex[value & 0xf]);
+        early_print_char(hex[value & 0xf]);
 }
 
 

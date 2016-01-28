@@ -91,16 +91,20 @@ func stackFault(registers: UnsafeMutablePointer<exception_regs>) {
 
 
 func generalProtectionFault(registers: UnsafeMutablePointer<exception_regs>) {
-    //let errorCode = registers.memory.error_code
-    kprint("GP Fault code\n")
+    let errorCode = UInt32(registers.memory.error_code)
+    kprint("GP Fault code: ")
+    print_dword(errorCode)
+    kprintf("\n")
     dump_registers(registers)
     stop()
 }
 
 
 func pageFault(registers: UnsafeMutablePointer<exception_regs>) {
-    //let errorCode = registers.memory.error_code
-    kprint("Page Fault\n")
+    let errorCode = UInt32(registers.memory.error_code)
+    kprint("Page Fault: ")
+    print_dword(errorCode)
+    kprint("\n")
     dump_registers(registers)
     stop()
 }

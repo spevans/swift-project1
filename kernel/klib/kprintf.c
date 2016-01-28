@@ -16,7 +16,8 @@
 #endif
 
 
-extern void early_print_char(const char ch);
+void early_print_char(const char ch);
+void early_print_string(const char *text);
 typedef void (*print_char_func)(void *data, char ch);
 
 #define IS_DIGIT(c) (((c) >= '0') && ((c) <= '9'))

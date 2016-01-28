@@ -17,6 +17,9 @@ stack_trace(uintptr_t rsp, uintptr_t rbp)
         size_t idx = 0;
 
         while ((uintptr_t)rbp_ptr < _kernel_stack_addr) {
+                if (rbp_ptr == NULL) {
+                        return;
+                }
                 kprintf("[%p]: %p ret=%p\n", rbp_ptr, *rbp_ptr, *(rbp_ptr+1));
                 rbp_ptr = *rbp_ptr;
                 idx += 1;
@@ -53,5 +56,5 @@ dump_registers(struct exception_regs *registers)
         kprintf("CS: %lx DS: %lx ES: %lx FS: %lx GS:%lx SS: %lx\n",
                 registers->cs, registers->ds, registers->es,
                 registers->fs, registers->gs, registers->ss);
-        //stack_trace(registers->rsp, registers->rbp);
+        stack_trace(registers->rsp, registers->rbp);
 }

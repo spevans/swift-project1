@@ -76,6 +76,8 @@ EXPORTED_SYMBOL_AS_UINTPTR(irq15_stub);
 void set_print_functions_to_swift();
 void early_print_string(const char *text);
 void early_print_string_len(const char *text, size_t len);
+void print_dword(unsigned int value);
+void print_qword(uint64_t value);
 int kvprintf(const char *fmt, va_list args) __attribute__ ((format (printf, 1, 0)));
 int kvsnprintf(char *buf, size_t size, const char *fmt, va_list args) __attribute__ ((format (printf, 3, 0)));
 int kvlprintf(const char *fmt, size_t len, va_list args);
