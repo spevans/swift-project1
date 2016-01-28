@@ -74,54 +74,6 @@ koops(const char *fmt, ...)
 }
 
 
-int
-memcmp(const void *s1, const void *s2, size_t count)
-{
-        debugf("memcmp(%p,%p,%lu)=", s1, s2, count);
-
-        int d0, d1, d2;
-        int res = 0;
-
-        asm volatile ("cld\n\t"
-                      "repe\n\t"
-                      "cmpsb\n\t"
-                      "je 1f\n\t"
-                      "movl $1,%%eax\n\t"
-                      "jb 1f\n\t"
-                      "negl %%eax\n"
-                      "1:"
-                      : "=&D" (d0), "=&S" (d1), "=&c" (d2), "=&a" (res)
-                      : "0" (s1), "1" (s2), "2" (count)
-                      : "memory");
-
-        debugf("%d\n", res);
-
-        return res;
-}
-
-
-void
-*memcpy(void * dest, const void *src, size_t count)
-{
-        int d0, d1, d2, d3;
-        asm volatile ("cld\n\t"
-                      "movl %%edx, %%ecx\n\t"
-                      "shrl $2,%%ecx\n\t"
-                      "rep ; movsl\n\t"
-                      "testb $1,%%dl\n\t"
-                      "je 1f\n\t"
-                      "movsb\n"
-                      "1:\ttestb $2,%%dl\n\t"
-                      "je 2f\n\t"
-                      "movsw\n"
-                      "2:\n"
-                      : "=&S" (d0), "=&D" (d1), "=&d" (d2), "=&a" (d3)
-                      : "0" (src), "1" (dest), "2" (count)
-                      : "memory", "cx");
-        return dest;
-}
-
-
 void *
 memset(void *dest, char c, size_t count)
 {

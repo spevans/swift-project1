@@ -6,6 +6,8 @@
 ;;; Misc mem* and str* functions that are easier to do directly in asm
 
         global  memchr
+        global  memcmp
+        global  memcpy
         global  memmove
         global  memsetw
         global  stpcpy
@@ -30,27 +32,51 @@ memchr:
         ret
 
 
-;;; void *memmove(void *dst, const void *src, size_t len);
+;;; int memcmp(const void *s1, const void *s2, size_t n);
+;;; RDI: s1, RDI: s2, RDX: count, returns 0 if same, 1 if diff
+memcmp:
+        xor     rax, rax
+        mov     rcx, rdx
+        rep     cmpsb
+        setnz   al
+        ret
+
+
+;;; void *memcpy(void *dest, const void *src, size_t n)
+;;; RDI: dest, RSI: src, RDX: count, returns dest
+memcpy:
+        mov     rcx, rdx
+        mov     rax, rdi
+        test    rdx, rdx
+        jz      .exit
+        shr     rcx, 3
+        rep     movsq
+        and     rdx, 7
+        mov     rcx, rdx
+        rep     movsb
+.exit:
+        ret
+
+
+;;; void *memmove(void *dest, const void *src, size_t n);
 ;;; RDI: dest, RSI: src, RDX: count, returns dest
 memmove:
         mov     rcx, rdx
         mov     rax, rdi
-        mov     r8, rsi
-        cld
-        cmp     rdx, 0
+        dec     rdx
+        test    rcx, rcx
         je      .exit
         cmp     rdi, rsi
         je      .exit
         jl      .forward        ; dest < src so no overlap with forward copy
         add     rsi, rdx
-        jl      .forward
+        add     rdi, rdx
         std                     ; copy backwards
-        xchg    rdi, rsi
 
 .forward:
         rep     movsb
-.exit:
         cld
+.exit:
         ret
 
 
