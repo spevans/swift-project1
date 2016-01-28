@@ -227,9 +227,12 @@ vasprintf(char **strp, const char * restrict format, va_list argp)
 int
 asprintf(char **strp, const char * restrict format, ...)
 {
-        debugf("asprintf(%p,%s)\n", strp, format);
         va_list argp;
         va_start(argp, format);
+        kvprintf(format, argp);
+        // asprintf seems to only be used for assert() and fatal error messages
+        // so stop here
+        stop();
         int len = vasprintf(strp, format, argp);
         va_end(argp);
 
