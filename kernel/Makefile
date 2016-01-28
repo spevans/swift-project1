@@ -10,6 +10,7 @@ SWIFT_SRCS :=	init/startup.swift		\
 		klib/MemoryBufferReader.swift	\
 		mm/init.swift			\
 		mm/page.swift			\
+		devices/acpi.swift		\
 		devices/cpu.swift		\
 		devices/PCI.swift		\
 		devices/tty.swift		\

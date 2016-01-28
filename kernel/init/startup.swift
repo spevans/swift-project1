@@ -16,6 +16,7 @@ public func startup() {
     setupGDT()
     setupIDT()
     setupMM()
+    ACPI.parse()
     PCI.scan()
 
     printSections()

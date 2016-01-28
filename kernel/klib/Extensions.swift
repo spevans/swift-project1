@@ -63,6 +63,12 @@ extension UnsafePointer {
     public func ptrValue() -> UInt {
         return ptr_value(self)
     }
+
+
+    // Increment a pointer by x bytes and recast to a new type
+    public func advancedBy<T>(bytes bytes: Int) -> UnsafePointer<T> {
+        return UnsafePointer<T>(bitPattern: ptr_value(self) + UInt(bytes))
+    }
 }
 
 
