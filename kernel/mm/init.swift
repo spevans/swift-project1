@@ -80,7 +80,7 @@ private func mapPhysicalMemory(maxAddress: UInt64) {
     printf("Mapping physical memory from 0 - %p\n", maxAddress)
 
     // Map physical memory using 1GB pages if available else 2MB pages
-    if CPU.pages1G {
+    if CPU.capabilities.pages1G {
         inc = 0x40000000    // 1GB
         printf("Using 1GB mappings: ")
         mapper = add1GBMapping

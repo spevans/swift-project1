@@ -9,18 +9,38 @@
  */
 
 
-class CPU {
-    static var maxBasicInput :UInt32 = 0
-    static var maxExtendedInput: UInt32 = 0
-    static var vendorName = ""
-    static var processorBrandString = ""
-    static var hasMSR = false
-    static var IA32_EFER = false
-    static var pages1G = false
-    static var nxe = false
+struct CPUID: CustomStringConvertible {
+    let maxBasicInput: UInt32
+    let maxExtendedInput: UInt32
+    let vendorName: String
+    let processorBrandString: String
+    let hasMSR: Bool
+    let IA32_EFER: Bool
+    let pages1G: Bool
+    let nxe: Bool
+
+    var description: String {
+        var str = String.sprintf("CPU: maxBI: %#x maxEI: %#x\n", maxBasicInput, maxExtendedInput)
+        str += "CPU: [\(vendorName)] [\(processorBrandString)]\n"
+        str += "CPU: "
+        str += pages1G ? "1GPages " : ""
+        str += hasMSR ? "msr " : ""
+        str += IA32_EFER ? "IA32_EFER " : ""
+        str += nxe ? "nxe " : ""
+
+        return str
+    }
 
 
-    static func getInfo() {
+    init() {
+        func testBit(v: UInt32, _ bit: Int) -> Bool {
+            if (v & UInt32(1 << bit)) != 0 {
+                return true
+            } else {
+                return false
+            }
+        }
+
         var info = cpuid_result() //eax: 0, ebx: 0, ecx: 0, edx: 0)
         var ptr = UnsafePointer<CChar>(cpuid(0, &info) + 4)
         vendorName = String.fromCString(ptr)!
@@ -33,8 +53,9 @@ class CPU {
             cpuid(0x1, &info)
             let edx = info.u.regs.edx
             hasMSR = testBit(edx, 5)
+        } else {
+            hasMSR = false
         }
-
 
         if (maxExtendedInput >= 0x80000001) {
             cpuid(0x80000001, &info)
@@ -42,26 +63,40 @@ class CPU {
             pages1G = testBit(edx, 26)
             nxe = testBit(edx, 20)
             IA32_EFER = testBit(edx, 29)
+        } else {
+            pages1G = false
+            nxe = false
+            IA32_EFER = false
         }
-
 
         if (maxExtendedInput >= 0x80000004) {
             ptr = UnsafePointer<CChar>(cpuid(0x80000002, &info))
-            processorBrandString = String.fromCString(ptr)!
+            var brand = String.fromCString(ptr)!
             ptr = UnsafePointer<CChar>(cpuid(0x80000003, &info))
-            processorBrandString += String.fromCString(ptr)!
+            brand += String.fromCString(ptr)!
             ptr = UnsafePointer<CChar>(cpuid(0x80000004, &info))
-            processorBrandString += String.fromCString(ptr)!
+            brand += String.fromCString(ptr)!
+            processorBrandString = brand
+        } else {
+            processorBrandString = ""
         }
+    }
+}
+
+
+// Singleton that will be initialised by CPU.getInfo() or CPU.capabilities
+private let cpuId = CPUID()
+
+
+struct CPU {
+
+    static func getInfo() {
+        print(cpuId)
     }
 
 
-    private static func testBit(v: UInt32, _ bit: Int) -> Bool {
-        if (v & UInt32(1 << bit)) != 0 {
-            return true
-        } else {
-            return false
-        }
+    static var capabilities: CPUID {
+        return cpuId
     }
 
 
@@ -79,7 +114,7 @@ class CPU {
 
 
     static func enableNXE(enable: Bool) -> Bool {
-        if nxe && hasMSR && IA32_EFER {
+        if cpuId.nxe && cpuId.hasMSR && cpuId.IA32_EFER {
             var (eax, edx) = readMSR(0xC0000080)
             eax |= 1 << 11
             writeMSR(0xC0000080, eax, edx)
@@ -94,15 +129,8 @@ class CPU {
         return (result.eax, result.edx)
     }
 
+
     static func writeMSR(msr: UInt32, _ eax: UInt32, _ edx: UInt32) {
         wrmsr(msr, eax, edx)
-    }
-
-
-    static var description: String {
-        var str = String.sprintf("maxBasicInput: %#x maxExtendedInput: %#x\n[\(vendorName)] [\(processorBrandString)]\n",
-            maxBasicInput, maxExtendedInput);
-        str += String.sprintf("1GPages = \(pages1G) hasMSR = \(hasMSR) IA32_EFER = \(IA32_EFER) nxe = \(nxe)")
-        return str
     }
 }
