@@ -18,7 +18,7 @@ public func startup() {
     setupIDT()
     setupMM(params)
 
-    PCI.scanPCI()
+    PCI.scan()
     print(CPU.description)
     printSections()
     print("Hello world")

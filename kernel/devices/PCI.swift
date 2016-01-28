@@ -9,7 +9,7 @@
  */
 
 
-class PCIDeviceFunction {
+struct PCIDeviceFunction: CustomStringConvertible  {
     let PCI_CONFIG_ADDRESS: UInt16 = 0xCF8
     let PCI_CONFIG_DATA:    UInt16 = 0xCFC
 
@@ -17,11 +17,17 @@ class PCIDeviceFunction {
     let device:            UInt8
     let function:          UInt8
     let baseAddress:       UInt32
-    lazy var vendor:       UInt16 = { return self.readConfigWords(offset: 0).0 }()
-    lazy var deviceId:     UInt16 = { return self.readConfigWords(offset: 0).1 }()
-    lazy var classCode:    UInt8 = { return self.readConfigBytes(offset: 0x8).3 }()
-    lazy var subClassCode: UInt8 = { return self.readConfigBytes(offset: 0x8).2 }()
-    lazy var headerType:   UInt8 = { return self.readConfigBytes(offset: 0xc).2 }()
+
+    var vendor:       UInt16 { return readConfigWords(offset: 0).0 }
+    var deviceId:     UInt16 { return readConfigWords(offset: 0).1 }
+    var classCode:    UInt8 { return readConfigBytes(offset: 0x8).3 }
+    var subClassCode: UInt8 { return readConfigBytes(offset: 0x8).2 }
+    var headerType:   UInt8 { return readConfigBytes(offset: 0xc).2 }
+
+    var description: String {
+        return String.sprintf("%2.2X:%2.2X/%d: %4.4X:%4.4X [%2.2X%2.2X] HT: %2.2X",
+            bus, device, function, vendor, deviceId, classCode, subClassCode, headerType)
+    }
 
 
     init?(bus: UInt8, device: UInt8, function: UInt8) {
@@ -29,6 +35,7 @@ class PCIDeviceFunction {
         self.device = device
         self.function = function
         baseAddress = UInt32(bus) << 16 | UInt32(device) << 11 | UInt32(function) << 8 | 0x80000000;
+
         if (vendor == 0xFFFF) {
             return nil
         }
@@ -79,33 +86,36 @@ class PCIDeviceFunction {
 }
 
 
-public class PCI {
-    public static func scanPCI() {
-        scanAllPCIBuses()
+// Singleton that will be initialised by PCI.scan()
+private let pciDevices = PCI.scanAllBuses()
+
+
+struct PCI {
+
+    static func scan() {
+        print("PCI: Scanning bus")
+        for device in pciDevices {
+            print("PCI: \(device)")
+        }
+        print("PCI: Scan finished")
     }
 
 
-    static func printDev(pciDev: PCIDeviceFunction) {
-        kprintf("%2.2X:%2.2X/%d: %4.4X:%4.4X [%2.2X%2.2X] HT: %2.2X\n",
-            pciDev.bus, pciDev.device, pciDev.function, pciDev.vendor, pciDev.deviceId, pciDev.classCode, pciDev.subClassCode,
-            pciDev.headerType)
-    }
-
-
-    static func scanAllPCIBuses() {
-        print("Scanning PCI bus")
+    private static func scanAllBuses() -> [PCIDeviceFunction] {
+        var devices: [PCIDeviceFunction] = []
         for bus: UInt8 in 0...0 {
             for device: UInt8 in 0..<32 {
                 if let pciDev = PCIDeviceFunction(bus: bus, device: device, function: 0) {
-                    printDev(pciDev)
+                    devices.append(pciDev)
                     if let subFuncs = pciDev.subFunctions() {
                         for dev in subFuncs {
-                            printDev(dev)
+                            devices.append(dev)
                         }
                     }
                 }
             }
         }
-        print("Scan finished")
+
+        return devices
     }
 }
