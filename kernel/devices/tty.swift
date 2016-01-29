@@ -95,6 +95,7 @@ public class TTY {
     }
 
 
+    @_silgen_name("tty_print_cstring_len")
     public static func printCStringLen(string: UnsafePointer<CChar>, length: Int) {
         let buffer = UnsafeBufferPointer(start: string, count: length)
         for ch in buffer {
@@ -103,6 +104,7 @@ public class TTY {
     }
 
 
+    @_silgen_name("tty_print_cstring")
     public static func printCString(string: UnsafePointer<CChar>) {
         let maxLength = 2000; // hard limit
         let buffer = UnsafeBufferPointer(start: string, count: maxLength)
@@ -121,6 +123,7 @@ public class TTY {
     }
 
 
+    @_silgen_name("tty_print_char")
     public static func printChar(character: CChar) {
         let tab: CUnsignedChar = 0x09
         let newline: CUnsignedChar = 0x0A

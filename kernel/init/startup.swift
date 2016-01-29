@@ -9,6 +9,7 @@
  */
 
 
+@_silgen_name("startup")
 public func startup() {
     TTY.initTTY()
     BootParams.parse()

@@ -15,7 +15,7 @@
         extern init_mm
         extern _bss_start
         extern _kernel_end
-        extern _TF11SwiftKernel7startupFT_T_ ; SwiftKernel.startup () -> ()
+        extern startup ; SwiftKernel.startup () -> ()
         extern initial_tls_end_addr
 
         global main
@@ -66,7 +66,7 @@ main:
         mov     [fs:0], rdx
 
         call    init_mm                 ; required for malloc/free
-        call    _TF11SwiftKernel7startupFT_T_   ; SwiftKernel.startup
+        call    startup                 ; SwiftKernel.startup
         hlt
 
         ;; SSE instuctions cause an undefined opcode until enabled in CR0/CR4
