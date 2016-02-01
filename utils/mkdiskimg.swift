@@ -129,7 +129,15 @@ let bootsect = openOrQuit(args[1])
 guard bootsect.length == 512 else {
     fatalError("Bootsector should be 512 bytes but is \(bootsect.length)")
 }
+
+// Ensure bootsector + loader == 2048 bytes so that if loaded from cd it fits in one
+// ISO9660 sector
 let loader = openOrQuit(args[2])
+let loaderLen = (2048 - 512)
+guard loader.length == (loaderLen) else {
+    fatalError("Loader should be \(loaderLen) bytes but is \(loader.length)")
+}
+
 let kernel = openOrQuit(args[3])
 let loaderSectors = UInt16((loader.length + 511) / 512)
 let kernelSectors = UInt16((kernel.length + 511) / 512)
@@ -143,8 +151,5 @@ patchValue(bootsect, offset: 482, value: loaderSectors.littleEndian)
 patchValue(bootsect, offset: 488, value: loaderLBA.littleEndian)
 patchValue(bootsect, offset: 496, value: kernelLBA.littleEndian)
 patchValue(bootsect, offset: 504, value: kernelSectors.littleEndian)
-
-// Bootdrive (BIOS 0x80 == hda)
-patchValue(bootsect, offset: 506, value: UInt8(0x80))
 
 writeOutImage(args[4], bootsect, loader, kernel, Int(kernelLBA))

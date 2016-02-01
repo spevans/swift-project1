@@ -1,5 +1,5 @@
 ;;; boot/pmode_loader.asm
-;;; 
+;;;
 ;;; Copyright © 2015 Simon Evans. All rights reserved.
 ;;;
 ;;; Loads the kernel into the memory starting @ 1MB
@@ -12,7 +12,6 @@
 
 BUFFER_SEG              EQU     0x8000
 KERNEL_LOAD_ADDR        EQU     0x100000
-SECTORS_PER_READ        EQU     96 ; VMWare doesnt like 128, 96 seems ok
 
         BITS 16
 
@@ -29,6 +28,13 @@ pmode_loader:
         mov     [sector_count], ax
         mov     ah, [es:506]
         mov     [boot_dev], ah
+        mov     cl, [es:507]
+        mov     [sector_size], cl
+        sub     cl, 9
+        mov     al, [read_sectors]
+        shr     al, cl
+        mov     [read_sectors], al
+
         pop     es
 
         mov     si, loading_kernel
@@ -37,10 +43,12 @@ pmode_loader:
         mov     ebp, 0xB8000
 
 load_loop:
+        xor     ebx, ebx
+        mov     bl, [read_sectors]
         mov     ax, [sector_count]
-        cmp     ax, SECTORS_PER_READ
+        cmp     ax, bx
         jle     load_count
-        mov     ax, SECTORS_PER_READ
+        mov     ax, bx
 
 load_count:
         sub     [sector_count], ax
@@ -58,15 +66,17 @@ load_count:
 read_ok:
         ;;  Data read from disk is at BUFFER_SEG:0000
         mov     esi, BUFFER_SEG
-        shl     esi, 4
-        mov     cx, [dap_count]
-        shl     ecx, 9          ; convert sector count to bytes
+        shl     esi, 4                  ; convert segment to linear address
+        mov     ax, [dap_count]
+        mov     cl, [sector_size]
+        shl     eax, cl                 ; convert sector count to bytes
+        mov     ecx, eax
         mov     edi, [kernel_addr]
         add     [kernel_addr], ecx
         call    pm_memcpy
         cmp     word [sector_count], 0
         je      kernel_loaded
-        add     dword [dap_lba_lo], SECTORS_PER_READ
+        add     dword [dap_lba_lo], ebx ; read_sectors
         adc     dword [dap_lba_hi], 0
         jmp     load_loop
 
@@ -117,7 +127,8 @@ dap_segment:    dw      BUFFER_SEG
 dap_lba_lo:     dd      0               ; low 32bit LBA address
 dap_lba_hi:     dd      0               ; high 32bit LBA address
 boot_dev:       db      0               ; BIOS disk number
-
+sector_size:    db      9
+read_sectors:   db      96              ; VMWare doesnt like 128, 96 seems ok
 
         BITS 32
         ALIGN 4

@@ -128,3 +128,5 @@ GDT:
 
 ;;; Include this at the end as it changes the BITS settings
 %include "pmode_loader.asm"
+
+times 1536 - ($-$$) db 0

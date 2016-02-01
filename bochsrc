@@ -1,5 +1,6 @@
-ata0-master: type=disk, path="disk_image", mode=flat, cylinders=20, heads=16, spt=63
-boot: disk
+ata0-master: type=disk, path="boot-hd.img", mode=flat, cylinders=20, heads=16, spt=63
+ata0-slave: type=cdrom, path="boot-cd.iso", status=inserted, biosdetect=auto
+boot: disk, cdrom
 vga: extension=cirrus
 vgaromimage: file=$BXSHARE/VGABIOS-lgpl-latest-cirrus
 pci: enabled=1, chipset=i440fx, slot1=cirrus
