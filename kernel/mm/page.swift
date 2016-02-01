@@ -35,7 +35,8 @@ private let executeDisableFlag :UInt = 1 << 63
 
 private var maxPhysicalMem = 16 * 1024 * 1024 * 1024 // 16GB
 private let physicalMemPtr = UnsafeMutablePointer<UInt>(bitPattern: PHYSICAL_MEM_BASE)
-private let physicalMemory = UnsafeMutableBufferPointer(start: physicalMemPtr, count:maxPhysicalMem/sizeof(UInt))
+private let physicalMemory = UnsafeMutableBufferPointer(start: physicalMemPtr,
+    count:maxPhysicalMem/sizeof(UInt))
 
 
 func mapPhysicalRegion(start: PhysAddress, sizeInBytes: Int) -> PhysicalRegion {
@@ -45,7 +46,7 @@ func mapPhysicalRegion(start: PhysAddress, sizeInBytes: Int) -> PhysicalRegion {
 
 
 func ptrFromPhysicalPtr<T>(ptr: UnsafePointer<T>) -> UnsafePointer<T> {
-    let ret: UnsafePointer<T> = UnsafePointer(bitPattern: PHYSICAL_MEM_BASE + ptr.ptrValue())
+    let ret: UnsafePointer<T> = UnsafePointer(bitPattern: PHYSICAL_MEM_BASE + ptr.ptrToUint)
     return ret;
 }
 

@@ -9,7 +9,7 @@
  */
 
 private let kernelPhysBase: PhysAddress = 0x100000
-private let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_addr)
+private let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_addr())
 
 
 /* After bootup and entry into the kernel the page table setup by the
@@ -30,14 +30,14 @@ private let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_addr)
 func setupMM() {
     // Setup initial page tables and map kernel
 
-    let textEnd = ptr_value(_text_end_addr)
-    let rodataStart = ptr_value(_rodata_start_addr)
-    let dataStart = ptr_value(_data_start_addr)
-    let bssEnd = ptr_value(_bss_end_addr)
-    let pml4Phys = UInt64(virtualToPhys(initial_pml4_addr))
+    let textEnd = VirtualAddress(_text_end_addr())
+    let rodataStart = VirtualAddress(_rodata_start_addr())
+    let dataStart = VirtualAddress(_data_start_addr())
+    let bssEnd = VirtualAddress(_bss_end_addr())
+    let pml4Phys = UInt64(virtualToPhys(initial_pml4_addr()))
 
-    let kernelBase: VirtualAddress = _kernel_start_addr
-    let textSize = roundToPage(textEnd - _kernel_start_addr)
+    let kernelBase = VirtualAddress(_kernel_start_addr())
+    let textSize = roundToPage(textEnd - _kernel_start_addr())
     let rodataSize = roundToPage(dataStart - rodataStart)
     let dataSize = roundToPage(bssEnd - dataStart)
 
@@ -46,11 +46,11 @@ func setupMM() {
 
     // Add 3 mappings for text, rodata and data + bss with appropiate protections
     printf("_text:   %p - %p\n_rodata: %p - %p\n_data:   %p - %p\n",
-        _kernel_start_addr, _kernel_start_addr + textSize,
-        ptr_value(_rodata_start_addr), ptr_value(_rodata_start_addr) + rodataSize,
-        ptr_value(_data_start_addr), ptr_value(_data_start_addr) + dataSize)
+        _kernel_start_addr(), _kernel_start_addr() + textSize,
+        _rodata_start_addr(), _rodata_start_addr() + rodataSize,
+        _data_start_addr(), _data_start_addr() + dataSize)
 
-    addMapping(start: _kernel_start_addr, size: textSize, physStart: kernelPhysBase,
+    addMapping(start: _kernel_start_addr(), size: textSize, physStart: kernelPhysBase,
         readWrite: false, noExec: false)
     addMapping(start: rodataStart, size: rodataSize, physStart: kernelPhysBase + textSize,
         readWrite: false, noExec: true)
@@ -65,7 +65,7 @@ func setupMM() {
         virtualToPhys(kernelBase + textSize + rodataSize, base: pml4Phys))
 
     mapPhysicalMemory(BootParams.highestMemoryAddress())
-    setCR3(UInt64(virtualToPhys(initial_pml4_addr)))
+    setCR3(UInt64(virtualToPhys(initial_pml4_addr())))
     CPU.enableWP(true)
     print("CR3 Updated")
 }
@@ -111,8 +111,8 @@ private func roundToPage(size: UInt) -> UInt {
 
 private func getPageAtIndex(dirPage: PageTableDirectory, _ idx: Int) -> PageTableDirectory {
     if !pagePresent(dirPage[idx]) {
-        let newPage = ptr_value(alloc_pages(1))
-        let paddr = virtualToPhys(newPage)
+        let newPage = alloc_pages(1)
+        let paddr = virtualToPhys(newPage.ptrToUint)
         let entry = makePDE(address: paddr, readWrite: true, userAccess: false, writeThrough: true,
             cacheDisable: false, noExec: false)
         dirPage[idx] = entry

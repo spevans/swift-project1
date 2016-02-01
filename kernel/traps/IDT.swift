@@ -31,7 +31,7 @@ enum GateType: UInt8 {
 }
 
 // Helper method to construct an IDT entry
-private func IDTEntry(address address: UInt64, selector: UInt16, gateType: GateType, dpl: UInt8) -> idt_entry {
+private func IDTEntry(address address: UInt, selector: UInt16, gateType: GateType, dpl: UInt8) -> idt_entry {
 
     let level = (dpl & 3) << 5
     let flags: UInt8 = 128 | level | gateType.rawValue  // 128 = Present Bit set
@@ -53,26 +53,26 @@ public func setupIDT() {
     var currentIdtInfo = dt_info(limit: 0, address: nil)
     sidt(&currentIdtInfo)
     printf("Current IDTInfo: %p/%u\n", currentIdtInfo.address, currentIdtInfo.limit)
-    idt.0 = IDTEntry(address: UInt64(divide_by_zero_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.1 = IDTEntry(address: UInt64(debug_exception_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.2 = IDTEntry(address: UInt64(nmi_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.3 = IDTEntry(address: UInt64(single_step_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.4 = IDTEntry(address: UInt64(overflow_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.5 = IDTEntry(address: UInt64(bounds_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.6 = IDTEntry(address: UInt64(invalid_opcode_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.7 = IDTEntry(address: UInt64(unused_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.8 = IDTEntry(address: UInt64(double_fault_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.9 = IDTEntry(address: UInt64(unused_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.10 = IDTEntry(address: UInt64(invalid_tss_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.11 = IDTEntry(address: UInt64(seg_not_present_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.12 = IDTEntry(address: UInt64(stack_fault_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.13 = IDTEntry(address: UInt64(gpf_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.14 = IDTEntry(address: UInt64(page_fault_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.15 = IDTEntry(address: UInt64(unused_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.16 = IDTEntry(address: UInt64(fpu_fault_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.17 = IDTEntry(address: UInt64(alignment_exception_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.18 = IDTEntry(address: UInt64(mce_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
-    idt.19 = IDTEntry(address: UInt64(simd_exception_stub_addr), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.0 = IDTEntry(address: divide_by_zero_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.1 = IDTEntry(address: debug_exception_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.2 = IDTEntry(address: nmi_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.3 = IDTEntry(address: single_step_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.4 = IDTEntry(address: overflow_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.5 = IDTEntry(address: bounds_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.6 = IDTEntry(address: invalid_opcode_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.7 = IDTEntry(address: unused_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.8 = IDTEntry(address: double_fault_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.9 = IDTEntry(address: unused_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.10 = IDTEntry(address: invalid_tss_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.11 = IDTEntry(address: seg_not_present_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.12 = IDTEntry(address: stack_fault_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.13 = IDTEntry(address: gpf_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.14 = IDTEntry(address: page_fault_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.15 = IDTEntry(address: unused_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.16 = IDTEntry(address: fpu_fault_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.17 = IDTEntry(address: alignment_exception_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.18 = IDTEntry(address: mce_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
+    idt.19 = IDTEntry(address: simd_exception_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
 
     trap_dispatch_table.0 = divideByZeroException
     trap_dispatch_table.1 = debugException
@@ -96,22 +96,22 @@ public func setupIDT() {
     trap_dispatch_table.19 = simdException
     lidt(&idtInfo)
 
-    idt.32 = IDTEntry(address: UInt64(irq00_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
-    idt.33 = IDTEntry(address: UInt64(irq01_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
-    idt.34 = IDTEntry(address: UInt64(irq02_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
-    idt.35 = IDTEntry(address: UInt64(irq03_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
-    idt.36 = IDTEntry(address: UInt64(irq04_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
-    idt.37 = IDTEntry(address: UInt64(irq05_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
-    idt.38 = IDTEntry(address: UInt64(irq06_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
-    idt.39 = IDTEntry(address: UInt64(irq07_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
-    idt.40 = IDTEntry(address: UInt64(irq08_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
-    idt.41 = IDTEntry(address: UInt64(irq09_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
-    idt.42 = IDTEntry(address: UInt64(irq10_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
-    idt.43 = IDTEntry(address: UInt64(irq11_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
-    idt.44 = IDTEntry(address: UInt64(irq12_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
-    idt.45 = IDTEntry(address: UInt64(irq13_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
-    idt.46 = IDTEntry(address: UInt64(irq14_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
-    idt.47 = IDTEntry(address: UInt64(irq15_stub_addr), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.32 = IDTEntry(address: irq00_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.33 = IDTEntry(address: irq01_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.34 = IDTEntry(address: irq02_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.35 = IDTEntry(address: irq03_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.36 = IDTEntry(address: irq04_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.37 = IDTEntry(address: irq05_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.38 = IDTEntry(address: irq06_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.39 = IDTEntry(address: irq07_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.40 = IDTEntry(address: irq08_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.41 = IDTEntry(address: irq09_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.42 = IDTEntry(address: irq10_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.43 = IDTEntry(address: irq11_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.44 = IDTEntry(address: irq12_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.45 = IDTEntry(address: irq13_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.46 = IDTEntry(address: irq14_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
+    idt.47 = IDTEntry(address: irq15_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
 
 
     for idx in 0..<irqDispatchTable.endIndex {

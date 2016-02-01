@@ -31,13 +31,13 @@ public func startup() {
 }
 
 
-func printSections() {
-    let text_start = UnsafePointer<CChar>(_text_start_addr)
-    let text_end = UnsafePointer<CChar>(_text_end_addr)
-    let data_start = UnsafePointer<CChar>(_data_start_addr)
-    let data_end = UnsafePointer<CChar>(_data_end_addr)
-    let bss_start = UnsafePointer<CChar>(_bss_start_addr)
-    let bss_end = UnsafePointer<CChar>(_bss_end_addr)
+public func printSections() {
+    let text_start = UnsafePointer<Void>(bitPattern: _text_start_addr())
+    let text_end = UnsafePointer<Void>(bitPattern: _text_end_addr())
+    let data_start = UnsafePointer<Void>(bitPattern: _data_start_addr())
+    let data_end = UnsafePointer<Void>(bitPattern: _data_end_addr())
+    let bss_start = UnsafePointer<Void>(bitPattern: _bss_start_addr())
+    let bss_end = UnsafePointer<Void>(bitPattern: _bss_end_addr())
 
     TTY.printString("_text_start: \(text_start)\n")
     TTY.printString("_text_end:   \(text_end)\n")

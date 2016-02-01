@@ -1,7 +1,9 @@
 #include <stdint.h>
-#include "kernel.h"
 #include "klibc.h"
 #include "x86defs.h"
+
+
+extern void *_kernel_stack;
 
 // Simple stack backtrace using rbp to walk the stack
 // Needs an update for eh_frame at some point
@@ -16,7 +18,7 @@ stack_trace(uintptr_t rsp, uintptr_t rbp)
         void **rbp_ptr = (void **)rbp;
         size_t idx = 0;
 
-        while ((uintptr_t)rbp_ptr < _kernel_stack_addr) {
+        while ((uintptr_t)rbp_ptr < (uintptr_t)_kernel_stack) {
                 if (rbp_ptr == NULL) {
                         return;
                 }

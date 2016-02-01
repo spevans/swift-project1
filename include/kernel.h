@@ -18,22 +18,21 @@
 #include "mm.h"
 
 // Export as [symbol]_addr suitable to use as an arg to UnsafePointer()
-#define EXPORTED_SYMBOL_AS_VOIDPTR(x) extern const void *x##_addr;
+#define EXPORTED_SYMBOL_AS_VOIDPTR(x) static inline void *x##_addr() { extern uintptr_t x; return &x; }
 
-// Export as [symbol]_addr as a unitptr_t to be manipulated as a UInt64
-#define EXPORTED_SYMBOL_AS_UINTPTR(x) extern uintptr_t x##_addr;
+// Export as [symbol]_addr as a unitptr_t to be manipulated as a UInt
+#define EXPORTED_SYMBOL_AS_UINTPTR(x) static inline uintptr_t x##_addr() { extern uintptr_t x; return (uintptr_t)&x; }
 
-EXPORTED_SYMBOL_AS_VOIDPTR(_text_start);
-EXPORTED_SYMBOL_AS_VOIDPTR(_text_end);
-EXPORTED_SYMBOL_AS_VOIDPTR(_rodata_start);
-EXPORTED_SYMBOL_AS_VOIDPTR(_rodata_end);
-EXPORTED_SYMBOL_AS_VOIDPTR(_data_start);
-EXPORTED_SYMBOL_AS_VOIDPTR(_data_end);
-EXPORTED_SYMBOL_AS_VOIDPTR(_bss_start);
-EXPORTED_SYMBOL_AS_VOIDPTR(_bss_end);
+EXPORTED_SYMBOL_AS_UINTPTR(_text_start);
+EXPORTED_SYMBOL_AS_UINTPTR(_text_end);
+EXPORTED_SYMBOL_AS_UINTPTR(_rodata_start);
+EXPORTED_SYMBOL_AS_UINTPTR(_rodata_end);
+EXPORTED_SYMBOL_AS_UINTPTR(_data_start);
+EXPORTED_SYMBOL_AS_UINTPTR(_data_end);
+EXPORTED_SYMBOL_AS_UINTPTR(_bss_start);
+EXPORTED_SYMBOL_AS_UINTPTR(_bss_end);
 EXPORTED_SYMBOL_AS_UINTPTR(_kernel_start);
 EXPORTED_SYMBOL_AS_UINTPTR(_kernel_end);
-EXPORTED_SYMBOL_AS_UINTPTR(initial_tls_end);
 EXPORTED_SYMBOL_AS_UINTPTR(divide_by_zero_stub);
 EXPORTED_SYMBOL_AS_UINTPTR(debug_exception_stub);
 EXPORTED_SYMBOL_AS_UINTPTR(nmi_stub);
@@ -52,9 +51,7 @@ EXPORTED_SYMBOL_AS_UINTPTR(fpu_fault_stub);
 EXPORTED_SYMBOL_AS_UINTPTR(alignment_exception_stub);
 EXPORTED_SYMBOL_AS_UINTPTR(mce_stub);
 EXPORTED_SYMBOL_AS_UINTPTR(simd_exception_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(test_breakpoint);
 EXPORTED_SYMBOL_AS_UINTPTR(_kernel_stack);
-EXPORTED_SYMBOL_AS_VOIDPTR(irq_dispatch_table);
 EXPORTED_SYMBOL_AS_UINTPTR(initial_pml4);
 EXPORTED_SYMBOL_AS_UINTPTR(irq00_stub);
 EXPORTED_SYMBOL_AS_UINTPTR(irq01_stub);
@@ -73,6 +70,10 @@ EXPORTED_SYMBOL_AS_UINTPTR(irq13_stub);
 EXPORTED_SYMBOL_AS_UINTPTR(irq14_stub);
 EXPORTED_SYMBOL_AS_UINTPTR(irq15_stub);
 
+extern const void *initial_tls_end_addr;
+extern const void *irq_dispatch_table_addr;
+
+
 void set_print_functions_to_swift();
 void early_print_string(const char *text);
 void early_print_string_len(const char *text, size_t len);
@@ -88,7 +89,7 @@ int memcmp(const void *s1, const void *s2, size_t count);
 
 
 static inline uintptr_t
-ptr_value(const void *ptr)
+ptr_to_uint(const void *ptr)
 {
         return (uintptr_t)ptr;
 }

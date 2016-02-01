@@ -13,55 +13,6 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 
-#define EXPORT_SYMBOL_TO_SWIFT(x) extern uintptr_t x; const void *x##_addr = &x;
-
-EXPORT_SYMBOL_TO_SWIFT(_text_start);
-EXPORT_SYMBOL_TO_SWIFT(_text_end);
-EXPORT_SYMBOL_TO_SWIFT(_rodata_start);
-EXPORT_SYMBOL_TO_SWIFT(_rodata_end);
-EXPORT_SYMBOL_TO_SWIFT(_data_start);
-EXPORT_SYMBOL_TO_SWIFT(_data_end);
-EXPORT_SYMBOL_TO_SWIFT(_bss_start);
-EXPORT_SYMBOL_TO_SWIFT(_bss_end);
-EXPORT_SYMBOL_TO_SWIFT(_kernel_start);
-EXPORT_SYMBOL_TO_SWIFT(_kernel_end);
-EXPORT_SYMBOL_TO_SWIFT(divide_by_zero_stub);
-EXPORT_SYMBOL_TO_SWIFT(debug_exception_stub);
-EXPORT_SYMBOL_TO_SWIFT(nmi_stub);
-EXPORT_SYMBOL_TO_SWIFT(single_step_stub);
-EXPORT_SYMBOL_TO_SWIFT(overflow_stub);
-EXPORT_SYMBOL_TO_SWIFT(bounds_stub);
-EXPORT_SYMBOL_TO_SWIFT(invalid_opcode_stub);
-EXPORT_SYMBOL_TO_SWIFT(unused_stub);
-EXPORT_SYMBOL_TO_SWIFT(double_fault_stub);
-EXPORT_SYMBOL_TO_SWIFT(invalid_tss_stub);
-EXPORT_SYMBOL_TO_SWIFT(seg_not_present_stub);
-EXPORT_SYMBOL_TO_SWIFT(stack_fault_stub);
-EXPORT_SYMBOL_TO_SWIFT(gpf_stub);
-EXPORT_SYMBOL_TO_SWIFT(page_fault_stub);
-EXPORT_SYMBOL_TO_SWIFT(fpu_fault_stub);
-EXPORT_SYMBOL_TO_SWIFT(alignment_exception_stub);
-EXPORT_SYMBOL_TO_SWIFT(mce_stub);
-EXPORT_SYMBOL_TO_SWIFT(simd_exception_stub);
-EXPORT_SYMBOL_TO_SWIFT(_kernel_stack);
-EXPORT_SYMBOL_TO_SWIFT(irq00_stub);
-EXPORT_SYMBOL_TO_SWIFT(irq01_stub);
-EXPORT_SYMBOL_TO_SWIFT(irq02_stub);
-EXPORT_SYMBOL_TO_SWIFT(irq03_stub);
-EXPORT_SYMBOL_TO_SWIFT(irq04_stub);
-EXPORT_SYMBOL_TO_SWIFT(irq05_stub);
-EXPORT_SYMBOL_TO_SWIFT(irq06_stub);
-EXPORT_SYMBOL_TO_SWIFT(irq07_stub);
-EXPORT_SYMBOL_TO_SWIFT(irq08_stub);
-EXPORT_SYMBOL_TO_SWIFT(irq09_stub);
-EXPORT_SYMBOL_TO_SWIFT(irq10_stub);
-EXPORT_SYMBOL_TO_SWIFT(irq11_stub);
-EXPORT_SYMBOL_TO_SWIFT(irq12_stub);
-EXPORT_SYMBOL_TO_SWIFT(irq13_stub);
-EXPORT_SYMBOL_TO_SWIFT(irq14_stub);
-EXPORT_SYMBOL_TO_SWIFT(irq15_stub);
-
-
 void
 koops(const char *fmt, ...)
 {

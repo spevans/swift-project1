@@ -31,4 +31,3 @@ uint8_t initial_pml4[PAGE_SIZE] bss_page;
 #define EXPORT_SYMBOL_TO_SWIFT(x) const void *x##_addr = &x;
 
 EXPORT_SYMBOL_TO_SWIFT(irq_dispatch_table)
-EXPORT_SYMBOL_TO_SWIFT(initial_pml4)
