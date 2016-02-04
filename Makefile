@@ -38,15 +38,25 @@ test:
 	make -C kernel/klib
 	make -C tests
 
-iso: boot-cd.iso
-
-boot-cd.iso: boot-hd.img
-	rm -rf iso_tmp test.iso
-	mkdir -p iso_tmp
+iso:
+	rm -rf iso_tmp boot-cd.iso efi.img
+	mkdir -p iso_tmp/efi/boot iso_tmp/boot
 	cp boot-hd.img iso_tmp/boot.img
-	genisoimage -U -A "project1" -V "project1" -volset "project1" -J -joliet-long \
-		-r -v -T  -b boot.img -c boot.cat -no-emul-boot -boot-load-size 4 \
-		-boot-info-table -o boot-cd.iso iso_tmp
+	cp boot/hello.efi iso_tmp/efi/boot
+	#cp boot/hello.efi iso_tmp/efi/boot/bootx64.efi
+	cp boot/efi-header.efi iso_tmp/efi/boot/bootx64.efi
+	/sbin/mkfs.msdos -C iso_tmp/boot/efi.img 240
+	mmd -i iso_tmp/boot/efi.img ::efi
+	mmd -i iso_tmp/boot/efi.img ::efi/boot
+	#mcopy -i iso_tmp/boot/efi.img boot/hello.efi ::efi/boot
+	#mcopy -i iso_tmp/boot/efi.img boot/hello.efi ::efi/boot/bootx64.efi
+	mcopy -i iso_tmp/boot/efi.img boot/efi-header.efi ::efi/boot
+	mcopy -i iso_tmp/boot/efi.img boot/efi-header.efi ::efi/boot/bootx64.efi
+	xorrisofs -J -joliet-long -cache-inodes -isohybrid-mbr isohdppx.bin 	 \
+	-b boot.img -c boot.cat -boot-load-size 4 -boot-info-table -no-emul-boot \
+	-eltorito-alt-boot -e boot/efi.img -no-emul-boot -isohybrid-gpt-basdat 	 \
+	-isohybrid-apm-hfsplus -o boot-cd.iso iso_tmp
+
 
 clean:
 	rm -f boot-hd.img boot-cd.iso kernel.elf kernel.bin kernel.map kernel.dmp
