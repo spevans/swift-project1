@@ -38,25 +38,23 @@ test:
 	make -C kernel/klib
 	make -C tests
 
-iso:
+iso: boot-hd.img
 	rm -rf iso_tmp boot-cd.iso efi.img
 	mkdir -p iso_tmp/efi/boot iso_tmp/boot
 	cp boot-hd.img iso_tmp/boot.img
-	cp boot/hello.efi iso_tmp/efi/boot
-	#cp boot/hello.efi iso_tmp/efi/boot/bootx64.efi
-	cp boot/efi-header.efi iso_tmp/efi/boot/bootx64.efi
+	#cp boot/efi-test.efi iso_tmp/efi/boot
+	cp boot/efi_header.efi iso_tmp/efi/boot/bootx64.efi
 	/sbin/mkfs.msdos -C iso_tmp/boot/efi.img 240
 	mmd -i iso_tmp/boot/efi.img ::efi
 	mmd -i iso_tmp/boot/efi.img ::efi/boot
-	#mcopy -i iso_tmp/boot/efi.img boot/hello.efi ::efi/boot
-	#mcopy -i iso_tmp/boot/efi.img boot/hello.efi ::efi/boot/bootx64.efi
-	mcopy -i iso_tmp/boot/efi.img boot/efi-header.efi ::efi/boot
-	mcopy -i iso_tmp/boot/efi.img boot/efi-header.efi ::efi/boot/bootx64.efi
+	mcopy -i iso_tmp/boot/efi.img boot/efi_header.efi ::efi/boot
+	#mcopy -i iso_tmp/boot/efi.img boot/efi-test.efi ::efi-test.efi
+	#mcopy -i iso_tmp/boot/efi.img boot/efi-header.efi ::efi/boot/bootx64.efi
+	#mcopy -i iso_tmp/boot/efi.img boot/efi-test.efi ::efi/boot/bootx64.efi
 	xorrisofs -J -joliet-long -cache-inodes -isohybrid-mbr isohdppx.bin 	 \
 	-b boot.img -c boot.cat -boot-load-size 4 -boot-info-table -no-emul-boot \
 	-eltorito-alt-boot -e boot/efi.img -no-emul-boot -isohybrid-gpt-basdat 	 \
 	-isohybrid-apm-hfsplus -o boot-cd.iso iso_tmp
-
 
 clean:
 	rm -f boot-hd.img boot-cd.iso kernel.elf kernel.bin kernel.map kernel.dmp

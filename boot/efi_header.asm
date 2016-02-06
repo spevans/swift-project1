@@ -27,11 +27,11 @@ optional_header:                ; Required for Executables
         DW      0x20b           ; Magic: PE32+
         DB      0x1             ; MajorLinkerVersion
         DB      0x2             ; MinorLinkerVersion
-        DD      0x1000          ; SizeOfCode (sum of all code sections)
+        DD      0x3000          ; SizeOfCode (sum of all code sections)
         DD      0x000           ; SizeOfInitializedData (sum of all data sections)
         DD      0x000           ; SizeOfUninitializedData (sum of all bss sections)
-        DD      entry_point     ; AddressOfEntryPoint
-        DD      entry_point     ; BaseOfCode (beginning of code section)
+        DD      0x1000          ; AddressOfEntryPoint
+        DD      0x1000          ; BaseOfCode (beginning of code section)
 
 windows_header:
         DQ      0               ; ImageBase (preferred address)
@@ -44,7 +44,7 @@ windows_header:
         DW      0               ; MajorSubsystemVersion
         DW      0               ; MinorSubsystemVersion
         DD      0               ; Win32VersionValue
-        DD      0x2000          ; SizeOfImage
+        DD      0x4000          ; SizeOfImage
         DD      0x200           ; SizeOfHeaders
         DD      0               ; Checksum
         DW      0xA             ; Subsystem (IMAGE_SUBSYSTEM_EFI_APPLICATION)
@@ -84,10 +84,10 @@ section_table:
 
         ;; .text (text+rodata+data)
         DB      '.text',0, 0, 0 ; Name
-        DD      0x1000          ; VirtualSize
-        DD      entry_point     ; VirtualAddress
-        DD      0x1000          ; SizeOfRawData
-        DD      entry_point     ; PointerToRawData
+        DD      0x3000          ; VirtualSize
+        DD      0x1000          ; VirtualAddress
+        DD      0x3000          ; SizeOfRawData
+        DD      0x1000          ; PointerToRawData
         DD      0               ; PointerToRelocations
         DD      0               ; PointerToLineNumbers
         DW      0               ; NumberOfRelocations
@@ -98,60 +98,13 @@ section_table:
                                 ; IMAGE_SCN_MEM_EXECUTE
                                 ; IMAGE_SCN_MEM_READ
 
-        ;;  ;; .bss
-        ;; DB      '.bss',0,0,0, 0 ; Name
-        ;; DD      end - bss       ; VirtualSize
-        ;; DD      0x2000          ; VirtualAddress
-        ;; DD      0               ; SizeOfRawData
-        ;; DD      0               ; PointerToRawData
-        ;; DD      0               ; PointerToRelocations
-        ;; DD      0               ; PointerToLineNumbers
-        ;; DW      0               ; NumberOfRelocations
-        ;; DW      0               ; NumberOfLineNumbers
-        ;; DD      0xC0000080      ; Characteristics
-        ;;                         ; IMAGE_SCN_CNT_UNINITIALIZED_DATA
-        ;;                         ; IMAGE_SCN_MEM_READ
-        ;;                         ; IMAGE_SCN_MEM_WRITE
-
 
 
 times 0x200 - ($ - $$)   db 0   ; End of 'boot' sector
 
+;;; Add at least 1 reloc entry so the UEFI loader thinks the binary is valid
 reloc_space:
-        DD 0x1cf0, 0xa
+        DD reloc_space + 10, 0xa
         DW 0x0
 
-
-        SECTION .text
-        ALIGN   4096
-
-
-entry_point:
-        ;; mov     [efi_handle], rcx
-        ;; mov     [efi_sys_table], rdx ;
-        mov     rsi, [rdx+0x40]     ; rsi = ST->ConOut
-        mov     rdi, [rsi+0x8]      ; rdi = ST->ConOut->OutputString
-        mov     rcx, rsi
-        mov     r8, 0x8888888888888888
-        mov     r9, 0x9999999999999999
-        lea     rdx, [msg]
-        call    rdi
-        cli
-        hlt
-
-efi_handle:     dq      0
-efi_sys_table:  dq      0
-
-msg:            db      'h',0, 'e',0, 'l',0, 'l',0, 'o',0, 0xa,0, 0xd,0,
-                db      't',0, 'h',0, 'e',0, 'r',0, 'e',0, 0, 0
-dataend:
-
-        times 0x2000 - ($ - $$)   db 0
-
-        SECTION       .bss
-
-        ALIGN   16
-bss:
-
-
-end:
+times 0x1000 - ($ - $$) db 0    ; Pad to PAGE_SIZE
