@@ -119,16 +119,24 @@ public struct MCFG: ACPITable {
 }
 
 
-private func makeString(data: Any) -> String {
+private func makeString(d0: UInt8, _ d1: UInt8) -> String {
+    return String(Character(UnicodeScalar(d0))) + String(Character(UnicodeScalar(d1)))
+}
 
-    var str = ""
-    for child in Mirror(reflecting: data).children {
-        let ch = child.value as! UInt8
-        if (ch != 0) {
-            str += String(Character(UnicodeScalar(ch)))
-        }
-    }
-    return str
+private func makeString(d0: UInt8, _ d1: UInt8, _ d2: UInt8, _ d3: UInt8) -> String {
+    return makeString(d0, d1) + makeString(d2, d3)
+}
+
+
+private func makeString(d0: UInt8, _ d1: UInt8, _ d2: UInt8, _ d3: UInt8, _ d4: UInt8,
+    _ d5: UInt8) -> String {
+    return makeString(d0, d1, d2, d3) + makeString(d4, d5)
+}
+
+
+private func makeString(d0: UInt8, _ d1: UInt8, _ d2: UInt8, _ d3: UInt8, _ d4: UInt8,
+    _ d5: UInt8, _ d6: UInt8, _ d7: UInt8) -> String {
+    return makeString(d0, d1, d2, d3) + makeString(d4, d5, d6, d7)
 }
 
 

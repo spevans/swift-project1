@@ -24,6 +24,7 @@ ifeq ($(UNAME_S), Linux)
 
 kernel.bin: kernel.elf
 	objcopy -O binary kernel.elf kernel.bin
+	utils/foverride ./kernel.bin kernel.map _swift_stdlib_putchar_unlocked putchar
 	objdump -D kernel.elf > kernel.dmp
 endif
 

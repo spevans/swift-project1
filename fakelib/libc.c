@@ -342,3 +342,7 @@ UNIMPLEMENTED(strtold_l)
 UNIMPLEMENTED(sysconf)
 UNIMPLEMENTED(trunc)
 UNIMPLEMENTED(truncf)
+
+UNIMPLEMENTED(isalnum)
+UNIMPLEMENTED(backtrace)
+UNIMPLEMENTED(backtrace_symbols)

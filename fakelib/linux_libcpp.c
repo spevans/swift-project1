@@ -426,3 +426,30 @@ void __cxa_guard_release(void *guard)
 {
         debugf("__cxa_guard_release(%p)\n", guard);
 }
+
+
+UNIMPLEMENTED(__overflow);
+UNIMPLEMENTED(__cxa_demangle);
+
+// std::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(std::string const&, unsigned long, unsigned long)
+UNIMPLEMENTED(_ZNSsC1ERKSsmm);
+
+// std::string::replace(unsigned long, unsigned long, char const*, unsigned long)
+UNIMPLEMENTED(_ZNSs7replaceEmmPKcm);
+
+// std::string::assign(std::string const&)
+UNIMPLEMENTED(_ZNSs6assignERKSs);
+
+//std::__throw_out_of_range_fmt(char const*, ...)
+UNIMPLEMENTED(_ZSt24__throw_out_of_range_fmtPKcz);
+
+// std::string::assign(char const*, unsigned long)
+UNIMPLEMENTED(_ZNSs6assignEPKcm);
+
+// std::string::_M_leak_hard()
+UNIMPLEMENTED(_ZNSs12_M_leak_hardEv)
+
+// demangledLinePrefix(std::string, std::string, std::string&, bool (*)(std::string, std::string&))
+//UNIMPLEMENTED(_ZL19demangledLinePrefixSsSsRSsPFbSsS_E)
+
+UNIMPLEMENTED(_ZZL13demangledLineSsEN3$_08__invokeESsRSs);
