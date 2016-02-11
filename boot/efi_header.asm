@@ -4,9 +4,11 @@
         ORG     0
         DB      "MZ"            ; PE/COFF Header signature
 
-times 0x3c - ($ - $$)   db 0
-        DD      pe_header       ; offset to pe_header
+        OFFSET  0x3c            ; offset to pe_header
 
+        DD      pe_header
+
+;;; offset 64
 pe_header:
         ;; https://upload.wikimedia.org/wikipedia/commons/7/70/Portable_Executable_32_bit_Structure_in_SVG.svg
         ;; COFF header
@@ -22,21 +24,25 @@ pe_header:
                                                 ; IMAGE_FILE_EXECUTABLE_IMAGE   0x0002
                                                 ; IMAGE_FILE_LINE_NUMS_STRIPPED 0x0004
                                                 ; IMAGE_FILE_DEBUG_STRIPPED     0x0200
-
+;;; offset 88 bytes
 optional_header:                ; Required for Executables
         DW      0x20b           ; Magic: PE32+
         DB      0x1             ; MajorLinkerVersion
         DB      0x2             ; MinorLinkerVersion
-        DD      0x3000          ; SizeOfCode (sum of all code sections)
-        DD      0x000           ; SizeOfInitializedData (sum of all data sections)
-        DD      0x000           ; SizeOfUninitializedData (sum of all bss sections)
-        DD      0x1000          ; AddressOfEntryPoint
-        DD      0x1000          ; BaseOfCode (beginning of code section)
+        ;; fixed up by efi_patch
+        DD      0x0000          ; SizeOfCode (sum of all code sections)
+        ;; fixed up by efi_patch
+        DD      0x0000          ; SizeOfInitializedData (sum of all data sections)
+        ;; fixed up by efi_patch
+        DD      0x0000          ; SizeOfUninitializedData (sum of all bss sections)
+        DD      entry_point     ; AddressOfEntryPoint
+        DD      entry_point     ; BaseOfCode (beginning of code section)
 
+;;; offset 112 bytes
 windows_header:
         DQ      0               ; ImageBase (preferred address)
-        DD      4096            ; SectionAlignment
-        DD      0x200           ; FileAlignment
+        DD      0x20            ; SectionAlignment - PAGE_SIZE
+        DD      0x20            ; FileAlignment
         DW      0               ; MajorOperatingSystemVersion
         DW      0               ; MinorOperatingSystemVersion
         DW      0               ; MajorImageVersion
@@ -44,8 +50,9 @@ windows_header:
         DW      0               ; MajorSubsystemVersion
         DW      0               ; MinorSubsystemVersion
         DD      0               ; Win32VersionValue
-        DD      0x4000          ; SizeOfImage
-        DD      0x200           ; SizeOfHeaders
+        ;; fixed up by efi_patch
+        DD      0               ; SizeOfImage
+        DD      header_end      ; SizeOfHeaders
         DD      0               ; Checksum
         DW      0xA             ; Subsystem (IMAGE_SUBSYSTEM_EFI_APPLICATION)
         DW      0               ; DLL Characteristics
@@ -64,8 +71,9 @@ windows_header:
         DQ      0               ; CertificationTable
         DD      reloc_space, 0xa ; BaseRelocationTable
 
-section_table:
 
+section_table:
+;;; offset 248 bytes
         ;; .reloc section required by EFI loader
         DB      '.reloc', 0, 0  ; Name
         DD      0xa             ; VirtualSize
@@ -82,29 +90,34 @@ section_table:
                                 ; IMAGE_SCN_MEM_DISCARDABLE
                                 ; IMAGE_SCN_MEM_READ
 
-        ;; .text (text+rodata+data)
+;;; offset 288 bytes
+        ;; .text (text+rodata+data+bss)
         DB      '.text',0, 0, 0 ; Name
-        DD      0x3000          ; VirtualSize
-        DD      0x1000          ; VirtualAddress
-        DD      0x3000          ; SizeOfRawData
-        DD      0x1000          ; PointerToRawData
+        ;; fixed up by efi_patch
+        DD      0x0             ; VirtualSize
+        DD      entry_point     ; VirtualAddress
+        ;; fixed up by efi_patch
+        DD      0x0             ; SizeOfRawData
+        DD      entry_point     ; PointerToRawData
         DD      0               ; PointerToRelocations
         DD      0               ; PointerToLineNumbers
         DW      0               ; NumberOfRelocations
         DW      0               ; NumberOfLineNumbers
-        DD      0x40500020      ; Characteristics
+        DD      0x60500060      ; Characteristics
                                 ; IMAGE_SCN_CNT_CODE
+                                ; IMAGE_SCN_CNT_INITIALIZED_DATA
                                 ; IMAGE_SCN_ALIGN_16BYTES
                                 ; IMAGE_SCN_MEM_EXECUTE
                                 ; IMAGE_SCN_MEM_READ
 
-
-
-times 0x200 - ($ - $$)   db 0   ; End of 'boot' sector
-
+header_end:
+        ALIGN   32
 ;;; Add at least 1 reloc entry so the UEFI loader thinks the binary is valid
 reloc_space:
         DD reloc_space + 10, 0xa
         DW 0x0
 
-times 0x1000 - ($ - $$) db 0    ; Pad to PAGE_SIZE
+        OFFSET 512         ; End of 'boot' sector
+
+        ;; EFI loader code is appended directly after here
+entry_point:

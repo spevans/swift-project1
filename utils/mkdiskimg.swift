@@ -29,7 +29,7 @@ guard args.count == 5 else {
 print("Bootsect: \(args[1]) loader: \(args[2]) kernel: \(args[3]) output: \(args[4])")
 
 func openOrQuit(filename: String) -> NSData {
-    guard let file = NSData(contentsOfFile: filename) else {
+    guard let file = NSMutableData(contentsOfFile: filename) else {
         fatalError("Cant open \(filename)")
     }
     return file
@@ -45,7 +45,57 @@ func patchValue<T>(data: NSData, offset: Int, value: T) {
 }
 
 
-func writeOutImage(filename: String, _ bootsect: NSData, _ loader: NSData, _ kernel: NSData, _ kernelLBA: Int) {
+func readValue<T>(data: NSData, offset: Int) -> T {
+    guard offset >= 0 && offset < data.length else {
+        fatalError("Invalid offset: \(offset)")
+    }
+    let ptr = UnsafePointer<T>(data.bytes + offset)
+    return ptr.memory
+}
+
+
+extension UInt {
+    func asHex() -> String {
+        return String(NSString(format:"%x", self))
+    }
+}
+
+extension Int {
+    func asHex() -> String {
+        return String(NSString(format:"%x", self))
+    }
+}
+
+extension UInt32 {
+    func asHex() -> String {
+        return String(NSString(format:"%x", self))
+    }
+}
+
+
+// BIOS bootsector
+func patchBootSector(bootsect: NSData, _ loaderSectors: UInt16, _ kernelSectors: UInt16) {
+    // Ensure bootsector + loader == 2048 bytes so that if loaded from cd it fits in one
+    // ISO9660 sector
+    let loaderLen: UInt16 = (2048 - 512) / 512
+    guard loaderSectors == loaderLen else {
+        fatalError("Loader should be \(loaderLen) sectors but is \(loaderSectors)")
+    }
+
+    let loaderLBA = getPartitionLBA(args[4]) + 1
+    let kernelLBA = loaderLBA + UInt64(loaderSectors)
+
+    print("Loader: LBA: \(loaderLBA) sectors:\(loaderSectors)  kernel: LBA:\(kernelLBA) sectors:\(kernelSectors)")
+    // Patch in LBA and sector counts
+    patchValue(bootsect, offset: 482, value: loaderSectors.littleEndian)
+    patchValue(bootsect, offset: 488, value: loaderLBA.littleEndian)
+    patchValue(bootsect, offset: 496, value: kernelLBA.littleEndian)
+    patchValue(bootsect, offset: 504, value: kernelSectors.littleEndian)
+}
+
+
+func writeOutImage(filename: String, _ bootsect: NSData, _ loader: NSData,
+    _ kernel: NSData, padding: Int = 0) {
     let outputData = NSMutableData(data: bootsect)
     outputData.appendData(loader)
 
@@ -60,8 +110,10 @@ func writeOutImage(filename: String, _ bootsect: NSData, _ loader: NSData, _ ker
     outputData.appendData(kernel)
 
     // FIXME: make padding a cmd line arg, this is needed to make a bochs disk image
-    let padding = (20 * 16 * 63 * 512)
-    outputData.increaseLengthBy(padding - outputData.length)
+    if padding > outputData.length {
+        print("Padding output to \(padding) bytes")
+        outputData.increaseLengthBy(padding - outputData.length)
+    }
 
     guard outputData.writeToFile(filename, atomically: false) else {
         fatalError("Cant write to output file \(filename)");
@@ -125,31 +177,16 @@ func getPartitionLBA(device: String) -> UInt64 {
     return UInt64(partitionInfo.LBA_start)
 }
 
-let bootsect = openOrQuit(args[1])
+
+let bootsect = NSMutableData(data: openOrQuit(args[1]))
 guard bootsect.length == 512 else {
     fatalError("Bootsector should be 512 bytes but is \(bootsect.length)")
 }
-
-// Ensure bootsector + loader == 2048 bytes so that if loaded from cd it fits in one
-// ISO9660 sector
 let loader = openOrQuit(args[2])
-let loaderLen = (2048 - 512)
-guard loader.length == (loaderLen) else {
-    fatalError("Loader should be \(loaderLen) bytes but is \(loader.length)")
-}
-
 let kernel = openOrQuit(args[3])
 let loaderSectors = UInt16((loader.length + 511) / 512)
 let kernelSectors = UInt16((kernel.length + 511) / 512)
-let loaderLBA = getPartitionLBA(args[4]) + 1
-let kernelLBA = loaderLBA + UInt64(loaderSectors)
 
-print("Loader: LBA: \(loaderLBA) sectors:\(loaderSectors)  kernel: LBA:\(kernelLBA) sectors:\(kernelSectors)")
-
-// Patch in LBA and sector counts
-patchValue(bootsect, offset: 482, value: loaderSectors.littleEndian)
-patchValue(bootsect, offset: 488, value: loaderLBA.littleEndian)
-patchValue(bootsect, offset: 496, value: kernelLBA.littleEndian)
-patchValue(bootsect, offset: 504, value: kernelSectors.littleEndian)
-
-writeOutImage(args[4], bootsect, loader, kernel, Int(kernelLBA))
+patchBootSector(bootsect, loaderSectors, kernelSectors)
+// Extra padding to make valid Bochs HD
+writeOutImage(args[4], bootsect, loader, kernel, padding: (20 * 16 * 63 * 512))

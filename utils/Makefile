@@ -1,13 +1,13 @@
 TOPDIR := ..
 include $(TOPDIR)/Makedefs
+BINS := mkdiskimg foverride efi_patch
 
-
-all: mkdiskimg foverride
+all: $(BINS)
 
 %: %.swift linux.h
 	$(SWIFTC) -I $(FOUNDATION) -I $(COREFOUNDATION) -L $(FOUNDATION) -Xlinker -rpath=$(FOUNDATION) -import-objc-header linux.h -emit-executable -o $@ $<
 
 
 clean:
-	rm -f mkdiskimg foverride
+	rm -f $(BINS)
 

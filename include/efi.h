@@ -9,6 +9,7 @@ typedef uint8_t efi_boolean;
 // For 64bit platforms
 typedef uint64_t efi_uintn;
 typedef uint64_t efi_physical_address;
+typedef uint64_t efi_virtual_address;
 
 #define EFIERR(a)           (0x8000000000000000 | a)
 
@@ -70,6 +71,58 @@ typedef enum {
         efi_by_register_notify,
         efi_by_protocol
 } efi_locate_search_type;
+
+
+typedef enum {
+        EFI_ALLOCATE_ANY_PAGES,
+        EFI_ALLOCATE_MAX_ADDRESS,
+        EFI_ALLOCATE_ADDRESS,
+        EFI_MAX_ALLOCATE_TYPE
+} efi_allocate_type;
+
+
+typedef enum {
+        EFI_RESERVED_MEMORY_TYPE,
+        EFI_LOADER_CODE,
+        EFI_LOADER_DATA,
+        EFI_BOOT_SERVICES_CODE,
+        EFI_BOOT_SERVICES_DATA,
+        EFI_RUNTIME_SERVICES_CODE,
+        EFI_RUNTIME_SERVICES_DATA,
+        EFI_CONVENTIONAL_MEMORY,
+        EFI_UNUSABLE_MEMORY,
+        EFI_ACPI_RECLAIM_MEMORY,
+        EFI_ACPI_MEMORY_NVS,
+        EFI_MEMORY_MAPPED_IO,
+        EFI_MEMORY_MAPPED_IO_PORT_SPACE,
+        EFI_PAL_CODE,
+        EFI_PERSISTENT_MEMORY,
+        EFI_MAX_MEMORY_TYPE
+} efi_memory_type;
+
+
+typedef enum {
+        EFI_MEMORY_UC = 1ULL << 0,
+        EFI_MEMORY_WC = 1ULL << 1,
+        EFI_MEMORY_WT = 1ULL << 2,
+        EFI_MEMORY_WB = 1ULL << 3,
+        EFI_MEMORY_UCE = 1ULL << 4,
+        EFI_MEMORY_WP = 1ULL << 12,
+        EFI_MEMORY_RP = 1ULL << 13,
+        EFI_MEMORY_XP = 1ULL << 14,
+        EFI_MEMORY_NV = 1ULL << 15,
+        EFI_MEMORY_MORE_RELIABLE = 1ULL << 16,
+        EFI_MEMORY_RO = 1ULL << 17,
+        EFI_MEMORY_RUNTIME = 1ULL << 18,
+} efi_memory_attribute;
+
+typedef struct {
+        uint32_t type;
+        efi_physical_address physical_start;
+        efi_virtual_address virtual_start;
+        uint64_t number_of_pages;
+        uint64_t attribute;
+} efi_memory_descriptor_t;
 
 
 #include <efi/uga.h>

@@ -3,12 +3,19 @@
 #include "../lib/font_8x16.c"
 
 
+const static size_t PAGE_SIZE = 4096;
 static efi_system_table_t *sys_table;
 static void *image_handle;
 
 // Base address that image is loaded at by UEFI firmware, used to offset
 // static addreses
 static uint64_t image_base;
+
+
+struct memory_region {
+        void *base;
+        size_t pages;
+};
 
 
 void __attribute__ ((noinline))
@@ -56,7 +63,6 @@ print_char(char ch)
 
 
 /* Simple number printing functions that dont invoke *printf */
-
 
 void __attribute__ ((noinline))
 print_nibble(int value)
@@ -147,6 +153,41 @@ print_status(char *str, efi_status_t status)
         print_qword(status);
         print_char('\n');
 }
+
+
+
+efi_status_t
+allocate_memory(size_t sz, struct memory_region *region)
+{
+        size_t pages = (sz + PAGE_SIZE - 1) / PAGE_SIZE;
+        void *address = 0;
+        efi_status_t status = efi_call4(sys_table->boot_services->allocate_pages,
+                                        EFI_ALLOCATE_ANY_PAGES, EFI_LOADER_DATA,
+                                        pages, (uintptr_t)&address);
+        if (status == EFI_SUCCESS) {
+                //print_string("alloc ok: ");
+                //print_pointer(address);
+                region->base = address;
+                region->pages = pages;
+        }
+
+        return EFI_SUCCESS;
+}
+
+
+efi_status_t
+free_memory(struct memory_region *region)
+{
+        efi_status_t status = efi_call2(sys_table->boot_services->free_pages,
+                                        region->pages, (uintptr_t)&region->base);
+        if (status == EFI_SUCCESS) {
+                region->base = NULL;
+                region->pages = 0;
+        }
+
+        return status;
+}
+
 
 
 efi_status_t
@@ -610,6 +651,102 @@ plot_pixel(struct frame_buffer *fb, uint32_t x, uint32_t y,
 
 
 efi_status_t
+show_memory_map()
+{
+        char *memory_map = NULL;
+        uint64_t map_size = 0;
+        uint64_t map_key = 0;
+        uint64_t descriptor_size = 0;
+        uint32_t version = 0;
+        struct memory_region region = { .base = NULL };
+
+        // Call once to find out size of buffer to allocate
+        efi_status_t status = efi_call5(sys_table->boot_services->get_memory_map,
+                                        (uintptr_t)&map_size, (uintptr_t)memory_map,
+                                        (uintptr_t)&map_key, (uintptr_t)&descriptor_size,
+                                        (uintptr_t)&version);
+        if (status != EFI_BUFFER_TOO_SMALL) {
+                return status;
+        }
+
+        //print_string("Buffer needed: ");
+        //print_number(map_size);
+        //print_char('\n');
+        status = allocate_memory(map_size, &region);
+        if (status != EFI_SUCCESS) {
+                print_status("cant allocate memory:", status);
+                return status;
+        }
+        memory_map = region.base;
+        #if 0
+        print_string("pages: ");
+        print_number(region.pages);
+        print_string(" base: ");
+        print_pointer(region.base);
+        print_string(" memory_map: ");
+        print_qword((uintptr_t)memory_map);
+        #endif
+        map_size = region.pages * PAGE_SIZE;
+        map_key = 0;
+        descriptor_size = 0;
+        version = 0;
+
+        status = efi_call5(sys_table->boot_services->get_memory_map,
+                           (uintptr_t)&map_size, (uintptr_t)memory_map,
+                           (uintptr_t)&map_key, (uintptr_t)&descriptor_size,
+                           (uintptr_t)&version);
+
+        if (status != EFI_SUCCESS || descriptor_size == 0) {
+                print_status("get_memory_map", status);
+                return status;
+        }
+#if 0
+        print_string("get_memory_map descriptor_size: ");
+        print_number(descriptor_size);
+        print_string(" map_size: ");
+        print_number(map_size);
+        print_string(" map_key: ");
+        print_number(map_key);
+        print_char('\n');
+#endif
+        size_t entries = map_size / descriptor_size;
+        print_string("entries: ");
+        print_number(entries);
+        print_char('\n');
+
+        size_t count = 0;
+        for(size_t i = 0; i < entries; i++) {
+                size_t offset = descriptor_size * i;
+                efi_memory_descriptor_t *desc = (efi_memory_descriptor_t *)(memory_map+offset);
+                if (desc->physical_start == 0 && desc->virtual_start == 0 && desc->type == 0
+                    && desc-> number_of_pages == 0) {
+                        continue;
+                }
+                if (desc->type > 4) continue;
+
+                print_number(i);
+                print_string(" t: ");
+                print_number(desc->type);
+                print_string(" p: ");
+                print_pointer((void *)desc->physical_start);
+                print_string(" v: ");
+                print_pointer((void *)desc->virtual_start);
+                print_string(" n: ");
+                print_word(desc->number_of_pages);
+                print_string(" a ");
+                print_dword(desc->attribute);
+                print_char('\n');
+
+                if (++count > 20) break;
+        }
+
+        free_memory(&region);
+
+        return status;
+}
+
+
+efi_status_t
 efi_main(void *handle, efi_system_table_t *_sys_table, void *base)
 {
         image_handle = handle;
@@ -626,6 +763,9 @@ efi_main(void *handle, efi_system_table_t *_sys_table, void *base)
         print_char('\n');
         print_string("Image base: ");
         print_pointer(base);
+        print_string(": ");
+        print_qword(*(uint64_t *)base);
+        print_char('\n');
         struct frame_buffer fb = { .address = 0 };
 
         if (find_gop(&fb) != EFI_SUCCESS) {
@@ -686,6 +826,7 @@ efi_main(void *handle, efi_system_table_t *_sys_table, void *base)
                         ch &= 0xff;
                 }
         }
+        show_memory_map();
  exit:
         print_string("Press any key to exit\n");
         efi_input_key_t key;
