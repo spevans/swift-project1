@@ -6,12 +6,15 @@
 const static size_t PAGE_SIZE = 4096;
 static efi_system_table_t *sys_table;
 static void *image_handle;
-
 // Base address that image is loaded at by UEFI firmware, used to offset
 // static addreses
 static uint64_t image_base;
+extern uint64_t kernel_bin_start();
+extern uint64_t kernel_bin_end();
+extern uint64_t bss_size();
 
 
+// For allocate_memory() / free_memory()
 struct memory_region {
         void *base;
         size_t pages;
@@ -155,7 +158,6 @@ print_status(char *str, efi_status_t status)
 }
 
 
-
 efi_status_t
 allocate_memory(size_t sz, struct memory_region *region)
 {
@@ -165,13 +167,11 @@ allocate_memory(size_t sz, struct memory_region *region)
                                         EFI_ALLOCATE_ANY_PAGES, EFI_LOADER_DATA,
                                         pages, (uintptr_t)&address);
         if (status == EFI_SUCCESS) {
-                //print_string("alloc ok: ");
-                //print_pointer(address);
                 region->base = address;
                 region->pages = pages;
         }
 
-        return EFI_SUCCESS;
+        return status;
 }
 
 
@@ -200,8 +200,6 @@ set_text_mode(int on)
                                         (uintptr_t)&protocol, (uintptr_t)NULL,
                                         (uintptr_t) &interface);
 
-
-        print_status("LocateProtocol EFI_CONSOLE_CONTROL_GUID", status);
 
         if (status != EFI_SUCCESS) {
                 return status;
@@ -421,7 +419,6 @@ find_gop(struct frame_buffer *fb)
         uint64_t buffer_sz = sizeof(handles);
         efi_guid_t guid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
 
-        print_string("looking for GOP\n");
         efi_status_t status = locate_handle(efi_by_protocol, &guid, NULL,
                                             &buffer_sz, handles);
         if (status != EFI_SUCCESS) {
@@ -446,11 +443,6 @@ find_gop(struct frame_buffer *fb)
                         print_status("handle_procotol", status);
                         continue;
                 }
-                print_string("handle: ");
-                print_pointer(handles[i]);
-                print_string(" interface: ");
-                print_pointer(gop);
-                print_char('\n');
 
                 if (i==0) {
                         first_gop = gop;
@@ -480,7 +472,6 @@ find_uga(struct frame_buffer *fb)
         efi_handle_t handles[64];
         uint64_t buffer_sz = sizeof(handles);
         efi_guid_t guid = EFI_UGA_PROTOCOL_GUID;
-        print_string("looking for UGA\n");
         efi_status_t status = locate_handle(efi_by_protocol, &guid, NULL,
                                             &buffer_sz, handles);
         if (status != EFI_SUCCESS) {
@@ -502,12 +493,6 @@ find_uga(struct frame_buffer *fb)
                         print_status("handle_procotol ", status);
                         continue;
                 }
-                print_string("handle: ");
-                print_pointer(handles[i]);
-                print_string(" interface: ");
-                print_pointer(uga);
-                print_char('\n');
-
                 uint32_t hres, vres, depth, refresh;
                 status = efi_call5(uga->get_mode, (uintptr_t)uga, (uintptr_t)&hres,
                                    (uintptr_t)&vres, (uintptr_t)&depth,
@@ -737,7 +722,7 @@ show_memory_map()
                 print_dword(desc->attribute);
                 print_char('\n');
 
-                if (++count > 20) break;
+                if (++count > 10) break;
         }
 
         free_memory(&region);
@@ -747,60 +732,41 @@ show_memory_map()
 
 
 efi_status_t
-efi_main(void *handle, efi_system_table_t *_sys_table, void *base)
+setup_frame_buffer(struct frame_buffer *fb)
 {
-        image_handle = handle;
-        sys_table = _sys_table;
-        image_base = (uintptr_t)base;
-
-        set_text_mode(1);
-        print_string("Vendor: ");
-        efi_print_string(sys_table->fw_vendor);
-        print_string(" rev: ");
-        print_number(sys_table->fw_revision >> 16);
-        print_string(".");
-        print_number(sys_table->fw_revision & 0xff);
-        print_char('\n');
-        print_string("Image base: ");
-        print_pointer(base);
-        print_string(": ");
-        print_qword(*(uint64_t *)base);
-        print_char('\n');
-        struct frame_buffer fb = { .address = 0 };
-
-        if (find_gop(&fb) != EFI_SUCCESS) {
-                if (find_uga(&fb) != EFI_SUCCESS) {
+        if (find_gop(fb) != EFI_SUCCESS) {
+                if (find_uga(fb) != EFI_SUCCESS) {
                         print_string("Cant find framebuffer information\n");
-                        goto exit;
+                        return EFI_NOT_FOUND;
                 }
         }
         print_string("Framebuffer: ");
-        print_number(fb.width);
+        print_number(fb->width);
         print_string("x");
-        print_number(fb.height);
+        print_number(fb->height);
         print_string(" bpp: ");
-        print_number(fb.depth);
+        print_number(fb->depth);
         print_string(" px per line: ");
-        print_number(fb.px_per_scanline);
+        print_number(fb->px_per_scanline);
         print_string(" address: ");
-        print_pointer(fb.address);
+        print_pointer(fb->address);
         print_string(" size: ");
-        print_qword(fb.size);
+        print_qword(fb->size);
         print_char('\n');
 
-        for(uint32_t x = 0; x < fb.width; x++) {
-                plot_pixel(&fb, x, 0, 0xff, 0, 0);
-                plot_pixel(&fb, x, fb.height-1, 0, 0, 0xff);
+        for(uint32_t x = 0; x < fb->width; x++) {
+                plot_pixel(fb, x, 0, 0xff, 0, 0);
+                plot_pixel(fb, x, fb->height-1, 0, 0, 0xff);
         }
 
-        for(uint32_t y = 0; y < fb.height; y++) {
-                plot_pixel(&fb, 0, y, 0, 0xff, 0);
-                plot_pixel(&fb, fb.width-1, y, 0xff, 0xff, 0xff);
+        for(uint32_t y = 0; y < fb->height; y++) {
+                plot_pixel(fb, 0, y, 0, 0xff, 0);
+                plot_pixel(fb, fb->width-1, y, 0xff, 0xff, 0xff);
         }
 
         unsigned char ch = 0;
         uint32_t max_x, max_y;
-        console_size(&fb, &font8x16, &max_x, &max_y);
+        console_size(fb, &font8x16, &max_x, &max_y);
         print_string("Console size: ");
         print_number(max_x);
         print_string("x");
@@ -821,16 +787,81 @@ efi_main(void *handle, efi_system_table_t *_sys_table, void *base)
         set_text_colour(0x002fff12); // rgb
         for(int y = 0; y < 16; y++) {
                 for (int x = 0; x < 16; x++) {
-                        print_fb_char(&fb, x, y, ch);
+                        print_fb_char(fb, x, y, ch);
                         ch++;
                         ch &= 0xff;
                 }
         }
-        show_memory_map();
- exit:
+
+        return EFI_SUCCESS;
+}
+
+efi_status_t
+relocate_kernel(void *base)
+{
+        print_string("Image base: ");
+        print_pointer(base);
+        print_string(": ");
+        print_string("\nKernel image @ ");
+        print_qword(kernel_bin_start());
+        print_string(" - ");
+        print_qword(kernel_bin_end());
+        print_string("\nBSS Size: ");
+        print_qword(bss_size());
+        print_char('\n');
+
+        uint64_t total_sz = (kernel_bin_end() - kernel_bin_start()) + bss_size();
+        print_string("Size of kernel and bss: ");
+        print_number(total_sz);
+        print_char('\n');
+        struct memory_region region = { .base = NULL };
+        efi_status_t status = allocate_memory(total_sz, &region);
+        if (status != EFI_SUCCESS) {
+                print_status("allocate_memory: ", status);
+                return status;
+        }
+        print_string("Allocated ");
+        print_number(region.pages);
+        print_string(" pages\n");
+        wait_for_key(NULL);
+
+        return EFI_SUCCESS;
+}
+
+
+void *
+efi_main(void *handle, efi_system_table_t *_sys_table, void *base)
+{
+        image_handle = handle;
+        sys_table = _sys_table;
+        image_base = (uintptr_t)base;
+
+        set_text_mode(1);
+        print_string("Vendor: ");
+        efi_print_string(sys_table->fw_vendor);
+        print_string(" rev: ");
+        print_number(sys_table->fw_revision >> 16);
+        print_string(".");
+        print_number(sys_table->fw_revision & 0xff);
+        print_char('\n');
+
+        if (relocate_kernel(base) != EFI_SUCCESS) {
+                goto error;
+        }
+
+        struct frame_buffer fb = { .address = 0 };
+        if (setup_frame_buffer(&fb) != EFI_SUCCESS) {
+                goto error;
+        }
+
+        if (show_memory_map() != EFI_SUCCESS) {
+                goto error;
+        }
+
+ error:
         print_string("Press any key to exit\n");
         efi_input_key_t key;
         wait_for_key(&key);
 
-        return EFI_SUCCESS;
+        return  NULL;
 }

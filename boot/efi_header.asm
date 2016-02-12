@@ -117,7 +117,7 @@ reloc_space:
         DD reloc_space + 10, 0xa
         DW 0x0
 
-        OFFSET 512         ; End of 'boot' sector
 
+        OFFSET 512         ; End of 'boot' sector
         ;; EFI loader code is appended directly after here
 entry_point:

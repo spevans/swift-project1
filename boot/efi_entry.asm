@@ -3,7 +3,13 @@
         DEFAULT REL
 
         extern efi_main
+        extern _binary_output_kernel_bin_start
+        extern _binary_output_kernel_bin_end
+
         global efi_entry
+        global kernel_bin_start
+        global kernel_bin_end
+        global bss_size
         global efi_call2
         global efi_call3
         global efi_call4
@@ -12,6 +18,14 @@
         global memset
 
 efi_entry:
+        jmp start
+        ALIGN   8
+
+;;; Following values are fixedup by efi_patch
+_bss_size:      DQ      0x0     ; Kernel BSS size in bytes
+
+
+start:
         sub     rsp, 0x8        ; ELF requires alignment to 16bytes
         mov     rdi, rcx
         mov     rsi, rdx
@@ -21,6 +35,18 @@ efi_entry:
         add     rsp, 0x8
         ret
 
+
+kernel_bin_start:
+        lea     rax, [_binary_output_kernel_bin_start]
+        ret
+
+kernel_bin_end:
+        lea     rax, [_binary_output_kernel_bin_end]
+        ret
+
+bss_size:
+        mov     rax, [_bss_size]
+        ret
 
 ;;; MS Windows ABI calling convention, arguments to UEFI need to be in
 ;;; RCX, RDX, R8, R9
@@ -61,7 +87,7 @@ efi_call4:
 
 ;;; rdi, rsi, rdx, rcx, r8, r9
 ;;;      rcx, rdx, r8,  r9, sp[0]
-efi_call5:      
+efi_call5:
         sub     rsp, 0x28
         mov     [rsp+32], r9
         mov     r9, r8

@@ -1,8 +1,6 @@
 ENTRY(efi_entry)
 OUTPUT_FORMAT(binary)
 
-PAGE_SIZE = 0x1000;
-
 SECTIONS
 {
   .text.start (0x0000) : {
