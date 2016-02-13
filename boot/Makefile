@@ -3,7 +3,7 @@ include $(TOPDIR)/Makedefs
 
 AFLAGS := -f bin -p$(TOPDIR)/include/macros.asm
 
-all: bootsector.bin boot16to64.bin efi_header.bin efi_entry.o efi_main.o
+all: bootsector.bin boot16to64.bin efi_header.bin efi_entry.o efi_main.o kprintf.o
 
 bootsector.bin : bootsector.asm
 	nasm $(AFLAGS) -o $@ $<
@@ -16,6 +16,9 @@ efi_header.bin: efi_header.asm
 	nasm $(AFLAGS) -o $@ $<
 
 efi_main.o: efi_main.c
+	$(CC) $(CFLAGS) -fpic -fshort-wchar  -fno-unwind-tables -c -o $@ $<
+
+kprintf.o: ../kernel/klib/kprintf.c
 	$(CC) $(CFLAGS) -fpic -fshort-wchar  -fno-unwind-tables -c -o $@ $<
 
 clean:

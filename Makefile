@@ -34,7 +34,7 @@ endif
 
 output/kernel.efi: boot/efi_entry.o boot/efi_main.o output/kernel.bin
 	objcopy	-I binary -O elf64-x86-64 -B i386:x86-64 output/kernel.bin output/kernel.bin.obj
-	ld --no-demangle -static -Tboot/efi_linker.script -Map=output/efi_body.map -o output/efi_body.bin boot/efi_entry.o boot/efi_main.o
+	ld --no-demangle -static -Tboot/efi_linker.script -Map=output/efi_body.map -o output/efi_body.bin boot/efi_entry.o boot/efi_main.o boot/kprintf.o
 	utils/efi_patch boot/efi_header.bin output/efi_body.bin output/kernel.map output/kernel.efi
 
 

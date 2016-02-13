@@ -1,24 +1,39 @@
 #include <efi.h>
 #include <fbcon.h>
+#include <klibc.h>
 #include "../lib/font_8x16.c"
 
 
-const static size_t PAGE_SIZE = 4096;
-static efi_system_table_t *sys_table;
-static void *image_handle;
-// Base address that image is loaded at by UEFI firmware, used to offset
-// static addreses
-static uint64_t image_base;
-extern uint64_t kernel_bin_start();
-extern uint64_t kernel_bin_end();
-extern uint64_t bss_size();
-
+// For passing data back to efi_entry.asm
+struct pointer_table {
+        unsigned char *image_base;
+        void *pml4;
+        void *kernel_addr;
+        void *last_page;
+};
 
 // For allocate_memory() / free_memory()
 struct memory_region {
+        size_t type;
+        size_t req_size;
         void *base;
         size_t pages;
 };
+
+
+// memory types for allocated memory
+#define MEM_TYPE_PAGE_MAP       0x80000000
+#define MEM_TYPE_BOOT_DATA      0x80000001
+#define MEM_TYPE_KERNEL         0x80000002
+
+void *kernel_bin_start();
+void *kernel_bin_end();
+uint64_t bss_size();
+static int uprintf(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+
+static efi_system_table_t *sys_table;
+static void *image_handle;
+static struct pointer_table *ptr_table;
 
 
 void __attribute__ ((noinline))
@@ -30,10 +45,10 @@ efi_print_string(uint16_t *str)
 
 
 void __attribute__ ((noinline))
-print_string(char *str)
+uprint_string(char *str)
 {
-        uint16_t buf[128];
-        for (int x = 0; x < 128; x++) {
+        uint16_t buf[1024];
+        for (int x = 0; x < 1024; x++) {
                 buf[x] = 0;
         }
         int j = 0;
@@ -49,8 +64,8 @@ print_string(char *str)
 }
 
 
-void  __attribute__ ((noinline))
-print_char(char ch)
+void
+early_print_char(char ch)
 {
         if (ch == '\n') {
                 efi_print_string(L"\r\n");
@@ -65,70 +80,32 @@ print_char(char ch)
 }
 
 
-/* Simple number printing functions that dont invoke *printf */
-
-void __attribute__ ((noinline))
-print_nibble(int value)
+static int
+uprintf(const char *fmt, ...)
 {
-        char *hex = "0123456789ABCDEF";
-        print_char(hex[value & 0xf]);
+        char buf[512];
+        va_list args;
+        va_start(args, fmt);
+        int len = kvsnprintf(buf, 512, fmt, args);
+        uprint_string(buf);
+
+        return len;
 }
 
 
-void  __attribute__ ((noinline))
-print_byte(int value)
+// Needed for kprintf
+size_t
+strlen(const char *s)
 {
-        print_nibble((value >> 4) & 0xf);
-        print_nibble(value & 0xf);
-}
-
-
-void
-print_number(uint64_t value)
-{
-        char *digits = "0123456789";
-        char buf[32];
-        buf[31] = 0;
-        int i = 31;
-
-        do {
-                buf[--i] = digits[value % 10];
-                value /= 10;
-        } while(value > 0);
-        print_string(&buf[i]);
-}
-
-
-void
-print_word(int value)
-{
-        print_byte((value >> 8) & 0xff);
-        print_byte(value & 0xff);
-}
-
-
-void
-print_dword(unsigned int value)
-{
-        print_word((value >> 16) & 0xffff);
-        print_word(value & 0xffff);
-
-}
-
-
-void
-print_qword(uint64_t value)
-{
-        print_dword((value >> 32) & 0xffffffff);
-        print_dword(value & 0xffffffff);
-}
-
-
-void
-print_pointer(void *ptr)
-{
-        print_string("0x");
-        print_qword((uintptr_t)ptr);
+        size_t d0;
+        size_t res;
+        asm volatile("cld\n\t"
+                     "repne\n\t"
+                     "scasb"
+                     : "=c" (res), "=&D" (d0)
+                     : "1" (s), "a" (0), "0" (0xffffffffffffffffu)
+                     : "memory");
+        return ~res - 1;
 }
 
 
@@ -149,26 +126,45 @@ wait_for_key(efi_input_key_t *key)
 
 
 void
+print_ptr_table()
+{
+        uprintf("image_base: %p pagetable: %p\nkernel_addr: %p last_page: %p\n",
+                ptr_table->image_base, ptr_table->pml4, ptr_table->kernel_addr,
+                ptr_table->last_page);
+}
+
+
+void
+print_memory_region(struct memory_region *region)
+{
+        uprintf("Base: %p req_size: %ld pages: %ld type: %#lx\n",
+                region->base, region->req_size, region->pages, region->type);
+}
+
+
+void
 print_status(char *str, efi_status_t status)
 {
-        print_string(str);
-        print_string(" status = ");
-        print_qword(status);
-        print_char('\n');
+        uprintf("%s status: %ld %s\n", str, efi_err_num(status),
+                efi_is_error(status) ? "[error]" : "");
 }
 
 
 efi_status_t
-allocate_memory(size_t sz, struct memory_region *region)
+allocate_memory(struct memory_region *region)
 {
-        size_t pages = (sz + PAGE_SIZE - 1) / PAGE_SIZE;
+        size_t pages = (region->req_size + PAGE_SIZE - 1) / PAGE_SIZE;
         void *address = 0;
         efi_status_t status = efi_call4(sys_table->boot_services->allocate_pages,
-                                        EFI_ALLOCATE_ANY_PAGES, EFI_LOADER_DATA,
+                                        EFI_ALLOCATE_ANY_PAGES, region->type,
                                         pages, (uintptr_t)&address);
         if (status == EFI_SUCCESS) {
                 region->base = address;
                 region->pages = pages;
+        } else {
+                region->base = NULL;
+                region->pages = 0;
+                uprintf("Cant allocate %ld bytes\n", region->req_size);
         }
 
         return status;
@@ -212,7 +208,7 @@ set_text_mode(int on)
         if (status != EFI_SUCCESS) {
                 return 0;
         }
-        print_string("Setting text mode\n");
+        uprint_string("Setting text mode\n");
         efi_console_screen_mode_t newmode = on ? efi_screen_text : efi_screen_graphics;
         status = efi_call2(interface->set_mode, (uintptr_t)interface, newmode);
         print_status("set_mode", status);
@@ -313,44 +309,35 @@ gop_bytes_pp(efi_graphics_output_mode_information_t *info, struct frame_buffer *
 void
 show_gop_mode(uint32_t mode, efi_graphics_output_mode_information_t *info)
 {
-        print_number(mode);
-        print_string(": ");
-        print_number(info->horizontal_resolution);
-        print_string("x");
-        print_number(info->vertical_resolution);
-        print_char(' ');
+        uprintf("%d: %dx%d ", mode, info->horizontal_resolution,
+                info->vertical_resolution);
 
         switch(info->pixel_format) {
         case pixel_red_green_blue_reserved8_bit_per_color:
-                print_string("RGBR");
+                uprint_string("RGBR");
                 break;
 
         case pixel_blue_green_red_reserved8_bit_per_color:
-                print_string("BGRR");
+                uprint_string("BGRR");
                 break;
 
         case pixel_bit_mask:
-                print_string("R: ");
-                print_dword(info->pixel_information.red_mask);
-                print_string(" G: ");
-                print_dword(info->pixel_information.green_mask);
-                print_string(" B: ");
-                print_dword(info->pixel_information.blue_mask);
-                print_string(" X: ");
-                print_dword(info->pixel_information.reserved_mask);
+                uprintf("R:%8.8x G:%8.8x B:%8.8x X:%8.8x ",
+                        info->pixel_information.red_mask,
+                        info->pixel_information.green_mask,
+                        info->pixel_information.blue_mask,
+                        info->pixel_information.reserved_mask);
                 break;
 
         case pixel_blt_only:
-                print_string("(blt only)");
+                uprint_string("(blt only)");
                 break;
 
         default:
-                print_string("(Invalid pixel format)");
+                uprint_string("(Invalid pixel format)");
                 break;
         }
-        print_string(" pitch: ");
-        print_number(info->pixels_per_scan_line);
-        print_char('\n');
+        uprintf(" pitch: %d\n", info->pixels_per_scan_line);
 }
 
 
@@ -358,14 +345,10 @@ efi_status_t
 show_gop_info(efi_graphics_output_protocol_t *gop,
               efi_graphics_output_mode_information_t *mode_info)
 {
-        print_string("MaxMode: ");
-        print_number(gop->mode->max_mode);
-        print_string(" Mode: ");
-        print_number(gop->mode->mode);
-        print_string(" fb addr: ");
-        print_qword(gop->mode->frame_buffer_base);
-        print_string(" fb size: ");
-        print_qword(gop->mode->frame_buffer_size);
+        uprintf("MaxMode: %d Mode: %d fb addr: %#lx fb size: %#lx\n",
+                gop->mode->max_mode, gop->mode->mode,
+                gop->mode->frame_buffer_base,
+                gop->mode->frame_buffer_size);
 
         efi_graphics_output_mode_information_t best_mode_info;
         uint32_t best_mode = gop->mode->mode;
@@ -394,9 +377,7 @@ show_gop_info(efi_graphics_output_protocol_t *gop,
         }
         efi_status_t status = EFI_SUCCESS;
         if (best_mode != gop->mode->mode) {
-                print_string("Trying to set mode to ");
-                print_number(best_mode);
-                print_char('\n');
+                uprintf("Trying to set mode to: %d\n", best_mode);
                 wait_for_key(NULL);
                 status = efi_call2(gop->set_mode, (uintptr_t)gop, best_mode);
                 if (status != EFI_SUCCESS) {
@@ -423,14 +404,12 @@ find_gop(struct frame_buffer *fb)
                                             &buffer_sz, handles);
         if (status != EFI_SUCCESS) {
                 print_status("locate_handle EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID", status);
-                print_string("Cant find GOP graphics\n");
+                uprint_string("Cant find GOP graphics\n");
                 return status;
         }
 
         int handlecnt = buffer_sz / sizeof(efi_handle_t);
-        print_string("Found ");
-        print_dword(handlecnt);
-        print_string(" GOP handles\n");
+        uprintf("Found %d GOP handles\n", handlecnt);
 
         efi_graphics_output_protocol_t *first_gop = NULL;
         efi_graphics_output_mode_information_t current_info;
@@ -476,13 +455,11 @@ find_uga(struct frame_buffer *fb)
                                             &buffer_sz, handles);
         if (status != EFI_SUCCESS) {
                 print_status("locate_handle EFI_UGA_PROTOCOL_GUID", status);
-                print_string("Cant find GOP graphics\n");
+                uprint_string("Cant find GOP graphics\n");
                 return status;
         }
         int handlecnt = buffer_sz / sizeof(efi_handle_t);
-        print_string("Found ");
-        print_number(handlecnt);
-        print_string(" UGA handles\n");
+        uprintf("Found %d UGA handles\n", handlecnt);
 
         for (int i = 0; i < handlecnt; i++) {
                 efi_uga_draw_protocol_t *uga;
@@ -584,7 +561,7 @@ static const unsigned char *
 font_data(const struct font *font)
 {
         // font->data is compiled in for binary @ 0 so add image offset
-        return image_base + font->data;
+        return (uint64_t)ptr_table->image_base + font->data;
 }
 
 
@@ -639,39 +616,29 @@ efi_status_t
 show_memory_map()
 {
         char *memory_map = NULL;
-        uint64_t map_size = 0;
         uint64_t map_key = 0;
         uint64_t descriptor_size = 0;
         uint32_t version = 0;
-        struct memory_region region = { .base = NULL };
 
+        struct memory_region region = { .type = MEM_TYPE_BOOT_DATA };
         // Call once to find out size of buffer to allocate
         efi_status_t status = efi_call5(sys_table->boot_services->get_memory_map,
-                                        (uintptr_t)&map_size, (uintptr_t)memory_map,
-                                        (uintptr_t)&map_key, (uintptr_t)&descriptor_size,
+                                        (uintptr_t)&region.req_size,
+                                        (uintptr_t)memory_map, (uintptr_t)&map_key,
+                                        (uintptr_t)&descriptor_size,
                                         (uintptr_t)&version);
         if (status != EFI_BUFFER_TOO_SMALL) {
                 return status;
         }
 
-        //print_string("Buffer needed: ");
-        //print_number(map_size);
-        //print_char('\n');
-        status = allocate_memory(map_size, &region);
+        status = allocate_memory(&region);
         if (status != EFI_SUCCESS) {
                 print_status("cant allocate memory:", status);
                 return status;
         }
         memory_map = region.base;
-        #if 0
-        print_string("pages: ");
-        print_number(region.pages);
-        print_string(" base: ");
-        print_pointer(region.base);
-        print_string(" memory_map: ");
-        print_qword((uintptr_t)memory_map);
-        #endif
-        map_size = region.pages * PAGE_SIZE;
+
+        uint64_t map_size = region.pages * PAGE_SIZE;
         map_key = 0;
         descriptor_size = 0;
         version = 0;
@@ -685,19 +652,12 @@ show_memory_map()
                 print_status("get_memory_map", status);
                 return status;
         }
-#if 0
-        print_string("get_memory_map descriptor_size: ");
-        print_number(descriptor_size);
-        print_string(" map_size: ");
-        print_number(map_size);
-        print_string(" map_key: ");
-        print_number(map_key);
-        print_char('\n');
-#endif
+
+        uprintf("get_memory_map descriptor_size: %ld map_size %ld map_ley %ld\n",
+                descriptor_size, map_size, map_key);
+
         size_t entries = map_size / descriptor_size;
-        print_string("entries: ");
-        print_number(entries);
-        print_char('\n');
+        uprintf("entries: %ld\n", entries);
 
         size_t count = 0;
         for(size_t i = 0; i < entries; i++) {
@@ -709,18 +669,9 @@ show_memory_map()
                 }
                 if (desc->type > 4) continue;
 
-                print_number(i);
-                print_string(" t: ");
-                print_number(desc->type);
-                print_string(" p: ");
-                print_pointer((void *)desc->physical_start);
-                print_string(" v: ");
-                print_pointer((void *)desc->virtual_start);
-                print_string(" n: ");
-                print_word(desc->number_of_pages);
-                print_string(" a ");
-                print_dword(desc->attribute);
-                print_char('\n');
+                uprintf("%2ld t: %d p: %p v: %p n: %ld a: %#lx\n", i, desc->type,
+                        (void *)desc->physical_start, (void *)desc->virtual_start,
+                        desc->number_of_pages, desc->attribute);
 
                 if (++count > 10) break;
         }
@@ -736,23 +687,13 @@ setup_frame_buffer(struct frame_buffer *fb)
 {
         if (find_gop(fb) != EFI_SUCCESS) {
                 if (find_uga(fb) != EFI_SUCCESS) {
-                        print_string("Cant find framebuffer information\n");
+                        uprint_string("Cant find framebuffer information\n");
                         return EFI_NOT_FOUND;
                 }
         }
-        print_string("Framebuffer: ");
-        print_number(fb->width);
-        print_string("x");
-        print_number(fb->height);
-        print_string(" bpp: ");
-        print_number(fb->depth);
-        print_string(" px per line: ");
-        print_number(fb->px_per_scanline);
-        print_string(" address: ");
-        print_pointer(fb->address);
-        print_string(" size: ");
-        print_qword(fb->size);
-        print_char('\n');
+        uprintf("Framebuffer: %dx%d bpp: %d px per line: %d addr:%p size: %lx\n",
+                fb->width, fb->height, fb->depth, fb->px_per_scanline,
+                fb->address, fb->size);
 
         for(uint32_t x = 0; x < fb->width; x++) {
                 plot_pixel(fb, x, 0, 0xff, 0, 0);
@@ -767,22 +708,11 @@ setup_frame_buffer(struct frame_buffer *fb)
         unsigned char ch = 0;
         uint32_t max_x, max_y;
         console_size(fb, &font8x16, &max_x, &max_y);
-        print_string("Console size: ");
-        print_number(max_x);
-        print_string("x");
-        print_number(max_y);
-        print_char('\n');
+        uprintf("Console size: %dx%d\n", max_x, max_y);
 
         const struct font *font = &font8x16;
-        print_string("font size: ");
-        print_number(font->width);
-        print_string("x");
-        print_number(font->height);
-        print_string(" font->data: ");
-        print_pointer((void *)font_data(font));
-        print_string(" fontdata_8x16: ");
-        print_pointer((void *)fontdata_8x16);
-        print_char('\n');
+        uprintf("font size: %dx%d font->data:%p fontdata_8x16:%p\n", font->width, font->height,
+                font_data(font), fontdata_8x16);
 
         set_text_colour(0x002fff12); // rgb
         for(int y = 0; y < 16; y++) {
@@ -796,59 +726,61 @@ setup_frame_buffer(struct frame_buffer *fb)
         return EFI_SUCCESS;
 }
 
-efi_status_t
-relocate_kernel(void *base)
-{
-        print_string("Image base: ");
-        print_pointer(base);
-        print_string(": ");
-        print_string("\nKernel image @ ");
-        print_qword(kernel_bin_start());
-        print_string(" - ");
-        print_qword(kernel_bin_end());
-        print_string("\nBSS Size: ");
-        print_qword(bss_size());
-        print_char('\n');
 
-        uint64_t total_sz = (kernel_bin_end() - kernel_bin_start()) + bss_size();
-        print_string("Size of kernel and bss: ");
-        print_number(total_sz);
-        print_char('\n');
-        struct memory_region region = { .base = NULL };
-        efi_status_t status = allocate_memory(total_sz, &region);
+// Allocate memory for the kernel and BSS. This ensures the kernel starts
+// on a page boundary
+efi_status_t
+relocate_kernel()
+{
+        uprintf("Kernel image @ %p - %p BSS size: %#lx\n", kernel_bin_start(),
+                kernel_bin_end(), bss_size());
+
+        uint64_t kernel_sz = kernel_bin_end() - kernel_bin_start();
+        uint64_t total_sz = kernel_sz + bss_size();
+        uprintf("Size of kernel and bss: %ld\n", total_sz);
+        struct memory_region region = { .req_size = total_sz,
+                                        .type = MEM_TYPE_KERNEL };
+        efi_status_t status = allocate_memory(&region);
         if (status != EFI_SUCCESS) {
                 print_status("allocate_memory: ", status);
                 return status;
         }
-        print_string("Allocated ");
-        print_number(region.pages);
-        print_string(" pages\n");
+        uprintf("Allocated %ld pages\n", region.pages);
+        /* Copy the kernel into the allocated memory. The BSS is cleared
+         * by the kernel startup. This could be replaced with a decompressor
+         * for a compressed kernel etc
+         */
+        memcpy(region.base, kernel_bin_start(), kernel_sz);
+        ptr_table->kernel_addr = region.base;
+        ptr_table->last_page = region.base + (region.pages - 1) * PAGE_SIZE;
+        uprint_string("Kernel copied into place, press any key\n");
+        print_memory_region(&region);
         wait_for_key(NULL);
 
         return EFI_SUCCESS;
 }
 
 
-void *
-efi_main(void *handle, efi_system_table_t *_sys_table, void *base)
+efi_status_t
+efi_main(void *handle, efi_system_table_t *_sys_table,
+         struct pointer_table *ptrs)
 {
         image_handle = handle;
         sys_table = _sys_table;
-        image_base = (uintptr_t)base;
+        ptr_table = ptrs;
+        print_ptr_table();
 
         set_text_mode(1);
-        print_string("Vendor: ");
+        uprint_string("Vendor: ");
         efi_print_string(sys_table->fw_vendor);
-        print_string(" rev: ");
-        print_number(sys_table->fw_revision >> 16);
-        print_string(".");
-        print_number(sys_table->fw_revision & 0xff);
-        print_char('\n');
+        uprintf(" rev: %d.%d\n", sys_table->fw_revision >> 16,
+                sys_table->fw_revision & 0xff);
 
-        if (relocate_kernel(base) != EFI_SUCCESS) {
+        if (relocate_kernel() != EFI_SUCCESS) {
                 goto error;
         }
 
+        print_ptr_table();
         struct frame_buffer fb = { .address = 0 };
         if (setup_frame_buffer(&fb) != EFI_SUCCESS) {
                 goto error;
@@ -859,9 +791,9 @@ efi_main(void *handle, efi_system_table_t *_sys_table, void *base)
         }
 
  error:
-        print_string("Press any key to exit\n");
+        uprint_string("Press any key to exit\n");
         efi_input_key_t key;
         wait_for_key(&key);
 
-        return  NULL;
+        return  EFI_SUCCESS;
 }

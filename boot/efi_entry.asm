@@ -29,7 +29,9 @@ start:
         sub     rsp, 0x8        ; ELF requires alignment to 16bytes
         mov     rdi, rcx
         mov     rsi, rdx
-        lea     rdx, [efi_entry]
+        lea     rdx, [pointer_table]
+        lea     rcx, [efi_entry]
+        mov     [rdx], rcx
         call    efi_main
         xor     rax, rax
         add     rsp, 0x8
@@ -121,3 +123,10 @@ memset:
         mov     rcx, rdx
         rep     stosb
         ret
+
+
+pointer_table:
+.image_base     DQ      0
+.pagetable:     DQ      0x12345678
+.kernel_addr:   DQ      0xDEADBEEF
+.last_page:     DQ      0

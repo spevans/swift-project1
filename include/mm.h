@@ -11,7 +11,8 @@
 #ifndef __MM_H__
 #define __MM_H__
 
-#define PHYSICAL_MEM_BASE       0x2000000000UL
+#define KERNEL_VIRTUAL_BASE       0x40000000UL  // 1GB
+#define PHYSICAL_MEM_BASE       0x2000000000UL  // 128GB
 
 #define PAGE_SIZE 4096UL
 #define PAGE_MASK 4095UL

@@ -12,6 +12,16 @@ typedef uint64_t efi_physical_address;
 typedef uint64_t efi_virtual_address;
 
 #define EFIERR(a)           (0x8000000000000000 | a)
+static inline int
+efi_is_error(uint64_t err) {
+        return err & 0x8000000000000000;
+}
+
+
+static inline uint64_t
+efi_err_num(uint64_t err) {
+        return err & 0x8000000000000000-1;
+}
 
 typedef enum {
         EFI_SUCCESS             = 0,
