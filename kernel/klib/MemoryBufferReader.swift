@@ -57,6 +57,9 @@ public class MemoryBufferReader {
         var result = ""
         for _ in 0...maxSize-1 {
             let ch: UInt8 = try read()
+            if ch == 0 {
+                break
+            }
             result += String(Character(UnicodeScalar(ch)))
         }
 

@@ -10,9 +10,10 @@
 
 
 @_silgen_name("startup")
-public func startup() {
+public func startup(bootParams: UInt) {
+    BootParams.parse(bootParams)
     TTY.initTTY()
-    BootParams.parse()
+
     CPU.getInfo()
     setupGDT()
     setupIDT()

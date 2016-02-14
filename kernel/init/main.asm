@@ -1,7 +1,7 @@
 ;;; kernel/init/main.asm
 ;;;
 ;;; Created by Simon Evans on 13/11/2015.
-;;; Copyright © 2015 Simon Evans. All rights reserved.
+;;; Copyright © 2015, 2016 Simon Evans. All rights reserved.
 ;;;
 ;;; Entry point from jump into long mode. Minimal setup
 ;;; before calling SwiftKernel.startup
@@ -11,23 +11,29 @@
         DEFAULT REL
         SECTION .text
 
-        extern _kernel_stack
+
+        extern init_early_tty
         extern init_mm
+        extern startup ; SwiftKernel.startup () -> ()
         extern _bss_start
         extern _kernel_end
-        extern startup ; SwiftKernel.startup () -> ()
+        extern _kernel_stack
         extern initial_tls_end_addr
 
         global main
 
-        ;; Entry point after switching to Long Mode
+        ;; Entry point after switching to Long Mode, could be from 32 or 64bit
+        ;; so 64bit pointers are in 32bit pairs
+        ;; EDI:ESI boot params / memory tables
+        ;; ECX:EDX framebuffer info (EFI only)
 main:
-        mov     rax, cr3
-        and     rax, ~(4096-1)
-        mov     rbx, [rax]
-        mov     qword [rbx], 0
-        invlpg  [rbx]
-
+        ;; convert EDI:ESI => R12, ECX:RDX => R13
+        mov     r12, rdi
+        shl     r12, 32
+        or      r12, rsi
+        mov     r13, rcx
+        shl     r13, 32
+        or      r13, rdx
         mov     rsp, _kernel_stack      ; Set the stack to just after the BSS
         mov     rbp, rsp
 
@@ -36,8 +42,12 @@ main:
         mov     rdi, _bss_start
         mov     rcx, _kernel_end
         sub     rcx, rdi
+        mov     rdx, rcx
+        and     rdx, 3
         shr     rcx, 3
         rep     stosq
+        mov     rcx, rdx
+        rep     stosb
         call    enable_sse
 
         ;; Setup TLS - Update the GDT entry for select 0x18 to have the address
@@ -65,8 +75,12 @@ main:
 
         mov     [fs:0], rdx
 
-        call    init_mm                 ; required for malloc/free
-        call    startup                 ; SwiftKernel.startup
+        mov     rdi, r13        ; framebuffer info
+        call    init_early_tty
+        mov     rdi, r12
+        call    init_mm         ; required for malloc/free
+        mov     rdi, r12
+        call    startup         ; SwiftKernel.startup
         hlt
 
         ;; SSE instuctions cause an undefined opcode until enabled in CR0/CR4

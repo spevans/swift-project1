@@ -2,12 +2,11 @@
  * kernel/init/bootparams.swift
  *
  * Created by Simon Evans on 24/12/2015.
- * Copyright © 2015 Simon Evans. All rights reserved.
+ * Copyright © 2015, 2016 Simon Evans. All rights reserved.
  *
  * Initial setup for available physical memory etc
  *
  */
-
 
 // Singleton that will be initialised by BootParams.parse()
 let memoryRanges = BootParams.parseE820Table()
@@ -46,7 +45,31 @@ struct BootParams {
     }
 
 
-    static func parse() {
+    static private var bootParamsSize: Int = 0
+    static private var e820MapAddr: UInt = 0
+    static private var e820Entries: Int = 0
+
+
+    static func parse(bootParamsAddr: UInt) {
+        printf("parsing bootParams @ 0x%lx\n", bootParamsAddr)
+
+        if (bootParamsAddr == 0) {
+            print("bootParamsAddr is null");
+            return;
+        }
+        let membuf = MemoryBufferReader(bootParamsAddr, size: strideof(bios_boot_params))
+        let sig = try! membuf.readASCIIZString(maxSize: 8)
+
+        guard sig == "BIOS" else {
+            print("boot_params are not BIOS")
+            return
+        }
+        membuf.offset = 8
+        bootParamsSize = try! membuf.read()
+        e820MapAddr = try! membuf.read()
+        e820Entries = try! membuf.read()
+
+        // Create the singleton and force parsing
         if memoryRanges.count > 0 {
             print("E820: Memory Ranges    From -         To      Type")
             for (idx, entry) in memoryRanges.enumerate() {
@@ -68,22 +91,25 @@ struct BootParams {
 
     // FIXME - still needs to check for overlapping regions
     static private func parseE820Table() -> [E820MemoryEntry] {
-        let buf = MemoryBufferReader(PHYSICAL_MEM_BASE + 0x30000, size: 4096)
-        let e820MemoryEntryCount: UInt32 = try! buf.read()
         var ranges: [E820MemoryEntry] = []
-        ranges.reserveCapacity(Int(e820MemoryEntryCount))
+        printf("Found %d E820 entries\n", e820Entries)
+        if (e820Entries > 0 && e820MapAddr > 0) {
+            let buf = MemoryBufferReader(e820MapAddr, size: strideof(E820MemoryEntry) * e820Entries)
+            ranges.reserveCapacity(e820Entries)
 
-        for _ in 0..<e820MemoryEntryCount {
-            let entry: E820MemoryEntry = try! buf.read()
-            ranges.append(entry)
+            for _ in 0..<e820Entries {
+                let entry: E820MemoryEntry = try! buf.read()
+                ranges.append(entry)
+            }
+            sortRanges(&ranges)
+            findHoles(&ranges)
+            // These values are only valid during startup before the memory is reclaimed so
+            // forget the addresss as they wont be valid later on anyway
+            e820MapAddr = 0
+            e820Entries = 0
         }
-        sortRanges(&ranges)
-        findHoles(&ranges)
-
         return ranges
     }
-
-
 
 
     static private func sortRanges(inout ranges: [E820MemoryEntry]) {

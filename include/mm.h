@@ -11,12 +11,25 @@
 #ifndef __MM_H__
 #define __MM_H__
 
-#define KERNEL_VIRTUAL_BASE       0x40000000UL  // 1GB
+#include <stddef.h>
+
+#define KERNEL_VIRTUAL_BASE       0x40100000UL  // 1GB
 #define PHYSICAL_MEM_BASE       0x2000000000UL  // 128GB
 
 #define PAGE_SIZE 4096UL
 #define PAGE_MASK 4095UL
 #define PAGE_SHIFT 12UL
+
+
+// Structure for boot information passed from BIOS loader to kernel
+struct bios_boot_params {
+        char signature[8];      // ASCIIZ string 'BIOS'
+        size_t size;            // Size of entire table including embedded data
+        void *e820_map;
+        size_t e820_entries;    // Number of e820 memory map entries
+        char data[0];
+};
+
 
 extern void *(*alloc_pages)(size_t count);
 extern void (*free_pages)(void *pages, size_t count);

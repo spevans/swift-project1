@@ -1,6 +1,7 @@
 ;;; boot/boot16to64.asm
 ;;;
-;;; Copyright © 2015 Simon Evans. All rights reserved.
+;;; Created by Simon Evans on 30/10/2015.
+;;; Copyright © 2015, 2016 Simon Evans. All rights reserved.
 ;;;
 ;;; Enter 64bit (long mode) from 16bit (real mode)
 ;;; Doesnt go via 32bit so there are no exception
@@ -60,6 +61,18 @@ KERNEL_ENTRY    EQU     0x40100000
         or      eax, 0x80000001  ; Enable paging and protected mode,
         mov     cr0, eax         ; activating longmode
 
+        ;; Unmap the identity mapping of the first 16MB to catch
+        ;; null ptr accesses
+        mov     eax, cr3
+        and     eax, ~(4096-1)
+        mov     ebx, [eax]
+        mov     dword [ebx], 0
+        mov     dword [ebx+4], 0
+        invlpg  [ebx]
+        mov     edi, PHYSICAL_MEM_BASE >> 32
+        mov     esi, 0x30000    ; bootparams converted to kernel's vaddr space
+        xor     ecx, ecx        ; ECX:EDX => Framebuffer address (null for text mode)
+        xor     edx, edx
         ;; jump to the kernel loading the code selector
         jmp     dword CODE_SEG:KERNEL_ENTRY
 
@@ -122,7 +135,7 @@ GDT:
         dq      0x0000920000000000
 
 
- .pointer:
+.pointer:
         dw      ($ - GDT) - 1   ; 16bit length -1
         dq      0x90000 + GDT   ; 64bit base address
 
