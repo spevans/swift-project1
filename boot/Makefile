@@ -1,6 +1,7 @@
 TOPDIR := ..
 include $(TOPDIR)/Makedefs
 
+EFI_CFLAGS := $(CFLAGS) -fno-stack-protector  -mno-red-zone -fpic -fshort-wchar  -fno-unwind-tables
 AFLAGS := -f bin -p$(TOPDIR)/include/macros.asm
 
 all: bootsector.bin boot16to64.bin efi_header.bin efi_entry.o efi_main.o kprintf.o
@@ -16,10 +17,10 @@ efi_header.bin: efi_header.asm
 	nasm $(AFLAGS) -o $@ $<
 
 efi_main.o: efi_main.c
-	$(CC) $(CFLAGS) -fpic -fshort-wchar  -fno-unwind-tables -c -o $@ $<
+	$(CC) $(EFI_CFLAGS) -c -o $@ $<
 
 kprintf.o: ../kernel/klib/kprintf.c
-	$(CC) $(CFLAGS) -fpic -fshort-wchar  -fno-unwind-tables -c -o $@ $<
+	$(CC) $(EFI_CFLAGS) -c -o $@ $<
 
 clean:
 	rm -f *.bin *.o *.s *.so *.efi *.elf *.map
