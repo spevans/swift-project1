@@ -1,3 +1,13 @@
+/*
+ * boot/efi_main.c
+ *
+ * Created by Simon Evans on 06/02/2016.
+ * Copyright © 2016 Simon Evans. All rights reserved.
+ *
+ * EFI setup for entry to the kernel
+ *
+ */
+
 #include <efi.h>
 #include <fbcon.h>
 #include <klibc.h>
@@ -10,9 +20,13 @@ struct pointer_table {
         void *pml4;
         void *kernel_addr;
         void *last_page;
+        void *memory_map;
+        size_t memory_map_size;
+        size_t memory_map_desc_size;
+        struct frame_buffer fb;
 };
 
-// For allocate_memory() / free_memory()
+// For alloc_memory() / free_memory()
 struct memory_region {
         size_t type;
         size_t req_size;
@@ -22,9 +36,14 @@ struct memory_region {
 
 
 // memory types for allocated memory
-#define MEM_TYPE_PAGE_MAP       0x80000000
-#define MEM_TYPE_BOOT_DATA      0x80000001
-#define MEM_TYPE_KERNEL         0x80000002
+#define MEM_TYPE_PAGE_MAP       0x80000001
+#define MEM_TYPE_BOOT_DATA      0x80000002
+#define MEM_TYPE_KERNEL         0x80000003
+
+#define PAGE_PRESENT    1
+#define PAGE_READ_WRITE 2
+#define PAGE_PHYS_ADDR_MASK 0x0000fffffffff000ULL
+
 
 void *kernel_bin_start();
 void *kernel_bin_end();
@@ -34,6 +53,7 @@ static int uprintf(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)))
 static efi_system_table_t *sys_table;
 static void *image_handle;
 static struct pointer_table *ptr_table;
+typedef uint64_t pte;
 
 
 void __attribute__ ((noinline))
@@ -131,6 +151,10 @@ print_ptr_table()
         uprintf("image_base: %p pagetable: %p\nkernel_addr: %p last_page: %p\n",
                 ptr_table->image_base, ptr_table->pml4, ptr_table->kernel_addr,
                 ptr_table->last_page);
+        struct frame_buffer *fb = &ptr_table->fb;
+        uprintf("Framebuffer: %dx%d bpp: %d px per line: %d addr:%p size: %lx\n",
+                fb->width, fb->height, fb->depth, fb->px_per_scanline,
+                fb->address, fb->size);
 }
 
 
@@ -151,7 +175,7 @@ print_status(char *str, efi_status_t status)
 
 
 efi_status_t
-allocate_memory(struct memory_region *region)
+alloc_memory(struct memory_region *region)
 {
         size_t pages = (region->req_size + PAGE_SIZE - 1) / PAGE_SIZE;
         void *address = 0;
@@ -159,6 +183,7 @@ allocate_memory(struct memory_region *region)
                                         EFI_ALLOCATE_ANY_PAGES, region->type,
                                         pages, (uintptr_t)&address);
         if (status == EFI_SUCCESS) {
+                memset(address, 0, pages * PAGE_SIZE);
                 region->base = address;
                 region->pages = pages;
         } else {
@@ -184,6 +209,16 @@ free_memory(struct memory_region *region)
         return status;
 }
 
+
+void *
+alloc_page()
+{
+        struct memory_region region = { .type = MEM_TYPE_PAGE_MAP,
+                                        .req_size = PAGE_SIZE };
+        alloc_memory(&region);
+
+        return region.base;
+}
 
 
 efi_status_t
@@ -631,7 +666,7 @@ show_memory_map()
                 return status;
         }
 
-        status = allocate_memory(&region);
+        status = alloc_memory(&region);
         if (status != EFI_SUCCESS) {
                 print_status("cant allocate memory:", status);
                 return status;
@@ -726,6 +761,17 @@ setup_frame_buffer(struct frame_buffer *fb)
         return EFI_SUCCESS;
 }
 
+void
+dump_pte(pte *pte_addr)
+{
+        uprintf("%p: ", pte_addr);
+        uint64_t pte = pte_addr ? *pte_addr : 0;
+        size_t idx = 7;
+        do {
+                uprintf("%2.2lx ", (pte >> (idx * 8)) & 0xff);
+        } while(idx-- > 0);
+        uprint_string("\n");
+}
 
 // Allocate memory for the kernel and BSS. This ensures the kernel starts
 // on a page boundary
@@ -737,12 +783,16 @@ relocate_kernel()
 
         uint64_t kernel_sz = kernel_bin_end() - kernel_bin_start();
         uint64_t total_sz = kernel_sz + bss_size();
+        // FIXME - Add an extra page at the end of the BSS for the
+        // entry stub and boot params data. This is only needed becasue
+        // BSS is cleared in kernel/init/main.asm over writing the boot params
+        total_sz += PAGE_SIZE;
         uprintf("Size of kernel and bss: %ld\n", total_sz);
         struct memory_region region = { .req_size = total_sz,
                                         .type = MEM_TYPE_KERNEL };
-        efi_status_t status = allocate_memory(&region);
+        efi_status_t status = alloc_memory(&region);
         if (status != EFI_SUCCESS) {
-                print_status("allocate_memory: ", status);
+                print_status("alloc_memory: ", status);
                 return status;
         }
         uprintf("Allocated %ld pages\n", region.pages);
@@ -755,7 +805,162 @@ relocate_kernel()
         ptr_table->last_page = region.base + (region.pages - 1) * PAGE_SIZE;
         uprint_string("Kernel copied into place, press any key\n");
         print_memory_region(&region);
-        wait_for_key(NULL);
+        return EFI_SUCCESS;
+}
+
+
+static const uint64_t entries_per_page = 512;
+static const uint64_t entries_per_page_mask = entries_per_page - 1;
+
+static size_t
+pml4_index(void *vaddr)
+{
+        return ((uintptr_t)vaddr >> 39) & entries_per_page_mask;
+}
+
+
+static size_t
+pdp_index(void *vaddr)
+{
+        return ((uintptr_t)vaddr >> 30) & entries_per_page_mask;
+}
+
+
+static size_t
+pd_index(void *vaddr)
+{
+        return ((uintptr_t)vaddr >> 21) & entries_per_page_mask;
+}
+
+
+static size_t
+pt_index(void *vaddr)
+{
+        return ((uintptr_t)vaddr >> 12) & entries_per_page_mask;
+}
+
+
+static pte *
+get_page_at_index(pte *pd, size_t idx)
+{
+        if ((pd[idx] & PAGE_PRESENT) == 0) {
+                // no page present
+                pte *new_page = alloc_page();
+                if (new_page == NULL) {
+                        return NULL;
+                }
+                pte entry = (uintptr_t)new_page;
+                pd[idx] = entry | PAGE_READ_WRITE | PAGE_PRESENT;
+        }
+        return (pte *)(pd[idx] & PAGE_PHYS_ADDR_MASK);
+}
+
+
+pte *
+read_entry(pte *dir, int idx)
+{
+        pte entry = dir[idx];
+        entry &= PAGE_PHYS_ADDR_MASK;
+        return (pte *)entry;
+}
+
+void
+dump_mapping(void *vaddr)
+{
+         size_t idx0 = pml4_index(vaddr);
+         size_t idx1 = pdp_index(vaddr);
+         size_t idx2 = pd_index(vaddr);
+         size_t idx3 = pt_index(vaddr);
+         pte *addr = ptr_table->pml4;
+         uprintf("pml4 = %p : %p => %ld/%ld/%ld/%ld [%lx/%lx/%lx/%lx]\n", addr,
+                 vaddr, idx0, idx1, idx2, idx3,
+                 idx0 << 3, idx1 << 3, idx2 << 3, idx3 << 3);
+
+         dump_pte(addr + idx0);
+         pte *pdp_page = read_entry(addr, idx0);
+         dump_pte(pdp_page + idx1);
+         pte *pd_page = read_entry(pdp_page, idx1);
+         dump_pte(pd_page + idx2);
+         pte *pt_page = read_entry(pd_page, idx2);
+         dump_pte(pt_page + idx3);
+}
+
+
+// Add 4K page read/write no other settings
+efi_status_t
+add_mapping(void *vaddr, void *paddr, size_t page_cnt)
+{
+        uprintf("Mapping %p => %p pages: %ld\n", vaddr, paddr, page_cnt);
+
+        for (size_t i = 0; i < page_cnt; i++) {
+
+                size_t idx0 = pml4_index(vaddr);
+                size_t idx1 = pdp_index(vaddr);
+                size_t idx2 = pd_index(vaddr);
+                size_t idx3 = pt_index(vaddr);
+                pte *pdp_page = get_page_at_index(ptr_table->pml4, idx0);
+                if (pdp_page == NULL) {
+                        return EFI_OUT_OF_RESOURCES;
+                }
+                pte *pd_page = get_page_at_index(pdp_page, idx1);
+                if (pd_page == NULL) {
+                        return EFI_OUT_OF_RESOURCES;
+                }
+                pte *pt_page = get_page_at_index(pd_page, idx2);
+                if (pt_page == NULL) {
+                        return EFI_OUT_OF_RESOURCES;
+                }
+
+                if (pt_page[idx3] & PAGE_PRESENT) {
+                        uprintf("Page already mapped @ %p => %p\n", vaddr, paddr);
+                        return EFI_INVALID_PARAMETER;
+                } else {
+                        pte entry = (uintptr_t)paddr;
+                        pt_page[idx3] = entry | PAGE_READ_WRITE | PAGE_PRESENT;
+                }
+                vaddr += PAGE_SIZE;
+                paddr += PAGE_SIZE;
+        }
+        uprintf("Last mapping @ %p => %p\n", vaddr - PAGE_SIZE, paddr - PAGE_SIZE);
+
+        return EFI_SUCCESS;
+}
+
+
+/*
+ * Setup page tables to cover the new kernel (mapped at its correct location)
+ * and a mapping for the frame buffer and any tables that will be passed as
+ * boot data to the kernel. Note that a mapping for all of physical memory is
+ * not setup just the frame buffer and boot tables will be added @
+ * PHYSICAL_MEM_BASE + real address. Use 4K pages for all mappings as kernel
+ * may not have been relocated to a 2MB aligned region
+ */
+efi_status_t
+setup_page_tables()
+{
+        void *root = alloc_page();
+        if (root == NULL) {
+                return EFI_OUT_OF_RESOURCES;
+        }
+        ptr_table->pml4 = root;
+        uprintf("pml4 @ %p\n", root);
+        ptrdiff_t kernel_pages = (ptr_table->last_page - ptr_table->kernel_addr) / PAGE_SIZE;
+        kernel_pages++;
+
+        efi_status_t status = add_mapping((void *)KERNEL_VIRTUAL_BASE,
+                                          ptr_table->kernel_addr, kernel_pages);
+        if (status != EFI_SUCCESS) {
+                return status;
+        }
+        dump_mapping((void *)KERNEL_VIRTUAL_BASE);
+        // Add identity mapping for last page of BSS as this is where the stub that
+        // transisitions to the kernel's virtual address loads the page tables
+        add_mapping(ptr_table->last_page, ptr_table->last_page, 1);
+        //dump_mapping(ptr_table->last_page);
+
+        // Map framebuffer * 16GB
+        add_mapping((void *)0x400000000, ptr_table->fb.address,
+                    (ptr_table->fb.size + PAGE_MASK) / PAGE_SIZE);
 
         return EFI_SUCCESS;
 }

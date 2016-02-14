@@ -126,7 +126,21 @@ memset:
 
 
 pointer_table:
-.image_base     DQ      0
-.pagetable:     DQ      0x12345678
-.kernel_addr:   DQ      0xDEADBEEF
-.last_page:     DQ      0
+        .image_base     DQ      0
+        .pml4:          DQ      0x12345678
+        .kernel_addr:   DQ      0xDEADBEEF
+        .last_page:     DQ      0
+        .mem_map        DQ      0
+        .mem_map_sz:    DQ      0
+        .mem_map_desc_sz:DQ     0
+framebuffer:
+        .address:       DQ      0
+        .size:          DQ      0
+        .width:         DD      0
+        .height:        DD      0
+        .px_per_line:   DD      0
+        .depth:         DD      0
+        .colour_info:   DB      0, 0, 0, 0, 0, 0
+
+        ALIGN   8
+stub_end:
