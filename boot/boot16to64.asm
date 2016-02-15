@@ -9,9 +9,6 @@
 ;;; then a triple fault will occur and the CPU will
 ;;; reset.
 
-CODE_SEG        EQU     0x8
-DATA_SEG        EQU     0x10
-KERNEL_ENTRY    EQU     0x40100000
 
         ORG 0x0000
 

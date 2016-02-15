@@ -9,10 +9,6 @@
 
         global  reload_segments
 
-        CODE_SEG        EQU     0x8
-        DATA_SEG        EQU     0x10
-        TLS_SEG         EQU     0x18
-
 
 ;;; void reload_segments()
 ;;; Just a test routine to check the GDT has been set correctly,
