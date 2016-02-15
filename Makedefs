@@ -2,7 +2,7 @@ UNAME_S := $(shell uname -s)
 CC := clang
 CFLAGS := -Wall -std=gnu11 -Wextra -Werror -fno-builtin -fno-stack-protector -fno-common -mno-red-zone -I$(TOPDIR)/include
 NASM := nasm
-NASM_FLAGS := -Werror
+NASM_FLAGS := -Werror -p$(TOPDIR)/include/macros.asm
 MODULE_DIR := $(TOPDIR)/modules
 SWIFTC_FLAGS := -gnone -O -Xcc -mno-red-zone -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -I$(MODULE_DIR)
 
@@ -31,3 +31,6 @@ endif
 
 %.o: %.asm
 	$(NASM) $(NASM_FLAGS) $(NASM_OBJ_FLAGS) -o $@ $<
+
+%.bin: %.asm
+	$(NASM) $(NASM_FLAGS) -fbin -o $@ $<
