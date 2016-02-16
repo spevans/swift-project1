@@ -269,15 +269,15 @@ struct TextTTY: ScreenDriver {
     let charsPerLine: Int
     let totalChars: Int
 
-    private let bytesPerChar = 2;   // Character and colour
-    private let totalBytes: Int
     private let bytesPerLine: Int
-
-    private let screenBase: UnsafeMutablePointer<CUnsignedChar>
-    private let screen: UnsafeMutableBufferPointer<CUnsignedChar>
+    private let screenBase: UnsafeMutablePointer<UInt16>
+    private let screen: UnsafeMutableBufferPointer<UInt16>
 
     // bright green characters on a black background
     private let textColour: CUnsignedChar = 0xA
+
+    // black space on black background
+    private let blankChar = UInt16(msb: 0, lsb: TTY.space)
 
     // Motorola 6845 CRT Controller registers
     private let crtIdxReg: UInt16 = 0x3d4
@@ -308,47 +308,38 @@ struct TextTTY: ScreenDriver {
     init() {
         totalLines = 25
         charsPerLine = 80
-        totalChars = (25 * 80) //totalLines * charsPerLine
-        totalBytes = (2 * 25 * 80)
+        totalChars = totalLines * charsPerLine
         bytesPerLine = 160
-        screenBase = UnsafeMutablePointer<CUnsignedChar>(bitPattern: PHYSICAL_MEM_BASE + 0xB8000)
-        screen = UnsafeMutableBufferPointer(start: screenBase, count: totalBytes)
+        screenBase = UnsafeMutablePointer<UInt16>(bitPattern: PHYSICAL_MEM_BASE + 0xB8000)
+        screen = UnsafeMutableBufferPointer(start: screenBase, count: totalChars)
     }
 
 
-
     func printChar(character: CUnsignedChar, x: Int, y: Int) {
-        let offset = bytesPerChar * ((y * charsPerLine) + x)
-        screen[offset] = character
-        screen[offset + 1] = textColour
+        let offset = (y * charsPerLine) + x
+        screen[offset] = UInt16(msb: textColour, lsb: character)
     }
 
 
     func clearScreen() {
-        var idx = 0
-        while idx < totalBytes {
-            screen[idx] = 0x20  // space
-            screen[idx + 1] = textColour
-            idx += 2
+        for i in 0..<screen.count {
+            screen[i] = blankChar
         }
     }
 
 
     func scrollUp() {
         // Scroll screen up by one line
-        let byteCount = (totalLines - 1) * bytesPerLine
+        let charCount = (totalLines - 1) * charsPerLine
 
-        for idx in 0..<byteCount {
-            screen[idx] = screen[bytesPerLine + idx]
+        for i in 0..<charCount {
+            screen[i] = screen[charsPerLine + i]
         }
 
         // Clear new bottom line with blank characters
-        let bottomLine = (totalLines - 1) * bytesPerLine
-        var idx = 0
-        while idx < bytesPerLine {
-            screen[bottomLine + idx] = TTY.space
-            screen[bottomLine + idx + 1] = textColour
-            idx += bytesPerChar
+        let bottomLine = (totalLines - 1) * charsPerLine
+        for i in 0..<charsPerLine {
+            screen[bottomLine + i] = blankChar
         }
     }
 
