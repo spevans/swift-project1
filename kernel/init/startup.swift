@@ -10,13 +10,16 @@
 
 
 @_silgen_name("startup")
-public func startup(bootParams: UInt) {
+public func startup(bootParams: UInt, frameBufferInfo: UInt) {
     BootParams.parse(bootParams)
-    TTY.initTTY()
-
+    TTY.initTTY(frameBufferInfo)
     CPU.getInfo()
     setupGDT()
     setupIDT()
+    if (bootParams == 0) {
+        printf("BootParams is null, stopping")
+        stop()
+    }
     setupMM()
     ACPI.parse()
     PCI.scan()

@@ -6,7 +6,7 @@
 
 #define FONTDATAMAX 4096
 
-static unsigned char fontdata_8x16[FONTDATAMAX] = {
+unsigned char fontdata_8x16[FONTDATAMAX] = {
 
 	/* 0 0x00 '^@' */
 	0x00, /* 00000000 */

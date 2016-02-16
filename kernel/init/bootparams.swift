@@ -51,8 +51,7 @@ struct BootParams {
 
 
     static func parse(bootParamsAddr: UInt) {
-        printf("parsing bootParams @ 0x%lx\n", bootParamsAddr)
-
+        kprintf("parsing bootParams @ 0x%lx\n", bootParamsAddr)
         if (bootParamsAddr == 0) {
             print("bootParamsAddr is null");
             return;

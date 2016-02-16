@@ -19,7 +19,7 @@
 void early_print_char(const char c);
 void early_print_string(const char *text);
 void early_print_string_len(const char *text, size_t len);
-static void framebuffer_test(struct frame_buffer *fb);
+void framebuffer_test(struct frame_buffer *fb);
 static void set_text_colour(uint32_t colour);
 
 // Initialise the function pointers, later updated to point to TTY.swift
@@ -60,8 +60,8 @@ init_early_tty(struct frame_buffer *fb)
                 font = &font8x16;
                 text_width = fb->width / font->width;
                 text_height = fb->height / font->height;
-                set_text_colour(0x002fff12); // rgb
-                framebuffer_test(fb);
+                set_text_colour(0x00ffffff); // rgb
+                //framebuffer_test(fb);
                 kprintf("Using framebuffer mode: ");
         }
         kprintf("Console size: %dx%d\n", text_width, text_height);
@@ -198,7 +198,7 @@ fb_scroll_up()
 }
 
 
-static void
+void
 framebuffer_test(struct frame_buffer *fb)
 {
         kprintf("Frambuffer info fb = %p ", fb);
@@ -293,11 +293,9 @@ early_print_string(const char *text)
 void
 set_print_functions_to_swift()
 {
-        if (text_mode) {
-                print_char = tty_print_char;
-                print_string = tty_print_cstring;
-                print_string_len = tty_print_cstring_len;
-        }
+        print_char = tty_print_char;
+        print_string = tty_print_cstring;
+        print_string_len = tty_print_cstring_len;
 }
 
 

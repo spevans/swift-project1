@@ -53,17 +53,17 @@ private struct theGDT {
 
 
 public func setupGDT() {
-    kprint("Initialising GDT:")
+    print("Initialising GDT:")
     let tlsPtr = UnsafeMutablePointer<UInt>(initial_tls_end_addr)
     tlsPtr.memory = initial_tls_end_addr.ptrToUint
 
     var currentGdtInfo = dt_info(limit: 0, address: nil)
     sgdt(&currentGdtInfo)
-    kprintf("Current GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.limit)
+    printf("Current GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.limit)
     lgdt(&gdtInfo)
 
     // Below is not really needed except to validate that the setup worked ok
     sgdt(&currentGdtInfo)
-    kprintf("New GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.limit)
+    printf("New GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.limit)
     reload_segments()
 }

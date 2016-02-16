@@ -80,6 +80,7 @@ main:
         mov     rdi, r12
         call    init_mm         ; required for malloc/free
         mov     rdi, r12
+        mov     rsi, r13
         call    startup         ; SwiftKernel.startup
         hlt
 

@@ -123,7 +123,7 @@ typedef enum {
         EFI_MEMORY_NV = 1ULL << 15,
         EFI_MEMORY_MORE_RELIABLE = 1ULL << 16,
         EFI_MEMORY_RO = 1ULL << 17,
-        EFI_MEMORY_RUNTIME = 1ULL << 18,
+        EFI_MEMORY_RUNTIME = 1ULL << 63,
 } efi_memory_attribute;
 
 typedef struct {

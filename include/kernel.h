@@ -69,10 +69,10 @@ EXPORTED_SYMBOL_AS_UINTPTR(irq12_stub);
 EXPORTED_SYMBOL_AS_UINTPTR(irq13_stub);
 EXPORTED_SYMBOL_AS_UINTPTR(irq14_stub);
 EXPORTED_SYMBOL_AS_UINTPTR(irq15_stub);
+EXPORTED_SYMBOL_AS_UINTPTR(fontdata_8x16);
 
 extern const void *initial_tls_end_addr;
 extern const void *irq_dispatch_table_addr;
-
 
 void set_print_functions_to_swift();
 void early_print_string(const char *text);

@@ -11,7 +11,6 @@
 #include <efi.h>
 #include <fbcon.h>
 #include <klibc.h>
-#include "../lib/font_8x16.c"
 
 
 // For passing data back to efi_entry.asm
@@ -537,25 +536,7 @@ find_uga(struct frame_buffer *fb)
 }
 
 
-static inline void
-split_rgb(uint32_t colour, uint8_t *red, uint8_t *green, uint8_t *blue)
-{
-        *blue = colour & 0xff;
-        *green = (colour >> 8) & 0xff;
-        *red = (colour >> 16) & 0xff;
-}
-
-
-static uint32_t text_colour = 0x00ffffff;
-static uint8_t text_red = 0xff, text_green = 0xff, text_blue = 0xff;
-static void set_text_colour(uint32_t colour)
-{
-        text_colour = colour;
-        split_rgb(colour, &text_red, &text_green, &text_blue);
-}
-
-
-uint32_t
+static uint32_t
 colour_mask(struct frame_buffer *fb, uint8_t red, uint8_t green, uint8_t blue)
 {
         uint32_t colour = (red & fb->red_mask) << fb->red_shift;
@@ -566,70 +547,7 @@ colour_mask(struct frame_buffer *fb, uint8_t red, uint8_t green, uint8_t blue)
 }
 
 
-static inline int
-convert_font_line(struct frame_buffer *fb, const struct font *font,
-                  const unsigned char *data, uint8_t *buf)
-{
-        unsigned int offset = 0;
-        uint32_t mask = colour_mask(fb, text_red, text_green, text_blue);
-        for(int i = font->width-1; i >= 0; i--) {
-                int bit = data[0] & (1 << i);
-                for(uint32_t i = 0; i < (fb->depth/8); i++) {
-                        buf[offset++] = bit ? (mask >> (i*8)) : 0;
-                }
-        }
-
-        return offset;
-}
-
-
-static inline void
-console_size(struct frame_buffer *fb, const struct font *font,
-             uint32_t *max_x, uint32_t *max_y)
-{
-        *max_x = fb->width / font->width;
-        *max_y = fb->height / font->height;
-}
-
-
-static const unsigned char *
-font_data(const struct font *font)
-{
-        // font->data is compiled in for binary @ 0 so add image offset
-        return (uint64_t)ptr_table->image_base + font->data;
-}
-
-
-void
-print_fb_char(struct frame_buffer *fb, uint32_t x, uint32_t y, unsigned char ch)
-{
-        const struct font *font = &font8x16;
-        int bytes_per_char = ((font->width + 7) / 8) * font->height;
-
-        uint32_t max_x, max_y;
-        console_size(fb, font, &max_x, &max_y);
-        if (x >= max_x || y >= max_y) {
-                return;
-        }
-
-        const unsigned char *char_data = font_data(font) + (bytes_per_char * ch);
-
-        uint8_t *screen = (uint8_t *)fb->address;
-        unsigned int pixel = (y * font->height) * fb->px_per_scanline + (x * font->width);
-        pixel *= (fb->depth/8);
-        for(int line = 0; line < font->height; line++) {
-                uint8_t buf[128];
-                int px = convert_font_line(fb, font, char_data, buf);
-                for(int p = 0; p < px; p++) {
-                        screen[pixel + p] = buf[p];
-                }
-                pixel += (fb->px_per_scanline * (fb->depth/8));
-                char_data += ((font->width + 7) / 8);
-        }
-}
-
-
-void static inline
+static void
 plot_pixel(struct frame_buffer *fb, uint32_t x, uint32_t y,
            uint8_t red, uint8_t blue, uint8_t green)
 {
@@ -648,19 +566,18 @@ plot_pixel(struct frame_buffer *fb, uint32_t x, uint32_t y,
 
 
 efi_status_t
-show_memory_map()
+exit_boot_services()
 {
-        char *memory_map = NULL;
         uint64_t map_key = 0;
-        uint64_t descriptor_size = 0;
         uint32_t version = 0;
 
         struct memory_region region = { .type = MEM_TYPE_BOOT_DATA };
         // Call once to find out size of buffer to allocate
         efi_status_t status = efi_call5(sys_table->boot_services->get_memory_map,
                                         (uintptr_t)&region.req_size,
-                                        (uintptr_t)memory_map, (uintptr_t)&map_key,
-                                        (uintptr_t)&descriptor_size,
+                                        (uintptr_t)ptr_table->memory_map,
+                                        (uintptr_t)&map_key,
+                                        (uintptr_t)&ptr_table->memory_map_desc_size,
                                         (uintptr_t)&version);
         if (status != EFI_BUFFER_TOO_SMALL) {
                 return status;
@@ -671,47 +588,51 @@ show_memory_map()
                 print_status("cant allocate memory:", status);
                 return status;
         }
-        memory_map = region.base;
-
-        uint64_t map_size = region.pages * PAGE_SIZE;
-        map_key = 0;
-        descriptor_size = 0;
-        version = 0;
+        ptr_table->memory_map = region.base;
+        ptr_table->memory_map_size = region.pages * PAGE_SIZE;
 
         status = efi_call5(sys_table->boot_services->get_memory_map,
-                           (uintptr_t)&map_size, (uintptr_t)memory_map,
-                           (uintptr_t)&map_key, (uintptr_t)&descriptor_size,
+                           (uintptr_t)&ptr_table->memory_map_size,
+                           (uintptr_t)ptr_table->memory_map,
+                           (uintptr_t)&map_key,
+                           (uintptr_t)&ptr_table->memory_map_desc_size,
                            (uintptr_t)&version);
 
-        if (status != EFI_SUCCESS || descriptor_size == 0) {
+        if (status != EFI_SUCCESS || ptr_table->memory_map_desc_size == 0) {
                 print_status("get_memory_map", status);
                 return status;
         }
-
-        uprintf("get_memory_map descriptor_size: %ld map_size %ld map_ley %ld\n",
-                descriptor_size, map_size, map_key);
-
-        size_t entries = map_size / descriptor_size;
+#if 0
+        size_t entries = ptr_table->memory_map_size / ptr_table->memory_map_desc_size;
+        uprintf("get_memory_map descriptor_size: %ld map_size %ld map_key %ld\n",
+                ptr_table->memory_map_desc_size, ptr_table->memory_map_size,
+                map_key);
         uprintf("entries: %ld\n", entries);
 
         size_t count = 0;
         for(size_t i = 0; i < entries; i++) {
-                size_t offset = descriptor_size * i;
-                efi_memory_descriptor_t *desc = (efi_memory_descriptor_t *)(memory_map+offset);
-                if (desc->physical_start == 0 && desc->virtual_start == 0 && desc->type == 0
-                    && desc-> number_of_pages == 0) {
+                size_t offset = ptr_table->memory_map_desc_size * i;
+                efi_memory_descriptor_t *desc =
+                        (efi_memory_descriptor_t *)(ptr_table->memory_map + offset);
+                if (desc->number_of_pages == 0) {
                         continue;
                 }
-                if (desc->type > 4) continue;
+                if (desc->type == 3 || desc->type == 4) continue;
 
-                uprintf("%2ld t: %d p: %p v: %p n: %ld a: %#lx\n", i, desc->type,
-                        (void *)desc->physical_start, (void *)desc->virtual_start,
+                uprintf("%2ld t: %8x p: %10p  n: %6ld a: %#lx\n", i, desc->type,
+                        (void *)desc->physical_start,
                         desc->number_of_pages, desc->attribute);
 
-                if (++count > 10) break;
+                if (++count > 24) break;
         }
-
-        free_memory(&region);
+#endif
+        status = efi_call2(sys_table->boot_services->exit_boot_services,
+                           (uintptr_t)image_handle, map_key);
+        if (status != EFI_SUCCESS) {
+                print_status("exit_boot_services", status);
+        } else {
+                //uprint_string("ExitBootServices called OK");
+        }
 
         return status;
 }
@@ -740,23 +661,6 @@ setup_frame_buffer(struct frame_buffer *fb)
                 plot_pixel(fb, fb->width-1, y, 0xff, 0xff, 0xff);
         }
 
-        unsigned char ch = 0;
-        uint32_t max_x, max_y;
-        console_size(fb, &font8x16, &max_x, &max_y);
-        uprintf("Console size: %dx%d\n", max_x, max_y);
-
-        const struct font *font = &font8x16;
-        uprintf("font size: %dx%d font->data:%p fontdata_8x16:%p\n", font->width, font->height,
-                font_data(font), fontdata_8x16);
-
-        set_text_colour(0x002fff12); // rgb
-        for(int y = 0; y < 16; y++) {
-                for (int x = 0; x < 16; x++) {
-                        print_fb_char(fb, x, y, ch);
-                        ch++;
-                        ch &= 0xff;
-                }
-        }
 
         return EFI_SUCCESS;
 }
@@ -958,8 +862,9 @@ setup_page_tables()
         add_mapping(ptr_table->last_page, ptr_table->last_page, 1);
         //dump_mapping(ptr_table->last_page);
 
-        // Map framebuffer * 16GB
-        add_mapping((void *)0x400000000, ptr_table->fb.address,
+        // Map framebuffer @ 128GB + base address
+        // FIXME: Should really be an IO mapping
+        add_mapping((void *)(PHYSICAL_MEM_BASE + ptr_table->fb.address), ptr_table->fb.address,
                     (ptr_table->fb.size + PAGE_MASK) / PAGE_SIZE);
 
         return EFI_SUCCESS;
@@ -981,24 +886,31 @@ efi_main(void *handle, efi_system_table_t *_sys_table,
         uprintf(" rev: %d.%d\n", sys_table->fw_revision >> 16,
                 sys_table->fw_revision & 0xff);
 
-        if (relocate_kernel() != EFI_SUCCESS) {
+        efi_status_t status;
+        if ((status = relocate_kernel()) != EFI_SUCCESS) {
                 goto error;
         }
 
+
+        struct frame_buffer *fb = &ptr_table->fb;
+        if ((status = setup_frame_buffer(fb)) != EFI_SUCCESS) {
+                goto error;
+        }
+
+        if ((status = setup_page_tables()) != EFI_SUCCESS) {
+                goto error;
+        }
         print_ptr_table();
-        struct frame_buffer fb = { .address = 0 };
-        if (setup_frame_buffer(&fb) != EFI_SUCCESS) {
+        wait_for_key(NULL);
+        if (exit_boot_services() != EFI_SUCCESS) {
                 goto error;
         }
 
-        if (show_memory_map() != EFI_SUCCESS) {
-                goto error;
-        }
+        return EFI_SUCCESS;
 
  error:
         uprint_string("Press any key to exit\n");
-        efi_input_key_t key;
-        wait_for_key(&key);
+        wait_for_key(NULL);
 
-        return  EFI_SUCCESS;
+        return status;
 }
