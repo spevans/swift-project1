@@ -27,8 +27,21 @@ void (*print_char)(const char) = early_print_char;
 void (*print_string)(const char *) = early_print_string;
 void (*print_string_len)(const char *, size_t) = early_print_string_len;
 
-// Base address of PC screen RAM
-static char *const screen = (char *)(PHYSICAL_MEM_BASE + 0xB8000);
+void (*etty_print_char)(unsigned int x, unsigned int y, const unsigned char ch);
+void (*etty_clear_screen)();
+void (*etty_scroll_up)();
+
+static void text_mode_print_char(unsigned int x, unsigned int y, const unsigned char ch);
+static void text_mode_clear_screen();
+static void text_mode_scroll_up();
+static void fb_print_char(unsigned int x, unsigned int y, const unsigned char ch);
+static void fb_clear_screen();
+static void fb_scroll_up();
+static void get_hw_cursor(unsigned int *x, unsigned int *y);
+
+
+// Base address of PC text screen or framebuffer memory
+static uint8_t *screen_buffer;
 // Motorola 6845 CRT Controller registers
 static const uint16_t crt_idx_reg = 0x3D4;
 static const uint16_t crt_data_reg = 0x3D5;
@@ -53,18 +66,76 @@ init_early_tty(struct frame_buffer *fb)
                 text_mode = 1;
                 text_width = 80;
                 text_height = 25;
+                screen_buffer = (uint8_t *)(PHYSICAL_MEM_BASE + 0xB8000);
+                etty_print_char = text_mode_print_char;
+                etty_clear_screen = text_mode_clear_screen;
+                etty_scroll_up = text_mode_scroll_up;
                 kprintf("Using text mode: ");
         } else {
+                // Get the current cursor position from the boot setup
+                get_hw_cursor(&cursor_x, &cursor_y);
                 text_mode = 0;
                 frame_buffer = *fb;
                 font = &font8x16;
                 text_width = fb->width / font->width;
                 text_height = fb->height / font->height;
+                screen_buffer = (uint8_t *)(PHYSICAL_MEM_BASE
+                                            + frame_buffer.address);
+                etty_print_char = fb_print_char;
+                etty_clear_screen = fb_clear_screen;
+                etty_scroll_up = fb_scroll_up;
                 set_text_colour(0x00ffffff); // rgb
                 //framebuffer_test(fb);
                 kprintf("Using framebuffer mode: ");
         }
+        etty_clear_screen();
         kprintf("Console size: %dx%d\n", text_width, text_height);
+}
+
+
+long
+etty_chars_per_line()
+{
+        return text_width;
+}
+
+
+long
+etty_total_lines()
+{
+        return text_height;
+}
+
+
+long
+etty_get_cursor_x()
+{
+        return cursor_x;
+}
+
+
+long
+etty_get_cursor_y()
+{
+        return cursor_y;
+}
+
+
+void
+etty_set_cursor_x(long x)
+{
+        if (x >= 0 && x < text_width) {
+                cursor_x = x;
+        }
+}
+
+
+void
+etty_set_cursor_y(long y)
+{
+        if (y >= 0 && y < text_height) {
+                cursor_y = y;
+        }
 }
 
 
@@ -103,11 +174,18 @@ set_hw_cursor(unsigned int x, unsigned int y)
 
 
 static void
-text_mode_print_char(const char ch)
+text_mode_print_char(unsigned int x, unsigned int y, const unsigned char ch)
 {
-        char *cursor_char = (screen + (cursor_y * text_width * 2) + (cursor_x * 2));
+        unsigned char *cursor_char = screen_buffer + (2 *  (y * text_width + x));
         *cursor_char = ch;
         *(cursor_char + 1) = 0x07;
+}
+
+
+static void
+text_mode_clear_screen()
+{
+        memsetw(screen_buffer, 0x0720, text_width * text_height);
 }
 
 
@@ -115,9 +193,10 @@ static void
 text_mode_scroll_up()
 {
         unsigned int bytes_per_line = text_width * 2;
-        memcpy(screen, screen + bytes_per_line, (text_height-1) * bytes_per_line);
-        memsetw(screen + ((text_height-1) * bytes_per_line), 0x0720,
-                bytes_per_line);
+        memcpy(screen_buffer, screen_buffer + bytes_per_line,
+               (text_height-1) * bytes_per_line);
+        memsetw(screen_buffer + ((text_height-1) * bytes_per_line), 0x0720,
+                text_width);
 }
 
 
@@ -163,25 +242,34 @@ set_text_colour(uint32_t colour)
 
 
 static void
-fb_print_char(unsigned char ch)
+fb_print_char(unsigned int x, unsigned int y, const unsigned char ch)
 {
         int bytes_per_char = ((font->width + 7) / 8) * font->height;
         const unsigned char *char_data = font->data + (bytes_per_char * ch);
-        uint8_t *screen = (uint8_t *)(PHYSICAL_MEM_BASE + frame_buffer.address);
 
-        unsigned int pixel = (cursor_y * font->height) * frame_buffer.px_per_scanline
-                + (cursor_x * font->width);
+
+        unsigned int pixel = (y * font->height) * frame_buffer.px_per_scanline
+                + (x * font->width);
         int db = (frame_buffer.depth / 8);
         pixel *= db;
         for(int line = 0; line < font->height; line++) {
                 uint8_t buf[128];
                 int px = convert_font_line(char_data, buf);
                 for(int p = 0; p < px; p++) {
-                        screen[pixel + p] = buf[p];
+                        screen_buffer[pixel + p] = buf[p];
                 }
                 pixel += (frame_buffer.px_per_scanline * db);
                 char_data += ((font->width + 7) / 8);
         }
+}
+
+
+static void
+fb_clear_screen()
+{
+        size_t size = frame_buffer.px_per_scanline * (frame_buffer.depth / 8);
+        size *= frame_buffer.height;
+        memset(screen_buffer, 0, size);
 }
 
 
@@ -191,10 +279,9 @@ fb_scroll_up()
         //unsigned int bytes_per_line = text_width * 2;
         unsigned int text_line = frame_buffer.px_per_scanline * (frame_buffer.depth / 8);
         text_line *= font->height;
-        uint8_t *screen = (uint8_t *)(PHYSICAL_MEM_BASE + frame_buffer.address);
-
-        memcpy(screen, screen + text_line, text_line * (text_height - 1));
-        memset(screen + (text_line * (text_height - 1)), 0, text_line);
+        memcpy(screen_buffer, screen_buffer + text_line,
+               text_line * (text_height - 1));
+        memset(screen_buffer + (text_line * (text_height - 1)), 0, text_line);
 }
 
 
@@ -213,9 +300,7 @@ framebuffer_test(struct frame_buffer *fb)
         unsigned char ch = 0;
         for(int y = 7; y < 23; y++) {
                 for (int x = 0; x < 16; x++) {
-                        cursor_x = x;
-                        cursor_y = y;
-                        fb_print_char(ch);
+                        fb_print_char(x, y, ch);
                         ch++;
                         ch &= 0xff;
                 }
@@ -228,24 +313,14 @@ framebuffer_test(struct frame_buffer *fb)
 void
 early_print_char(const char c)
 {
-        if (text_mode) {
-                get_hw_cursor(&cursor_x, &cursor_y);
-        }
-
         if (c == '\n') {
                 cursor_x = 0;
                 cursor_y++;
         } else if(c == '\t') {
                 int new_x = (cursor_x + 8) & ~7;
-                //char *cursor_char = (screen + (cursor_y * 80 * 2) + (cursor_x * 2));
-                //memsetw(cursor_char, 0x0720, new_x - cursor_x);
                 cursor_x = new_x;
         } else {
-                if (text_mode) {
-                        text_mode_print_char(c);
-                } else {
-                        fb_print_char(c);
-                }
+                etty_print_char(cursor_x, cursor_y, c);
                 cursor_x++;
         }
 
@@ -255,13 +330,10 @@ early_print_char(const char c)
         }
 
         if(cursor_y >= text_height) {
-                if (text_mode) {
-                        text_mode_scroll_up();
-                } else {
-                        fb_scroll_up();
-                }
+                text_mode_scroll_up();
                 cursor_y--;
         }
+
         if (text_mode) {
                 set_hw_cursor(cursor_x, cursor_y);
         }

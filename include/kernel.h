@@ -88,6 +88,18 @@ void dump_registers(struct exception_regs *registers);
 int memcmp(const void *s1, const void *s2, size_t count);
 
 
+// early_tty interface for TTY.EarlyTTY driver
+void (*etty_print_char)(long x, long y, const unsigned char ch);
+void (*etty_clear_screen)();
+void (*etty_scroll_up)();
+long etty_chars_per_line();
+long etty_total_lines();
+long etty_get_cursor_x();
+long etty_get_cursor_y();
+void etty_set_cursor_x(long x);
+void etty_set_cursor_y(long y);
+
+
 static inline uintptr_t
 ptr_to_uint(const void *ptr)
 {

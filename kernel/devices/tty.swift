@@ -4,9 +4,10 @@
  * Created by Simon Evans on 16/12/2015.
  * Copyright © 2015, 2016 Simon Evans. All rights reserved.
  *
- * TTY driver with two screen drivers, one for text mode
- * and the other for a framebuffer
- *
+ * TTY driver with three screen drivers:
+ *   EarlyTTY           calls  early_tty.c functions
+ *   TextTTY            drives a PC text mode display
+ *   FrameBufferTTY     drives a multiple byte per pixel framebuffer
  */
 
 
@@ -44,7 +45,6 @@ struct Font: CustomStringConvertible {
     let bytesPerChar: Int
 
     var fontData: UnsafeBufferPointer<UInt8> {
-        //let ptr = UnsafePointer<UInt8>(bitPattern: data)
         let size = Int(width) * Int(height)
         return UnsafeBufferPointer(start: data, count: size / 8)
     }
@@ -84,20 +84,38 @@ protocol ScreenDriver {
 }
 
 
+private var earlyTTY = EarlyTTY()
+
 public struct TTY {
-    private static var driver: ScreenDriver = textTTY()
-    private static var cursorX = 0
-    private static var cursorY = 0
+    private static var driver: ScreenDriver = earlyTTY
     private static let tab: CUnsignedChar = 0x09
     private static let newline: CUnsignedChar = 0x0A
     private static let space: CUnsignedChar = 0x20
 
+    // The cursorX and cursorY and managed by early_tty.c so they
+    // can be kept in sync
+    private static var cursorX: Int {
+        get { return earlyTTY.cursorX }
+        set(newX) {
+            earlyTTY.cursorX = newX
+            driver.cursorX = newX
+        }
+    }
+
+    private static var cursorY: Int {
+        get { return earlyTTY.cursorY }
+        set(newY) {
+            earlyTTY.cursorY = newY
+            driver.cursorY = newY
+        }
+    }
+
 
     static func initTTY(frameBufferInfo: UInt) {
         if (frameBufferInfo != 0) {
-            driver = frameBufferTTY(frameBufferInfo)
+            driver = FrameBufferTTY(frameBufferInfo)
         } else {
-            driver = textTTY()
+            driver = TextTTY()
         }
         testTTY()
         clearScreen()
@@ -161,37 +179,39 @@ public struct TTY {
     @_silgen_name("tty_print_char")
     public static func printChar(character: CChar) {
         let ch = CUnsignedChar(character)
+        var (x, y) = (cursorX, cursorY)
+
         if ch == newline {
-            cursorX = 0
-            cursorY += 1
+            x = 0
+            y += 1
         } else if ch == tab {
-            let newX = (cursorX + 8) & ~7
-            while (cursorX < newX && cursorX < driver.charsPerLine) {
-                driver.printChar(space, x: cursorX, y: cursorY)
-                cursorX += 1
+            let newX = (x + 8) & ~7
+            while (x < newX && x < driver.charsPerLine) {
+                driver.printChar(space, x: x, y: y)
+                x += 1
             }
-            cursorX = newX
+            x = newX
         } else {
-            driver.printChar(ch, x: cursorX, y: cursorY)
-            cursorX += 1
+            driver.printChar(ch, x: x, y: y)
+            x += 1
         }
 
-        if cursorX >= driver.charsPerLine {
-            cursorX = 0
-            cursorY += 1
+        if x >= driver.charsPerLine {
+            x = 0
+            y += 1
         }
 
-        if (cursorY >= driver.totalLines) {
+        while (y >= driver.totalLines) {
             driver.scrollUp()
-            cursorY -= 1
+            y -= 1
         }
-
-        driver.cursorX = cursorX
-        driver.cursorY = cursorY
+        cursorX = x
+        cursorY = y
     }
 
 
     public static func testTTY() {
+        print("cursorX = \(cursorX) cursorY = \(cursorY)")
         printChar(0x0A)
         printChar(65)
         printChar(66)
@@ -204,12 +224,47 @@ public struct TTY {
         printChar(Character("H"))
         printString("\n12\t12345678\t12345\t123456789\t12\t12\t0\n")
         printString("12345678123456781234567812345678123456781234567812345678123456780")
-        printString("\n\n\nNewLine\n\n\n")
+        printString("12345678123456781234567812345678123456781234567812345678123456781234567812345678")
+        let x = cursorX
+        print("\n   x = \(x) cursorX = \(cursorX) cursorY = \(cursorY)")
+        printString("\n\n\nNewLine")
+        print(" cursorX = \(cursorX) cursorY = \(cursorY)")
     }
 }
 
 
-struct textTTY: ScreenDriver {
+struct EarlyTTY: ScreenDriver {
+    var charsPerLine: Int { return etty_chars_per_line() }
+    var totalLines:   Int { return etty_total_lines() }
+
+    var cursorX:      Int {
+        get { return Int(etty_get_cursor_x()) }
+        set(newX) { etty_set_cursor_x(newX) }
+    }
+
+    var cursorY:      Int {
+        get { return etty_get_cursor_y(); }
+        set(newY) { etty_set_cursor_y(newY) }
+    }
+
+
+    func printChar(character: CUnsignedChar, x: Int, y: Int) {
+        etty_print_char(x, y, character)
+    }
+
+
+    func clearScreen() {
+        etty_clear_screen()
+    }
+
+
+    func scrollUp() {
+        etty_scroll_up()
+    }
+}
+
+
+struct TextTTY: ScreenDriver {
     let totalLines: Int
     let charsPerLine: Int
     let totalChars: Int
@@ -217,16 +272,37 @@ struct textTTY: ScreenDriver {
     private let bytesPerChar = 2;   // Character and colour
     private let totalBytes: Int
     private let bytesPerLine: Int
-    private let whiteOnBlack: CUnsignedChar = 0x7  // black background white characters
 
     private let screenBase: UnsafeMutablePointer<CUnsignedChar>
     private let screen: UnsafeMutableBufferPointer<CUnsignedChar>
+
+    // bright green characters on a black background
+    private let textColour: CUnsignedChar = 0xA
 
     // Motorola 6845 CRT Controller registers
     private let crtIdxReg: UInt16 = 0x3d4
     private let crtDataReg: UInt16 = 0x3d5
     private let cursorMSB: UInt8 = 0xE
     private let cursorLSB: UInt8 = 0xF
+
+    private var _cursorX = 0
+    private var _cursorY = 0
+
+    var cursorX: Int {
+        get { return _cursorX }
+        set(newX) {
+            _cursorX = newX
+            writeCursor(_cursorX, cursorY)
+        }
+    }
+
+    var cursorY: Int {
+        get { return _cursorY }
+        set(newY) {
+            _cursorY = newY
+            writeCursor(_cursorX, _cursorY)
+        }
+    }
 
 
     init() {
@@ -241,22 +317,10 @@ struct textTTY: ScreenDriver {
 
 
 
-    var cursorX: Int {
-        get { return readCursor().0 }
-        set(newX) { writeCursor(newX, readCursor().1) }
-    }
-
-
-    var cursorY: Int {
-        get { return readCursor().1 }
-        set(newY) { writeCursor(readCursor().0, newY) }
-    }
-
-
     func printChar(character: CUnsignedChar, x: Int, y: Int) {
         let offset = bytesPerChar * ((y * charsPerLine) + x)
         screen[offset] = character
-        screen[offset + 1] = whiteOnBlack
+        screen[offset + 1] = textColour
     }
 
 
@@ -264,7 +328,7 @@ struct textTTY: ScreenDriver {
         var idx = 0
         while idx < totalBytes {
             screen[idx] = 0x20  // space
-            screen[idx + 1] = whiteOnBlack
+            screen[idx + 1] = textColour
             idx += 2
         }
     }
@@ -283,7 +347,7 @@ struct textTTY: ScreenDriver {
         var idx = 0
         while idx < bytesPerLine {
             screen[bottomLine + idx] = TTY.space
-            screen[bottomLine + idx + 1] = whiteOnBlack
+            screen[bottomLine + idx + 1] = textColour
             idx += bytesPerChar
         }
     }
@@ -311,7 +375,7 @@ struct textTTY: ScreenDriver {
 }
 
 
-struct frameBufferTTY: ScreenDriver {
+struct FrameBufferTTY: ScreenDriver {
     let charsPerLine: Int
     let totalLines: Int
     var cursorX = 0
