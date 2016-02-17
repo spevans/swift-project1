@@ -19,6 +19,7 @@ get_memory:
         xor     eax, eax
         mov     ecx, 0x400
         rep     stosd
+        ;; struct bios_boot_params setup
         mov     dword [es:0 ], 'BIOS'   ; .signature
         mov     dword [es:8 ], 0        ; .size (of table)
         mov     dword [es:16], 0x30020  ; .e820_map lo dword

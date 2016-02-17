@@ -73,7 +73,7 @@ func setupMM() {
 
 // FIXME: Should map more closely to the real map, not map holes
 // and map the reserved mem as RO etc
-private func mapPhysicalMemory(maxAddress: UInt64) {
+private func mapPhysicalMemory(maxAddress: PhysAddress) {
     var inc: UInt = 0
     var mapper :(UInt, PhysAddress) -> ()
 

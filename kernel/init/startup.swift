@@ -11,12 +11,14 @@
 
 @_silgen_name("startup")
 public func startup(bootParams: UInt, frameBufferInfo: UInt) {
+    printf("bootParams: %p frameBufferInfo: %p\n", bootParams, frameBufferInfo)
     BootParams.parse(bootParams)
+    printf("Highest Address: %p\n", BootParams.highestMemoryAddress())
     TTY.initTTY(frameBufferInfo)
     CPU.getInfo()
     setupGDT()
     setupIDT()
-    if (bootParams == 0) {
+    if (BootParams.memoryRanges.count == 0) {
         printf("BootParams is null, stopping")
         stop()
     }

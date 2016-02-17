@@ -5,16 +5,140 @@
  * Copyright © 2015, 2016 Simon Evans. All rights reserved.
  *
  * Initial setup for available physical memory etc
+ * Updated to handle multiple data source eg BIOS, EFI
  *
  */
 
-// Singleton that will be initialised by BootParams.parse()
-let memoryRanges = BootParams.parseE820Table()
+let kb: UInt = 1024
+let mb: UInt = 1048576
+
+// These memory types are just the EFI ones, the BIOS ones are
+// actually a subset so these definitions cover both cases
+enum MemoryType: UInt32 {
+    case Reserved    = 0            // Not usable
+    case LoaderCode                 // Usable
+    case LoaderData                 // Usable
+    case BootServicesData           // Usable
+    case BootServicesCode           // Usable
+    case RuntimeServicesCode        // Needs to be preserved / Not usable
+    case RuntimeServicesData        // Needs to be preserved / Not usable
+    case Conventional               // Usable (RAM)
+    case Unusable                   // Unusable (RAM with errors)
+    case ACPIReclaimable            // Usable after ACPI enabled
+    case ACPINonVolatile            // Needs to be preserved / Not usable
+    case MemoryMappedIO             // Umusable
+    case MemoryMappedIOPortSpace    // Unusable
+
+    // OS defined values
+    case Hole        = 0x80000000   // Used for holes in the map to keep ranges contiguous
+    case PagMap      = 0x80000001   // Temporary page maps setup by the boot loader
+    case BootData    = 0x80000002   // Other temporary data created by boot code inc BootParams
+    case Kernel      = 0x80000003   // The loaded kernel + data + bss
+}
+
+
+struct MemoryEntry: CustomStringConvertible {
+    let type: MemoryType
+    let start: PhysAddress
+    let size: UInt
+
+    var description: String {
+        let str = (size >= mb) ? String.sprintf(" %6uMB  ", size / mb) :
+                String.sprintf(" %6uKB  ", size / kb)
+
+        return String.sprintf("%12X - %12X \(str) \(type)", start, start + size - 1)
+    }
+}
+
+
+protocol BootParamsData {
+    var memoryRanges: [MemoryEntry] { get }
+    var source: String { get }
+}
+
+
+private func readSignature(address: PhysAddress) -> String? {
+    let signatureSize = 8
+    let membuf = MemoryBufferReader(address, size: signatureSize)
+    guard let sig = try? membuf.readASCIIZString(maxSize: signatureSize) else {
+        return nil
+    }
+    return sig
+}
 
 
 struct BootParams {
+    static var memoryRanges: [MemoryEntry] = []
+    private static var params: BootParamsData?
+
+    static func parse(bootParamsAddr: UInt) {
+        kprintf("parsing bootParams @ 0x%lx\n", bootParamsAddr)
+        if (bootParamsAddr == 0) {
+            koops("bootParamsAddr is null")
+        }
+        guard let signature = readSignature(bootParamsAddr) else {
+            print("Cant find boot params signature")
+            return
+        }
+        print("signature: \(signature)");
+
+         if (signature == "BIOS")  {
+            print("Found BIOS boot params")
+            params = BiosBootParams(bootParamsAddr: bootParamsAddr)
+            guard params != nil else {
+                koops("BiosBootParams returned null")
+            }
+            memoryRanges = params!.memoryRanges
+        } else {
+            print("Found unknown boot params: \(signature)")
+        }
+
+        findHoles()
+        for m in memoryRanges {
+            print("\(params!.source): \(m)")
+        }
+    }
+
+
+    static func highestMemoryAddress() -> PhysAddress {
+        let ranges = memoryRanges
+        if (ranges.count > 0) {
+            let entry = ranges[ranges.count-1]
+            return entry.start + entry.size - 1
+        } else {
+            return 0
+        }
+    }
+
+
+    // Find any holes in the memory ranges and add a fake range. This
+    // allows finding gaps later on for MMIO space etc
+    private static func findHoles() {
+        var addr: UInt = 0
+        sortRanges()
+        for entry in memoryRanges {
+            if addr < entry.start {
+                let size = entry.start - addr
+                memoryRanges.append(MemoryEntry(type: MemoryType.Hole, start: addr,
+                        size: size))
+            }
+            addr = entry.start + entry.size
+        }
+        sortRanges()
+    }
+
+
+    private static func sortRanges() {
+        memoryRanges.sortInPlace({
+            $0.start < $1.start
+        })
+    }
+}
+
+
+// BIOS data from boot/memory.asm
+struct BiosBootParams: BootParamsData, CustomStringConvertible {
     enum E820Type: UInt32 {
-        case HOLE     = 0
         case RAM      = 1
         case RESERVED = 2
         case ACPI     = 3
@@ -29,108 +153,94 @@ struct BootParams {
         let type: UInt32
 
         var description: String {
-            let kb: UInt64 = 1024
-            let mb: UInt64 = 1048576
 
             var desc = String.sprintf("%12X - %12X %4.4X", baseAddr, baseAddr + length - 1, type)
-            if (length >= mb) {
-                desc += String.sprintf(" %6uMB  ", length / mb)
+            let size = UInt(length)
+            if (size >= mb) {
+                desc += String.sprintf(" %6uMB  ", size / mb)
             } else {
-                desc += String.sprintf(" %6uKB  ", length / kb)
+                desc += String.sprintf(" %6uKB  ", size / kb)
             }
             desc += String(E820Type.init(rawValue: type)!)
 
-            return desc
-        }
+                return desc
+            }
+    }
+
+    var memoryRanges: [MemoryEntry] = []
+    var source: String { return "E820" }
+
+    var description: String {
+        return "BiosBootParams has \(memoryRanges.count) ranges"
     }
 
 
-    static private var bootParamsSize: Int = 0
-    static private var e820MapAddr: UInt = 0
-    static private var e820Entries: Int = 0
-
-
-    static func parse(bootParamsAddr: UInt) {
+    init?(bootParamsAddr: UInt) {
         kprintf("parsing bootParams @ 0x%lx\n", bootParamsAddr)
         if (bootParamsAddr == 0) {
-            print("bootParamsAddr is null");
-            return;
+            print("bootParamsAddr is null")
+            return nil
+        }
+
+        let sig = readSignature(bootParamsAddr)
+        if sig == nil || sig! != "BIOS" {
+            print("boot_params are not BIOS")
+            return nil
         }
         let membuf = MemoryBufferReader(bootParamsAddr, size: strideof(bios_boot_params))
-        let sig = try! membuf.readASCIIZString(maxSize: 8)
+        membuf.offset = 8       // skip signature
 
-        guard sig == "BIOS" else {
-            print("boot_params are not BIOS")
-            return
+        // FIXME: use bootParamsSize to size a buffer limit
+        let bootParamsSize: UInt? = try? membuf.read()
+        guard bootParamsSize != nil && bootParamsSize! > 0 else {
+            print("bootParamsSize = 0")
+            return nil
         }
-        membuf.offset = 8
-        bootParamsSize = try! membuf.read()
-        e820MapAddr = try! membuf.read()
-        e820Entries = try! membuf.read()
-
-        // Create the singleton and force parsing
-        if memoryRanges.count > 0 {
-            print("E820: Memory Ranges    From -         To      Type")
-            for (idx, entry) in memoryRanges.enumerate() {
-                printf("E820: %2.2d: \(entry)\n", idx)
+        if let e820MapAddr: UInt = try? membuf.read() {
+            if let e820Entries: UInt = try? membuf.read() {
+                memoryRanges = parseE820Table(e820MapAddr, e820Entries)
             }
-        }
-    }
-
-
-    static func highestMemoryAddress() -> UInt64 {
-        if (memoryRanges.count > 0) {
-            let entry = memoryRanges[memoryRanges.count-1]
-            return entry.baseAddr + entry.length - 1
-        } else {
-            return 0
         }
     }
 
 
     // FIXME - still needs to check for overlapping regions
-    static private func parseE820Table() -> [E820MemoryEntry] {
-        var ranges: [E820MemoryEntry] = []
-        printf("Found %d E820 entries\n", e820Entries)
+    private func parseE820Table(e820MapAddr: UInt, _ e820Entries: UInt) -> [MemoryEntry] {
+        var ranges: [MemoryEntry] = []
         if (e820Entries > 0 && e820MapAddr > 0) {
-            let buf = MemoryBufferReader(e820MapAddr, size: strideof(E820MemoryEntry) * e820Entries)
-            ranges.reserveCapacity(e820Entries)
+            let buf = MemoryBufferReader(e820MapAddr,
+                size: strideof(E820MemoryEntry) * Int(e820Entries))
+            ranges.reserveCapacity(Int(e820Entries))
 
             for _ in 0..<e820Entries {
-                let entry: E820MemoryEntry = try! buf.read()
-                ranges.append(entry)
+                if let entry: E820MemoryEntry = try? buf.read() {
+                    if let memEntry = convertEntry(entry) {
+                        ranges.append(memEntry)
+                    }
+                }
             }
-            sortRanges(&ranges)
-            findHoles(&ranges)
-            // These values are only valid during startup before the memory is reclaimed so
-            // forget the addresss as they wont be valid later on anyway
-            e820MapAddr = 0
-            e820Entries = 0
         }
+
         return ranges
     }
 
 
-    static private func sortRanges(inout ranges: [E820MemoryEntry]) {
-        ranges.sortInPlace({
-            $0.baseAddr < $1.baseAddr
-        })
-    }
-
-
-    static private func findHoles(inout ranges: [E820MemoryEntry]) {
-        var addr: UInt64 = 0
-        for entry in ranges {
-            if addr < entry.baseAddr {
-                let length = entry.baseAddr - addr
-                // BUG - Appending to a 2nd list and then adding this list to memoryRanges
-                // somehow lost the first entry after the sort and caused an invalid opcode
-                //holes.append(hole)
-                //memoryRanges.appendContentsOf(holes)
-                ranges.append(E820MemoryEntry(baseAddr: addr, length: length, type: E820Type.HOLE.rawValue))
-            }
-            addr = entry.baseAddr + entry.length
+    private func convertEntry(entry: E820MemoryEntry) -> MemoryEntry? {
+        guard let e820type = E820Type(rawValue: entry.type) else {
+            print("Invalid memory type: \(entry.type)")
+            return nil
         }
-        sortRanges(&ranges)
+        var type: MemoryType
+
+        switch (e820type) {
+        case .RAM:      type = MemoryType.Conventional
+        case .RESERVED: type = MemoryType.Reserved
+        case .ACPI:     type = MemoryType.ACPIReclaimable
+        case .NVS:      type = MemoryType.ACPINonVolatile
+        case .UNUSABLE: type = MemoryType.Unusable
+        }
+
+        return MemoryEntry(type: type, start: PhysAddress(entry.baseAddr),
+            size: UInt(entry.length))
     }
 }
