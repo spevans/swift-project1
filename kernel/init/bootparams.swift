@@ -31,7 +31,7 @@ enum MemoryType: UInt32 {
 
     // OS defined values
     case Hole        = 0x80000000   // Used for holes in the map to keep ranges contiguous
-    case PagMap      = 0x80000001   // Temporary page maps setup by the boot loader
+    case PageMap     = 0x80000001   // Temporary page maps setup by the boot loader
     case BootData    = 0x80000002   // Other temporary data created by boot code inc BootParams
     case Kernel      = 0x80000003   // The loaded kernel + data + bss
 }
@@ -68,8 +68,10 @@ private func readSignature(address: PhysAddress) -> String? {
 
 
 struct BootParams {
-    static var memoryRanges: [MemoryEntry] = []
     private static var params: BootParamsData?
+    static var memoryRanges: [MemoryEntry] = []
+    static var source: String { return params == nil ? "" : params!.source }
+
 
     static func parse(bootParamsAddr: UInt) {
         kprintf("parsing bootParams @ 0x%lx\n", bootParamsAddr)
@@ -77,21 +79,25 @@ struct BootParams {
             koops("bootParamsAddr is null")
         }
         guard let signature = readSignature(bootParamsAddr) else {
-            print("Cant find boot params signature")
-            return
+            koops("Cant find boot params signature")
         }
         print("signature: \(signature)");
 
-         if (signature == "BIOS")  {
+        if (signature == "BIOS") {
             print("Found BIOS boot params")
             params = BiosBootParams(bootParamsAddr: bootParamsAddr)
-            guard params != nil else {
-                koops("BiosBootParams returned null")
-            }
-            memoryRanges = params!.memoryRanges
+        } else if (signature == "EFI") {
+            print("Found EFI boot params")
+            params = EFIBootParams(bootParamsAddr: bootParamsAddr)
         } else {
             print("Found unknown boot params: \(signature)")
+            stop()
         }
+
+        guard params != nil else {
+            koops("BiosBootParams returned null")
+        }
+        memoryRanges = params!.memoryRanges
 
         findHoles()
         for m in memoryRanges {
@@ -176,12 +182,6 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
 
 
     init?(bootParamsAddr: UInt) {
-        kprintf("parsing bootParams @ 0x%lx\n", bootParamsAddr)
-        if (bootParamsAddr == 0) {
-            print("bootParamsAddr is null")
-            return nil
-        }
-
         let sig = readSignature(bootParamsAddr)
         if sig == nil || sig! != "BIOS" {
             print("boot_params are not BIOS")
@@ -242,5 +242,91 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
 
         return MemoryEntry(type: type, start: PhysAddress(entry.baseAddr),
             size: UInt(entry.length))
+    }
+}
+
+
+struct EFIBootParams: BootParamsData {
+    typealias EFIPhysicalAddress = UInt
+    typealias EFIVirtualAddress = UInt
+
+    // Physical layout in memory
+    struct EFIMemoryDescriptor: CustomStringConvertible {
+        private let type: MemoryType
+        private let padding: UInt32
+        private let physicalStart: EFIPhysicalAddress
+        private let virtualStart: EFIVirtualAddress
+        private let numberOfPages: UInt64
+        private let attribute: UInt64
+
+        var description: String {
+            let size = UInt(numberOfPages) * PAGE_SIZE
+            let endAddr = physicalStart + size - 1
+            return String.sprintf("%12X - %12X %8.8X \(type)", physicalStart,
+                endAddr, size)
+        }
+
+
+        init?(descriptor: MemoryBufferReader) {
+            let offset = descriptor.offset
+            do {
+                guard let dt = MemoryType(rawValue: try descriptor.read()) else {
+                    throw ReadError.InvalidData
+                }
+                type = dt
+                padding = try descriptor.read()
+                physicalStart = try descriptor.read()
+                virtualStart = try descriptor.read()
+                numberOfPages = try descriptor.read()
+                attribute = try descriptor.read()
+            } catch {
+                printf("Cant read descriptor at offset: %d\n", offset)
+                return nil
+            }
+        }
+
+    }
+
+    var memoryRanges: [MemoryEntry] = []
+    var source: String { return "EFI" }
+
+
+    init?(bootParamsAddr: UInt) {
+        let sig = readSignature(bootParamsAddr)
+        if sig == nil || sig! != "EFI" {
+            print("boot_params are not EFI")
+            return nil
+        }
+        let membuf = MemoryBufferReader(bootParamsAddr,
+            size: strideof(efi_boot_params))
+        membuf.offset = 8       // skip signature
+
+        do {
+            let memoryMapAddr: VirtualAddress = try membuf.read()
+            let memoryMapSize: UInt = try membuf.read()
+            let descriptorSize: UInt = try membuf.read()
+            let descriptorCount = memoryMapSize / descriptorSize
+
+            var descriptors: [EFIMemoryDescriptor] = []
+            descriptors.reserveCapacity(Int(descriptorCount))
+            memoryRanges.reserveCapacity(Int(descriptorCount))
+            let descriptorBuf = MemoryBufferReader(memoryMapAddr,
+                size: Int(memoryMapSize))
+
+            for i in 0..<descriptorCount {
+                descriptorBuf.offset = Int(descriptorSize * i)
+                guard let descriptor = EFIMemoryDescriptor(descriptor: descriptorBuf) else {
+                    print("Failed to read descriptor")
+                    continue
+                }
+                descriptors.append(descriptor)
+                let entry = MemoryEntry(type: descriptor.type,
+                    start: descriptor.physicalStart,
+                    size: UInt(descriptor.numberOfPages) * PAGE_SIZE)
+                memoryRanges.append(entry)
+            }
+        } catch {
+            koops("Cant read memory map settings")
+        }
     }
 }

@@ -18,8 +18,7 @@ public func startup(bootParams: UInt, frameBufferInfo: UInt) {
     CPU.getInfo()
     setupGDT()
     setupIDT()
-    if (BootParams.memoryRanges.count == 0) {
-        printf("BootParams is null, stopping")
+    if (BootParams.source == "EFI") {
         stop()
     }
     setupMM()

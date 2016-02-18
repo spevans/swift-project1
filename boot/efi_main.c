@@ -9,7 +9,6 @@
  */
 
 #include <efi.h>
-#include <fbcon.h>
 #include <klibc.h>
 
 
@@ -17,12 +16,9 @@
 struct pointer_table {
         unsigned char *image_base;
         void *pml4;
-        void *kernel_addr;
-        void *last_page;
-        void *memory_map;
-        size_t memory_map_size;
-        size_t memory_map_desc_size;
-        struct frame_buffer fb;
+        void *kernel_addr;      // Physical address kernel is loaded at
+        void *last_page;        // Physical address of last page of BSS
+        struct efi_boot_params boot_params;
 };
 
 // For alloc_memory() / free_memory()
@@ -48,6 +44,7 @@ void *kernel_bin_start();
 void *kernel_bin_end();
 uint64_t bss_size();
 static int uprintf(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+efi_status_t add_mapping(void *vaddr, void *paddr, size_t page_cnt);
 
 static efi_system_table_t *sys_table;
 static void *image_handle;
@@ -150,7 +147,7 @@ print_ptr_table()
         uprintf("image_base: %p pagetable: %p\nkernel_addr: %p last_page: %p\n",
                 ptr_table->image_base, ptr_table->pml4, ptr_table->kernel_addr,
                 ptr_table->last_page);
-        struct frame_buffer *fb = &ptr_table->fb;
+        struct frame_buffer *fb = &ptr_table->boot_params.fb;
         uprintf("Framebuffer: %dx%d bpp: %d px per line: %d addr:%p size: %lx\n",
                 fb->width, fb->height, fb->depth, fb->px_per_scanline,
                 fb->address, fb->size);
@@ -176,7 +173,7 @@ print_status(char *str, efi_status_t status)
 efi_status_t
 alloc_memory(struct memory_region *region)
 {
-        size_t pages = (region->req_size + PAGE_SIZE - 1) / PAGE_SIZE;
+        size_t pages = (region->req_size + PAGE_MASK) / PAGE_SIZE;
         void *address = 0;
         efi_status_t status = efi_call4(sys_table->boot_services->allocate_pages,
                                         EFI_ALLOCATE_ANY_PAGES, region->type,
@@ -565,74 +562,111 @@ plot_pixel(struct frame_buffer *fb, uint32_t x, uint32_t y,
 }
 
 
+#ifdef DEBUG
+static void
+dump_data(void *addr, size_t count)
+{
+
+        uint8_t *ptr = (uint8_t *)addr;
+        for(size_t i = 0; i < count; i++) {
+                if (i % 16 == 0) {
+                        if (i > 0) uprintf("\n");
+                        uprintf("%p: ", ptr);
+                }
+                uprintf("%2.2x ", *(ptr++));
+
+        }
+        uprint_string("\n");
+}
+#endif
+
+
 efi_status_t
 exit_boot_services()
 {
         uint64_t map_key = 0;
         uint32_t version = 0;
+        struct efi_boot_params *bp = &ptr_table->boot_params;
 
         struct memory_region region = { .type = MEM_TYPE_BOOT_DATA };
         // Call once to find out size of buffer to allocate
         efi_status_t status = efi_call5(sys_table->boot_services->get_memory_map,
                                         (uintptr_t)&region.req_size,
-                                        (uintptr_t)ptr_table->memory_map,
+                                        (uintptr_t)bp->memory_map,
                                         (uintptr_t)&map_key,
-                                        (uintptr_t)&ptr_table->memory_map_desc_size,
+                                        (uintptr_t)&bp->memory_map_desc_size,
                                         (uintptr_t)&version);
         if (status != EFI_BUFFER_TOO_SMALL) {
                 return status;
         }
+        /* Add an extra page to the request size as some pages will be allocated
+           to map the region into the kernel's space and so we need to take account
+           of extra memory allocations that will occur now */
+        region.req_size += PAGE_SIZE;
 
         status = alloc_memory(&region);
         if (status != EFI_SUCCESS) {
                 print_status("cant allocate memory:", status);
                 return status;
         }
-        ptr_table->memory_map = region.base;
-        ptr_table->memory_map_size = region.pages * PAGE_SIZE;
+        bp->memory_map = region.base;
+        bp->memory_map_size = region.pages * PAGE_SIZE;
+
+        // Map it just after the kernel BSS +1 page as the ptr_table
+        // occupies the page after the bss. Compute the offset from the
+        // start of kernel to the last_page + 1
+        ptrdiff_t offset = ptr_table->last_page - ptr_table->kernel_addr;
+        offset += PAGE_SIZE;
+        void *memory_map_vaddr = (void *)KERNEL_VIRTUAL_BASE + offset;
+        uprintf("Adding mapping for memory_map, vaddr = %p\n",
+                memory_map_vaddr);
+        status = add_mapping(memory_map_vaddr, region.base, region.pages);
 
         status = efi_call5(sys_table->boot_services->get_memory_map,
-                           (uintptr_t)&ptr_table->memory_map_size,
-                           (uintptr_t)ptr_table->memory_map,
+                           (uintptr_t)&bp->memory_map_size,
+                           (uintptr_t)bp->memory_map,
                            (uintptr_t)&map_key,
-                           (uintptr_t)&ptr_table->memory_map_desc_size,
+                           (uintptr_t)&bp->memory_map_desc_size,
                            (uintptr_t)&version);
 
-        if (status != EFI_SUCCESS || ptr_table->memory_map_desc_size == 0) {
+        if (status != EFI_SUCCESS || bp->memory_map_desc_size == 0) {
                 print_status("get_memory_map", status);
                 return status;
         }
-#if 0
-        size_t entries = ptr_table->memory_map_size / ptr_table->memory_map_desc_size;
+#ifdef DEBUG
+        size_t entries = bp->memory_map_size / bp->memory_map_desc_size;
         uprintf("get_memory_map descriptor_size: %ld map_size %ld map_key %ld\n",
-                ptr_table->memory_map_desc_size, ptr_table->memory_map_size,
+                bp->memory_map_desc_size, bp->memory_map_size,
                 map_key);
         uprintf("entries: %ld\n", entries);
 
         size_t count = 0;
         for(size_t i = 0; i < entries; i++) {
-                size_t offset = ptr_table->memory_map_desc_size * i;
+                size_t offset = bp->memory_map_desc_size * i;
                 efi_memory_descriptor_t *desc =
-                        (efi_memory_descriptor_t *)(ptr_table->memory_map + offset);
+                        (efi_memory_descriptor_t *)(bp->memory_map + offset);
                 if (desc->number_of_pages == 0) {
                         continue;
                 }
                 if (desc->type == 3 || desc->type == 4) continue;
-
-                uprintf("%2ld t: %8x p: %10p  n: %6ld a: %#lx\n", i, desc->type,
+                dump_data(desc, bp->memory_map_desc_size);
+                uprintf("%2ld t: %8x p: %16p  n: %6ld a: %#lx\n", i, desc->type,
                         (void *)desc->physical_start,
                         desc->number_of_pages, desc->attribute);
 
-                if (++count > 24) break;
+                if (++count > 10) break;
         }
 #endif
+
+        // ExitBootServices() must be called immediately after GetMemoryMap()
+        // so that nothing can change the map_key
         status = efi_call2(sys_table->boot_services->exit_boot_services,
                            (uintptr_t)image_handle, map_key);
         if (status != EFI_SUCCESS) {
                 print_status("exit_boot_services", status);
-        } else {
-                //uprint_string("ExitBootServices called OK");
         }
+        // Now update the ptr table with the virtual memory map address
+        bp->memory_map = memory_map_vaddr;
 
         return status;
 }
@@ -665,6 +699,7 @@ setup_frame_buffer(struct frame_buffer *fb)
         return EFI_SUCCESS;
 }
 
+
 void
 dump_pte(pte *pte_addr)
 {
@@ -676,6 +711,7 @@ dump_pte(pte *pte_addr)
         } while(idx-- > 0);
         uprint_string("\n");
 }
+
 
 // Allocate memory for the kernel and BSS. This ensures the kernel starts
 // on a page boundary
@@ -707,7 +743,7 @@ relocate_kernel()
         memcpy(region.base, kernel_bin_start(), kernel_sz);
         ptr_table->kernel_addr = region.base;
         ptr_table->last_page = region.base + (region.pages - 1) * PAGE_SIZE;
-        uprint_string("Kernel copied into place, press any key\n");
+        uprint_string("Kernel copied into place\n");
         print_memory_region(&region);
         return EFI_SUCCESS;
 }
@@ -858,14 +894,15 @@ setup_page_tables()
         }
         dump_mapping((void *)KERNEL_VIRTUAL_BASE);
         // Add identity mapping for last page of BSS as this is where the stub that
-        // transisitions to the kernel's virtual address loads the page tables
+        // transitions to the kernel's virtual address loads the page tables
         add_mapping(ptr_table->last_page, ptr_table->last_page, 1);
         //dump_mapping(ptr_table->last_page);
 
         // Map framebuffer @ 128GB + base address
         // FIXME: Should really be an IO mapping
-        add_mapping((void *)(PHYSICAL_MEM_BASE + ptr_table->fb.address), ptr_table->fb.address,
-                    (ptr_table->fb.size + PAGE_MASK) / PAGE_SIZE);
+        struct frame_buffer *fb = &ptr_table->boot_params.fb;
+        add_mapping((void *)(PHYSICAL_MEM_BASE + fb->address), fb->address,
+                    (fb->size + PAGE_MASK) / PAGE_SIZE);
 
         return EFI_SUCCESS;
 }
@@ -892,7 +929,7 @@ efi_main(void *handle, efi_system_table_t *_sys_table,
         }
 
 
-        struct frame_buffer *fb = &ptr_table->fb;
+        struct frame_buffer *fb = &ptr_table->boot_params.fb;
         if ((status = setup_frame_buffer(fb)) != EFI_SUCCESS) {
                 goto error;
         }
@@ -901,6 +938,7 @@ efi_main(void *handle, efi_system_table_t *_sys_table,
                 goto error;
         }
         print_ptr_table();
+        uprintf("Press any key to ExitBootServices\n");
         wait_for_key(NULL);
         if (exit_boot_services() != EFI_SUCCESS) {
                 goto error;
@@ -909,7 +947,7 @@ efi_main(void *handle, efi_system_table_t *_sys_table,
         return EFI_SUCCESS;
 
  error:
-        uprint_string("Press any key to exit\n");
+        uprint_string("EFI Initialisation failed, Press any key to exit\n");
         wait_for_key(NULL);
 
         return status;

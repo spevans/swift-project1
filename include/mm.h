@@ -12,6 +12,7 @@
 #define __MM_H__
 
 #include <stddef.h>
+#include "fbcon.h"
 
 #define KERNEL_VIRTUAL_BASE       0x40100000UL  // 1GB
 #define PHYSICAL_MEM_BASE       0x2000000000UL  // 128GB
@@ -28,6 +29,15 @@ struct bios_boot_params {
         void *e820_map;
         size_t e820_entries;    // Number of e820 memory map entries
         char data[0];
+};
+
+
+struct efi_boot_params {
+        char signature[8];      // ASCIIZ string 'EFI'
+        void *memory_map;
+        size_t memory_map_size;
+        size_t memory_map_desc_size;
+        struct frame_buffer fb;
 };
 
 

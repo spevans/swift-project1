@@ -191,8 +191,12 @@ entry_stub:
         mov     edx, edi
         shr     rdi, 32
         mov     ecx, edi        ; ECX:EDX => framebuffer info
-        xor     edi, edi
-        xor     esi, esi        ; EDI:ESI => boot params (currently null)
+        mov     r8, KERNEL_VIRTUAL_BASE
+        lea     rsi, [pointer_table.efi_boot_params]
+        sub     rsi, [pointer_table.kernel_addr] ; RSI => efi_boot_params
+        add     rsi, r8
+        mov     rdi, rsi
+        shr     rdi, 32         ; EDI:ESI => boot params
         db      0x48
         retf
 
@@ -227,6 +231,7 @@ pointer_table:
         .pml4:          DQ      0x12345678
         .kernel_addr:   DQ      0xDEADBEEF
         .last_page:     DQ      0
+.efi_boot_params:       DQ      "EFI"
         .mem_map        DQ      0
         .mem_map_sz:    DQ      0
         .mem_map_desc_sz:DQ     0
