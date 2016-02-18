@@ -4,23 +4,22 @@
  * Created by Simon Evans on 12/12/2015.
  * Copyright © 2015 Simon Evans. All rights reserved.
  *
- * Simple test hello world 
+ * Simple test hello world
  *
  */
 
 
 @_silgen_name("startup")
-public func startup(bootParams: UInt, frameBufferInfo: UInt) {
-    printf("bootParams: %p frameBufferInfo: %p\n", bootParams, frameBufferInfo)
+public func startup(bootParams: UInt) {
+    printf("bootParams: %p\n", bootParams)
     BootParams.parse(bootParams)
-    printf("Highest Address: %p\n", BootParams.highestMemoryAddress())
-    TTY.initTTY(frameBufferInfo)
+    TTY.initTTY(BootParams.frameBufferInfo)
     CPU.getInfo()
     setupGDT()
     setupIDT()
-    if (BootParams.source == "EFI") {
-        stop()
-    }
+    printf("Highest Address: %p kernel phys address: %p\n",
+        BootParams.highestMemoryAddress, BootParams.kernelAddress)
+
     setupMM()
     ACPI.parse()
     PCI.scan()

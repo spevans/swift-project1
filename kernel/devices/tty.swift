@@ -11,30 +11,6 @@
  */
 
 
-struct FrameBufferInfo: CustomStringConvertible {
-    let address:       UInt
-    let size:          UInt
-    let width:         UInt32
-    let height:        UInt32
-    let pxPerScanline: UInt32
-    let depth:         UInt32
-    let redShift:      UInt8
-    let redMask:       UInt8
-    let greenShift:    UInt8
-    let greenMask:     UInt8
-    let blueShift:     UInt8
-    let blueMask:      UInt8
-
-    var description: String {
-        var str = String.sprintf("Framebuffer: %dx%d bpp: %d px per line: %d addr:%p size: %lx\n",
-            width, height, depth, pxPerScanline, address,  size);
-        str += String.sprintf("Red shift:   %2d Red mask:   %x\n", redShift, redMask);
-        str += String.sprintf("Green shift: %2d Green mask: %x\n", greenShift, greenMask);
-        str += String.sprintf("Blue shift:  %2d Blue mask:  %x\n", blueShift, blueMask);
-
-        return str
-    }
-}
 
 
 struct Font: CustomStringConvertible {
@@ -111,9 +87,9 @@ public struct TTY {
     }
 
 
-    static func initTTY(frameBufferInfo: UInt) {
-        if (frameBufferInfo != 0) {
-            driver = FrameBufferTTY(frameBufferInfo)
+    static func initTTY(frameBufferInfo: FrameBufferInfo?) {
+        if (frameBufferInfo != nil) {
+            driver = FrameBufferTTY(frameBufferInfo: frameBufferInfo!)
         } else {
             driver = TextTTY()
         }
@@ -389,9 +365,8 @@ struct FrameBufferTTY: ScreenDriver {
     }
 
 
-    init(_ frameBufferInfoAddr: UInt) {
-        let buf = MemoryBufferReader(frameBufferInfoAddr, size: strideof(FrameBufferInfo))
-        frameBufferInfo = try! buf.read()
+    init(frameBufferInfo: FrameBufferInfo) {
+        self.frameBufferInfo = frameBufferInfo
         font = Font(width: 8, height: 16, data: fontdata_8x16_addr())
         charsPerLine = Int(frameBufferInfo.width) / font.width
         totalLines = Int(frameBufferInfo.height) / font.height

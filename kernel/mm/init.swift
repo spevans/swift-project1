@@ -8,35 +8,49 @@
  *
  */
 
-private let kernelPhysBase: PhysAddress = 0x100000
+private let kernelPhysBase: PhysAddress = BootParams.kernelAddress
 private let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_addr())
 
 
-/* After bootup and entry into the kernel the page table setup by the
- * boot loader setup 3 mappings of the first 16MB of memory
+/* The page table setup by the BIOS boot loader setup 3 mappings of the
+ * first 16MB of memory
  * @0                  as an identity mapping used to load the kernel
  * @0x40000000   (1GB) as the kernel is compiled to start at linear 1G
- * @0x2000000000 (128GB) used as a mapping of physical memory accesible from the kernel
- * address space. It is setup at boot so that the tty drivers can access
- * the video memory without having to readjust after the mapping is changed
+ * @0x2000000000 (128GB) used as a mapping of physical memory accesible
+ * from the kernel address space. It is setup at boot so that the tty
+ * drivers can access the video memory without having to readjust after
+ * the mapping is changed
+ * The identity mapping is removed just before entry to the kernel
+ *
+ * The EFI boot loader setups 2 mappings:
+ * @0x40000000   (1GB) sizeof(kernel text+data+bss)
+ * @0x2000000000+base address of the framebuffer for screen access
+ *
  *
  * setupMM() creates new page tables with the following:
- * @0x40000000   (1GB)   a mapping just to cover the physical memory used by the kernel incl
- * data and bss
- * @0x2000000000 (128GB) a mapping of the first 1GB of physical memory
+ * @0x40000000   (1GB)   a mapping just to cover the physical memory
+ *                       used by the kernel incl data and bss (same as EFI)
+ * @0x2000000000 (128GB) a mapping of physical memory from 0 to highest
+ *                       physical address found. If there are any holes in
+ * the physical memory these are covered by the mapping as well.
+ * This also maps the framebuffer at the same address at the boot code so
+ * that the TTY driver continues to work
  *
+ * The initial page tables setup here are using pages from the kernel BSS
+ * as there is not allocPage() at this stage so kernelVirtualAddress() is
+ * used to convert virtual addresses in the space to physical addresses for
+ * the various page table entries
  */
 
 func setupMM() {
     // Setup initial page tables and map kernel
 
-    let textEnd = VirtualAddress(_text_end_addr())
-    let rodataStart = VirtualAddress(_rodata_start_addr())
-    let dataStart = VirtualAddress(_data_start_addr())
-    let bssEnd = VirtualAddress(_bss_end_addr())
-    let pml4Phys = UInt64(virtualToPhys(initial_pml4_addr()))
+    let textEnd: VirtualAddress = _text_end_addr()
+    let rodataStart: VirtualAddress = _rodata_start_addr()
+    let dataStart: VirtualAddress = _data_start_addr()
+    let bssEnd: VirtualAddress = _bss_end_addr()
+    let kernelBase: VirtualAddress = _kernel_start_addr()
 
-    let kernelBase = VirtualAddress(_kernel_start_addr())
     let textSize = roundToPage(textEnd - _kernel_start_addr())
     let rodataSize = roundToPage(dataStart - rodataStart)
     let dataSize = roundToPage(bssEnd - dataStart)
@@ -57,17 +71,43 @@ func setupMM() {
     addMapping(start: dataStart, size: dataSize, physStart: kernelPhysBase + textSize + rodataSize,
         readWrite: true, noExec: true)
 
-
-    printf("Physical address of kernelBase (%p) = (%p)\n", kernelBase, virtualToPhys(kernelBase, base: pml4Phys))
+    printf("Physical address of kernelBase (%p) = (%p)\n", kernelBase,
+        kernelPhysAddress(kernelBase))
     printf("Physical address of rodata (%p) = (%p)\n", kernelBase + textSize,
-        virtualToPhys(kernelBase + textSize, base: pml4Phys))
+        kernelPhysAddress(kernelBase + textSize))
     printf("Physical address of data (%p) = (%p)\n", kernelBase + textSize + rodataSize,
-        virtualToPhys(kernelBase + textSize + rodataSize, base: pml4Phys))
-
-    mapPhysicalMemory(BootParams.highestMemoryAddress())
-    setCR3(UInt64(virtualToPhys(initial_pml4_addr())))
+        kernelPhysAddress(kernelBase + textSize + rodataSize))
+    mapPhysicalMemory(BootParams.highestMemoryAddress)
+    let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_addr()))
+    setCR3(pml4paddr)
     CPU.enableWP(true)
-    print("CR3 Updated")
+    printf("CR3 Updated to %p\n", pml4paddr)
+}
+
+
+// Convert a virtual address between kernel_start and kernel_end into a physical
+// address
+private func kernelPhysAddress(address: VirtualAddress) -> PhysAddress {
+    guard address >= _kernel_start_addr() && address <= _kernel_end_addr() else {
+        kprintf("kernelPhysAddress: invalid address: %p", address)
+        stop()
+    }
+    return kernelPhysBase + (address - _kernel_start_addr())
+}
+
+
+// Convert a physical kernel address in a page directory/table entry intto a
+// virtual address
+private func kernelVirtualAddress(paddress: PhysAddress) -> VirtualAddress {
+    let physAddressMask:UInt = 0x0000fffffffff000
+    let address = paddress & physAddressMask
+    let kernelSize = _kernel_end_addr() - _kernel_start_addr()
+    guard address >= kernelPhysBase
+        && address <= kernelPhysBase + kernelSize else {
+        kprintf("kernelVirtualAddress: invalid address: %p", address)
+        stop()
+    }
+    return _kernel_start_addr() + (address - kernelPhysBase)
 }
 
 
@@ -100,7 +140,7 @@ private func mapPhysicalMemory(maxAddress: PhysAddress) {
         vaddr += inc
         paddr += inc
     }
-    printf("Added mappings upto: %p\n", vaddr)
+    printf("Added mappings upto: %p [%p]\n", vaddr, paddr)
 }
 
 
@@ -112,13 +152,13 @@ private func roundToPage(size: UInt) -> UInt {
 private func getPageAtIndex(dirPage: PageTableDirectory, _ idx: Int) -> PageTableDirectory {
     if !pagePresent(dirPage[idx]) {
         let newPage = alloc_pages(1)
-        let paddr = virtualToPhys(newPage.ptrToUint)
+        let paddr = kernelPhysAddress(newPage.ptrToUint)
         let entry = makePDE(address: paddr, readWrite: true, userAccess: false, writeThrough: true,
             cacheDisable: false, noExec: false)
         dirPage[idx] = entry
     }
 
-    return pageTableBuffer(physAddress: ptePhysicalAddress(dirPage[idx]))
+    return pageTableBuffer(virtualAddress: kernelVirtualAddress(dirPage[idx]))
 }
 
 

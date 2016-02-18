@@ -34,6 +34,7 @@ enum MemoryType: UInt32 {
     case PageMap     = 0x80000001   // Temporary page maps setup by the boot loader
     case BootData    = 0x80000002   // Other temporary data created by boot code inc BootParams
     case Kernel      = 0x80000003   // The loaded kernel + data + bss
+    case FrameBuffer = 0x80000004   // Framebuffer address if it is the top of the address space
 }
 
 
@@ -51,9 +52,38 @@ struct MemoryEntry: CustomStringConvertible {
 }
 
 
+// The boot parameters also contain information about the framebuffer if present
+// so that the TTY driver can be initialised before PCI scanning has taken place
+struct FrameBufferInfo: CustomStringConvertible {
+    let address:       UInt
+    let size:          UInt
+    let width:         UInt32
+    let height:        UInt32
+    let pxPerScanline: UInt32
+    let depth:         UInt32
+    let redShift:      UInt8
+    let redMask:       UInt8
+    let greenShift:    UInt8
+    let greenMask:     UInt8
+    let blueShift:     UInt8
+    let blueMask:      UInt8
+
+    var description: String {
+        var str = String.sprintf("Framebuffer: %dx%d bpp: %d px per line: %d addr:%p size: %lx\n",
+            width, height, depth, pxPerScanline, address,  size);
+        str += String.sprintf("Red shift:   %2d Red mask:   %x\n", redShift, redMask);
+        str += String.sprintf("Green shift: %2d Green mask: %x\n", greenShift, greenMask);
+        str += String.sprintf("Blue shift:  %2d Blue mask:  %x\n", blueShift, blueMask);
+
+        return str
+    }
+}
+
+
 protocol BootParamsData {
     var memoryRanges: [MemoryEntry] { get }
     var source: String { get }
+    var frameBufferInfo: FrameBufferInfo? { get }
 }
 
 
@@ -71,6 +101,17 @@ struct BootParams {
     private static var params: BootParamsData?
     static var memoryRanges: [MemoryEntry] = []
     static var source: String { return params == nil ? "" : params!.source }
+    static var frameBufferInfo: FrameBufferInfo? { return params?.frameBufferInfo }
+    static var highestMemoryAddress: PhysAddress = 0
+
+    static var kernelAddress: PhysAddress {
+        for entry in memoryRanges {
+            if entry.type == .Kernel {
+                return entry.start
+            }
+        }
+        koops("Cant find kernel physical address in BootParams memory ranges")
+    }
 
 
     static func parse(bootParamsAddr: UInt) {
@@ -100,20 +141,34 @@ struct BootParams {
         memoryRanges = params!.memoryRanges
 
         findHoles()
+        highestMemoryAddress = findHighestMemoryAddress()
+        guard highestMemoryAddress > 0 else {
+            koops("No memory found")
+        }
         for m in memoryRanges {
+            if (m.type == .BootServicesCode || m.type == .BootServicesData) {
+                continue
+            }
             print("\(params!.source): \(m)")
         }
     }
 
 
-    static func highestMemoryAddress() -> PhysAddress {
-        let ranges = memoryRanges
-        if (ranges.count > 0) {
-            let entry = ranges[ranges.count-1]
-            return entry.start + entry.size - 1
-        } else {
+    // Find the highest memory address. If it doesnt cover the frame buffer
+    // then add that in as an extra range at the end
+    static func findHighestMemoryAddress() -> PhysAddress {
+        if memoryRanges.count == 0 {
             return 0
         }
+        var entry = memoryRanges[memoryRanges.count-1]
+        let address = entry.start + entry.size - 1
+        if (frameBufferInfo != nil && address < frameBufferInfo!.address) {
+            entry = MemoryEntry(type: .FrameBuffer, start: frameBufferInfo!.address,
+                size: frameBufferInfo!.size)
+            memoryRanges.append(entry)
+
+        }
+        return entry.start + entry.size - 1
     }
 
 
@@ -175,6 +230,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
 
     var memoryRanges: [MemoryEntry] = []
     var source: String { return "E820" }
+    var frameBufferInfo: FrameBufferInfo? = nil
 
     var description: String {
         return "BiosBootParams has \(memoryRanges.count) ranges"
@@ -201,6 +257,9 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
                 memoryRanges = parseE820Table(e820MapAddr, e820Entries)
             }
         }
+        let size = _kernel_end_addr() - _kernel_start_addr()
+        print("Kernel size: %lx\n", size)
+        memoryRanges.append(MemoryEntry(type: .Kernel, start: 0x100000, size: size))
     }
 
 
@@ -289,6 +348,7 @@ struct EFIBootParams: BootParamsData {
 
     var memoryRanges: [MemoryEntry] = []
     var source: String { return "EFI" }
+    var frameBufferInfo: FrameBufferInfo?
 
 
     init?(bootParamsAddr: UInt) {
@@ -305,6 +365,7 @@ struct EFIBootParams: BootParamsData {
             let memoryMapAddr: VirtualAddress = try membuf.read()
             let memoryMapSize: UInt = try membuf.read()
             let descriptorSize: UInt = try membuf.read()
+            frameBufferInfo = try? membuf.read()
             let descriptorCount = memoryMapSize / descriptorSize
 
             var descriptors: [EFIMemoryDescriptor] = []
