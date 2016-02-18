@@ -376,6 +376,9 @@ struct FrameBufferTTY: ScreenDriver {
     private let font: Font
     private let bytesPerChar: Int
     private let depthInBytes: Int
+    private let bytesPerTextLine: Int
+    private let lastLineScrollArea: Int
+
     private var textRed: UInt8 = 0x2f
     private var textGreen: UInt8 = 0xff
     private var textBlue: UInt8 = 0x12
@@ -394,8 +397,11 @@ struct FrameBufferTTY: ScreenDriver {
         totalLines = Int(frameBufferInfo.height) / font.height
         depthInBytes = Int(frameBufferInfo.depth) / 8
         bytesPerChar = font.bytesPerChar
-
-        let size = Int(frameBufferInfo.pxPerScanline) * Int(frameBufferInfo.height) * depthInBytes
+        bytesPerTextLine = Int(frameBufferInfo.pxPerScanline) * Int(font.height)
+                * depthInBytes
+        lastLineScrollArea = bytesPerTextLine * (totalLines - 1)
+        let size = Int(frameBufferInfo.pxPerScanline) * Int(frameBufferInfo.height)
+                * depthInBytes
         screenBase = UnsafeMutablePointer<UInt8>(bitPattern: PHYSICAL_MEM_BASE + frameBufferInfo.address)
         screen = UnsafeMutableBufferPointer<UInt8>(start: screenBase, count: size)
     }
@@ -456,14 +462,12 @@ struct FrameBufferTTY: ScreenDriver {
 
 
     func scrollUp() {
-        let bytesPerTextLine = Int(frameBufferInfo.pxPerScanline) * Int(font.height)
-        let scrollArea = Int(frameBufferInfo.size) - bytesPerTextLine
-        for i in 0..<scrollArea {
-            screen[i] = screen[i + bytesPerTextLine]
-        }
+        screenBase.assignFrom(screenBase.advancedBy(bytesPerTextLine),
+            count: lastLineScrollArea)
+
         // Clear the bottom line
         for i in 0..<bytesPerTextLine {
-            screen[scrollArea + i] = 0
+            screen[lastLineScrollArea + i] = 0
         }
     }
 }

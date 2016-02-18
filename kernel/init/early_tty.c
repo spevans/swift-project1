@@ -330,7 +330,7 @@ early_print_char(const char c)
         }
 
         if(cursor_y >= text_height) {
-                text_mode_scroll_up();
+                etty_scroll_up();
                 cursor_y--;
         }
 
