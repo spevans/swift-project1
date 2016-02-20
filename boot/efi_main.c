@@ -16,7 +16,6 @@
 struct pointer_table {
         unsigned char *image_base;
         void *pml4;
-        void *kernel_addr;      // Physical address kernel is loaded at
         void *last_page;        // Physical address of last page of BSS
         struct efi_boot_params boot_params;
 };
@@ -144,8 +143,9 @@ wait_for_key(efi_input_key_t *key)
 void
 print_ptr_table()
 {
+        struct efi_boot_params *bp = &ptr_table->boot_params;
         uprintf("image_base: %p pagetable: %p\nkernel_addr: %p last_page: %p\n",
-                ptr_table->image_base, ptr_table->pml4, ptr_table->kernel_addr,
+                ptr_table->image_base, ptr_table->pml4, bp->kernel_phys_addr,
                 ptr_table->last_page);
         struct frame_buffer *fb = &ptr_table->boot_params.fb;
         uprintf("Framebuffer: %dx%d bpp: %d px per line: %d addr:%p size: %lx\n",
@@ -609,13 +609,14 @@ exit_boot_services()
                 print_status("cant allocate memory:", status);
                 return status;
         }
+        bp->size = sizeof(struct efi_boot_params);
         bp->memory_map = region.base;
         bp->memory_map_size = region.pages * PAGE_SIZE;
 
         // Map it just after the kernel BSS +1 page as the ptr_table
         // occupies the page after the bss. Compute the offset from the
         // start of kernel to the last_page + 1
-        ptrdiff_t offset = ptr_table->last_page - ptr_table->kernel_addr;
+        ptrdiff_t offset = ptr_table->last_page - bp->kernel_phys_addr;
         offset += PAGE_SIZE;
         void *memory_map_vaddr = (void *)KERNEL_VIRTUAL_BASE + offset;
         uprintf("Adding mapping for memory_map, vaddr = %p\n",
@@ -741,7 +742,7 @@ relocate_kernel()
          * for a compressed kernel etc
          */
         memcpy(region.base, kernel_bin_start(), kernel_sz);
-        ptr_table->kernel_addr = region.base;
+        ptr_table->boot_params.kernel_phys_addr = region.base;
         ptr_table->last_page = region.base + (region.pages - 1) * PAGE_SIZE;
         uprint_string("Kernel copied into place\n");
         print_memory_region(&region);
@@ -884,11 +885,12 @@ setup_page_tables()
         }
         ptr_table->pml4 = root;
         uprintf("pml4 @ %p\n", root);
-        ptrdiff_t kernel_pages = (ptr_table->last_page - ptr_table->kernel_addr) / PAGE_SIZE;
+        struct efi_boot_params *bp = &ptr_table->boot_params;
+        ptrdiff_t kernel_pages = (ptr_table->last_page - bp->kernel_phys_addr) / PAGE_SIZE;
         kernel_pages++;
 
         efi_status_t status = add_mapping((void *)KERNEL_VIRTUAL_BASE,
-                                          ptr_table->kernel_addr, kernel_pages);
+                                          bp->kernel_phys_addr, kernel_pages);
         if (status != EFI_SUCCESS) {
                 return status;
         }

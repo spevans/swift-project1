@@ -23,9 +23,11 @@
 
 
 // Structure for boot information passed from BIOS loader to kernel
+// Changes must also update boot/memory.asm
 struct bios_boot_params {
         char signature[8];      // ASCIIZ string 'BIOS'
-        size_t size;            // Size of entire table including embedded data
+        size_t size;            // Size of entire table including embedded data and signature
+        void *kernel_phys_addr;
         void *e820_map;
         size_t e820_entries;    // Number of e820 memory map entries
         char data[0];
@@ -34,6 +36,8 @@ struct bios_boot_params {
 
 struct efi_boot_params {
         char signature[8];      // ASCIIZ string 'EFI'
+        size_t size;            // Size of entire table including embedded data and signature
+        void *kernel_phys_addr;
         void *memory_map;
         size_t memory_map_size;
         size_t memory_map_desc_size;

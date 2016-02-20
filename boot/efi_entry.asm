@@ -229,9 +229,10 @@ GDT:
 pointer_table:
         .image_base     DQ      0
         .pml4:          DQ      0x12345678
-        .kernel_addr:   DQ      0xDEADBEEF
         .last_page:     DQ      0
 .efi_boot_params:       DQ      "EFI"
+        .size           DQ      0
+        .kernel_addr:   DQ      0xDEADBEEF
         .mem_map        DQ      0
         .mem_map_sz:    DQ      0
         .mem_map_desc_sz:DQ     0

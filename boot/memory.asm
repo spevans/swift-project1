@@ -20,13 +20,14 @@ get_memory:
         mov     ecx, 0x400
         rep     stosd
         ;; struct bios_boot_params setup
-        mov     dword [es:0 ], 'BIOS'   ; .signature
-        mov     dword [es:8 ], 0        ; .size (of table)
-        mov     dword [es:16], 0x30020  ; .e820_map lo dword
-        mov     dword [es:20], 0x20     ; .e820_map hi dword @ 0x2000030020 vaddr
-        mov     edi, 32                 ; offset to e832 data
+
+        mov     dword [es:00], 'BIOS'   ; .signature
+        mov     dword [es:08], 0        ; .size (of table)
+        mov     dword [es:16], 0x100000 ; physical address of kernel
+        mov     dword [es:24], 0x30028  ; .e820_map lo dword
+        mov     dword [es:28], 0x20     ; .e820_map hi dword @ 0x2000030020 vaddr
+        mov     edi, 40                 ; offset to e832 data
         xor     ebx, ebx
-        xor     ebp, ebp
 
 .next_entry:
         mov     eax, 0xe820
@@ -36,14 +37,14 @@ get_memory:
         jc      .finished
         cmp     eax, E820_SIGNATURE
         jne     .finished
-        inc     dword [es:24]           ; .e820_entries++
+        inc     dword [es:32]           ; .e820_entries++
         add     edi, 20
         cmp     ebx, 0
         je      .finished
-        cmp     ebp, MAX_SMAP_ENTRIES
+        cmp     dword [es:32], MAX_SMAP_ENTRIES
         jl      .next_entry
 
 .finished:
-        mov     [es:8], edi            ; .size (of table)
+        mov     [es:08], edi            ; .size (of table)
         pop     es
         ret
