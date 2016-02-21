@@ -4,10 +4,6 @@ include $(TOPDIR)/Makedefs
 KERNEL_OBJS := kernel/kernel.o fakelib/fakelib.o
 
 
-ifeq ($(UNAME_S), Darwin)
-	LINKER := static_linker/build/Debug/static_linker
-endif
-
 SUBDIRS := boot kernel fakelib utils
 
 
@@ -16,21 +12,20 @@ SUBDIRS := boot kernel fakelib utils
 all: kernel output/boot-hd.img
 
 kernel:
+ifneq ($(UNAME_S), Linux)
+	@echo This only builds on linux && exit 1
+endif
 	mkdir -p $(MODULE_DIR) output
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir; done
-ifeq ($(UNAME_S), Linux)
 	# initial link must be via ELF to produce a GOT
 	ld --no-demangle -static -Tlinker.script -Map=output/kernel.map -o output/kernel.elf $(KERNEL_OBJS) $(SWIFTLIB)
 
+
 output/kernel.bin: output/kernel.elf
 	objcopy -O binary $^ $@
-	utils/foverride $@ output/kernel.map _swift_stdlib_putchar_unlocked putchar
+	#utils/foverride $@ output/kernel.map _swift_stdlib_putchar_unlocked putchar
 	objdump -D output/kernel.elf > output/kernel.dmp
-endif
 
-ifeq ($(UNAME_S), Darwin)
-	$(LINKER) --output=$@ --baseAddress=0x100000 --mapfile=kernel.map $(KERNEL_OBJS) $(SWIFTLIB)
-endif
 
 output/kernel.efi: output/kernel.bin boot/efi_entry.asm boot/efi_main.c kernel/klib/kprintf.c
 	make -C boot
@@ -53,7 +48,7 @@ output/boot-cd.iso: output/boot-hd.img output/kernel.efi
 	mkdir -p output/iso_tmp/efi/boot output/iso_tmp/boot
 	cp output/boot-hd.img output/iso_tmp/boot.img
 	cp output/kernel.efi output/iso_tmp/efi/boot/bootx64.efi
-	/sbin/mkfs.msdos -C output/iso_tmp/boot/efi.img 10240
+	/sbin/mkfs.msdos -C output/iso_tmp/boot/efi.img 20480
 	mmd -i output/iso_tmp/boot/efi.img ::efi
 	mmd -i output/iso_tmp/boot/efi.img ::efi/boot
 	mcopy -i output/iso_tmp/boot/efi.img output/kernel.efi ::efi/boot

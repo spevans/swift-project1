@@ -2,7 +2,8 @@ ENTRY(main)
 OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
 
 PAGE_SIZE = 0x1000;
-STACK_SIZE = 2 * PAGE_SIZE;
+/* Needs to be bigger for DEBUG mode, can be 2 for non debug */
+STACK_SIZE = 20 * PAGE_SIZE;
 
 SECTIONS
 {
@@ -43,6 +44,8 @@ SECTIONS
     *(.bss..allocated_pages)
     *(.bss .bss.*)
     . = ALIGN(PAGE_SIZE);
+    _guard_page = .;
+    . += PAGE_SIZE;
     _stack_start = .;
     . += STACK_SIZE;
     _kernel_stack = .;          /* Top of stack so label comes after */

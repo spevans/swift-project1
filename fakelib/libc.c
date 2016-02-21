@@ -99,7 +99,13 @@ putchar(int ch)
         print_char(ch);
         return ch;
 }
-
+#if 0
+int
+putchar_unlocked(int ch)
+{
+        return putchar(ch);
+}
+#endif
 
 int
 _IO_putc(int ch, void *stream)
@@ -126,6 +132,19 @@ putc(int ch, void *stream)
         return _IO_putc(ch, stream);
 }
 
+#if 0
+int
+fputs(const char *s, void *stream)
+{
+        debugf("fputs:(%s,%p)\n", s, stream);
+        if (stream != stderr && stream != stdout) {
+                koops("fputs stream = %p", stream);
+        }
+        print_string(s);
+
+        return 0;
+}
+#endif
 
 void
 flockfile(void *stream)
@@ -164,6 +183,7 @@ funlockfile(void *stream)
 
 UNIMPLEMENTED(close)
 UNIMPLEMENTED(read)
+UNIMPLEMENTED(getline)
 
 
 ssize_t

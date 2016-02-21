@@ -59,6 +59,15 @@ _ZSt20__throw_system_errori(int error)
         asm volatile ("hlt" : : : "memory");
 }
 
+#if 0
+//std::__throw_out_of_range(char const*)
+void
+_ZSt20__throw_out_of_rangePKc(char const *error)
+{
+        koops("Out of range: %s", error);
+}
+#endif
+
 
 /*
  * std::string / std::basic_string
@@ -429,7 +438,7 @@ void __cxa_guard_release(void *guard)
 
 
 UNIMPLEMENTED(__overflow);
-UNIMPLEMENTED(__cxa_demangle);
+
 
 // std::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(std::string const&, unsigned long, unsigned long)
 UNIMPLEMENTED(_ZNSsC1ERKSsmm);
@@ -450,6 +459,82 @@ UNIMPLEMENTED(_ZNSs6assignEPKcm);
 UNIMPLEMENTED(_ZNSs12_M_leak_hardEv)
 
 // demangledLinePrefix(std::string, std::string, std::string&, bool (*)(std::string, std::string&))
-//UNIMPLEMENTED(_ZL19demangledLinePrefixSsSsRSsPFbSsS_E)
-
 UNIMPLEMENTED(_ZZL13demangledLineSsEN3$_08__invokeESsRSs);
+
+
+#if DEBUG_BUILD
+UNIMPLEMENTED(__cxa_demangle);
+UNIMPLEMENTED(__cxa_pure_virtual)
+
+//std::string::data() const
+UNIMPLEMENTED(_ZNKSs4dataEv)
+
+//std::string::size() const
+UNIMPLEMENTED(_ZNKSs4sizeEv)
+
+//std::string::c_str() const
+UNIMPLEMENTED(_ZNKSs5c_strEv)
+
+//std::string::length() const
+UNIMPLEMENTED(_ZNKSs6lengthEv)
+
+//std::string::substr(unsigned long, unsigned long) const
+UNIMPLEMENTED(_ZNKSs6substrEmm)
+
+//std::allocator<char>::allocator()
+UNIMPLEMENTED(_ZNSaIcEC1Ev)
+
+//std::allocator<char>::~allocator()
+UNIMPLEMENTED(_ZNSaIcED1Ev)
+
+//std::string::replace(unsigned long, unsigned long, std::string const&)
+UNIMPLEMENTED(_ZNSs7replaceEmmRKSs)
+
+//std::string::operator=(char const*)
+UNIMPLEMENTED(_ZNSsaSEPKc)
+
+//std::string::operator=(std::string const&)
+UNIMPLEMENTED(_ZNSsaSERKSs)
+
+//std::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(std::string&&)
+UNIMPLEMENTED(_ZNSsC1EOSs)
+
+//std::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string()
+UNIMPLEMENTED(_ZNSsC1Ev)
+
+//std::basic_string<char, std::char_traits<char>, std::allocator<char> >::~basic_string()
+UNIMPLEMENTED(_ZNSsD1Ev)
+
+//std::string::operator[](unsigned long)
+UNIMPLEMENTED(_ZNSsixEm)
+
+//std::string::operator+=(std::string const&)
+UNIMPLEMENTED(_ZNSspLERKSs)
+
+//std::string::operator+=(char const*)
+UNIMPLEMENTED(_ZNSspLEPKc)
+
+//std::string::append(char const*)
+UNIMPLEMENTED(_ZNSs6appendEPKc)
+
+//std::string::empty() const
+UNIMPLEMENTED(_ZNKSs5emptyEv)
+
+//std::string::clear()
+UNIMPLEMENTED(_ZNSs5clearEv)
+
+//std::string::push_back(char)
+UNIMPLEMENTED(_ZNSs9push_backEc)
+
+//std::string::begin() const
+UNIMPLEMENTED(_ZNKSs5beginEv)
+
+//std::string::end() const
+UNIMPLEMENTED(_ZNKSs3endEv)
+
+//std::string::find(char const*, unsigned long) const
+UNIMPLEMENTED(_ZNKSs4findEPKcm)
+
+//std::string::operator=(std::string&&)
+UNIMPLEMENTED(_ZNSsaSEOSs)
+#endif
