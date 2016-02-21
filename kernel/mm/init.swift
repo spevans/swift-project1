@@ -49,16 +49,22 @@ func setupMM() {
     let rodataStart: VirtualAddress = _rodata_start_addr()
     let dataStart: VirtualAddress = _data_start_addr()
     let bssEnd: VirtualAddress = _bss_end_addr()
+    let guardPage: VirtualAddress = _guard_page_addr()
     let kernelBase: VirtualAddress = _kernel_start_addr()
 
     let textSize = roundToPage(textEnd - _kernel_start_addr())
     let rodataSize = roundToPage(dataStart - rodataStart)
-    let dataSize = roundToPage(bssEnd - dataStart)
+    let dataSize = roundToPage(guardPage - dataStart)
+    let stackHeapSize = bssEnd - VirtualAddress(_stack_start_addr())
 
     // Enable No Execute so data mappings can be set XD (Execute Disable)
     CPU.enableNXE(true)
 
-    // Add 3 mappings for text, rodata and data + bss with appropiate protections
+    // Add 4 mappings for text, rodata, data + bss and the stack
+    // with appropiate protections. There is a guard page between
+    // BSS and stack that isnt mapped.
+    // FIXME: Dont waste the physical page that is not mapped under
+    // the guard page
     printf("_text:   %p - %p\n_rodata: %p - %p\n_data:   %p - %p\n",
         _kernel_start_addr(), _kernel_start_addr() + textSize,
         _rodata_start_addr(), _rodata_start_addr() + rodataSize,
@@ -70,6 +76,9 @@ func setupMM() {
         readWrite: false, noExec: true)
     addMapping(start: dataStart, size: dataSize, physStart: kernelPhysBase + textSize + rodataSize,
         readWrite: true, noExec: true)
+    addMapping(start: _stack_start_addr(), size: stackHeapSize,
+        physStart: kernelPhysBase + textSize + rodataSize + dataSize + PAGE_SIZE,
+        readWrite: true, noExec: true)
 
     printf("Physical address of kernelBase (%p) = (%p)\n", kernelBase,
         kernelPhysAddress(kernelBase))
@@ -77,6 +86,9 @@ func setupMM() {
         kernelPhysAddress(kernelBase + textSize))
     printf("Physical address of data (%p) = (%p)\n", kernelBase + textSize + rodataSize,
         kernelPhysAddress(kernelBase + textSize + rodataSize))
+    printf("Physical address of stack and heap (%p) = (%p)\n",
+        kernelBase + textSize + rodataSize + dataSize + PAGE_SIZE,
+        kernelPhysAddress(kernelBase + textSize + rodataSize + dataSize + PAGE_SIZE))
     mapPhysicalMemory(BootParams.highestMemoryAddress)
     let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_addr()))
     setCR3(pml4paddr)
