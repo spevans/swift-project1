@@ -10,6 +10,7 @@
 ;;; reset.
 
 
+        [MAP all boot16to64.map]
         ORG 0x0000
 
         ;; Code is loaded at 0x9000:0000 by bootloader and entered

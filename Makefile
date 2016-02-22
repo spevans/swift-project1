@@ -48,13 +48,13 @@ output/boot-cd.iso: output/boot-hd.img output/kernel.efi
 	mkdir -p output/iso_tmp/efi/boot output/iso_tmp/boot
 	cp output/boot-hd.img output/iso_tmp/boot.img
 	cp output/kernel.efi output/iso_tmp/efi/boot/bootx64.efi
-	/sbin/mkfs.msdos -C output/iso_tmp/boot/efi.img 20480
+	/sbin/mkfs.msdos -C output/iso_tmp/boot/efi.img 12288
 	mmd -i output/iso_tmp/boot/efi.img ::efi
 	mmd -i output/iso_tmp/boot/efi.img ::efi/boot
 	mcopy -i output/iso_tmp/boot/efi.img output/kernel.efi ::efi/boot
 	# uncomment line below to make bootable EFI ISO
 	mcopy -i output/iso_tmp/boot/efi.img output/kernel.efi ::efi/boot/bootx64.efi
-	xorrisofs -J -joliet-long -cache-inodes -isohybrid-mbr isohdppx.bin 	 \
+	xorrisofs -J -joliet-long -isohybrid-mbr boot/isohdr.bin \
 	-b boot.img -c boot.cat -boot-load-size 4 -boot-info-table -no-emul-boot \
 	-eltorito-alt-boot -e boot/efi.img -no-emul-boot -isohybrid-gpt-basdat 	 \
 	-isohybrid-apm-hfsplus -o output/boot-cd.iso output/iso_tmp

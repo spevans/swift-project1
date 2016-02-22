@@ -1,9 +1,9 @@
 static_linker/build
 xcuserdata
 kernel.elf
-kernel.map
-disk_image
+*.map
 *.o
 *.bin
 *.dSYM
 modules
+output

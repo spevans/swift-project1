@@ -1,11 +1,13 @@
 ;;; boot/bootsector.asm
 ;;;
+;;; Created by Simon Evans on 30/10/2015.
 ;;; Copyright © 2015 Simon Evans. All rights reserved.
 ;;;
 ;;; Simple bootsector to load in the boot16to64 code
 ;;; Start sector, sector count and hard drive are currently
 ;;; hardcoded and uses extended BIOS to load
 
+        [MAP ALL bootsector.map]
 LOAD_SEG        EQU       0x9000  ; 16bit code loaded here
 
         ORG     0x7C00
@@ -14,7 +16,7 @@ LOAD_SEG        EQU       0x9000  ; 16bit code loaded here
         ;; This header is filled in by genisoimage and is otherwise
         ;; blank if booting from disk. Starts at offset 8
 
-times 8 - ($-$$) db 0
+        OFFSET  8
 
 el_torito_header:
 .pvd_lba:       dd      0       ; primary volume descriptor LBA
@@ -23,11 +25,15 @@ el_torito_header:
 .image_csum:    dd      0       ; boot file checksum
 .reserved:      times 40 db 0
 
+        OFFSET  64
 start:
+        cli
         xor     ax, ax
         mov     ss, ax
         mov     sp, 0x2000
         mov     ds, ax
+        sti
+
         mov     [boot_dev], dl
         ;; if image_len != 0 this it is an ISO9690 image
         mov     cx, [el_torito_header.image_len]
@@ -46,6 +52,7 @@ start:
         mov     cx, (2048 - 512)
         cld
         rep     movsw
+
         ;; ISO sectors are 2048 instead of 512 divide the
         ;; sector count for the kernel by 4 and round up
         mov     ax, [kernel_sectors]
@@ -94,7 +101,7 @@ msg_fail:       db      "Load failed", 0x0A, 0x0D, 0
 ;;; The offset 480 is used by an external program to
 ;;; patch in the secondary loader and kernel image LBA/sector
 ;;; counts so must always reside at this locatio
-times 480 - ($-$$) db 0
+        OFFSET  480
 
 ;;; DAP (Disk Address Packet) used for LBA BIOS interface
 dap:            db      16              ; DAP size
@@ -109,6 +116,6 @@ kernel_sectors: dw      0               ; Kernel size in sectors
 boot_dev:       db      0               ; BIOS disk number
 sector_size:    db      9               ; ln2 of bytes per sector 9(512) == disk
 
-                db      0, 0
+        OFFSET  510
                 dw      0xAA55          ; Boot signature
 end:
