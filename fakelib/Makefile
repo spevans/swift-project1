@@ -1,16 +1,7 @@
 TOPDIR := ..
 include $(TOPDIR)/Makedefs
 
-FAKELIB_OBJS := libc.o
-
-ifeq ($(UNAME_S), Linux)
-	FAKELIB_OBJS := $(FAKELIB_OBJS) linux_libc.o linux_libcpp.o
-endif
-
-ifeq ($(UNAME_S), Darwin)
-	LINKER := ../static_linker/build/Debug/static_linker
-	FAKELIB_OBJS := $(FAKELIB_OBJS) osx_libc.o osx_libcpp.o libobj.o
-endif
+FAKELIB_OBJS := libc.o linux_libc.o linux_libcpp.o
 
 
 all: fakelib.o
