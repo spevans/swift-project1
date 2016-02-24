@@ -151,6 +151,8 @@ print_ptr_table()
         uprintf("Framebuffer: %dx%d bpp: %d px per line: %d addr:%p size: %lx\n",
                 fb->width, fb->height, fb->depth, fb->px_per_scanline,
                 fb->address, fb->size);
+        uprintf("nr entries: %ld, config table: %p\n", bp->nr_efi_config_entries,
+                bp->efi_config_table);
 }
 
 
@@ -562,7 +564,6 @@ plot_pixel(struct frame_buffer *fb, uint32_t x, uint32_t y,
 }
 
 
-#ifdef DEBUG
 static void
 dump_data(void *addr, size_t count)
 {
@@ -578,7 +579,6 @@ dump_data(void *addr, size_t count)
         }
         uprint_string("\n");
 }
-#endif
 
 
 efi_status_t
@@ -622,6 +622,8 @@ exit_boot_services()
         uprintf("Adding mapping for memory_map, vaddr = %p\n",
                 memory_map_vaddr);
         status = add_mapping(memory_map_vaddr, region.base, region.pages);
+        bp->nr_efi_config_entries = sys_table->nr_entries;
+        bp->efi_config_table = sys_table->config_table;
 
         status = efi_call5(sys_table->boot_services->get_memory_map,
                            (uintptr_t)&bp->memory_map_size,
@@ -634,6 +636,7 @@ exit_boot_services()
                 print_status("get_memory_map", status);
                 return status;
         }
+
 #ifdef DEBUG
         size_t entries = bp->memory_map_size / bp->memory_map_desc_size;
         uprintf("get_memory_map descriptor_size: %ld map_size %ld map_key %ld\n",
@@ -940,6 +943,13 @@ efi_main(void *handle, efi_system_table_t *_sys_table,
                 goto error;
         }
         print_ptr_table();
+        uprintf("nr_entries: %ld, config_table: %p\n", sys_table->nr_entries,
+                 sys_table->config_table);
+        for (size_t i = 0; i < sys_table->nr_entries; i++) {
+                efi_config_table_t *table = sys_table->config_table + i;
+                uprintf("%lu: %p\t", i, table->vendor_table);
+                dump_data(&table->vendor_guid, sizeof(efi_guid_t));
+        }
         uprintf("Press any key to ExitBootServices\n");
         wait_for_key(NULL);
         if (exit_boot_services() != EFI_SUCCESS) {

@@ -135,9 +135,9 @@ typedef struct {
 } efi_memory_descriptor_t;
 
 
-#include <efi/uga.h>
-#include <efi/gop.h>
-#include <efi/console.h>
-#include <efi/api.h>
+#include "efi/uga.h"
+#include "efi/gop.h"
+#include "efi/console.h"
+#include "efi/api.h"
 
 #endif  // __EFI_H__

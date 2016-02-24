@@ -244,6 +244,8 @@ framebuffer:
         .px_per_line:   DD      0
         .depth:         DD      0
         .colour_info:   DB      0, 0, 0, 0, 0, 0
-
+efi_config_table:
+        .nr_cfg_entries:DQ      0
+        .config_table:  DQ      0
         ALIGN   8
 stub_end:

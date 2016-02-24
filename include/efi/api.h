@@ -127,7 +127,11 @@ typedef struct {
 } efi_boot_services_t;
 
 
-typedef struct {} efi_config_table_t;
+typedef struct {
+        efi_guid_t vendor_guid;
+        void *vendor_table;
+} efi_config_table_t;
+
 
 typedef struct {
         efi_table_header_t hdr;
@@ -139,7 +143,7 @@ typedef struct {
         void *con_out_handle;
         efi_simple_output_t *con_out;
         void *std_err_handle;
-        efi_simple_output_t *std_er;
+        efi_simple_output_t *std_err;
         efi_runtime_services_t *runtime_services;
         efi_boot_services_t *boot_services;
         uint64_t nr_entries;

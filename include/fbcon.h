@@ -24,7 +24,7 @@ struct frame_buffer {
         uint8_t green_mask;
         uint8_t blue_shift;
         uint8_t blue_mask;
-};
+} __attribute__((packed));
 
 struct font {
         uint8_t width;
