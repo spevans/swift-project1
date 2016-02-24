@@ -12,7 +12,6 @@ typealias VirtualAddress = UInt
 typealias PhysAddress = UInt
 typealias PageTableDirectory = UnsafeMutableBufferPointer<PageTableEntry>
 typealias PageTableEntry = UInt
-typealias PhysicalRegion = UnsafeBufferPointer<UInt8>
 
 let entriesPerPage: UInt = 512
 let entriesPerPageMask: UInt = entriesPerPage - 1
@@ -33,15 +32,20 @@ private let largePagePATFlag :UInt = 0b1000000000000
 private let globalFlag       :UInt = 0b0000100000000
 private let executeDisableFlag :UInt = 1 << 63
 
-private var maxPhysicalMem = 16 * 1024 * 1024 * 1024 // 16GB
 private let physicalMemPtr = UnsafeMutablePointer<UInt>(bitPattern: PHYSICAL_MEM_BASE)
 private let physicalMemory = UnsafeMutableBufferPointer(start: physicalMemPtr,
-    count:maxPhysicalMem/sizeof(UInt))
+    count: Int(BootParams.highestMemoryAddress / UInt(sizeof(UInt))) + 1 )
 
 
-func mapPhysicalRegion(start: PhysAddress, sizeInBytes: Int) -> PhysicalRegion {
-    let region = UnsafePointer<UInt8>(bitPattern: PHYSICAL_MEM_BASE + start)
-    return PhysicalRegion(start: region, count: sizeInBytes)
+func mapPhysicalRegion<T>(start: PhysAddress, size: Int) -> UnsafeBufferPointer<T> {
+    let region = UnsafePointer<T>(bitPattern: PHYSICAL_MEM_BASE + start)
+    return UnsafeBufferPointer<T>(start: region, count: size)
+}
+
+
+func mapPhysicalRegion<T>(start: UnsafePointer<T>, size: Int) -> UnsafeBufferPointer<T> {
+    let region = UnsafePointer<T>(bitPattern: PHYSICAL_MEM_BASE + start.ptrToUint)
+    return UnsafeBufferPointer<T>(start: region, count: size)
 }
 
 

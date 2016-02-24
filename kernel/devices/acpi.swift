@@ -11,7 +11,6 @@
 typealias ScanArea = UnsafeBufferPointer<UInt8>
 typealias SDTPtr = UnsafePointer<ACPI_SDT>
 
-private let RSDP_SIG: StaticString = "RSD PTR "
 // Singleton that will be initialised by ACPI.parse()
 private let acpiTables = ACPI.parseTables()
 
@@ -119,24 +118,15 @@ public struct MCFG: ACPITable {
 }
 
 
-private func makeString(d0: UInt8, _ d1: UInt8) -> String {
-    return String(Character(UnicodeScalar(d0))) + String(Character(UnicodeScalar(d1)))
-}
-
-private func makeString(d0: UInt8, _ d1: UInt8, _ d2: UInt8, _ d3: UInt8) -> String {
-    return makeString(d0, d1) + makeString(d2, d3)
-}
-
-
-private func makeString(d0: UInt8, _ d1: UInt8, _ d2: UInt8, _ d3: UInt8, _ d4: UInt8,
-    _ d5: UInt8) -> String {
-    return makeString(d0, d1, d2, d3) + makeString(d4, d5)
-}
-
-
-private func makeString(d0: UInt8, _ d1: UInt8, _ d2: UInt8, _ d3: UInt8, _ d4: UInt8,
-    _ d5: UInt8, _ d6: UInt8, _ d7: UInt8) -> String {
-    return makeString(d0, d1, d2, d3) + makeString(d4, d5, d6, d7)
+private func makeString(data: Any) -> String {
+     var str = ""
+   for child in Mirror(reflecting: data).children {
+       let ch = child.value as! UInt8
+        if (ch != 0) {
+            str += String(Character(UnicodeScalar(ch)))
+        }
+    }
+    return str
 }
 
 
@@ -233,71 +223,20 @@ struct ACPI {
 
 
     static private func findRSDT() -> SDTPtr? {
-        if let rsdpPtr = findRSDP() {
+        if let rsdpPtr = BootParams.findRSDP() {
             var rsdtAddr: UInt = 0
             if rsdpPtr.memory.revision == 1 {
                 let rsdp2Ptr = UnsafePointer<RSDP2>(rsdpPtr)
-                let rsdp2 = rsdp2Ptr.memory
-                rsdtAddr = rsdp2.rsdt
+                rsdtAddr = rsdp2Ptr.memory.rsdt
                 //let csum = checksum(UnsafePointer<UInt8>(rsdp2Ptr), size: strideof(RSDP2))
-                print(rsdp2)
-
             } else {
-                let rsdp = rsdpPtr.memory
-                rsdtAddr = rsdp.rsdt
+                rsdtAddr = ptrFromPhysicalPtr(rsdpPtr).memory.rsdt
+                rsdtAddr = rsdpPtr.memory.rsdt
                 //let csum = checksum(UnsafePointer<UInt8>(rsdpPtr), size: strideof(RSDP1))
-                print(rsdp)
             }
-
-            return mkSDTPtr(rsdtAddr) //SDTPtr(bitPattern: rsdtAddr)
+            return mkSDTPtr(rsdtAddr)
         }
 
         return nil;
-    }
-
-
-    static private func findRSDP() -> UnsafePointer<RSDP1>? {
-        if let ebda = getEBDA() {
-            printf("ACPI: EBDA: %#8.8lx len: %#4.4lx\n", ebda.baseAddress, ebda.count)
-            if let rsdp = scanForRSDP(ebda) {
-                return rsdp
-            }
-        }
-        let upper = getUpperMemoryArea()
-        printf("ACPI: Upper: %#8.8lx len: %#4.4lx\n", upper.baseAddress, upper.count)
-        return scanForRSDP(upper)
-    }
-
-
-    static private func getEBDA() -> ScanArea? {
-        let ebdaRegion = mapPhysicalRegion(0x40E, sizeInBytes: 2)
-        let ebda = UInt16(msb: ebdaRegion[1], lsb: ebdaRegion[0])
-        let rsdpAddr = UInt(ebda) * 16
-
-        if rsdpAddr > 0x400 {
-            return mapPhysicalRegion(rsdpAddr, sizeInBytes: 1024)
-        } else {
-            return nil
-        }
-    }
-
-
-    static private func getUpperMemoryArea() -> ScanArea {
-        return mapPhysicalRegion(0xE0000, sizeInBytes: 0x20000)
-    }
-
-
-    static private func scanForRSDP(area: ScanArea) -> UnsafePointer<RSDP1>? {
-        assert(RSDP_SIG.byteSize != 0)
-        assert(RSDP_SIG.isASCII)
-
-        for idx in 0.stride(to: area.count - strideof(RSDP1), by: 16) {
-            if memcmp(RSDP_SIG.utf8Start, area.baseAddress + idx, RSDP_SIG.byteSize) == 0 {
-                let region: UnsafePointer<RSDP1> = area.regionPointer(idx)
-                return region
-            }
-        }
-
-        return nil
     }
 }
