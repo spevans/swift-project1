@@ -79,7 +79,7 @@ struct cpuid_result {
 extern struct idt_entry idt[NR_INTERRUPTS];
 extern void (*trap_dispatch_table[NR_TRAPS])(struct exception_regs *);
 
-typedef void (*irq_handler)(void);
+typedef void (*irq_handler)(long irq);
 extern irq_handler irq_dispatch_table[];
 
 #endif  // __X86_DEFS_H__

@@ -12,26 +12,34 @@
 @_silgen_name("startup")
 public func startup(bootParams: UInt) {
     printf("bootParams: %p\n", bootParams)
+    // BootParams must come first to get framebuffer and kernel address
     BootParams.parse(bootParams)
     TTY.initTTY(BootParams.frameBufferInfo)
-    CPU.getInfo()
-    setupGDT()
-    setupIDT()
     printf("Highest Address: %p kernel phys address: %p\n",
         BootParams.highestMemoryAddress, BootParams.kernelAddress)
-
+    setupGDT()
+    setupIDT()
+    CPU.getInfo()
     setupMM()
     ACPI.parse()
-    PCI.scan()
-
-    printSections()
+    initialiseDevices()
     print("Hello world")
 
+    enableIRQs()
     // Idle, woken up by interrupts
     while true {
         hlt()
+        queuedIRQsTask()
     }
 
+}
+
+
+private func initialiseDevices() {
+    // Set the timer interrupt for 8000Hz
+    PIT8254.setChannel(PIT8254.TimerChannel.CHANNEL_0, mode: PIT8254.OperatingMode.MODE_3, hz: 8000)
+    PIT8254.showStatus()
+    PCI.scan()
 }
 
 

@@ -19,8 +19,6 @@
 private let idtSize = NR_INTERRUPTS * sizeof(idt_entry)
 private var idtInfo = dt_info(limit: UInt16(idtSize - 1), address: &idt)
 
-private let irqDispatchTablePtr = UnsafeMutablePointer<irq_handler>(irq_dispatch_table_addr)
-private let irqDispatchTable = UnsafeMutableBufferPointer(start: irqDispatchTablePtr, count:NR_IRQS)
 
 
 enum GateType: UInt8 {
@@ -113,18 +111,7 @@ public func setupIDT() {
     idt.46 = IDTEntry(address: irq14_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
     idt.47 = IDTEntry(address: irq15_stub_addr(), selector: 0x8, gateType: .INTR_GATE, dpl: 0)
 
-
-    for idx in 0..<irqDispatchTable.endIndex {
-        irqDispatchTable[idx] = unexpectedInterrupt
-    }
-
-    // Set the timer interrupt for 8000Hz
-    PIT8254.setChannel(PIT8254.TimerChannel.CHANNEL_0, mode: PIT8254.OperatingMode.MODE_3, hz: 8000)
-    PIT8254.showStatus()
-    setIrqHandler(0, handler: timerInterrupt)
-
-    print("Enabling IRQs")
-    sti()
+    initIRQs()
 
     // Below is not needed except to validate that the setup worked ok and test some exceptions
     sidt(&currentIdtInfo)
@@ -134,21 +121,4 @@ public func setupIDT() {
     // Test Null page read fault
     //let p = UnsafePointer<UInt8>(bitPattern: 0x123)
     //print("Null: \(p.memory)")
-}
-
-
-public func setIrqHandler(irq: Int, handler: irq_handler) {
-    irqDispatchTable[irq] = handler
-    PIC8259.enableIRQ(irq)
-}
-
-
-public func removeIrqHandler(irq: Int) {
-    PIC8259.disableIRQ(irq)
-    irqDispatchTable[irq] = unexpectedInterrupt
-}
-
-
-func unexpectedInterrupt() {
-    kprint("unexpected interrupt\n")
 }

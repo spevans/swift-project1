@@ -86,8 +86,8 @@ public class PIT8254 {
     }
 
 
-    private static func toCommandByte(channel: ChannelSelect, _ access: AccessMode, _ mode: OperatingMode,
-        _ number: NumberMode) -> UInt8 {
+    private static func toCommandByte(channel: ChannelSelect, _ access: AccessMode,
+        _ mode: OperatingMode, _ number: NumberMode) -> UInt8 {
             return channel.rawValue | access.rawValue | mode.rawValue | number.rawValue
     }
 
@@ -109,9 +109,11 @@ public class PIT8254 {
 
 
     static func setChannel(channel: TimerChannel, mode: OperatingMode, hz: Int) {
-        let cmd = toCommandByte(mapChannelToSelect(channel), AccessMode.LO_HI_BYTE, mode, NumberMode.BINARY)
+        let cmd = toCommandByte(mapChannelToSelect(channel), AccessMode.LO_HI_BYTE,
+            mode, NumberMode.BINARY)
         outb(commandPort, cmd)
         setHz(channel, hz)
+        setIrqHandler(0, handler: timerInterrupt)
     }
 
 
@@ -159,9 +161,6 @@ public class PIT8254 {
 
 
 var ticks: UInt64 = 0;
-func timerInterrupt() {
+func timerInterrupt(irq: Int) {
     // Do nothing for now
 }
-
-
-

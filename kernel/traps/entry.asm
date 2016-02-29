@@ -183,6 +183,7 @@ _irq_handler:
         lock    inc dword [int_nest_count]
 
         SAVE_XMM_REGS
+        mov     rdi, rax
         push    rax
         sub     rsp, 8
         lea     rbx, [irq_dispatch_table + rax * 8]

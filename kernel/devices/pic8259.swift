@@ -64,7 +64,7 @@ public class PIC8259 {
         }
         if (irq <= 7) {
             var mask = inb(PIC1Data)
-            mask &= ~(1 << UInt8(irq))
+            mask &= ~(UInt8(1 << irq))
             outb(PIC1Data, mask)
         } else {
             var mask = inb(PIC2Data)
