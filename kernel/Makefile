@@ -17,6 +17,7 @@ SWIFT_SRCS :=	init/startup.swift		\
 		devices/cpu.swift		\
 		devices/PCI.swift		\
 		devices/tty.swift		\
+		devices/kbd8042.swift		\
 		devices/pit8254.swift		\
 		devices/pic8259.swift		\
 		traps/exceptions.swift		\

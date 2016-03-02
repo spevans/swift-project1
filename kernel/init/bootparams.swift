@@ -139,7 +139,8 @@ struct BootParams {
     }
     static let acpiTables: ACPI? = BootParams.getAcpi()
     static let smbiosTables: SMBIOS? = BootParams.getSmbios()
-
+    private(set) static var vendor = "generic"
+    private(set) static var product = "generic"
 
     static var kernelAddress: PhysAddress {
         guard params != nil else {
@@ -152,7 +153,15 @@ struct BootParams {
     static func findTables() {
         if BootParams.smbiosTables == nil {
             print("Cant find SMBIOS tables")
+        } else {
+            if let v = BootParams.smbiosTables?.dmiBiosVendor {
+                vendor = v
+            }
+            if let p = BootParams.smbiosTables?.dmiProductName {
+                product = p
+            }
         }
+
         if BootParams.acpiTables == nil {
             print("Cant find ACPI tables")
         }
