@@ -1,43 +1,49 @@
 /*
-* kernel/devices/acpi.swift
-*
-* Created by Simon Evans on 24/01/2016.
-* Copyright © 2016 Simon Evans. All rights reserved.
-*
-* ACPI
-*
-*/
+ * kernel/devices/acpi.swift
+ *
+ * Created by Simon Evans on 24/01/2016.
+ * Copyright © 2016 Simon Evans. All rights reserved.
+ *
+ * ACPI
+ *
+ */
 
 typealias ScanArea = UnsafeBufferPointer<UInt8>
-typealias SDTPtr = UnsafePointer<ACPI_SDT>
-
-// Singleton that will be initialised by ACPI.parse()
-private let acpiTables = ACPI.parseTables()
+typealias SDTPtr = UnsafePointer<acpi_sdt_header>
 
 
 protocol ACPITable {
     var header: ACPI_SDT { get }
-
 }
 
-public struct ACPI_SDT: CustomStringConvertible {
-    let signature:  (UInt8, UInt8, UInt8, UInt8)
+
+struct ACPI_SDT: CustomStringConvertible {
+    let signature:  String
     let length:     UInt32
     let revision:   UInt8
     let checksum:   UInt8
-    let oemId:      (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8)
-    let oemTableId: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8)
+    let oemId:      String
+    let oemTableId: String
     let oemRev:     UInt32
-    let creatorId:  (UInt8, UInt8, UInt8, UInt8)
+    let creatorId:  String
     let creatorRev: UInt32
 
-    var signatureStr:  String { return makeString(signature)  }
-    var oemIdStr:      String { return makeString(oemId)      }
-    var creatorIdStr:  String { return makeString(creatorId)  }
-    var oemTableIdStr: String { return makeString(oemTableId) }
+    var description: String {
+        return "ACPI: \(signature): \(oemId): \(creatorId): \(oemTableId): rev: \(revision)"
+    }
 
-    public var description: String {
-        return "ACPI: \(signatureStr): \(oemIdStr): \(creatorIdStr): \(oemTableIdStr): rev: \(revision)"
+
+    init(ptr: UnsafePointer<acpi_sdt_header>) {
+        let stringPtr = UnsafePointer<UInt8>(ptr)
+        signature = makeString(stringPtr, maxLength: 4)
+        length = ptr.memory.length
+        revision = ptr.memory.revision
+        checksum = ptr.memory.checksum
+        oemId = makeString(stringPtr.advancedBy(10), maxLength: 6)
+        oemTableId = makeString(stringPtr.advancedBy(16), maxLength: 8)
+        oemRev = ptr.memory.oem_revision
+        creatorId = makeString(stringPtr.advancedBy(28), maxLength: 4)
+        creatorRev = ptr.memory.creator_rev
     }
 }
 
@@ -80,112 +86,78 @@ public struct RSDP2: CustomStringConvertible {
 }
 
 
-public struct MCFG: ACPITable {
-    struct ConfigBaseAddress: CustomStringConvertible {
-        let baseAddress: UInt64
-        let segmentGroup: UInt16
-        let startBus: UInt8
-        let endBus: UInt8
-        let reserved: UInt32
+private func makeString(ptr: UnsafePointer<Void>, maxLength: Int) -> String {
+    let buffer = UnsafeBufferPointer(start: UnsafePointer<UInt8>(ptr),
+        count: maxLength)
+    var str = ""
 
-        var description: String {
-            return String.sprintf("MCFG: base:%p segment: %u start:%u end: %u", baseAddress, segmentGroup,
-                startBus, endBus)
+    for ch in buffer {
+        if (ch != 0) {
+            str += String(Character(UnicodeScalar(ch)))
+        } else {
+            break
         }
     }
 
-
-    let header: ACPI_SDT
-    let reserved: UInt64 = 0
-    let allocations: [ConfigBaseAddress]
-
-
-    init(ptr: SDTPtr) {
-        header = ptr.memory
-        let headerSize = strideof(ACPI_SDT) + sizeof(UInt64) // 8 is for reserved bytes
-        let itemLen = Int(header.length) - headerSize
-        let itemCnt = itemLen / strideof(ConfigBaseAddress)
-        var items:[ConfigBaseAddress] = []
-        let dataPtr: UnsafePointer<ConfigBaseAddress> = ptr.advancedBy(bytes: headerSize)
-        let dataBuffer = UnsafeBufferPointer(start: dataPtr, count: itemCnt)
-
-        for idx in 0..<itemCnt {
-            items.append(dataBuffer[idx])
-            print("ACPI: MCFG: \(dataBuffer[idx])")
-        }
-        allocations = items
-    }
+    return str
 }
 
 
 private func makeString(data: Any) -> String {
-     var str = ""
-   for child in Mirror(reflecting: data).children {
-       let ch = child.value as! UInt8
+    var str = ""
+    for child in Mirror(reflecting: data).children {
+        print("str: \(str)")
+        let ch = child.value as! UInt8
         if (ch != 0) {
             str += String(Character(UnicodeScalar(ch)))
         }
     }
+
     return str
 }
 
 
 struct ACPI {
 
-    static func parse() {
-        printf("ACPI: Found %d ACPI tables\n", acpiTables.count)
-    }
+    private(set) var mcfg: MCFG?
+    private(set) var facp: FACP?
 
 
-    static func findTable(sig: String) -> ACPITable? {
-        for table in acpiTables {
-            if table.header.signatureStr == sig {
-                return table
-            }
-        }
+    init?(rsdp: UnsafePointer<RSDP1>) {
 
-        return nil
-    }
-
-
-    static private func parseTables() -> [ACPITable] {
-        var result: [ACPITable] = []
-
-        guard let rsdtPtr = findRSDT() else {
-            print("ACPI: Cant find RSDT")
-            return result
-        }
+        let rsdtPtr = findRSDT(rsdp)
 
         guard let entries = sdtEntries32(rsdtPtr) else {
             print("ACPI: Cant find any entries")
-            return result
+            return nil
         }
 
         for entry in entries {
-            let ptr = mkSDTPtr(entry)
-
+            let ptr = mkSDTPtr(UInt(entry))
+            let header = ACPI_SDT(ptr: ptr)
             guard checksum(UnsafePointer<UInt8>(ptr), size: Int(ptr.memory.length)) == 0 else {
                 printf("ACPI: Entry @ %p has bad chksum\n", ptr)
                 continue
             }
 
-            let sig = ptr.memory.signatureStr
-            switch sig {
+            switch header.signature {
 
             case "MCFG":
-                let mcfg = MCFG(ptr: ptr)
-                result.append(mcfg)
+                mcfg = MCFG(acpiHeader: header, ptr: UnsafePointer<acpi_sdt_header>(ptr))
+                print("ACPI: found MCFG")
+
+            case "FACP":
+                facp = FACP(acpiHeader: header, ptr: UnsafePointer<acpi_facp_table>(ptr))
+                print("ACPI: found FACP")
 
             default:
-                print("ACPI: Unknown table type: \(sig)")
+                print("ACPI: Unknown table type: \(header.signature)")
             }
         }
-
-        return result
     }
 
 
-    static private func checksum(ptr: UnsafePointer<UInt8>, size: Int) -> UInt8 {
+    private func checksum(ptr: UnsafePointer<UInt8>, size: Int) -> UInt8 {
         let region = UnsafeBufferPointer<UInt8>(start: ptr, count: size)
         var csum: UInt8 = 0
         for x in region {
@@ -196,23 +168,13 @@ struct ACPI {
     }
 
 
-    static private func mkSDTPtr(address: UInt) -> SDTPtr {
+    private func mkSDTPtr(address: UInt) -> SDTPtr {
         return SDTPtr(bitPattern: vaddrFromPaddr(address))
     }
 
 
-    static private func mkSDTPtr(address: UInt32) -> SDTPtr {
-        return SDTPtr(bitPattern: vaddrFromPaddr(UInt(address)))
-    }
-
-
-    static private func mkSDTPtr(address: UInt64) -> SDTPtr {
-        return SDTPtr(bitPattern: vaddrFromPaddr(UInt(address)))
-    }
-
-
-    static private func sdtEntries32(ptr: SDTPtr) -> UnsafeBufferPointer<UInt32>? {
-        let entryCount = (Int(ptr.memory.length) - strideof(ACPI_SDT)) / sizeof(UInt32)
+    private func sdtEntries32(ptr: SDTPtr) -> UnsafeBufferPointer<UInt32>? {
+        let entryCount = (Int(ptr.memory.length) - strideof(acpi_sdt_header)) / sizeof(UInt32)
         if entryCount > 0 {
             let entryPtr: UnsafePointer<UInt32> = UnsafePointer(bitPattern: ptr.advancedBy(1).ptrToUint)
             return UnsafeBufferPointer(start: entryPtr, count: entryCount)
@@ -222,21 +184,17 @@ struct ACPI {
     }
 
 
-    static private func findRSDT() -> SDTPtr? {
-        if let rsdpPtr = BootParams.findRSDP() {
-            var rsdtAddr: UInt = 0
-            if rsdpPtr.memory.revision == 1 {
-                let rsdp2Ptr = UnsafePointer<RSDP2>(rsdpPtr)
-                rsdtAddr = rsdp2Ptr.memory.rsdt
-                //let csum = checksum(UnsafePointer<UInt8>(rsdp2Ptr), size: strideof(RSDP2))
-            } else {
-                rsdtAddr = ptrFromPhysicalPtr(rsdpPtr).memory.rsdt
-                rsdtAddr = rsdpPtr.memory.rsdt
-                //let csum = checksum(UnsafePointer<UInt8>(rsdpPtr), size: strideof(RSDP1))
+    private func findRSDT(rsdpPtr: UnsafePointer<RSDP1>) -> SDTPtr {
+        var rsdtAddr: UInt = 0
+        if rsdpPtr.memory.revision == 1 {
+            let rsdp2Ptr = UnsafePointer<RSDP2>(rsdpPtr)
+            rsdtAddr = rsdp2Ptr.memory.rsdt
+            //let csum = checksum(UnsafePointer<UInt8>(rsdp2Ptr), size: strideof(RSDP2))
+        } else {
+            rsdtAddr = ptrFromPhysicalPtr(rsdpPtr).memory.rsdt
+            rsdtAddr = rsdpPtr.memory.rsdt
+            //let csum = checksum(UnsafePointer<UInt8>(rsdpPtr), size: strideof(RSDP1))
             }
-            return mkSDTPtr(rsdtAddr)
-        }
-
-        return nil;
+        return mkSDTPtr(rsdtAddr)
     }
 }

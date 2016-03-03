@@ -55,6 +55,11 @@ extension UInt16 {
     public func toBytes() -> (UInt8, UInt8) {
         return (UInt8(self >> 8), UInt8(self & 0xff))
     }
+
+
+    public func bitSet(bit: UInt16) -> Bool {
+        return self & (1 << bit) != 0
+    }
 }
 
 
@@ -99,5 +104,19 @@ extension UnsafeBufferPointer {
         let region = ptr_to_uint(self.baseAddress) + UInt(offset)
         return UnsafePointer<T>(bitPattern: region)
     }
+}
 
+
+public func dumpRegion(ptr ptr: UnsafePointer<Void>, size: Int) {
+    let buffer = UnsafeBufferPointer<UInt8>(start: UnsafePointer<UInt8>(ptr),
+        count: size)
+    for idx in 0..<buffer.count {
+        if idx % 16 == 0 {
+            if idx > 0 {
+                print("")
+            }
+            printf("%4.4X: ", idx)
+        }
+        printf("%2.2x ", buffer[idx])
+    }
 }

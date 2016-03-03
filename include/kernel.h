@@ -1,5 +1,5 @@
 /*
- * kernel/kernel.h
+ * include/kernel.h
  *
  * Created by Simon Evans on 16/12/2015.
  * Copyright © 2015, 2016 Simon Evans. All rights reserved.
@@ -16,6 +16,7 @@
 #include <stdarg.h>
 #include "x86funcs.h"
 #include "mm.h"
+#include "acpi.h"
 
 // Export as [symbol]_addr suitable to use as an arg to UnsafePointer()
 #define EXPORTED_SYMBOL_AS_VOIDPTR(x) static inline void *x##_addr() { extern uintptr_t x; return &x; }

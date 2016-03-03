@@ -137,6 +137,7 @@ struct BootParams {
         let lastEntry = memoryRanges[memoryRanges.count - 1]
         return lastEntry.start + lastEntry.size - 1
     }
+    static let acpiTables: ACPI? = BootParams.getAcpi()
     static let smbiosTables: SMBIOS? = BootParams.getSmbios()
 
 
@@ -151,6 +152,9 @@ struct BootParams {
     static func findTables() {
         if BootParams.smbiosTables == nil {
             print("Cant find SMBIOS tables")
+        }
+        if BootParams.acpiTables == nil {
+            print("Cant find ACPI tables")
         }
     }
 
@@ -167,13 +171,15 @@ struct BootParams {
     }
 
 
-    static func findRSDP() -> UnsafePointer<RSDP1>? {
+    private static func getAcpi() -> ACPI? {
         if params != nil {
             params!.findTables()
-            return params!.rsdp
-        } else {
-            return nil
+            if params!.rsdp != nil {
+                return ACPI(rsdp: params!.rsdp!)
+            }
         }
+
+        return nil
     }
 
 

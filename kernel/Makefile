@@ -12,6 +12,8 @@ SWIFT_SRCS :=	init/startup.swift		\
 		mm/init.swift			\
 		mm/page.swift			\
 		devices/acpi.swift		\
+		devices/acpi/facp.swift		\
+		devices/acpi/mcfg.swift		\
 		devices/cpu.swift		\
 		devices/PCI.swift		\
 		devices/tty.swift		\
