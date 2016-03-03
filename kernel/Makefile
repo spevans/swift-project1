@@ -5,6 +5,7 @@ SWIFT_MODULE := SwiftKernel
 SWIFT_OBJS := SwiftKernel.o
 SWIFT_SRCS :=	init/startup.swift		\
 		init/bootparams.swift		\
+		init/smbios.swift		\
 		init/GDT.swift			\
 		klib/Extensions.swift		\
 		klib/MemoryBufferReader.swift	\

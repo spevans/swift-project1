@@ -21,6 +21,7 @@ public func startup(bootParams: UInt) {
     setupIDT()
     CPU.getInfo()
     setupMM()
+    BootParams.findTables()
     ACPI.parse()
     initialiseDevices()
     print("Hello world")

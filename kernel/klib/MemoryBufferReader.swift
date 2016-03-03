@@ -2,7 +2,7 @@
  * kernel/klib/MemoryBufferReader.swift
  *
  * Created by Simon Evans on 24/12/2015.
- * Copyright © 2015 Simon Evans. All rights reserved.
+ * Copyright © 2015, 2016 Simon Evans. All rights reserved.
  *
  * Read different basic types from a memory buffer
  *
@@ -33,10 +33,15 @@ public class MemoryBufferReader {
     }
 
 
-    func subBuffer(offset: Int, size: Int) -> MemoryBufferReader {
-        return MemoryBufferReader(ptr.advancedBy(offset), size: size)
+    func subBuffer(start: Int, size: Int) -> MemoryBufferReader {
+        return MemoryBufferReader(ptr.advancedBy(start), size: size)
     }
 
+
+    func subBuffer(start: Int) -> MemoryBufferReader {
+        let size = buffer.count - start
+        return subBuffer(start, size: size)
+    }
 
     // Functions to convert ASCII strings in memory to String. Inefficient
     // conversions because Foundation isnt available
@@ -92,6 +97,17 @@ public class MemoryBufferReader {
         let resultPtr : UnsafePointer<T> = UnsafePointer(ptr + offset)
         let result = resultPtr.memory
         offset += sizeof(T)
+
+        return result
+    }
+
+
+    public func readAtIndex<T>(index: Int) throws -> T {
+        guard index + sizeof(T) <= buffer.count else {
+            throw ReadError.InvalidOffset
+        }
+        let resultPtr : UnsafePointer<T> = UnsafePointer(ptr + index)
+        let result = resultPtr.memory
 
         return result
     }

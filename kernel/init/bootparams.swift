@@ -103,7 +103,9 @@ protocol BootParamsData {
     var source: String { get }
     var frameBufferInfo: FrameBufferInfo? { get }
     var kernelPhysAddress: PhysAddress { get }
-    func findRSDP() -> UnsafePointer<RSDP1>?
+    var rsdp: UnsafePointer<RSDP1>? { get }
+    var smbios: UnsafePointer<smbios_header>? { get }
+    mutating func findTables()
 }
 
 
@@ -122,7 +124,7 @@ private func readSignature(address: PhysAddress) -> String? {
  * 1. Read the data in the {bios,efi}_boot_params table and save
  * 2. Parse the tables pointed to by the data in step 1
  *
- * This is required becuase step 2 requires some pages to be mapped in
+ * This is required because step 2 requires some pages to be mapped in
  * setupMM(), but setupMM() requires some of the data from step1.
  */
 
@@ -135,12 +137,43 @@ struct BootParams {
         let lastEntry = memoryRanges[memoryRanges.count - 1]
         return lastEntry.start + lastEntry.size - 1
     }
+    static let smbiosTables: SMBIOS? = BootParams.getSmbios()
+
 
     static var kernelAddress: PhysAddress {
         guard params != nil else {
             koops("Cant find kernel physical address in BootParams memory ranges")
         }
         return params!.kernelPhysAddress
+    }
+
+
+    static func findTables() {
+        if BootParams.smbiosTables == nil {
+            print("Cant find SMBIOS tables")
+        }
+    }
+
+
+    private static func getSmbios() -> SMBIOS? {
+        if params != nil {
+            params!.findTables()
+            if params!.smbios != nil {
+                return SMBIOS(ptr: params!.smbios!)
+            }
+        }
+
+        return nil
+    }
+
+
+    static func findRSDP() -> UnsafePointer<RSDP1>? {
+        if params != nil {
+            params!.findTables()
+            return params!.rsdp
+        } else {
+            return nil
+        }
     }
 
 
@@ -170,7 +203,7 @@ struct BootParams {
     }
 
 
-    static func getRanges() -> [MemoryEntry] {
+    private static func getRanges() -> [MemoryEntry] {
         var ranges = params!.memoryRanges
 
         findHoles(&ranges)
@@ -195,11 +228,6 @@ struct BootParams {
         }
 
         return ranges
-    }
-
-
-    static func findRSDP() -> UnsafePointer<RSDP1>? {
-        return params?.findRSDP()
     }
 
 
@@ -279,14 +307,17 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
     }
 
 
-    private let RSDP_SIG: StaticString = "RSD PTR "
     private let e820MapAddr: UInt
     private let e820Entries: UInt
+    private let RSDP_SIG: StaticString = "RSD PTR "
+
 
     let source = "E820"
     var memoryRanges: [MemoryEntry] { return parseE820Table() }
     var frameBufferInfo: FrameBufferInfo? = nil
     var kernelPhysAddress: PhysAddress = 0
+    var rsdp: UnsafePointer<RSDP1>?
+    var smbios: UnsafePointer<smbios_header>?
 
     var description: String {
         return "BiosBootParams has \(memoryRanges.count) ranges"
@@ -352,8 +383,18 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
     }
 
 
+    mutating func findTables() {
+        if rsdp == nil {
+            rsdp = findRSDP()
+        }
+        if smbios == nil {
+            smbios = findSMBIOS()
+        }
+    }
+
+
     // Root System Description Pointer
-    func findRSDP() -> UnsafePointer<RSDP1>? {
+    private func findRSDP() -> UnsafePointer<RSDP1>? {
         if let ebda = getEBDA() {
             printf("ACPI: EBDA: %#8.8lx len: %#4.4lx\n", ebda.baseAddress, ebda.count)
             if let rsdp = scanForRSDP(ebda) {
@@ -363,6 +404,17 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
         let upper = getUpperMemoryArea()
         printf("ACPI: Upper: %#8.8lx len: %#4.4lx\n", upper.baseAddress, upper.count)
         return scanForRSDP(upper)
+    }
+
+
+    // SMBios table
+    private func findSMBIOS() -> UnsafePointer<smbios_header>? {
+        let region: ScanArea = mapPhysicalRegion(0xf0000, size: 0x10000)
+        if let ptr = scanForSignature(region, SMBIOS.SMBIOS_SIG) {
+            return UnsafePointer<smbios_header>(ptr)
+        } else {
+            return nil
+        }
     }
 
 
@@ -388,12 +440,21 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
 
 
     private func scanForRSDP(area: ScanArea) -> UnsafePointer<RSDP1>? {
-        assert(RSDP_SIG.byteSize != 0)
-        assert(RSDP_SIG.isASCII)
+        if let ptr = scanForSignature(area, RSDP_SIG) {
+            return UnsafePointer<RSDP1>(ptr)
+        } else {
+            return nil
+        }
+    }
+
+
+    private func scanForSignature(area: ScanArea, _ signature: StaticString) -> UnsafePointer<Void>? {
+        assert(signature.byteSize != 0)
+        assert(signature.isASCII)
 
         for idx in 0.stride(to: area.count - strideof(RSDP1), by: 16) {
-            if memcmp(RSDP_SIG.utf8Start, area.baseAddress + idx, RSDP_SIG.byteSize) == 0 {
-                let region: UnsafePointer<RSDP1> = area.regionPointer(idx)
+            if memcmp(signature.utf8Start, area.baseAddress + idx, signature.byteSize) == 0 {
+                let region: UnsafePointer<Void> = area.regionPointer(idx)
                 return region
             }
         }
@@ -450,17 +511,27 @@ struct EFIBootParams: BootParamsData {
         let table: UnsafePointer<Void>
     }
 
+    private let guidACPI1 = efi_guid_t(data1: 0xeb9d2d30, data2: 0x2d88,
+        data3: 0x11d3, data4: (0x9a, 0x16, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d))
+    private let guidSMBIOS = efi_guid_t(data1: 0xeb9d2d31, data2: 0x2d88,
+        data3: 0x11d3, data4: (0x9a, 0x16, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d))
+    private let guidSMBIOS3 = efi_guid_t(data1: 0xf2fd1544, data2: 0x9794,
+        data3: 0x4a2c, data4: (0x99, 0x2e, 0xe5, 0xbb, 0xcf, 0x20, 0xe3, 0x94))
 
     private let configTableCount: UInt
     private let configTablePtr: UnsafePointer<efi_config_table_t>
     private let memoryMapAddr: VirtualAddress
     private let memoryMapSize: UInt
     private let descriptorSize: UInt
+    private var configTables: [EFIConfigTableEntry]? = nil
+
 
     let source = "EFI"
     var memoryRanges: [MemoryEntry] { return parseMemoryMap() }
     var frameBufferInfo: FrameBufferInfo?
     var kernelPhysAddress: PhysAddress = 0
+    var rsdp: UnsafePointer<RSDP1>?
+    var smbios: UnsafePointer<smbios_header>?
 
 
     init?(bootParamsAddr: UInt) {
@@ -500,6 +571,25 @@ struct EFIBootParams: BootParamsData {
     }
 
 
+    mutating func findTables() {
+        if configTables == nil {
+            configTables = parseConfigTables()
+
+            // Root System Description Pointer
+            if let ptr = findGUID(guidACPI1) {
+                rsdp = UnsafePointer<RSDP1>(ptr)
+            }
+
+            // SMBios table
+            if let ptr = findGUID(guidSMBIOS3) {
+                smbios = UnsafePointer<smbios_header>(ptr)
+            } else if let ptr = findGUID(guidSMBIOS) {
+                smbios = UnsafePointer<smbios_header>(ptr)
+            }
+        }
+    }
+
+
     private func parseMemoryMap() -> [MemoryEntry] {
         let descriptorCount = memoryMapSize / descriptorSize
 
@@ -525,11 +615,7 @@ struct EFIBootParams: BootParamsData {
     }
 
 
-    let guidACPI1 = efi_guid_t(data1: 0xeb9d2d30, data2: 0x2d88, data3: 0x11d3,
-        data4: (0x9a, 0x16, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d))
-
-
-        private func matchGUID(guid1: efi_guid_t, _ guid2: efi_guid_t) -> Bool {
+    private func matchGUID(guid1: efi_guid_t, _ guid2: efi_guid_t) -> Bool {
         return (guid1.data1 == guid2.data1) && (guid1.data2 == guid2.data2)
         && (guid1.data3 == guid2.data3)
         && guid1.data4.0 == guid2.data4.0 && guid1.data4.1 == guid2.data4.1
@@ -538,39 +624,38 @@ struct EFIBootParams: BootParamsData {
         && guid1.data4.6 == guid2.data4.6 && guid1.data4.7 == guid2.data4.7
     }
 
+
     private func printGUID(guid: efi_guid_t) {
         printf("EFI: { %#8.8x, %#8.4x, %#4.4x, { %#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x }}\n",
-            guid.data1, guid.data2, guid.data3, guid.data4.0, guid.data4.1, guid.data4.2, guid.data4.3,
-            guid.data4.4, guid.data4.5, guid.data4.6, guid.data4.7)
+            guid.data1, guid.data2, guid.data3, guid.data4.0, guid.data4.1,
+            guid.data4.2, guid.data4.3, guid.data4.4, guid.data4.5,
+            guid.data4.6, guid.data4.7)
     }
 
 
-    // Root System Description Pointer
-    func findRSDP() -> UnsafePointer<RSDP1>? {
-        var match: UnsafePointer<RSDP1>?
-        for entry in parseConfigTables() {
-            printGUID(entry.guid)
-            if matchGUID(entry.guid, guidACPI1) {
-                match = ptrFromPhysicalPtr(UnsafePointer<RSDP1>(entry.table))
+    private func findGUID(guid: efi_guid_t) -> UnsafePointer<Void>? {
+        for entry in configTables! {
+            if matchGUID(entry.guid, guid) {
+                return ptrFromPhysicalPtr(UnsafePointer<RSDP1>(entry.table))
             }
         }
 
-        return match
+        return nil
     }
 
 
-    private func parseConfigTables() -> [EFIConfigTableEntry] {
+    private mutating func parseConfigTables() -> [EFIConfigTableEntry] {
         var entries: [EFIConfigTableEntry] = []
         let tables: UnsafeBufferPointer<efi_config_table_t> =
-            mapPhysicalRegion(configTablePtr, size: Int(configTableCount))
+        mapPhysicalRegion(configTablePtr, size: Int(configTableCount))
 
         for table in tables {
             let entry = EFIConfigTableEntry(guid: table.vendor_guid,
                 table: table.vendor_table)
+            printGUID(entry.guid)
             entries.append(entry)
         }
 
         return entries
     }
-
 }

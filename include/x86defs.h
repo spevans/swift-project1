@@ -72,6 +72,26 @@ struct cpuid_result {
         } u;
 };
 
+
+// SMBIOS Entry Point structure (EPS)
+struct smbios_header {
+        char anchor[4];         // '_SM_'
+        uint8_t esp_checksum;
+        uint8_t ep_length;
+        uint8_t major_version;
+        uint8_t minor_version;
+        uint16_t max_structure_size;
+        uint8_t eps_revision;
+        uint8_t formatted_area[5];
+        char dmi_anchor[5];     // '_DMI_'
+        uint8_t intermediate_checksum;
+        uint16_t table_length;
+        uint32_t table_address;
+        uint16_t entry_count;
+        uint8_t bcd_revision;
+} __attribute__((packed));
+
+
 // NR_INTERRUPTS is a #define and seems to be mapped to an Int32
 #define NR_INTERRUPTS  256L
 #define NR_TRAPS 32     // CPU faults and exceptions 0 - 31
