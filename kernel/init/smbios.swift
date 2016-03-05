@@ -57,7 +57,6 @@ struct SMBIOS {
             let index = Int(offset) - 4
             if let idx: UInt8 = try? data.readAtIndex(index) {
                 let stringId = Int(idx)
-                //print("string offset = \(offset) index = \(index) idx = \(idx) stringId = \(stringId)")
                 guard stringId > 0 && stringId <= strings.count else {
                     return nil
                 }
@@ -159,6 +158,7 @@ struct SMBIOS {
                 break
             }
         }
+        print("SMBIOS scan finished")
     }
 
 
@@ -173,6 +173,9 @@ struct SMBIOS {
                 let length: UInt8 = try buffer.read()
                 let handle: UInt16 = try buffer.read()
                 let tableLength = Int(length) - 4
+                guard tableLength >= 0 else {
+                    continue
+                }
                 let data = buffer.subBuffer(buffer.offset, size: tableLength)
                 let stringTable = buffer.subBuffer(buffer.offset + tableLength)
                 let terminator: UInt16 = try stringTable.read()
