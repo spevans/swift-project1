@@ -26,19 +26,20 @@ enum MemoryType: UInt32 {
     case Unusable                   // Unusable (RAM with errors)
     case ACPIReclaimable            // Usable after ACPI enabled
     case ACPINonVolatile            // Needs to be preserved / Not usable
-    case MemoryMappedIO             // Umusable
+    case MemoryMappedIO             // Unusable
     case MemoryMappedIOPortSpace    // Unusable
 
     // OS defined values
-    case Hole        = 0x80000000   // Used for holes in the map to keep ranges contiguous
-    case PageMap     = 0x80000001   // Temporary page maps setup by the boot loader
-    case BootData    = 0x80000002   // Other temporary data created by boot code inc BootParams
-    case Kernel      = 0x80000003   // The loaded kernel + data + bss
-    case FrameBuffer = 0x80000004   // Framebuffer address if it is the top of the address space
+    case Hole         = 0x80000000  // Used for holes in the map to keep ranges contiguous
+    case PageMap      = 0x80000001  // Temporary page maps setup by the boot loader
+    case BootData     = 0x80000002  // Other temporary data created by boot code inc BootParams
+    case Kernel       = 0x80000003  // The loaded kernel + data + bss
+    case FrameBuffer  = 0x80000004  // Framebuffer address if it is the top of the address space
+    case E820Reserved = 0x80000005  // Ranges marked in E820 map as reserved
 }
 
 
-struct MemoryEntry: CustomStringConvertible {
+struct MemoryRange: CustomStringConvertible {
     let type: MemoryType
     let start: PhysAddress
     let size: UInt
@@ -99,7 +100,7 @@ struct FrameBufferInfo: CustomStringConvertible {
 
 
 protocol BootParamsData {
-    var memoryRanges: [MemoryEntry] { get }
+    var memoryRanges: [MemoryRange] { get }
     var source: String { get }
     var frameBufferInfo: FrameBufferInfo? { get }
     var kernelPhysAddress: PhysAddress { get }
@@ -168,6 +169,16 @@ struct BootParams {
     }
 
 
+    static func findMemoryRangeContaining(address: PhysAddress) -> MemoryRange? {
+        for range in memoryRanges {
+            if (address >= range.start) && (address < range.start + range.size) {
+                return range
+            }
+        }
+        return nil
+    }
+
+
     private static func getSmbios() -> SMBIOS? {
         if params != nil {
             params!.findTables()
@@ -218,7 +229,7 @@ struct BootParams {
     }
 
 
-    private static func getRanges() -> [MemoryEntry] {
+    private static func getRanges() -> [MemoryRange] {
         var ranges = params!.memoryRanges
 
         findHoles(&ranges)
@@ -231,7 +242,7 @@ struct BootParams {
         let lastEntry = ranges[ranges.count-1]
         let address = lastEntry.start + lastEntry.size - 1
         if (frameBufferInfo != nil && address < frameBufferInfo!.address) {
-            ranges.append(MemoryEntry(type: .FrameBuffer, start: frameBufferInfo!.address,
+            ranges.append(MemoryRange(type: .FrameBuffer, start: frameBufferInfo!.address,
                     size: frameBufferInfo!.size))
         }
 
@@ -248,13 +259,13 @@ struct BootParams {
 
     // Find any holes in the memory ranges and add a fake range. This
     // allows finding gaps later on for MMIO space etc
-    private static func findHoles(inout ranges: [MemoryEntry]) {
+    private static func findHoles(inout ranges: [MemoryRange]) {
         var addr: UInt = 0
         sortRanges(&ranges)
         for entry in ranges {
             if addr < entry.start {
                 let size = entry.start - addr
-                ranges.append(MemoryEntry(type: MemoryType.Hole, start: addr,
+                ranges.append(MemoryRange(type: MemoryType.Hole, start: addr,
                         size: size))
             }
             addr = entry.start + entry.size
@@ -263,7 +274,7 @@ struct BootParams {
     }
 
 
-    private static func sortRanges(inout ranges: [MemoryEntry]) {
+    private static func sortRanges(inout ranges: [MemoryRange]) {
         ranges.sortInPlace({
             $0.start < $1.start
         })
@@ -282,7 +293,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
     }
 
 
-    struct E820MemoryEntry: CustomStringConvertible {
+    struct E820MemoryRange: CustomStringConvertible {
         let baseAddr: UInt64
         let length: UInt64
         let type: UInt32
@@ -301,7 +312,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
         }
 
 
-        private func toMemoryEntry() -> MemoryEntry? {
+        private func toMemoryRange() -> MemoryRange? {
             guard let e820type = E820Type(rawValue: self.type) else {
                 print("Invalid memory type: \(self.type)")
                 return nil
@@ -310,13 +321,13 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
 
             switch (e820type) {
             case .RAM:      mtype = MemoryType.Conventional
-            case .RESERVED: mtype = MemoryType.Reserved
+            case .RESERVED: mtype = MemoryType.E820Reserved
             case .ACPI:     mtype = MemoryType.ACPIReclaimable
             case .NVS:      mtype = MemoryType.ACPINonVolatile
             case .UNUSABLE: mtype = MemoryType.Unusable
             }
 
-            return MemoryEntry(type: mtype, start: PhysAddress(self.baseAddr),
+            return MemoryRange(type: mtype, start: PhysAddress(self.baseAddr),
                 size: UInt(self.length))
         }
     }
@@ -328,7 +339,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
 
 
     let source = "E820"
-    var memoryRanges: [MemoryEntry] { return parseE820Table() }
+    var memoryRanges: [MemoryRange] { return parseE820Table() }
     var frameBufferInfo: FrameBufferInfo? = nil
     var kernelPhysAddress: PhysAddress = 0
     var rsdp: UnsafePointer<RSDP1>?
@@ -368,18 +379,18 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
 
 
     // FIXME - still needs to check for overlapping regions
-    private func parseE820Table() -> [MemoryEntry] {
+    private func parseE820Table() -> [MemoryRange] {
         guard e820Entries > 0 && e820MapAddr > 0 else {
             koops("e820 map is empty")
         }
-        var ranges: [MemoryEntry] = []
+        var ranges: [MemoryRange] = []
         ranges.reserveCapacity(Int(e820Entries))
         let buf = MemoryBufferReader(e820MapAddr,
-            size: strideof(E820MemoryEntry) * Int(e820Entries))
+            size: strideof(E820MemoryRange) * Int(e820Entries))
         for _ in 0..<e820Entries {
-            if let entry: E820MemoryEntry = try? buf.read() {
+            if let entry: E820MemoryRange = try? buf.read() {
                 print(entry)
-                if let memEntry = entry.toMemoryEntry() {
+                if let memEntry = entry.toMemoryRange() {
                     ranges.append(memEntry)
                 }
             }
@@ -391,7 +402,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
 
         let size = _kernel_end_addr() - _kernel_start_addr()
         printf("Kernel size: %lx\n", size)
-        ranges.append(MemoryEntry(type: .Kernel, start: kernelPhysAddress,
+        ranges.append(MemoryRange(type: .Kernel, start: kernelPhysAddress,
                 size: size))
 
         return ranges
@@ -542,7 +553,7 @@ struct EFIBootParams: BootParamsData {
 
 
     let source = "EFI"
-    var memoryRanges: [MemoryEntry] { return parseMemoryMap() }
+    var memoryRanges: [MemoryRange] { return parseMemoryMap() }
     var frameBufferInfo: FrameBufferInfo?
     var kernelPhysAddress: PhysAddress = 0
     var rsdp: UnsafePointer<RSDP1>?
@@ -605,10 +616,10 @@ struct EFIBootParams: BootParamsData {
     }
 
 
-    private func parseMemoryMap() -> [MemoryEntry] {
+    private func parseMemoryMap() -> [MemoryRange] {
         let descriptorCount = memoryMapSize / descriptorSize
 
-        var ranges: [MemoryEntry] = []
+        var ranges: [MemoryRange] = []
         ranges.reserveCapacity(Int(descriptorCount))
         let descriptorBuf = MemoryBufferReader(memoryMapAddr,
             size: Int(memoryMapSize))
@@ -620,7 +631,7 @@ struct EFIBootParams: BootParamsData {
                 continue
             }
             //descriptors.append(descriptor)
-            let entry = MemoryEntry(type: descriptor.type,
+            let entry = MemoryRange(type: descriptor.type,
                 start: descriptor.physicalStart,
                 size: UInt(descriptor.numberOfPages) * PAGE_SIZE)
             ranges.append(entry)

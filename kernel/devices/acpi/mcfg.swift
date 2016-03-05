@@ -8,10 +8,13 @@
  * table)
  */
 
+
+// FIXME: This table may need to be fixedup using PNP0C01/PNP0C02 info from
+// motherboard resources as the bus range may be too big
 struct MCFG: ACPITable {
 
     struct ConfigBaseAddress: CustomStringConvertible {
-        let baseAddress: UInt64
+        let baseAddress: PhysAddress
         let segmentGroup: UInt16
         let startBus: UInt8
         let endBus: UInt8
@@ -42,6 +45,29 @@ struct MCFG: ACPITable {
             items.append(dataBuffer[idx])
             print("ACPI: MCFG: \(dataBuffer[idx])")
         }
+        if (BootParams.vendor == "Apple Inc.") && (BootParams.product == "MacBook3,1") {
+            if items[0].endBus == 0xff {
+                items[0] = ConfigBaseAddress(
+                    baseAddress: items[0].baseAddress,
+                    segmentGroup: items[0].segmentGroup,
+                    startBus: items[0].startBus, endBus: 0x3f,
+                    reserved: items[0].reserved)
+                print("ACPI: MCFG: Overrode endBus from 0xff to 0x3f for",
+                    BootParams.vendor, BootParams.product)
+            }
+        }
+
         allocations = items
+    }
+
+
+    func baseAddressForBus(bus: UInt8) -> UInt? {
+        for entry in allocations {
+            if bus >= entry.startBus && bus <= entry.endBus {
+                return entry.baseAddress
+            }
+        }
+
+        return nil
     }
 }
