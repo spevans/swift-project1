@@ -410,7 +410,8 @@ show_gop_info(efi_graphics_output_protocol_t *gop,
         }
         efi_status_t status = EFI_SUCCESS;
         if (best_mode != gop->mode->mode) {
-                uprintf("Trying to set mode to: %d\n", best_mode);
+                uprintf("Trying to set mode to: %d, press any key to continue\n",
+                        best_mode);
                 wait_for_key(NULL);
                 status = efi_call2(gop->set_mode, (uintptr_t)gop, best_mode);
                 if (status != EFI_SUCCESS) {
@@ -436,7 +437,8 @@ find_gop(struct frame_buffer *fb)
         efi_status_t status = locate_handle(efi_by_protocol, &guid, NULL,
                                             &buffer_sz, handles);
         if (status != EFI_SUCCESS) {
-                print_status("locate_handle EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID", status);
+                print_status("locate_handle EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID",
+                             status);
                 uprint_string("Cant find GOP graphics\n");
                 return status;
         }
@@ -564,6 +566,7 @@ plot_pixel(struct frame_buffer *fb, uint32_t x, uint32_t y,
 }
 
 
+#ifdef DEBUG
 static void
 dump_data(void *addr, size_t count)
 {
@@ -579,6 +582,7 @@ dump_data(void *addr, size_t count)
         }
         uprint_string("\n");
 }
+#endif
 
 
 efi_status_t
@@ -600,8 +604,8 @@ exit_boot_services()
                 return status;
         }
         /* Add an extra page to the request size as some pages will be allocated
-           to map the region into the kernel's space and so we need to take account
-           of extra memory allocations that will occur now */
+           to map the region into the kernel's space and so we need to take
+           account of extra memory allocations that will occur now */
         region.req_size += PAGE_SIZE;
 
         status = alloc_memory(&region);
@@ -653,7 +657,6 @@ exit_boot_services()
                         continue;
                 }
                 if (desc->type == 3 || desc->type == 4) continue;
-                dump_data(desc, bp->memory_map_desc_size);
                 uprintf("%2ld t: %8x p: %16p  n: %6ld a: %#lx\n", i, desc->type,
                         (void *)desc->physical_start,
                         desc->number_of_pages, desc->attribute);
@@ -897,11 +900,12 @@ setup_page_tables()
         if (status != EFI_SUCCESS) {
                 return status;
         }
+#ifdef DEBUG
         dump_mapping((void *)KERNEL_VIRTUAL_BASE);
+#endif
         // Add identity mapping for last page of BSS as this is where the stub that
         // transitions to the kernel's virtual address loads the page tables
         add_mapping(ptr_table->last_page, ptr_table->last_page, 1);
-        //dump_mapping(ptr_table->last_page);
 
         // Map framebuffer @ 128GB + base address
         // FIXME: Should really be an IO mapping
@@ -943,6 +947,7 @@ efi_main(void *handle, efi_system_table_t *_sys_table,
                 goto error;
         }
         print_ptr_table();
+#ifdef DEBUG
         uprintf("nr_entries: %ld, config_table: %p\n", sys_table->nr_entries,
                  sys_table->config_table);
         for (size_t i = 0; i < sys_table->nr_entries; i++) {
@@ -950,6 +955,7 @@ efi_main(void *handle, efi_system_table_t *_sys_table,
                 uprintf("%lu: %p\t", i, table->vendor_table);
                 dump_data(&table->vendor_guid, sizeof(efi_guid_t));
         }
+#endif
         uprintf("Press any key to ExitBootServices\n");
         wait_for_key(NULL);
         if (exit_boot_services() != EFI_SUCCESS) {
