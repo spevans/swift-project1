@@ -1,0 +1,118 @@
+pthread_once(0x4039f640, 0, 0x40122760)
+__once_proxy_func() __once_call=0x4031df30
+malloc(40): 0x403b6040
+(_Znwm)new(40)=0x403b6040
+malloc(40): 0x403b6080
+(_Znwm)new(40)=0x403b6080
+malloc(32): 0x403b5040
+(_Znwm)new(32)=0x403b5040
+pthread_mutex_lock(0x403b6080)
+__cxa_guard_acquire(0x4039f518)
+malloc(40): 0x403b60c0
+mmap(addr=(nil), len=28, prot=3, flags=22, fd=4294967295, offset=0)=0x403b60c0
+malloc(32): 0x403b5060
+(_Znwm)new(32)=0x403b5060
+pthread_mutex_unlock(0x403b6080)
+pthread_once(0x4038f798, 0, 0x40122760)
+__once_proxy_func() __once_call=0x402e6d70
+malloc(40): 0x403b6100
+(_Znwm)new(40)=0x403b6100
+malloc(40): 0x403b6140
+(_Znwm)new(40)=0x403b6140
+malloc(32): 0x403b5080
+(_Znwm)new(32)=0x403b5080
+pthread_mutex_lock(0x403b6140)
+__cxa_guard_acquire(0x4039f518)
+malloc(168): 0x403b7040
+mmap(addr=(nil), len=A8, prot=3, flags=22, fd=4294967295, offset=0)=0x403b7040
+malloc(32): 0x403b50a0
+(_Znwm)new(32)=0x403b50a0
+pthread_mutex_unlock(0x403b6140)
+malloc(64): 0x403b6180
+pthread_once(0x4039eb80, 0, 0x40122760)
+__once_proxy_func() __once_call=0x40322cf0
+flockfile(0xf1)
+pthread_once(0x4039f640, 1, 0x40122760)
+malloc(32): 0x403b50c0
+(_Znwm)new(32)=0x403b50c0
+pthread_mutex_lock(0x403b6080)
+__cxa_guard_acquire(0x4039f518)
+malloc(56): 0x403b61c0
+mmap(addr=(nil), len=38, prot=3, flags=22, fd=4294967295, offset=0)=0x403b61c0
+malloc(32): 0x403b50e0
+(_Znwm)new(32)=0x403b50e0
+pthread_mutex_unlock(0x403b6080)
+pthread_once(0x4039f718, 0, 0x40122760)
+__once_proxy_func() __once_call=0x40323800
+malloc(256): 0x403b8040
+(_Znwm)new(256)=0x403b8040
+pthread_mutex_init(0x4039f6f0,(nil))
+dl_iterate_phdr(0x40323820,(nil))
+dlopen((nil),1)
+dlsym(0x1,".swift2_protocol_conformances_start")
+pthread_mutex_lock(0x4039f6f0)
+pthread_mutex_unlock(0x4039f6f0)
+dlclose(0x1)
+pthread_once(0x4039f718, 1, 0x40122760)
+malloc(32): 0x403b5100
+(_Znwm)new(32)=0x403b5100
+pthread_mutex_lock(0x4039f6f0)
+malloc(32): 0x403b5120
+(_Znwm)new(32)=0x403b5120
+pthread_once(0x4039f690, 0, 0x40122760)
+__once_proxy_func() __once_call=0x40322130
+pthread_mutex_init(0x4039f648,(nil))
+pthread_mutex_lock(0x4039f648)
+malloc(1536): 0x403ba040
+(_Znwm)new(1536)=0x403ba040
+__cxa_guard_acquire(0x4039f6a8)
+pthread_mutex_unlock(0x4039f648)
+pthread_mutex_unlock(0x4039f6f0)
+pthread_once(0x4039f718, 1, 0x40122760)
+pthread_once(0x403957c0, 0, 0x40122760)
+__once_proxy_func() __once_call=0x402e6d70
+malloc(40): 0x403b6200
+(_Znwm)new(40)=0x403b6200
+malloc(40): 0x403b6240
+(_Znwm)new(40)=0x403b6240
+malloc(32): 0x403b5140
+(_Znwm)new(32)=0x403b5140
+pthread_mutex_lock(0x403b6240)
+__cxa_guard_acquire(0x4039f518)
+malloc(328): 0x403b8200
+mmap(addr=(nil), len=148, prot=3, flags=22, fd=4294967295, offset=0)=0x403b8200
+malloc(32): 0x403b5160
+(_Znwm)new(32)=0x403b5160
+pthread_mutex_unlock(0x403b6240)
+putc('H', 0xf1)
+putc('e', 0xf1)
+putc('l', 0xf1)
+putc('l', 0xf1)
+putc('o', 0xf1)
+putc(' ', 0xf1)
+putc('W', 0xf1)
+putc('o', 0xf1)
+putc('r', 0xf1)
+putc('l', 0xf1)
+putc('d', 0xf1)
+putc('!', 0xf1)
+pthread_once(0x403935f0, 0, 0x40122760)
+__once_proxy_func() __once_call=0x402e6d70
+malloc(40): 0x403b6280
+(_Znwm)new(40)=0x403b6280
+malloc(40): 0x403b62c0
+(_Znwm)new(40)=0x403b62c0
+malloc(32): 0x403b5180
+(_Znwm)new(32)=0x403b5180
+pthread_mutex_lock(0x403b62c0)
+__cxa_guard_acquire(0x4039f518)
+malloc(168): 0x403b7100
+mmap(addr=(nil), len=A8, prot=3, flags=22, fd=4294967295, offset=0)=0x403b7100
+malloc(32): 0x403b51a0
+(_Znwm)new(32)=0x403b51a0
+pthread_mutex_unlock(0x403b62c0)
+malloc(46): 0x403b6300
+malloc_usable_size(0x403b6300)=64
+putc('\n', 0xf1)
+free(0x403b6300)
+free(0x403b6180)
