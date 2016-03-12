@@ -65,7 +65,7 @@ extension UInt16 {
 
 extension UnsafePointer {
 
-    public var ptrToUint: UInt {
+    public var address: UInt {
         return ptr_to_uint(self)
     }
 
@@ -79,7 +79,7 @@ extension UnsafePointer {
 
 extension UnsafeMutablePointer {
 
-    public var ptrToUint: UInt {
+    public var address: UInt {
         return ptr_to_uint(self)
     }
 
@@ -92,11 +92,6 @@ extension UnsafeMutablePointer {
 
 
 extension UnsafeBufferPointer {
-
-    public var ptrToUint: UInt {
-        return ptr_to_uint(self.baseAddress)
-    }
-
 
     public func regionPointer<T>(offset: Int) -> UnsafePointer<T> {
         let max = offset + strideof(T)

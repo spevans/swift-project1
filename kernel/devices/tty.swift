@@ -31,10 +31,10 @@ struct Font: CustomStringConvertible {
     }
 
 
-    init(width: Int, height: Int, data: UInt) {
+    init(width: Int, height: Int, data: UnsafePointer<UInt8>) {
         self.width = width
         self.height = height
-        self.data = UnsafePointer<UInt8>(bitPattern: data)
+        self.data = data
         self.bytesPerFontLine = ((width + 7) / 8)
         self.bytesPerChar = bytesPerFontLine * height
     }
@@ -367,7 +367,7 @@ struct FrameBufferTTY: ScreenDriver {
 
     init(frameBufferInfo: FrameBufferInfo) {
         self.frameBufferInfo = frameBufferInfo
-        font = Font(width: 8, height: 16, data: fontdata_8x16_addr())
+        font = Font(width: 8, height: 16, data: fontdata_8x16_ptr())
         charsPerLine = Int(frameBufferInfo.width) / font.width
         totalLines = Int(frameBufferInfo.height) / font.height
         depthInBytes = Int(frameBufferInfo.depth) / 8

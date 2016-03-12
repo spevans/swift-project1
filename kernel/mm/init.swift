@@ -9,7 +9,7 @@
  */
 
 private let kernelPhysBase: PhysAddress = BootParams.kernelAddress
-private let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_addr())
+private let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_ptr().address)
 
 
 /* The page table setup by the BIOS boot loader setup 3 mappings of the
@@ -45,17 +45,17 @@ private let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_addr())
 func setupMM() {
     // Setup initial page tables and map kernel
 
-    let textEnd: VirtualAddress = _text_end_addr()
-    let rodataStart: VirtualAddress = _rodata_start_addr()
-    let dataStart: VirtualAddress = _data_start_addr()
-    let bssEnd: VirtualAddress = _bss_end_addr()
-    let guardPage: VirtualAddress = _guard_page_addr()
-    let kernelBase: VirtualAddress = _kernel_start_addr()
+    let textEnd: VirtualAddress = _text_end_ptr().address
+    let rodataStart: VirtualAddress = _rodata_start_ptr().address
+    let dataStart: VirtualAddress = _data_start_ptr().address
+    let bssEnd: VirtualAddress = _bss_end_ptr().address
+    let guardPage: VirtualAddress = _guard_page_ptr().address
+    let kernelBase: VirtualAddress = _kernel_start_ptr().address
 
-    let textSize = roundToPage(textEnd - _kernel_start_addr())
+    let textSize = roundToPage(textEnd - _kernel_start_ptr().address)
     let rodataSize = roundToPage(dataStart - rodataStart)
     let dataSize = roundToPage(guardPage - dataStart)
-    let stackHeapSize = bssEnd - VirtualAddress(_stack_start_addr())
+    let stackHeapSize = bssEnd - VirtualAddress(_stack_start_ptr().address)
 
     // Enable No Execute so data mappings can be set XD (Execute Disable)
     CPU.enableNXE(true)
@@ -66,17 +66,17 @@ func setupMM() {
     // FIXME: Dont waste the physical page that is not mapped under
     // the guard page
     printf("_text:   %p - %p\n_rodata: %p - %p\n_data:   %p - %p\n",
-        _kernel_start_addr(), _kernel_start_addr() + textSize,
-        _rodata_start_addr(), _rodata_start_addr() + rodataSize,
-        _data_start_addr(), _data_start_addr() + dataSize)
+        _kernel_start_ptr(), _kernel_start_ptr().address + textSize,
+        _rodata_start_ptr(), _rodata_start_ptr().address + rodataSize,
+        _data_start_ptr(), _data_start_ptr().address + dataSize)
 
-    addMapping(start: _kernel_start_addr(), size: textSize, physStart: kernelPhysBase,
-        readWrite: false, noExec: false)
+    addMapping(start: _kernel_start_ptr().address, size: textSize,
+        physStart: kernelPhysBase, readWrite: false, noExec: false)
     addMapping(start: rodataStart, size: rodataSize, physStart: kernelPhysBase + textSize,
         readWrite: false, noExec: true)
     addMapping(start: dataStart, size: dataSize, physStart: kernelPhysBase + textSize + rodataSize,
         readWrite: true, noExec: true)
-    addMapping(start: _stack_start_addr(), size: stackHeapSize,
+    addMapping(start: _stack_start_ptr().address, size: stackHeapSize,
         physStart: kernelPhysBase + textSize + rodataSize + dataSize + PAGE_SIZE,
         readWrite: true, noExec: true)
 
@@ -90,7 +90,7 @@ func setupMM() {
         kernelBase + textSize + rodataSize + dataSize + PAGE_SIZE,
         kernelPhysAddress(kernelBase + textSize + rodataSize + dataSize + PAGE_SIZE))
     mapPhysicalMemory(BootParams.highestMemoryAddress)
-    let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_addr()))
+    let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_ptr().address))
     setCR3(pml4paddr)
     CPU.enableWP(true)
     printf("CR3 Updated to %p\n", pml4paddr)
@@ -100,11 +100,12 @@ func setupMM() {
 // Convert a virtual address between kernel_start and kernel_end into a physical
 // address
 private func kernelPhysAddress(address: VirtualAddress) -> PhysAddress {
-    guard address >= _kernel_start_addr() && address <= _kernel_end_addr() else {
+    guard address >= _kernel_start_ptr().address
+    && address <= _kernel_end_ptr().address else {
         kprintf("kernelPhysAddress: invalid address: %p", address)
         stop()
     }
-    return kernelPhysBase + (address - _kernel_start_addr())
+    return kernelPhysBase + (address - _kernel_start_ptr().address)
 }
 
 
@@ -113,13 +114,13 @@ private func kernelPhysAddress(address: VirtualAddress) -> PhysAddress {
 private func kernelVirtualAddress(paddress: PhysAddress) -> VirtualAddress {
     let physAddressMask:UInt = 0x0000fffffffff000
     let address = paddress & physAddressMask
-    let kernelSize = _kernel_end_addr() - _kernel_start_addr()
+    let kernelSize = _kernel_end_ptr().address - _kernel_start_ptr().address
     guard address >= kernelPhysBase
         && address <= kernelPhysBase + kernelSize else {
         kprintf("kernelVirtualAddress: invalid address: %p", address)
         stop()
     }
-    return _kernel_start_addr() + (address - kernelPhysBase)
+    return _kernel_start_ptr().address + (address - kernelPhysBase)
 }
 
 
@@ -164,7 +165,7 @@ private func roundToPage(size: UInt) -> UInt {
 private func getPageAtIndex(dirPage: PageTableDirectory, _ idx: Int) -> PageTableDirectory {
     if !pagePresent(dirPage[idx]) {
         let newPage = alloc_pages(1)
-        let paddr = kernelPhysAddress(newPage.ptrToUint)
+        let paddr = kernelPhysAddress(newPage.address)
         let entry = makePDE(address: paddr, readWrite: true, userAccess: false, writeThrough: true,
             cacheDisable: false, noExec: false)
         dirPage[idx] = entry

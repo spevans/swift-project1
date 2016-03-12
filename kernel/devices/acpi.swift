@@ -176,7 +176,7 @@ struct ACPI {
     private func sdtEntries32(ptr: SDTPtr) -> UnsafeBufferPointer<UInt32>? {
         let entryCount = (Int(ptr.memory.length) - strideof(acpi_sdt_header)) / sizeof(UInt32)
         if entryCount > 0 {
-            let entryPtr: UnsafePointer<UInt32> = UnsafePointer(bitPattern: ptr.advancedBy(1).ptrToUint)
+            let entryPtr: UnsafePointer<UInt32> = UnsafePointer(bitPattern: ptr.advancedBy(1).address)
             return UnsafeBufferPointer(start: entryPtr, count: entryCount)
         } else {
             return nil

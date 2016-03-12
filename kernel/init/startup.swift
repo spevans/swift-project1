@@ -45,12 +45,12 @@ private func initialiseDevices() {
 
 
 public func printSections() {
-    let text_start = UnsafePointer<Void>(bitPattern: _text_start_addr())
-    let text_end = UnsafePointer<Void>(bitPattern: _text_end_addr())
-    let data_start = UnsafePointer<Void>(bitPattern: _data_start_addr())
-    let data_end = UnsafePointer<Void>(bitPattern: _data_end_addr())
-    let bss_start = UnsafePointer<Void>(bitPattern: _bss_start_addr())
-    let bss_end = UnsafePointer<Void>(bitPattern: _bss_end_addr())
+    let text_start = _text_start_ptr()
+    let text_end = _text_end_ptr()
+    let data_start = _data_start_ptr()
+    let data_end = _data_end_ptr()
+    let bss_start = _bss_start_ptr()
+    let bss_end = _bss_end_ptr()
 
     TTY.printString("_text_start: \(text_start)\n")
     TTY.printString("_text_end:   \(text_end)\n")

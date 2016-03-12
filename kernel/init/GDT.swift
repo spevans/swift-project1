@@ -47,7 +47,7 @@ private struct theGDT {
     var nullDescriptor = 0
     var codeSeg = GDTEntry(base: 0, privLevel: 0, executable: true, conforming: false, readWrite: true)
     var dataSeg = GDTEntry(base: 0, privLevel: 0, executable: false, conforming: false, readWrite: true)
-    var TLSSeg = GDTEntry(base: initial_tls_end_addr.ptrToUint, privLevel: 0,
+    var TLSSeg = GDTEntry(base: initial_tls_end_addr.address, privLevel: 0,
         executable: false, conforming: false, readWrite: true)
 }
 
@@ -55,7 +55,7 @@ private struct theGDT {
 public func setupGDT() {
     print("Initialising GDT:")
     let tlsPtr = UnsafeMutablePointer<UInt>(initial_tls_end_addr)
-    tlsPtr.memory = initial_tls_end_addr.ptrToUint
+    tlsPtr.memory = initial_tls_end_addr.address
 
     var currentGdtInfo = dt_info(limit: 0, address: nil)
     sgdt(&currentGdtInfo)

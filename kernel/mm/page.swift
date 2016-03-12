@@ -44,13 +44,13 @@ func mapPhysicalRegion<T>(start: PhysAddress, size: Int) -> UnsafeBufferPointer<
 
 
 func mapPhysicalRegion<T>(start: UnsafePointer<T>, size: Int) -> UnsafeBufferPointer<T> {
-    let region = UnsafePointer<T>(bitPattern: PHYSICAL_MEM_BASE + start.ptrToUint)
+    let region = UnsafePointer<T>(bitPattern: PHYSICAL_MEM_BASE + start.address)
     return UnsafeBufferPointer<T>(start: region, count: size)
 }
 
 
 func ptrFromPhysicalPtr<T>(ptr: UnsafePointer<T>) -> UnsafePointer<T> {
-    let ret: UnsafePointer<T> = UnsafePointer(bitPattern: PHYSICAL_MEM_BASE + ptr.ptrToUint)
+    let ret: UnsafePointer<T> = UnsafePointer(bitPattern: PHYSICAL_MEM_BASE + ptr.address)
     return ret;
 }
 

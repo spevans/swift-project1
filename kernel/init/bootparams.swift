@@ -71,7 +71,7 @@ struct FrameBufferInfo: CustomStringConvertible {
 
 
     init(fb: frame_buffer) {
-        address = fb.address.ptrToUint
+        address = fb.address.address
         size = UInt(fb.size)
         width = fb.width
         height = fb.height
@@ -400,7 +400,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
             koops("Cant find any memory in the e820 map")
         }
 
-        let size = _kernel_end_addr() - _kernel_start_addr()
+        let size = _kernel_end_ptr().address - _kernel_start_ptr().address
         printf("Kernel size: %lx\n", size)
         ranges.append(MemoryRange(type: .Kernel, start: kernelPhysAddress,
                 size: size))
