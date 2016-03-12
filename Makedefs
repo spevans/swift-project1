@@ -9,21 +9,10 @@ SWIFTC_FLAGS := -gnone -O -Xcc -mno-red-zone -parse-as-library -import-objc-head
 
 ifeq ($(UNAME_S), Linux)
 
-ifdef DEBUG_BUILD
-SWIFTDIR := $(shell readlink -f $(TOPDIR)/../swift/build/Ninja-DebugAssert)
-CFLAGS += -DDEBUG_BUILD
-SWIFTC_FLAGS += -DDEBUG_BUILD
-
-else
-
-SWIFTDIR := $(shell readlink -f $(TOPDIR)/../swift/build/Ninja-ReleaseAssert)
-
-endif
-
-
-SWIFT := $(SWIFTDIR)/swift-linux-x86_64/bin/swift
-SWIFTC := $(SWIFTDIR)/swift-linux-x86_64/bin/swiftc
-SWIFTLIB := $(SWIFTDIR)/swift-linux-x86_64/lib/swift_static/linux/libswiftCore.a
+SWIFTDIR := $(shell readlink -f ~/usr)
+SWIFT := $(SWIFTDIR)/bin/swift
+SWIFTC := $(SWIFTDIR)/bin/swiftc
+SWIFTLIB := $(SWIFTDIR)/lib/swift_static/linux/libswiftCore.a
 FOUNDATION := $(SWIFTDIR)/foundation-linux-x86_64/Foundation
 COREFOUNDATION := $(FOUNDATION)/usr/lib/swift
 NASM_OBJ_FLAGS := -felf64
