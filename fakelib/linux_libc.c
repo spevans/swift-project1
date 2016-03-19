@@ -56,7 +56,7 @@ dlopen(const char *filename, int flag)
 void *
 dlsym(void *handle, const char *symbol)
 {
-        debugf("dlsym(%p,%s)=", handle, symbol);
+        debugf("dlsym(%p, \"%s\")=", handle, symbol);
         if (handle != (void *)1) {
                 koops("dlsym(): bad handle: %p", handle);
         }
@@ -90,7 +90,7 @@ dl_iterate_phdr(int (*callback) (struct dl_phdr_info *info,
 {
         debugf("dl_iterate_phdr(%p,%p)\n", callback, data);
         int res = callback(&empty_dl_phdr_info, sizeof(struct dl_phdr_info), data);
-        debugf("dl_iteratre_phdr finished=%d\n", res);
+
         return res;
 }
 
@@ -110,12 +110,12 @@ void __once_proxy()
 int
 pthread_once(pthread_once_t *once_control, void (*init_routine)(void))
 {
-        debugf("pthread_once(%p,%d,%p)\n", once_control, *once_control, init_routine);
+        debugf("pthread_once(%p, %d, %p)\n", once_control, *once_control, init_routine);
 
         if (*once_control == 0) {
-                debugf("running %p ... ", init_routine);
+                //debugf("running %p ... ", init_routine);
                 init_routine();
-                debugf(" finished\n");
+
                 (*once_control)++;
         }
         return 0;

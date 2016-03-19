@@ -110,7 +110,7 @@ putchar_unlocked(int ch)
 int
 _IO_putc(int ch, void *stream)
 {
-        debugf("putc:(%c,%p)\n", ch, stream);
+        debugf("putc('%c', %p)\n", ch, stream);
         if (stream != stderr && stream != stdout) {
                 koops("putc stream = %p", stream);
         }
@@ -136,7 +136,7 @@ putc(int ch, void *stream)
 int
 fputs(const char *s, void *stream)
 {
-        debugf("fputs:(%s,%p)\n", s, stream);
+        debugf("fputs(\"%s\",%p)\n", s, stream);
         if (stream != stderr && stream != stdout) {
                 koops("fputs stream = %p", stream);
         }
@@ -159,6 +159,7 @@ flockfile(void *stream)
 size_t
 fwrite(const void *ptr, size_t size, size_t nmemb, void *stream)
 {
+        debugf("fwrite(\"%s\", %lu, %lu, %p)", ptr, size, nmemb, stream);
         if (stream != stderr && stream != stdout) {
                 koops("fwrite stream = %p", stream);
         }
@@ -189,7 +190,7 @@ UNIMPLEMENTED(getline)
 ssize_t
 write(int fd, const void *buf, size_t nbyte)
 {
-        debugf("write(fd=%d, buf=%p nbyte=%lu\n", fd, buf, nbyte);
+        debugf("write(fd=%d, buf=%p nbyte=%lu)\n", fd, buf, nbyte);
 
         if (fd == 1 || fd == 2) {
                 print_string_len(buf, nbyte);
@@ -273,7 +274,7 @@ vsnprintf(char * restrict buf, size_t size, const char *format, va_list argp)
 int
 snprintf(char * restrict buf, size_t size, const char * restrict format, ...)
 {
-        debugf("snprintf(%s)\n", format);
+        debugf("snprintf(\"%s\", %lu)\n", format, size);
         va_list argp;
         va_start(argp, format);
         int len = kvsnprintf(buf, size, format, argp);
@@ -348,7 +349,7 @@ void *mmap(void *addr, size_t len, int prot, int flags, int fd, unsigned long of
         }
 
         void *result = malloc(len);
-        debugf("mmap=(addr=%p,len=%lX,prot=%X,flags=%X,fd=%d,offset=%lX)=%p\n",
+        debugf("mmap(addr=%p, len=%lX, prot=%X, flags=%X, fd=%d, offset=%lX)=%p\n",
                 addr, len, prot, flags, fd, offset, result);
 
         return result;

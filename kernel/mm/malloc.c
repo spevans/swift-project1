@@ -291,11 +291,11 @@ malloc_usable_size(void *ptr)
                 koops("malloc called in interrupt handler");
         }
 
-        debugf("%s: %p ", __func__, ptr);
+        debugf("%s(%p)=", __func__, ptr);
         uint64_t p = (uint64_t)ptr;
         struct slab_header *slab = (struct slab_header *)(p & ~PAGE_MASK);
         size_t retval = slab->slab_size;
-        debugf("size = %lu\n", retval);
+        debugf("%lu\n", retval);
         if (atomic_fetch_sub(&malloc_lock, 1) != 1) {
                 koops("(usable_size)malloc_lock != 1");
         }
