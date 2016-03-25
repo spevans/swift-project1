@@ -55,7 +55,7 @@ private struct theGDT {
 public func setupGDT() {
     print("Initialising GDT:")
     let tlsPtr = UnsafeMutablePointer<UInt>(initial_tls_end_addr)
-    tlsPtr.memory = initial_tls_end_addr.address
+    tlsPtr.pointee = initial_tls_end_addr.address
 
     var currentGdtInfo = dt_info(limit: 0, address: nil)
     sgdt(&currentGdtInfo)

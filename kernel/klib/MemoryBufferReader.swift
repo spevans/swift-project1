@@ -8,7 +8,7 @@
  *
  */
 
-public enum ReadError: ErrorType {
+public enum ReadError: ErrorProtocol {
     case InvalidOffset
     case InvalidData
 }
@@ -34,7 +34,7 @@ public class MemoryBufferReader {
 
 
     func subBuffer(start: Int, size: Int) -> MemoryBufferReader {
-        return MemoryBufferReader(ptr.advancedBy(start), size: size)
+        return MemoryBufferReader(ptr.advancedBy(bytes: start), size: size)
     }
 
 
@@ -95,7 +95,7 @@ public class MemoryBufferReader {
             throw ReadError.InvalidOffset
         }
         let resultPtr : UnsafePointer<T> = UnsafePointer(ptr + offset)
-        let result = resultPtr.memory
+        let result = resultPtr.pointee
         offset += sizeof(T)
 
         return result
@@ -107,7 +107,7 @@ public class MemoryBufferReader {
             throw ReadError.InvalidOffset
         }
         let resultPtr : UnsafePointer<T> = UnsafePointer(ptr + index)
-        let result = resultPtr.memory
+        let result = resultPtr.pointee
 
         return result
     }

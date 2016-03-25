@@ -36,52 +36,68 @@ struct ACPI_SDT: CustomStringConvertible {
     init(ptr: UnsafePointer<acpi_sdt_header>) {
         let stringPtr = UnsafePointer<UInt8>(ptr)
         signature = makeString(stringPtr, maxLength: 4)
-        length = ptr.memory.length
-        revision = ptr.memory.revision
-        checksum = ptr.memory.checksum
-        oemId = makeString(stringPtr.advancedBy(10), maxLength: 6)
-        oemTableId = makeString(stringPtr.advancedBy(16), maxLength: 8)
-        oemRev = ptr.memory.oem_revision
-        creatorId = makeString(stringPtr.advancedBy(28), maxLength: 4)
-        creatorRev = ptr.memory.creator_rev
+        length = ptr.pointee.length
+        revision = ptr.pointee.revision
+        checksum = ptr.pointee.checksum
+        oemId = makeString(stringPtr.advancedBy(bytes: 10), maxLength: 6)
+        oemTableId = makeString(stringPtr.advancedBy(bytes: 16), maxLength: 8)
+        oemRev = ptr.pointee.oem_revision
+        creatorId = makeString(stringPtr.advancedBy(bytes: 28), maxLength: 4)
+        creatorRev = ptr.pointee.creator_rev
     }
 }
 
 
 public struct RSDP1: CustomStringConvertible {
-    let signature: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8)
+    let signature: String
     let checksum:  UInt8
-    let oemId:     (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8)
+    let oemId:     String
     let revision:  UInt8
     let rsdtAddr:  UInt32
-
-    var signatureStr: String { return makeString(signature) }
-    var oemIdStr:     String { return makeString(oemId) }
-    var rsdt:         UInt { return UInt(rsdtAddr) }
+    var rsdt:      UInt { return UInt(rsdtAddr) }
 
     public var description: String {
-        return String.sprintf("ACPI: \(signatureStr): \(oemIdStr): rev: \(revision) ptr: %p", rsdt)
+        return String.sprintf("ACPI: \(signature): \(oemId): rev: \(revision) ptr: %p", rsdt)
+    }
+
+
+    init(ptr: UnsafePointer<rsdp1_header>) {
+        let stringPtr = UnsafePointer<UInt8>(ptr)
+        signature = makeString(stringPtr, maxLength: 8)
+        checksum = ptr.pointee.checksum
+        oemId = makeString(stringPtr.advancedBy(bytes: 9), maxLength: 6)
+        revision = ptr.pointee.revision
+        rsdtAddr = ptr.pointee.rsdt_addr
     }
 }
 
 
 public struct RSDP2: CustomStringConvertible {
-    let signature: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8)
+    let signature: String
     let checksum:  UInt8
-    let oemId:     (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8)
+    let oemId:     String
     let revision:  UInt8
     let rsdtAddr:  UInt32
     let length:    UInt32
     let xsdtAddr:  UInt64
     let checksum2: UInt8
-    let reserved:  (UInt8, UInt8, UInt8)
-
-    var signatureStr: String { return makeString(signature) }
-    var oemIdStr:     String { return makeString(oemId) }
-    var rsdt:         UInt { return (xsdtAddr != 0) ? UInt(xsdtAddr) : UInt(rsdtAddr) }
+    var rsdt:      UInt { return (xsdtAddr != 0) ? UInt(xsdtAddr) : UInt(rsdtAddr) }
 
     public var description: String {
-        return String.sprintf("ACPI: \(signatureStr): \(oemIdStr): rev: \(revision) ptr: %p", rsdt)
+        return String.sprintf("ACPI: \(signature): \(oemId): rev: \(revision) ptr: %p", rsdt)
+    }
+
+
+    init(ptr: UnsafePointer<rsdp2_header>) {
+        let stringPtr = UnsafePointer<UInt8>(ptr)
+        signature = makeString(stringPtr, maxLength: 8)
+        checksum = ptr.pointee.rsdp1.checksum
+        oemId = makeString(stringPtr.advancedBy(bytes: 9), maxLength: 6)
+        revision = ptr.pointee.rsdp1.revision
+        rsdtAddr = ptr.pointee.rsdp1.rsdt_addr
+        length = ptr.pointee.length
+        xsdtAddr = ptr.pointee.xsdt_addr
+        checksum2 = ptr.pointee.checksum
     }
 }
 
@@ -103,27 +119,13 @@ private func makeString(ptr: UnsafePointer<Void>, maxLength: Int) -> String {
 }
 
 
-private func makeString(data: Any) -> String {
-    var str = ""
-    for child in Mirror(reflecting: data).children {
-        print("str: \(str)")
-        let ch = child.value as! UInt8
-        if (ch != 0) {
-            str += String(Character(UnicodeScalar(ch)))
-        }
-    }
-
-    return str
-}
-
-
 struct ACPI {
 
     private(set) var mcfg: MCFG?
     private(set) var facp: FACP?
 
 
-    init?(rsdp: UnsafePointer<RSDP1>) {
+    init?(rsdp: UnsafePointer<rsdp1_header>) {
 
         let rsdtPtr = findRSDT(rsdp)
 
@@ -135,7 +137,7 @@ struct ACPI {
         for entry in entries {
             let ptr = mkSDTPtr(UInt(entry))
             let header = ACPI_SDT(ptr: ptr)
-            guard checksum(UnsafePointer<UInt8>(ptr), size: Int(ptr.memory.length)) == 0 else {
+            guard checksum(UnsafePointer<UInt8>(ptr), size: Int(ptr.pointee.length)) == 0 else {
                 printf("ACPI: Entry @ %p has bad chksum\n", ptr)
                 continue
             }
@@ -174,9 +176,12 @@ struct ACPI {
 
 
     private func sdtEntries32(ptr: SDTPtr) -> UnsafeBufferPointer<UInt32>? {
-        let entryCount = (Int(ptr.memory.length) - strideof(acpi_sdt_header)) / sizeof(UInt32)
+        let entryCount = (Int(ptr.pointee.length) - strideof(acpi_sdt_header))
+            / sizeof(UInt32)
+
         if entryCount > 0 {
-            let entryPtr: UnsafePointer<UInt32> = UnsafePointer(bitPattern: ptr.advancedBy(1).address)
+            let entryPtr: UnsafePointer<UInt32> =
+                UnsafePointer(bitPattern: ptr.advanced(by: 1).address)
             return UnsafeBufferPointer(start: entryPtr, count: entryCount)
         } else {
             return nil
@@ -184,17 +189,19 @@ struct ACPI {
     }
 
 
-    private func findRSDT(rsdpPtr: UnsafePointer<RSDP1>) -> SDTPtr {
+    private func findRSDT(rsdpPtr: UnsafePointer<rsdp1_header>) -> SDTPtr {
         var rsdtAddr: UInt = 0
-        if rsdpPtr.memory.revision == 1 {
-            let rsdp2Ptr = UnsafePointer<RSDP2>(rsdpPtr)
-            rsdtAddr = rsdp2Ptr.memory.rsdt
+        if rsdpPtr.pointee.revision == 1 {
+            let rsdp2Ptr = UnsafePointer<rsdp2_header>(rsdpPtr)
+            rsdtAddr = UInt(rsdp2Ptr.pointee.xsdt_addr)
+            if rsdtAddr == 0 {
+                rsdtAddr = UInt(rsdp2Ptr.pointee.rsdp1.rsdt_addr)
+            }
             //let csum = checksum(UnsafePointer<UInt8>(rsdp2Ptr), size: strideof(RSDP2))
         } else {
-            rsdtAddr = ptrFromPhysicalPtr(rsdpPtr).memory.rsdt
-            rsdtAddr = rsdpPtr.memory.rsdt
+            rsdtAddr = UInt(rsdpPtr.pointee.rsdt_addr)
             //let csum = checksum(UnsafePointer<UInt8>(rsdpPtr), size: strideof(RSDP1))
-            }
+        }
         return mkSDTPtr(rsdtAddr)
     }
 }

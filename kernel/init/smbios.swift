@@ -71,7 +71,7 @@ struct SMBIOS {
 
 
     init?(ptr: UnsafePointer<smbios_header>) {
-        let header = ptr.memory
+        let header = ptr.pointee
         let anchor = SMBIOS.makeString(ptr, maxLength: 4)
         if (anchor != "_SM_") {
             print("SMBIOS: anchor is \(anchor)")

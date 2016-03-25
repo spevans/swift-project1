@@ -86,7 +86,7 @@ struct PCIBusMMIO: PCIBus, CustomStringConvertible {
 
         let address = baseAddress | UInt(device) << 15 | UInt(function) << 12 | (offset & 0xfff)
         let ptr = UnsafePointer<UInt32>(bitPattern: address)
-        return ptr.memory
+        return ptr.pointee
     }
 
 

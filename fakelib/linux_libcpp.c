@@ -59,14 +59,13 @@ _ZSt20__throw_system_errori(int error)
         asm volatile ("hlt" : : : "memory");
 }
 
-#if 0
+
 //std::__throw_out_of_range(char const*)
 void
 _ZSt20__throw_out_of_rangePKc(char const *error)
 {
         koops("Out of range: %s", error);
 }
-#endif
 
 
 /*
@@ -436,8 +435,8 @@ void __cxa_guard_release(void *guard)
         debugf("__cxa_guard_release(%p)\n", guard);
 }
 
-
-UNIMPLEMENTED(__overflow);
+UNIMPLEMENTED(__cxa_demangle)
+UNIMPLEMENTED(__overflow)
 
 
 // std::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(std::string const&, unsigned long, unsigned long)
@@ -538,3 +537,23 @@ UNIMPLEMENTED(_ZNKSs4findEPKcm)
 //std::string::operator=(std::string&&)
 UNIMPLEMENTED(_ZNSsaSEOSs)
 #endif
+
+
+//std::condition_variable::condition_variable()
+void
+_ZNSt18condition_variableC1Ev(void *cv)
+{
+        memset(cv, 0, 48);
+        debugf("creating condition variable @ %p\n", cv);
+}
+
+
+//std::condition_variable::notify_all()
+void
+_ZNSt18condition_variable10notify_allEv(void *cv)
+{
+        debugf("notify_all called on %p\n", cv);
+}
+
+//std::condition_variable::wait(std::unique_lock<std::mutex>&)
+UNIMPLEMENTED(_ZNSt18condition_variable4waitERSt11unique_lockISt5mutexE)

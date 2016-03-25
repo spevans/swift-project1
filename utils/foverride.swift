@@ -119,7 +119,7 @@ print("Patching", args[3], oldFunc.asHex(), "[\(address.asHex())] -> ", args[4],
     newFunc.asHex(), "[\(target.asHex())] offset:", offset.asHex())
 let bin = openOrQuit(binFile);
 
-let ptr: UnsafeMutablePointer<UInt8> = UnsafeMutablePointer(bin.bytes).advancedBy(Int(address))
+let ptr: UnsafeMutablePointer<UInt8> = UnsafeMutablePointer(bin.bytes).advanced(by: Int(address))
 let buf: UnsafeMutableBufferPointer<UInt8> = UnsafeMutableBufferPointer(start: ptr, count: 5)
 buf[0] = 0xe9   // jmp with 32bit realative offset
 buf[1] = UInt8(truncatingBitPattern: offset >> 0)

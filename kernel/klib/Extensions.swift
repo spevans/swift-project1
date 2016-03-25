@@ -11,29 +11,29 @@
 
 extension String {
 
-    public static func sprintf(format: String, _ arguments: CVarArgType...) -> String {
+    public static func sprintf(format: String, _ arguments: CVarArg...) -> String {
         return sprintf(format, arguments)
     }
 
 
-    static func sprintf(format: String, _ arguments: [CVarArgType]) -> String {
+    static func sprintf(format: String, _ arguments: [CVarArg]) -> String {
         let bufferLen = 1024
         var result: String?
 
         withVaList(arguments) {
             let len = format.utf8.count + 1
-            let buffer = UnsafeMutablePointer<CChar>.alloc(len)
+            let buffer = UnsafeMutablePointer<CChar>(allocatingCapacity: len)
             var idx = 0
             for ch in format.utf8 {
                 buffer[idx] = CChar(ch)
                 idx += 1
             }
             buffer[idx] = CChar(0)
-            let output = UnsafeMutablePointer<CChar>.alloc(bufferLen)
+            let output = UnsafeMutablePointer<CChar>(allocatingCapacity: bufferLen)
             kvsnprintf(output, bufferLen, buffer, $0)
-            result = String.fromCString(output)
-            buffer.dealloc(len)
-            output.dealloc(bufferLen)
+            result = String(cString: output)
+            buffer.deallocateCapacity(len)
+            output.deallocateCapacity(bufferLen)
         }
 
         if (result == nil) {

@@ -16,7 +16,7 @@ private var queuedIrqHandlers: [irq_handler] = []
 
 // Circular queue of IRQs
 private let irqQueueSize = 128
-private var irqQueue: [Int] = Array(count: irqQueueSize, repeatedValue: 0)
+private var irqQueue: [Int] = Array(repeating: 0, count: irqQueueSize)
 private var irqQIn = 0
 private var irqQOut = 0
 
@@ -26,7 +26,7 @@ public func initIRQs() {
     for idx in 0..<irqDispatchTable.endIndex {
         irqDispatchTable[idx] = unexpectedInterrupt
     }
-    queuedIrqHandlers = Array(count: NR_IRQS, repeatedValue: unexpectedInterrupt)
+    queuedIrqHandlers = Array(repeating: unexpectedInterrupt, count: NR_IRQS)
 }
 
 

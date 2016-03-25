@@ -3,7 +3,7 @@ OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
 
 PAGE_SIZE = 0x1000;
 /* Needs to be bigger for DEBUG mode, can be 2 for non debug */
-STACK_SIZE = 20 * PAGE_SIZE;
+STACK_SIZE = 5 * PAGE_SIZE;
 
 SECTIONS
 {

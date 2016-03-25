@@ -63,7 +63,7 @@ func vaddrFromPaddr(ptr: PhysAddress) -> VirtualAddress {
 
 func copyPhysicalRegion<T>(start: PhysAddress) -> T {
     let region = UnsafePointer<T>(bitPattern: PHYSICAL_MEM_BASE + start)
-    return region.memory
+    return region.pointee
 }
 
 

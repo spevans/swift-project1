@@ -4,20 +4,28 @@ CFLAGS := -Wall -std=gnu11 -Wextra -Werror -fno-builtin -fno-stack-protector -fn
 NASM := nasm
 NASM_FLAGS := -Werror -p$(TOPDIR)/include/macros.asm
 MODULE_DIR := $(TOPDIR)/modules
-SWIFTC_FLAGS := -gnone -O -Xcc -mno-red-zone -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -I$(MODULE_DIR)
 
+ifdef BUILD_ONONE
+	OPTO_FLAG := -Onone
+else
+	OPTO_FLAG := -O
+endif
 
-ifeq ($(UNAME_S), Linux)
+SWIFTC_FLAGS := -gnone $(OPTO_FLAG) -Xfrontend -disable-red-zone -Xcc -mno-red-zone -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -I$(MODULE_DIR)
+
 
 SWIFTDIR := $(shell readlink -f ~/usr)
 SWIFT := $(SWIFTDIR)/bin/swift
 SWIFTC := $(SWIFTDIR)/bin/swiftc
 SWIFTLIB := $(SWIFTDIR)/lib/swift_static/linux/libswiftCore.a
+
+ifdef BUILD_ONONE
+      SWIFTLIB := $(SWIFTLIB) $(SWIFTDIR)/lib/swift_static/linux/libswiftSwiftOnoneSupport.a
+endif
+
 FOUNDATION := $(SWIFTDIR)/foundation-linux-x86_64/Foundation
 COREFOUNDATION := $(FOUNDATION)/usr/lib/swift
 NASM_OBJ_FLAGS := -felf64
-
-endif	# Linux
 
 
 %.o: %.c

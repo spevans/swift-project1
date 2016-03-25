@@ -104,7 +104,7 @@ protocol BootParamsData {
     var source: String { get }
     var frameBufferInfo: FrameBufferInfo? { get }
     var kernelPhysAddress: PhysAddress { get }
-    var rsdp: UnsafePointer<RSDP1>? { get }
+    var rsdp: UnsafePointer<rsdp1_header>? { get }
     var smbios: UnsafePointer<smbios_header>? { get }
     mutating func findTables()
 }
@@ -259,7 +259,7 @@ struct BootParams {
 
     // Find any holes in the memory ranges and add a fake range. This
     // allows finding gaps later on for MMIO space etc
-    private static func findHoles(inout ranges: [MemoryRange]) {
+    private static func findHoles(ranges: inout [MemoryRange]) {
         var addr: UInt = 0
         sortRanges(&ranges)
         for entry in ranges {
@@ -274,8 +274,8 @@ struct BootParams {
     }
 
 
-    private static func sortRanges(inout ranges: [MemoryRange]) {
-        ranges.sortInPlace({
+    private static func sortRanges(ranges: inout [MemoryRange]) {
+        ranges.sort(isOrderedBefore:{
             $0.start < $1.start
         })
     }
@@ -342,7 +342,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
     var memoryRanges: [MemoryRange] { return parseE820Table() }
     var frameBufferInfo: FrameBufferInfo? = nil
     var kernelPhysAddress: PhysAddress = 0
-    var rsdp: UnsafePointer<RSDP1>?
+    var rsdp: UnsafePointer<rsdp1_header>?
     var smbios: UnsafePointer<smbios_header>?
 
     var description: String {
@@ -420,7 +420,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
 
 
     // Root System Description Pointer
-    private func findRSDP() -> UnsafePointer<RSDP1>? {
+    private func findRSDP() -> UnsafePointer<rsdp1_header>? {
         if let ebda = getEBDA() {
             printf("ACPI: EBDA: %#8.8lx len: %#4.4lx\n", ebda.baseAddress, ebda.count)
             if let rsdp = scanForRSDP(ebda) {
@@ -465,9 +465,9 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
     }
 
 
-    private func scanForRSDP(area: ScanArea) -> UnsafePointer<RSDP1>? {
+    private func scanForRSDP(area: ScanArea) -> UnsafePointer<rsdp1_header>? {
         if let ptr = scanForSignature(area, RSDP_SIG) {
-            return UnsafePointer<RSDP1>(ptr)
+            return UnsafePointer<rsdp1_header>(ptr)
         } else {
             return nil
         }
@@ -475,11 +475,12 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
 
 
     private func scanForSignature(area: ScanArea, _ signature: StaticString) -> UnsafePointer<Void>? {
-        assert(signature.byteSize != 0)
+        assert(signature.utf8CodeUnitCount != 0)
         assert(signature.isASCII)
 
-        for idx in 0.stride(to: area.count - strideof(RSDP1), by: 16) {
-            if memcmp(signature.utf8Start, area.baseAddress + idx, signature.byteSize) == 0 {
+        for idx in stride(from: 0, to: area.count - strideof(rsdp1_header), by: 16) {
+            if memcmp(signature.utf8Start, area.baseAddress + idx,
+                signature.utf8CodeUnitCount) == 0 {
                 let region: UnsafePointer<Void> = area.regionPointer(idx)
                 return region
             }
@@ -556,7 +557,7 @@ struct EFIBootParams: BootParamsData {
     var memoryRanges: [MemoryRange] { return parseMemoryMap() }
     var frameBufferInfo: FrameBufferInfo?
     var kernelPhysAddress: PhysAddress = 0
-    var rsdp: UnsafePointer<RSDP1>?
+    var rsdp: UnsafePointer<rsdp1_header>?
     var smbios: UnsafePointer<smbios_header>?
 
 
@@ -603,7 +604,7 @@ struct EFIBootParams: BootParamsData {
 
             // Root System Description Pointer
             if let ptr = findGUID(guidACPI1) {
-                rsdp = UnsafePointer<RSDP1>(ptr)
+                rsdp = UnsafePointer<rsdp1_header>(ptr)
             }
 
             // SMBios table
@@ -662,7 +663,7 @@ struct EFIBootParams: BootParamsData {
     private func findGUID(guid: efi_guid_t) -> UnsafePointer<Void>? {
         for entry in configTables! {
             if matchGUID(entry.guid, guid) {
-                return ptrFromPhysicalPtr(UnsafePointer<RSDP1>(entry.table))
+                return ptrFromPhysicalPtr(UnsafePointer<rsdp1_header>(entry.table))
             }
         }
 

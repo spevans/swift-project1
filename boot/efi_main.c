@@ -641,7 +641,9 @@ exit_boot_services()
                 return status;
         }
 
-#ifdef DEBUG
+        // Only enable the following for debugging. The use of the print functions
+        // stops ExitBootServices() from working
+#if 0
         size_t entries = bp->memory_map_size / bp->memory_map_desc_size;
         uprintf("get_memory_map descriptor_size: %ld map_size %ld map_key %ld\n",
                 bp->memory_map_desc_size, bp->memory_map_size,

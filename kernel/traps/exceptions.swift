@@ -59,7 +59,7 @@ func invalidOpcodeException(registers: UnsafeMutablePointer<exception_regs>) {
 
 
 func doubleFault(registers: UnsafeMutablePointer<exception_regs>) {
-    //let errorCode = registers.memory.error_code
+    //let errorCode = registers.pointee.error_code
     kprint("Double Fault\n")
     dump_registers(registers)
     stop()
@@ -67,7 +67,7 @@ func doubleFault(registers: UnsafeMutablePointer<exception_regs>) {
 
 
 func invalidTSSException(registers: UnsafeMutablePointer<exception_regs>) {
-    //let errorCode = registers.memory.error_code
+    //let errorCode = registers.pointee.error_code
     kprint("Invalid Task State Segment\n");
     dump_registers(registers)
     stop()
@@ -75,7 +75,7 @@ func invalidTSSException(registers: UnsafeMutablePointer<exception_regs>) {
 
 
 func segmentNotPresentException(registers: UnsafeMutablePointer<exception_regs>) {
-    //let errorCode = registers.memory.error_code
+    //let errorCode = registers.pointee.error_code
     kprint("Segment Not Present Exception\n")
     dump_registers(registers)
     stop()
@@ -83,7 +83,7 @@ func segmentNotPresentException(registers: UnsafeMutablePointer<exception_regs>)
 
 
 func stackFault(registers: UnsafeMutablePointer<exception_regs>) {
-    //let errorCode = registers.memory.error_code
+    //let errorCode = registers.pointee.error_code
     kprint("Stack Fault\n")
     dump_registers(registers)
     stop()
@@ -91,7 +91,7 @@ func stackFault(registers: UnsafeMutablePointer<exception_regs>) {
 
 
 func generalProtectionFault(registers: UnsafeMutablePointer<exception_regs>) {
-    let errorCode = UInt32(registers.memory.error_code)
+    let errorCode = UInt32(registers.pointee.error_code)
     kprint("GP Fault code: ")
     print_dword(errorCode)
     kprintf("\n")
@@ -101,7 +101,7 @@ func generalProtectionFault(registers: UnsafeMutablePointer<exception_regs>) {
 
 
 func pageFault(registers: UnsafeMutablePointer<exception_regs>) {
-    let errorCode = UInt32(registers.memory.error_code)
+    let errorCode = UInt32(registers.pointee.error_code)
     kprint("Page Fault: ")
     print_dword(errorCode)
     kprint("\n")
@@ -118,7 +118,7 @@ func fpuFault(registers: UnsafeMutablePointer<exception_regs>) {
 
 
 func alignmentCheckException(registers: UnsafeMutablePointer<exception_regs>) {
-    //let errorCode = registers.memory.error_code
+    //let errorCode = registers.pointee.error_code
     kprint("Alignment Check Exception\n")
     dump_registers(registers)
     stop()
@@ -140,17 +140,18 @@ func simdException(registers: UnsafeMutablePointer<exception_regs>) {
 
 
 func unhandledException(registers: UnsafeMutablePointer<exception_regs>) {
-    //let errorCode = registers.memory.error_code
+    //let errorCode = registers.pointee.error_code
     kprint("Unhandled Exception\n")
     dump_registers(registers)
     stop()
 }
 
 
-@noreturn func koops(format: StaticString, _ arguments: CVarArgType...) {
+@noreturn func koops(format: StaticString, _ arguments: CVarArg...) {
     kprint("oops: ")
     withVaList(arguments) {
-        kvlprintf(UnsafePointer<Int8>(format.utf8Start), format.byteSize, $0)
+        kvlprintf(UnsafePointer<Int8>(format.utf8Start), format.utf8CodeUnitCount,
+            $0)
     }
     kprint("\n")
     stop()

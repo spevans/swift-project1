@@ -17,6 +17,7 @@
 
 typedef int pthread_once_t;
 typedef unsigned int pthread_key_t;
+typedef unsigned long int pthread_t;
 
 extern void *swift2_protocol_conformances_start;
 // Dummy empty structure for dl_iterate_phdr
@@ -127,6 +128,14 @@ int __pthread_key_create (pthread_key_t *key,
 {
         debugf("pthread_key_create(%p,%p)\n", key, destructor);
         koops("unimplemented");
+}
+
+
+pthread_t
+pthread_self()
+{
+        debugf("pthread_self called");
+        return 1;
 }
 
 

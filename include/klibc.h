@@ -20,7 +20,7 @@
 typedef int64_t ssize_t;
 typedef int64_t off_t;
 
-#define UNIMPLEMENTED(x)  void x() { koops(__func__); }
+#define UNIMPLEMENTED(x)  void x() { koops("UNIMPLEMENTED: %s", __func__); }
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
 

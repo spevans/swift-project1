@@ -30,7 +30,7 @@ struct FACP: ACPITable {
 
     init(acpiHeader: ACPI_SDT, ptr: UnsafePointer<acpi_facp_table>) {
         header = acpiHeader
-        let iapc = ptr.memory.iapc_boot_arch
+        let iapc = ptr.pointee.iapc_boot_arch
         iapcLegacyDevices = iapc.bitSet(IAPC_LEGACY_DEVICES)
         iapc8042 = iapc.bitSet(IAPC_8042)
         iapcVgaNotPresent = iapc.bitSet(IAPC_VGA_NOT_PRESENT)

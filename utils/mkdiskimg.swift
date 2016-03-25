@@ -41,7 +41,7 @@ func patchValue<T>(data: NSData, offset: Int, value: T) {
         fatalError("Invalid offset: \(offset)")
     }
     let ptr = UnsafeMutablePointer<T>(data.bytes + offset)
-    ptr.memory = value
+    ptr.pointee = value
 }
 
 
@@ -50,7 +50,7 @@ func readValue<T>(data: NSData, offset: Int) -> T {
         fatalError("Invalid offset: \(offset)")
     }
     let ptr = UnsafePointer<T>(data.bytes + offset)
-    return ptr.memory
+    return ptr.pointee
 }
 
 

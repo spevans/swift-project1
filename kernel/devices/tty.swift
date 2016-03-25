@@ -42,7 +42,7 @@ struct Font: CustomStringConvertible {
 
     func characterData(ch: CUnsignedChar) -> UnsafeBufferPointer<UInt8> {
         let offset = Int(ch) * bytesPerChar
-        return UnsafeBufferPointer(start: data.advancedBy(offset),
+        return UnsafeBufferPointer(start: data.advancedBy(bytes: offset),
             count: bytesPerChar)
     }
 }
@@ -117,7 +117,8 @@ public struct TTY {
 
     public static func printString(string: StaticString) {
         if string.hasPointerRepresentation {
-            for ch in UnsafeBufferPointer(start: string.utf8Start, count: Int(string.byteSize)) {
+            for ch in UnsafeBufferPointer(start: string.utf8Start,
+                count: Int(string.utf8CodeUnitCount)) {
                 printChar(CChar(ch))
             }
         }
@@ -412,7 +413,7 @@ struct FrameBufferTTY: ScreenDriver {
         _ offset: Int) -> Array<UInt8> {
         var array: [UInt8] = []
 
-        for i in 7.stride(through:0, by: -1) {
+        for i in stride(from: 7, through: 0, by: -1) {
             let m = UInt8(1 << i)
             let bit = (data[offset] & m) != 0
             for x in 0..<depthInBytes {
@@ -437,7 +438,7 @@ struct FrameBufferTTY: ScreenDriver {
 
 
     func scrollUp() {
-        screenBase.assignFrom(screenBase.advancedBy(bytesPerTextLine),
+        screenBase.assignFrom(screenBase.advancedBy(bytes: bytesPerTextLine),
             count: lastLineScrollArea)
 
         // Clear the bottom line
@@ -449,22 +450,25 @@ struct FrameBufferTTY: ScreenDriver {
 
 
 public func kprint(string: StaticString) {
-    early_print_string_len(UnsafePointer<Int8>(string.utf8Start), string.byteSize)
+    early_print_string_len(UnsafePointer<Int8>(string.utf8Start),
+        string.utf8CodeUnitCount)
 }
 
 
 public func bprint(string: StaticString) {
-    bochs_print_string(UnsafePointer<Int8>(string.utf8Start), string.byteSize)
+    bochs_print_string(UnsafePointer<Int8>(string.utf8Start),
+        string.utf8CodeUnitCount)
 }
 
 
-public func kprintf(format: StaticString, _ arguments: CVarArgType...) {
+public func kprintf(format: StaticString, _ arguments: CVarArg...) {
     withVaList(arguments) {
-        kvlprintf(UnsafePointer<Int8>(format.utf8Start), format.byteSize, $0)
+        kvlprintf(UnsafePointer<Int8>(format.utf8Start),
+            format.utf8CodeUnitCount, $0)
     }
 }
 
 
-public func printf(format: String, _ arguments: CVarArgType...) {
+public func printf(format: String, _ arguments: CVarArg...) {
     TTY.printString(String.sprintf(format, arguments))
 }

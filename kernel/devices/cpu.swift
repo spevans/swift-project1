@@ -43,7 +43,7 @@ struct CPUID: CustomStringConvertible {
 
         var info = cpuid_result() //eax: 0, ebx: 0, ecx: 0, edx: 0)
         var ptr = UnsafePointer<CChar>(cpuid(0, &info) + 4)
-        vendorName = String.fromCString(ptr)!
+        vendorName = String(cString: ptr)
         maxBasicInput = info.u.regs.eax
 
         cpuid(0x80000000, &info)
@@ -71,11 +71,11 @@ struct CPUID: CustomStringConvertible {
 
         if (maxExtendedInput >= 0x80000004) {
             ptr = UnsafePointer<CChar>(cpuid(0x80000002, &info))
-            var brand = String.fromCString(ptr)!
+            var brand = String(cString: ptr)
             ptr = UnsafePointer<CChar>(cpuid(0x80000003, &info))
-            brand += String.fromCString(ptr)!
+            brand += String(cString: ptr)
             ptr = UnsafePointer<CChar>(cpuid(0x80000004, &info))
-            brand += String.fromCString(ptr)!
+            brand += String(cString: ptr)
             processorBrandString = brand
         } else {
             processorBrandString = ""

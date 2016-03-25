@@ -11,6 +11,25 @@
 #include <stdint.h>
 
 
+struct rsdp1_header {
+        char signature[8];
+        uint8_t checksum;
+        char oem_id[6];
+        uint8_t revision;
+        uint32_t rsdt_addr;
+} __attribute__((packed));
+
+
+struct rsdp2_header {
+        struct rsdp1_header rsdp1;
+        uint32_t length;
+        uint64_t xsdt_addr;
+        uint8_t checksum;
+        uint8_t reserved[3];
+} __attribute__((packed));
+
+
+
 // System description table header
 struct acpi_sdt_header {
         char signature[4];
