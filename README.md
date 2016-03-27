@@ -24,19 +24,9 @@ Curently it only builds on linux. It requires:
 * mtools
 * nasm (known to work with 2.11.09rc1 but earlier should be ok)
 
-Also needs the stable-2.2-branch of Swift from https://github.com/apple.
-Clone the following branches of each repo then see
-[here](doc/development.md#red-zone)
-to build a swift compiler and stdlib with red-zone disabled.
-
-| repo  | branch           |
-|-------|------------------|
-| swift | swift-2.2-branch |
-| clang | swift-2.2-branch |
-| llvm	| swift-2.2-branch |
-| lldb  | swift-2.2-branch |
-| cmark | swift-2.2-branch |
-| ninja	| master		   |
+Swift 3.0 is also required along with a special version to disable the red zone.
+See [here](doc/development.md#red-zone) to build a swift compiler and stdlib
+with red-zone disabled.
 
 
 If you install the swift compiler into a different directory to `~/usr` then

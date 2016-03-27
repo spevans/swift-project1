@@ -4,85 +4,53 @@ Use Linux instead of OSX as the tooling for ELF files is more complete than for
 Mach-O on OSX. Also Swift libraries on OSX have have extra code for Objective-C
 integration which just causes more issues.
 
-I currently use the swift-2.2-stable branch to reduce the amount of compiler
+~~I currently use the swift-2.2-stable branch to reduce the amount of compiler
 issues caused by tracking the latest and greatest however there is one issue
-stopping the use of the Swift releases that can be downloaded from swift.org.
+stopping the use of the Swift releases that can be downloaded from swift.org.~~
+
+Ive moved to Swift-3.0 since this is where the latest changes are happening
+and I will need to move to it anyway at some point so its easier to track the
+syntax changes as they occur. However you will need to compile a custom version
+of Swift and its Stdlib
+
 
 ## Red zone
 
 Because we are writing kernel code that has to run interrupt and exception
-handlers in kernel mode we need to make sure that the Swift compiler and
-libraries do not use the [redzone](https://en.wikipedia.org/wiki/Red_zone_(computing)).
-Currently there isn't a `-mno-red-zone` option for swiftc but there is for clang
-so swift and stdlib need to be recompiled to disable its use.
+handlers in kernel mode we need to make sure that the code from the Swift
+compiler and Stdlib libraries do not use the [redzone](https://en.wikipedia.org/wiki/Red_zone_(computing)).
+Currently there isn't a `-disable-red-zone` option for swiftc like there is for
+clang so swift and stdlib need to be recompiled to disable its use.
 
-The following two patches are a quick and dirty way of disabling red zone in the
-llvm that gets built and also for any clang subprocesses that get called. At
-some point in the future Swift will hopefully have support for a `-mno-red-zone`
-compiler option.
+I forked swift and added a `-disable-red-zone` option for compiling and a
+`swift-stdlib-disable-red-zone` option to build stdlib without using the
+red zone.
 
+The [stdlib-redzone](https://github.com/spevans/swift/tree/stdlib-redzone)
+branch can be cloned from https://github.com/spevans/swift.git the rest
+from https://github.com/apple.
 
-Patch for llvm
+| repo                      | branch         |
+|---------------------------|----------------|
+| clang                     | stable         |
+| cmark                     | master         |
+| llbuild                   | master         |
+| lldb                      | master         |
+| llvm                      | stable         |
+| ninja                     | master         |
+| swift                     | stdlib-redzone |
+| swift-corelibs-foundation | master         |
 
-```
-diff --git a/lib/Target/X86/X86FrameLowering.cpp b/lib/Target/X86/X86FrameLowering.cpp
-index 5bf2fbf..aac0042 100644
---- a/lib/Target/X86/X86FrameLowering.cpp
-+++ b/lib/Target/X86/X86FrameLowering.cpp
-@@ -693,7 +693,7 @@ void X86FrameLowering::emitPrologue(MachineFunction &MF,
-   // pointer, calls, or dynamic alloca then we do not need to adjust the
-   // stack pointer (we fit in the Red Zone). We also check that we don't
-   // push and pop from the stack.
--  if (Is64Bit && !Fn->hasFnAttribute(Attribute::NoRedZone) &&
-+  if (0 && Is64Bit && !Fn->hasFnAttribute(Attribute::NoRedZone) &&
-       !TRI->needsStackRealignment(MF) &&
-       !MFI->hasVarSizedObjects() && // No dynamic alloca.
-       !MFI->adjustsStack() &&       // No calls.
-```
-
-Patch for swift
-
-```
-diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 4435e1d..bae0179 100644
---- a/CMakeLists.txt
-+++ b/CMakeLists.txt
-@@ -176,7 +176,7 @@ option(SWIFT_RUNTIME_CLOBBER_FREED_OBJECTS
- # User-configurable experimental options.  Do not use in production builds.
- #
-
--set(SWIFT_EXPERIMENTAL_EXTRA_FLAGS "" CACHE STRING
-set(SWIFT_EXPERIMENTAL_EXTRA_FLAGS "-Xcc;-mno-red-zone" CACHE STRING
-     "Extra flags to pass when compiling swift files.  Use this option *only* for one-off experiments")
-
- set(SWIFT_EXPERIMENTAL_EXTRA_REGEXP_FLAGS "" CACHE STRING
-diff --git a/stdlib/public/CMakeLists.txt b/stdlib/public/CMakeLists.txt
-index 29aae6e..b19accf 100644
---- a/stdlib/public/CMakeLists.txt
-+++ b/stdlib/public/CMakeLists.txt
-@@ -1,6 +1,7 @@
- # C++ code in the runtime and standard library should generally avoid
- # introducing static constructors or destructors.
- set(SWIFT_CORE_CXX_FLAGS)
-+list(APPEND SWIFT_CORE_CXX_FLAGS "-mno-red-zone")
-
- check_cxx_compiler_flag("-Werror -Wglobal-constructors" CXX_SUPPORTS_GLOBAL_CONSTRUCTORS_WARNING)
- if(CXX_SUPPORTS_GLOBAL_CONSTRUCTORS_WARNING)
-```
 
 Run:
 ```
-mkdir -p ~/swift/build
-SWIFT_BUILD_ROOT=~/swift/build ./utils/build-script --preset=buildbot_linux lldb=0 test-installable-package=0 install_destdir=~ installable_package=~/swift/swift-`date '+%F-%X'`.tar.gz jobs=2 2>&1|tee buildbot.log
+cd swift/swift
+mkdir -p ~/swift/build ~/swift-redzone
+SWIFT_BUILD_ROOT=~/swift/build time  ./utils/build-script --preset=buildbot_linux swift-stdlib-disable-red-zone=1 install_destdir=~/swift-redzone installable_package=~/swift/swift-`date '+%F-%X'`.tar.gz jobs=2 2>&1|tee buildbot.log
 ```
 
-This will build and install swift in `~/usr/bin`. Adjust `jobs=2` as required.
-
-Note that Foundation is not built here as it cant be used in any code because it
-requires a lot of operating system and libc support.
-
-I also install a 2.2 snapshot from https://swift.org/download/#linux for Swift
-programs running on the local linux host since this includes Foundation.
+This will build and install swift in `~/swift-redzone/usr/bin`. Adjust `jobs=2`
+as required.
 
 
 ## Using the compiler
@@ -96,7 +64,7 @@ can be used.
 Compilation command looks something like:
 
 ```
-swiftc -gnone -O -Xcc -mno-red-zone -parse-as-library -import-objc-header <file.h> -whole-module-optimization -module-name MyModule -emit-object -o <output.o> <file1.swift> <file2.swift>
+swift -frontend -gnone -O -Xfrontend -disable-red-zone -Xcc -mno-red-zone -parse-as-library -import-objc-header <file.h> -whole-module-optimization -module-name MyModule -emit-object -o <output.o> <file1.swift> <file2.swift>
 ```
 
 `-gnone` disables debug information which probably isn't very useful until you
