@@ -11,20 +11,18 @@ else
 	OPTO_FLAG := -O
 endif
 
-SWIFTC_FLAGS := -gnone $(OPTO_FLAG) -Xfrontend -disable-red-zone -Xcc -mno-red-zone -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -I$(MODULE_DIR)
-
-
-SWIFTDIR := $(shell readlink -f ~/usr)
+SWIFTDIR := $(shell readlink -f ~/swift-kernel/usr)
 SWIFT := $(SWIFTDIR)/bin/swift
 SWIFTC := $(SWIFTDIR)/bin/swiftc
 SWIFTLIB := $(SWIFTDIR)/lib/swift_static/linux/libswiftCore.a
+SWIFTC_FLAGS := -gnone $(OPTO_FLAG) -Xfrontend -disable-red-zone -Xcc -mno-red-zone -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -I$(MODULE_DIR)
+
+
 
 ifdef BUILD_ONONE
       SWIFTLIB := $(SWIFTLIB) $(SWIFTDIR)/lib/swift_static/linux/libswiftSwiftOnoneSupport.a
 endif
 
-FOUNDATION := $(SWIFTDIR)/foundation-linux-x86_64/Foundation
-COREFOUNDATION := $(FOUNDATION)/usr/lib/swift
 NASM_OBJ_FLAGS := -felf64
 
 
