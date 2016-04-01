@@ -37,14 +37,24 @@ abort()
  */
 
 typedef struct pthread_mutex pthread_mutex_t;
-typedef struct pthread_mutexaddr pthread_mutexattr_t;
+typedef struct pthread_mutexattr pthread_mutexattr_t;
+typedef struct pthread_cond pthread_cond_t;
+typedef struct pthread_condattr pthread_condattr_t;
 typedef struct pthread_rw_lock pthread_rwlock_t;
 
 
 int
-pthread_mutex_init(pthread_mutex_t *restrict mutex, const pthread_mutexattr_t *restrict attr)
+pthread_mutex_init(pthread_mutex_t *restrict mutex,
+                   const pthread_mutexattr_t *restrict attr)
 {
         debugf("pthread_mutex_init(%p,%p)\n", mutex, attr);
+        return 0;
+}
+
+int
+pthread_mutex_destroy(pthread_mutex_t *mutex)
+{
+        debugf("pthread_mutex_destroy(%p)\n", mutex);
         return 0;
 }
 
@@ -57,9 +67,83 @@ pthread_mutex_lock(pthread_mutex_t *mutex)
 }
 
 int
+pthread_mutex_trylock (pthread_mutex_t *mutex)
+{
+        debugf("pthread_mutex_trylock(%p)\n", mutex);
+        return 0;
+}
+
+
+int
 pthread_mutex_unlock(pthread_mutex_t *mutex)
 {
         debugf("pthread_mutex_unlock(%p)\n", mutex);
+        return 0;
+}
+
+
+int
+pthread_mutexattr_init(pthread_mutexattr_t *attr)
+{
+        debugf("pthread_mutexattr_init(%p)\n", attr);
+        return 0;
+}
+
+
+int
+pthread_mutexattr_settype (pthread_mutexattr_t *attr, int kind)
+{
+        debugf("pthread_mutexattr_settype(%p, %d)\n", attr, kind);
+        return 0;
+}
+
+
+int
+pthread_mutexattr_destroy(pthread_mutexattr_t *attr)
+{
+        debugf("pthread_mutexattr_destroy(%p)\n", attr);
+        return 0;
+}
+
+
+int
+pthread_cond_init(pthread_cond_t *restrict cond,
+                  const pthread_condattr_t *restrict cond_attr)
+{
+        debugf("pthread_cond_init(%p,%p)\n", cond, condattr);
+        return 0;
+}
+
+
+int
+pthread_cond_destroy(pthread_cond_t *restrict cond)
+{
+        debugf("pthread_cond_destroy(%p)\n", cond);
+        return 0;
+}
+
+
+int
+pthread_cond_signal(pthread_cond_t *restrict cond)
+{
+        debugf("pthread_cond_signal(%p)\n", cond);
+        return 0;
+}
+
+
+int
+pthread_cond_broadcast(pthread_cond_t *restrict cond)
+{
+        debugf("pthread_cond_broadcast(%p)\n", cond);
+        return 0;
+}
+
+
+int
+pthread_cond_wait(pthread_cond_t *restrict cond,
+                   pthread_mutex_t *restrict mutex)
+{
+        debugf("pthread_cond_wait(%p, %p)\n", cond, mutex);
         return 0;
 }
 
