@@ -48,8 +48,10 @@ main:
         rep     stosq
         mov     rcx, rdx
         rep     stosb
-        call    enable_sse
 
+%ifdef  USEFP
+        call    enable_sse
+%endif
         ;; Setup TLS - Update the GDT entry for select 0x18 to have the address
         ;; of initial_tls_end which is allocated in the bss for the 1st TLS
         sgdt    [tempgdt]

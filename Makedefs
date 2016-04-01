@@ -17,6 +17,10 @@ SWIFTC := $(SWIFTDIR)/bin/swiftc
 SWIFTLIB := $(SWIFTDIR)/lib/swift_static/linux/libswiftCore.a
 SWIFTC_FLAGS := -gnone $(OPTO_FLAG) -Xfrontend -disable-red-zone -Xcc -mno-red-zone -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -I$(MODULE_DIR)
 
+ifndef USE_FP
+	CFLAGS := $(CFLAGS) -mno-mmx -mno-sse -mno-sse2
+	SWIFTC_FLAGS := $(SWIFTC_FLAGS) -Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2
+endif
 
 
 ifdef BUILD_ONONE

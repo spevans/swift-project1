@@ -77,6 +77,7 @@
         push    qword [rsp]
         and     rsp, -16
 
+%ifdef USEFP
         ;; Save XMM registers as they are used by Swift 16x 128bit
         sub     rsp, 256
         movaps  [rsp +   0], xmm0
@@ -95,12 +96,13 @@
         movaps  [rsp + 208], xmm13
         movaps  [rsp + 224], xmm14
         movaps  [rsp + 240], xmm15
-
+%endif
         %endmacro
 
 
         %macro  RESTORE_XMM_REGS 0
 
+%ifdef USEFP
         movaps  xmm0, [rsp + 0]
         movaps  xmm1, [rsp + 16]
         movaps  xmm2, [rsp + 32]
@@ -119,6 +121,7 @@
         movaps  xmm15, [rsp + 240]
 
         add     rsp, 256
+%endif
         mov     rsp, [rsp+8]
 
         %endmacro
@@ -267,6 +270,8 @@ test_breakpoint:
         mov     r13, 0x1313131313131313
         mov     r14, 0x1414141414141414
         mov     r15, 0x1515151515151515
+
+%ifdef USEFP
         movq    xmm0, rax
         movq    xmm1, rbx
         movq    xmm2, rcx
@@ -283,6 +288,7 @@ test_breakpoint:
         movq    xmm13, r13
         movq    xmm14, r14
         movq    xmm15, r15
+%endif
 
         int     3
         pop     r15

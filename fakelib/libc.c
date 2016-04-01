@@ -176,7 +176,6 @@ pthread_rwlock_wrlock(pthread_rwlock_t *rwlock)
  * I/O functions
  */
 
-
 int
 putchar(int ch)
 {
@@ -369,10 +368,41 @@ snprintf(char * restrict buf, size_t size, const char * restrict format, ...)
 
 
 /*
- * Math functions
+ * Misc
  */
 
+/* Only works for anonymous mmap (fd == -1), ignore protection settings for now
+ * This is used to emulate the large malloc that stdlib does (which is remapped to malloc
+ * here anyway
+ */
+void *mmap(void *addr, size_t len, int prot, int flags, int fd, unsigned long offset) {
+        if (fd != -1) {
+                koops("mmap with fd=%d!", fd);
+        }
+
+        void *result = malloc(len);
+        debugf("mmap(addr=%p, len=%lX, prot=%X, flags=%X, fd=%d, offset=%lX)=%p\n",
+                addr, len, prot, flags, fd, offset, result);
+
+        return result;
+}
+
+
 UNIMPLEMENTED(__divti3)
+UNIMPLEMENTED(sysconf)
+UNIMPLEMENTED(trunc)
+UNIMPLEMENTED(truncf)
+UNIMPLEMENTED(isalnum)
+UNIMPLEMENTED(backtrace)
+UNIMPLEMENTED(backtrace_symbols)
+
+
+/* Floating point functions.
+ * If using stdlib without FP functions these are not needed and MMX,SSE can
+ * be disabled
+ */
+
+#if USE_FP
 UNIMPLEMENTED(arc4random)
 UNIMPLEMENTED(arc4random_uniform)
 UNIMPLEMENTED(ceil)
@@ -389,7 +419,6 @@ float ceilf(float f)
 
         return resultf;
 }
-
 
 UNIMPLEMENTED(cos)
 UNIMPLEMENTED(cosf)
@@ -416,38 +445,8 @@ UNIMPLEMENTED(round)
 UNIMPLEMENTED(roundf)
 UNIMPLEMENTED(sin)
 UNIMPLEMENTED(sinf)
-
-
-/*
- * Misc
- */
-
-
-/* Only works for anonymous mmap (fd == -1), ignore protection settings for now
- * This is used to emulate the large malloc that stdlib does (which is remapped to malloc
- * here anyway
- */
-void *mmap(void *addr, size_t len, int prot, int flags, int fd, unsigned long offset) {
-        if (fd != -1) {
-                koops("mmap with fd=%d!", fd);
-        }
-
-        void *result = malloc(len);
-        debugf("mmap(addr=%p, len=%lX, prot=%X, flags=%X, fd=%d, offset=%lX)=%p\n",
-                addr, len, prot, flags, fd, offset, result);
-
-        return result;
-}
-
-
 UNIMPLEMENTED(strtod_l)
 UNIMPLEMENTED(strtof_l)
 UNIMPLEMENTED(strtold_l)
 
-UNIMPLEMENTED(sysconf)
-UNIMPLEMENTED(trunc)
-UNIMPLEMENTED(truncf)
-
-UNIMPLEMENTED(isalnum)
-UNIMPLEMENTED(backtrace)
-UNIMPLEMENTED(backtrace_symbols)
+#endif
