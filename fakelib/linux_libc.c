@@ -15,9 +15,6 @@
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
-typedef int pthread_once_t;
-typedef unsigned int pthread_key_t;
-typedef unsigned long int pthread_t;
 
 extern void *swift2_protocol_conformances_start;
 // Dummy empty structure for dl_iterate_phdr
@@ -93,49 +90,6 @@ dl_iterate_phdr(int (*callback) (struct dl_phdr_info *info,
         int res = callback(&empty_dl_phdr_info, sizeof(struct dl_phdr_info), data);
 
         return res;
-}
-
-
-__thread void* _ZSt15__once_callable;
-__thread void (*_ZSt11__once_call)();
-
-void __once_proxy()
-{
-        debugf("__once_proxy_func() __once_call=%p\n", _ZSt11__once_call);
-        if (_ZSt11__once_call) {
-                _ZSt11__once_call();
-        }
-}
-
-
-int
-pthread_once(pthread_once_t *once_control, void (*init_routine)(void))
-{
-        debugf("pthread_once(%p, %d, %p)\n", once_control, *once_control, init_routine);
-
-        if (*once_control == 0) {
-                //debugf("running %p ... ", init_routine);
-                init_routine();
-
-                (*once_control)++;
-        }
-        return 0;
-}
-
-
-int __pthread_key_create (pthread_key_t *key,
-                          void (*destructor) (void *))
-{
-        debugf("pthread_key_create(%p,%p)\n", key, destructor);
-        koops("unimplemented");
-}
-
-
-pthread_t
-pthread_self()
-{
-        debugf("pthread_self called");
-        return 1;
 }
 
 

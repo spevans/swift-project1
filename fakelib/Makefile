@@ -1,7 +1,7 @@
 TOPDIR := ..
 include $(TOPDIR)/Makedefs
 
-FAKELIB_OBJS := libc.o linux_libc.o linux_libcpp.o
+FAKELIB_OBJS := libc.o linux_libc.o linux_libcpp.o pthread.o
 
 
 all: fakelib.o
