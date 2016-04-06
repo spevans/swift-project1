@@ -22,34 +22,31 @@ compiler and Stdlib libraries do not use the [redzone](https://en.wikipedia.org/
 Currently there isn't a `-disable-red-zone` option for swiftc like there is for
 clang so swift and stdlib need to be recompiled to disable its use.
 
-I forked swift and added a `-disable-red-zone` option for compiling and a
-`swift-stdlib-disable-red-zone` option to build stdlib without using the
-red zone.
+I forked swift and added a `-disable-red-zone` option for compiling and removed
+the floating point code and other unneeded bits from Stdlib so that it could be
+compiled without using SSE registers.
 
-The [stdlib-redzone](https://github.com/spevans/swift/tree/stdlib-redzone)
+The [kernel-lib](https://github.com/spevans/swift/tree/kernel-lib)
 branch can be cloned from https://github.com/spevans/swift.git the rest
 from https://github.com/apple.
 
-| repo                      | branch         |
-|---------------------------|----------------|
-| clang                     | stable         |
-| cmark                     | master         |
-| llbuild                   | master         |
-| lldb                      | master         |
-| llvm                      | stable         |
-| ninja                     | master         |
-| swift                     | stdlib-redzone |
-| swift-corelibs-foundation | master         |
+| repo    | branch     |
+|---------|------------|
+| clang   | stable     |
+| cmark   | master     |
+| llvm    | stable     |
+| ninja   | master     |
+| swift   | kernel-lib |
 
 
 Run:
 ```
 cd swift/swift
 mkdir -p ~/swift/build ~/swift-redzone
-SWIFT_BUILD_ROOT=~/swift/build time  ./utils/build-script --preset=buildbot_linux swift-stdlib-disable-red-zone=1 install_destdir=~/swift-redzone installable_package=~/swift/swift-`date '+%F-%X'`.tar.gz jobs=2 2>&1|tee buildbot.log
+HOME=~ SWIFT_BUILD_ROOT=~/swift/build ./utils/build-script --assertions --no-swift-stdlib-assertions --build-subdir=buildbot_linux --release -- --swift-enable-ast-verifier=0 --install-swift --install-prefix=/usr '--swift-install-components=autolink-driver;compiler;clang-builtin-headers;stdlib;sdk-overlay;license' --build-swift-static-stdlib --build-swift-stdlib-unittest-extra --skip-test-lldb --install-destdir=$HOME/swift-kernel --installable-package=$HOME/swift/swift-`date '+%F-%X'`.tar.gz --reconfigure  --verbose-build --build-jobs=2 2>&1|tee build.log
 ```
 
-This will build and install swift in `~/swift-redzone/usr/bin`. Adjust `jobs=2`
+This will build and install swift in `~/swift-kernel/usr/bin`. Adjust `--build-jobs=2`
 as required.
 
 
@@ -64,7 +61,7 @@ can be used.
 Compilation command looks something like:
 
 ```
-swift -frontend -gnone -O -Xfrontend -disable-red-zone -Xcc -mno-red-zone -parse-as-library -import-objc-header <file.h> -whole-module-optimization -module-name MyModule -emit-object -o <output.o> <file1.swift> <file2.swift>
+swift -frontend -gnone -O -Xfrontend -disable-red-zone -Xcc -mno-red-zone -Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2 -parse-as-library -import-objc-header <file.h> -whole-module-optimization -module-name MyModule -emit-object -o <output.o> <file1.swift> <file2.swift>
 ```
 
 `-gnone` disables debug information which probably isn't very useful until you
@@ -77,9 +74,15 @@ inline everything into one big function which can make it hard to workout what
 went wrong when an exception handler simply gives the instruction pointer as the
 source of an error.
 
+`-Xfrontend -disable-red-zone` ensures that code generated from the swiftc
+doesnt generate red zone code.
+
 `-Xcc -mno-red-zone` tells the `clang` compiler not to use the red zone on any
 files it compiles. `clang` is used if there is any code in the header file you
 use which will probably be the case as will be shown.
+
+`-Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2` uses clang options to tell swiftc
+not to use MMX/SSE/SSE2
 
 `-parse-as-library` means that the code is not a script.
 
