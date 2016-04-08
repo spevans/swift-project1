@@ -50,7 +50,7 @@ struct SMBIOS {
 
 
         // Lookup the string ID at a given offset
-        func stringByOffset(offset: UInt8) -> String? {
+        func stringByOffset(_ offset: UInt8) -> String? {
             guard offset >= 4 else {
                 return nil
             }
@@ -107,7 +107,7 @@ struct SMBIOS {
         printf("SMBIOS \(major).\(minor): \(entryCount) entries @ %p size: %u\n",
             tableAddress, tableLength)
 
-        func str(a: String?) -> String {
+        func str(_ a: String?) -> String {
             return a == nil ? "nil" : a!
         }
 
@@ -176,8 +176,8 @@ struct SMBIOS {
                 guard tableLength >= 0 else {
                     continue
                 }
-                let data = buffer.subBuffer(buffer.offset, size: tableLength)
-                let stringTable = buffer.subBuffer(buffer.offset + tableLength)
+                let data = buffer.subBufferAtOffset(buffer.offset, size: tableLength)
+                let stringTable = buffer.subBufferAtOffset(buffer.offset + tableLength)
                 let terminator: UInt16 = try stringTable.read()
                 var strings: [String] = []
                 if terminator != 0 {
@@ -203,7 +203,7 @@ struct SMBIOS {
     }
 
 
-    static func makeString(ptr: UnsafePointer<Void>, maxLength: Int) -> String {
+    static func makeString(_ ptr: UnsafePointer<Void>, maxLength: Int) -> String {
         let buffer = UnsafeBufferPointer(start: UnsafePointer<UInt8>(ptr),
             count: maxLength)
         var str = ""

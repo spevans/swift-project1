@@ -49,19 +49,19 @@ func mapPhysicalRegion<T>(start: UnsafePointer<T>, size: Int) -> UnsafeBufferPoi
 }
 
 
-func ptrFromPhysicalPtr<T>(ptr: UnsafePointer<T>) -> UnsafePointer<T> {
+func ptrFromPhysicalPtr<T>(_ ptr: UnsafePointer<T>) -> UnsafePointer<T> {
     let ret: UnsafePointer<T> = UnsafePointer(bitPattern: PHYSICAL_MEM_BASE + ptr.address)
     return ret;
 }
 
 
 // Map a physical address to a kernel virtual address
-func vaddrFromPaddr(ptr: PhysAddress) -> VirtualAddress {
+func vaddrFromPaddr(_ ptr: PhysAddress) -> VirtualAddress {
     return PHYSICAL_MEM_BASE + ptr;
 }
 
 
-func copyPhysicalRegion<T>(start: PhysAddress) -> T {
+func copyPhysicalRegion<T>(_ start: PhysAddress) -> T {
     let region = UnsafePointer<T>(bitPattern: PHYSICAL_MEM_BASE + start)
     return region.pointee
 }
@@ -94,28 +94,28 @@ func virtualToPhys(address: VirtualAddress, base: UInt64 = getCR3()) -> PhysAddr
 }
 
 
-func pml4Index(address: VirtualAddress) -> Int {
+func pml4Index(_ address: VirtualAddress) -> Int {
     return Int((address >> 39) & entriesPerPageMask)
 }
 
 
-func pdpIndex(address: VirtualAddress) -> Int {
+func pdpIndex(_ address: VirtualAddress) -> Int {
     return Int((address >> 30) & entriesPerPageMask)
 }
 
 
-func pdIndex(address: VirtualAddress) -> Int {
+func pdIndex(_ address: VirtualAddress) -> Int {
     return Int((address >> 21) & entriesPerPageMask)
 }
 
 
-func ptIndex(address: VirtualAddress) -> Int {
+func ptIndex(_ address: VirtualAddress) -> Int {
     return Int((address >> 12) & entriesPerPageMask)
 }
 
 
 // 4KB page entry or 2MB/1GB if largePage is set
-func makePTE(address address: PhysAddress, readWrite: Bool, userAccess: Bool, writeThrough: Bool,
+func makePTE(address: PhysAddress, readWrite: Bool, userAccess: Bool, writeThrough: Bool,
     cacheDisable: Bool, global: Bool, noExec: Bool,
     largePage: Bool, PAT: Bool) -> PageTableEntry {
 
@@ -139,7 +139,7 @@ func makePTE(address address: PhysAddress, readWrite: Bool, userAccess: Bool, wr
 
 
 // Entry in Page Directory, Page Directory Pointer or Page Map Level 4 tables
-func makePDE(address address: PhysAddress, readWrite: Bool, userAccess: Bool, writeThrough: Bool,
+func makePDE(address: PhysAddress, readWrite: Bool, userAccess: Bool, writeThrough: Bool,
     cacheDisable: Bool, noExec: Bool) -> PageTableEntry {
         var entry: UInt = address & physAddressMask
         entry |= pagePresent
@@ -152,11 +152,11 @@ func makePDE(address address: PhysAddress, readWrite: Bool, userAccess: Bool, wr
 }
 
 
-func ptePhysicalAddress(entry: PageTableEntry) -> PhysAddress {
+func ptePhysicalAddress(_ entry: PageTableEntry) -> PhysAddress {
     return entry & physAddressMask
 }
 
 
-func pagePresent(entry: PageTableEntry) -> Bool {
+func pagePresent(_ entry: PageTableEntry) -> Bool {
     return (entry & pagePresent) == pagePresent
 }

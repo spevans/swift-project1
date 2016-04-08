@@ -16,7 +16,7 @@ private var gdtInfo = dt_info(limit: UInt16(strideof(theGDT) - 1), address: &gdt
 
 
 // Helper method to construct a GDT entry
-private func GDTEntry(base base: UInt, privLevel: UInt, executable: Bool,
+private func GDTEntry(base: UInt, privLevel: UInt, executable: Bool,
     conforming: Bool, readWrite: Bool) -> UInt64 {
 
     assert(base < UInt(UInt32.max))

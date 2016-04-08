@@ -11,9 +11,9 @@
 
 protocol PCIBus {
     var bus: UInt8 { get }
-    func readConfigLong(device device: UInt8, function: UInt8, offset: UInt) -> UInt32
-    func readConfigWords(device device: UInt8, function: UInt8, offset: UInt) -> (UInt16, UInt16)
-    func readConfigBytes(device device: UInt8, function: UInt8, offset: UInt) -> (UInt8, UInt8, UInt8, UInt8)
+    func readConfigLong(device: UInt8, function: UInt8, offset: UInt) -> UInt32
+    func readConfigWords(device: UInt8, function: UInt8, offset: UInt) -> (UInt16, UInt16)
+    func readConfigBytes(device: UInt8, function: UInt8, offset: UInt) -> (UInt8, UInt8, UInt8, UInt8)
 }
 
 
@@ -32,7 +32,7 @@ struct PCIBusPIO: PCIBus, CustomStringConvertible {
     }
 
 
-    func readConfigLong(device device: UInt8, function: UInt8, offset: UInt) -> UInt32 {
+    func readConfigLong(device: UInt8, function: UInt8, offset: UInt) -> UInt32 {
         let address = baseAddress | UInt32(device) << 11 | UInt32(function) << 8
             | UInt32(offset & 0xfc)
         outl(PCI_CONFIG_ADDRESS, address)
@@ -42,7 +42,7 @@ struct PCIBusPIO: PCIBus, CustomStringConvertible {
     }
 
 
-    func readConfigWords(device device: UInt8, function: UInt8, offset: UInt)
+    func readConfigWords(device: UInt8, function: UInt8, offset: UInt)
         -> (UInt16, UInt16) {
 
         let data = readConfigLong(device: device, function: function, offset: offset)
@@ -53,7 +53,7 @@ struct PCIBusPIO: PCIBus, CustomStringConvertible {
     }
 
 
-    func readConfigBytes(device device: UInt8, function: UInt8, offset: UInt)
+    func readConfigBytes(device: UInt8, function: UInt8, offset: UInt)
         -> (UInt8, UInt8, UInt8, UInt8) {
 
         let data = readConfigLong(device: device, function: function, offset: offset)
@@ -81,7 +81,7 @@ struct PCIBusMMIO: PCIBus, CustomStringConvertible {
     }
 
 
-    func readConfigLong(device device: UInt8, function: UInt8, offset: UInt)
+    func readConfigLong(device: UInt8, function: UInt8, offset: UInt)
         -> UInt32 {
 
         let address = baseAddress | UInt(device) << 15 | UInt(function) << 12 | (offset & 0xfff)
@@ -90,7 +90,7 @@ struct PCIBusMMIO: PCIBus, CustomStringConvertible {
     }
 
 
-    func readConfigWords(device device: UInt8, function: UInt8, offset: UInt)
+    func readConfigWords(device: UInt8, function: UInt8, offset: UInt)
         -> (UInt16, UInt16) {
 
         let data = readConfigLong(device: device, function: function, offset: offset)
@@ -101,7 +101,7 @@ struct PCIBusMMIO: PCIBus, CustomStringConvertible {
     }
 
 
-    func readConfigBytes(device device: UInt8, function: UInt8, offset: UInt)
+    func readConfigBytes(device: UInt8, function: UInt8, offset: UInt)
         -> (UInt8, UInt8, UInt8, UInt8) {
 
         let data = readConfigLong(device: device, function: function, offset: offset)
@@ -144,19 +144,19 @@ struct PCIDeviceFunction: CustomStringConvertible {
     }
 
 
-    func readConfigLong(offset: UInt) -> UInt32 {
+    func readConfigLong(_ offset: UInt) -> UInt32 {
         return bus.readConfigLong(device: device, function: function,
             offset: offset)
     }
 
 
-    func readConfigWords(offset: UInt) -> (UInt16, UInt16) {
+    func readConfigWords(_ offset: UInt) -> (UInt16, UInt16) {
         return bus.readConfigWords(device: device, function: function,
             offset: offset)
     }
 
 
-    func readConfigBytes(offset: UInt) -> (UInt8, UInt8, UInt8, UInt8) {
+    func readConfigBytes(_ offset: UInt) -> (UInt8, UInt8, UInt8, UInt8) {
         return bus.readConfigBytes(device: device, function: function,
             offset: offset)
     }
@@ -216,7 +216,7 @@ struct PCI {
 
 
     // See if the bus can be accessed using MMCONFIG or PIO
-    private static func findPciBus(bus: UInt8) -> PCIBus? {
+    private static func findPciBus(_ bus: UInt8) -> PCIBus? {
         if let address = BootParams.acpiTables?.mcfg?.baseAddressForBus(bus) {
             return PCIBusMMIO(mmiobase: address, bus: bus)
         } else {

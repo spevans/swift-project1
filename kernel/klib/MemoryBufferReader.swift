@@ -33,20 +33,20 @@ public class MemoryBufferReader {
     }
 
 
-    func subBuffer(start: Int, size: Int) -> MemoryBufferReader {
+    func subBufferAtOffset(_ start: Int, size: Int) -> MemoryBufferReader {
         return MemoryBufferReader(ptr.advancedBy(bytes: start), size: size)
     }
 
 
-    func subBuffer(start: Int) -> MemoryBufferReader {
+    func subBufferAtOffset(_ start: Int) -> MemoryBufferReader {
         let size = buffer.count - start
-        return subBuffer(start, size: size)
+        return subBufferAtOffset(start, size: size)
     }
 
     // Functions to convert ASCII strings in memory to String. Inefficient
     // conversions because Foundation isnt available
     // Only really works for 7bit ASCII as it assumes the code is valid UTF-8
-    func readASCIIZString(maxSize maxSize: Int) throws -> String {
+    func readASCIIZString(maxSize: Int) throws -> String {
         guard maxSize > 0 else {
             throw ReadError.InvalidOffset
         }
@@ -102,7 +102,7 @@ public class MemoryBufferReader {
     }
 
 
-    public func readAtIndex<T>(index: Int) throws -> T {
+    public func readAtIndex<T>(_ index: Int) throws -> T {
         guard index + sizeof(T) <= buffer.count else {
             throw ReadError.InvalidOffset
         }

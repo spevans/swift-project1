@@ -86,13 +86,13 @@ public class PIT8254 {
     }
 
 
-    private static func toCommandByte(channel: ChannelSelect, _ access: AccessMode,
+    private static func toCommandByte(_ channel: ChannelSelect, _ access: AccessMode,
         _ mode: OperatingMode, _ number: NumberMode) -> UInt8 {
             return channel.rawValue | access.rawValue | mode.rawValue | number.rawValue
     }
 
 
-    private static func fromCommandByte(command: UInt8) -> (ChannelSelect, AccessMode, OperatingMode, NumberMode) {
+    private static func fromCommandByte(_ command: UInt8) -> (ChannelSelect, AccessMode, OperatingMode, NumberMode) {
         return (ChannelSelect(channel: command),
                 AccessMode(mode: command),
                 OperatingMode(mode: command),
@@ -100,7 +100,7 @@ public class PIT8254 {
         )
     }
 
-    private static func mapChannelToSelect(channel: TimerChannel) -> ChannelSelect {
+    private static func mapChannelToSelect(_ channel: TimerChannel) -> ChannelSelect {
         switch(channel) {
         case .CHANNEL_0: return ChannelSelect.CHANNEL0
         case .CHANNEL_2: return ChannelSelect.CHANNEL2
@@ -108,7 +108,7 @@ public class PIT8254 {
     }
 
 
-    static func setChannel(channel: TimerChannel, mode: OperatingMode, hz: Int) {
+    static func setChannel(_ channel: TimerChannel, mode: OperatingMode, hz: Int) {
         let cmd = toCommandByte(mapChannelToSelect(channel), AccessMode.LO_HI_BYTE,
             mode, NumberMode.BINARY)
         outb(commandPort, cmd)
@@ -117,7 +117,7 @@ public class PIT8254 {
     }
 
 
-    static func getCount(channel: TimerChannel) -> UInt16 {
+    static func getCount(_ channel: TimerChannel) -> UInt16 {
         let latchCmd = mapChannelToSelect(channel).rawValue
         outb(commandPort, latchCmd)
         let lsb = inb(channel.rawValue)
@@ -127,14 +127,14 @@ public class PIT8254 {
     }
 
 
-    static func setDivisor(channel: TimerChannel, _ value: UInt16) {
+    static func setDivisor(_ channel: TimerChannel, _ value: UInt16) {
         let (msb, lsb) = value.toBytes()
         outb(channel.rawValue, lsb)
         outb(channel.rawValue, msb)
     }
 
 
-    static func setHz(channel: TimerChannel, _ hz: Int) -> Int {
+    static func setHz(_ channel: TimerChannel, _ hz: Int) -> Int {
         let divisor = UInt16(oscillator / hz)
         setDivisor(channel, divisor)
 

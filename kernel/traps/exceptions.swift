@@ -147,7 +147,7 @@ func unhandledException(registers: UnsafeMutablePointer<exception_regs>) {
 }
 
 
-@noreturn func koops(format: StaticString, _ arguments: CVarArg...) {
+@noreturn func koops(_ format: StaticString, _ arguments: CVarArg...) {
     kprint("oops: ")
     withVaList(arguments) {
         kvlprintf(UnsafePointer<Int8>(format.utf8Start), format.utf8CodeUnitCount,

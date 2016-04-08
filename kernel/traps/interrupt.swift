@@ -36,19 +36,19 @@ public func enableIRQs() {
 }
 
 
-public func setIrqHandler(irq: Int, handler: irq_handler) {
+public func setIrqHandler(_ irq: Int, handler: irq_handler) {
     irqDispatchTable[irq] = handler
     PIC8259.enableIRQ(irq)
 }
 
 
-public func removeIrqHandler(irq: Int) {
+public func removeIrqHandler(_ irq: Int) {
     PIC8259.disableIRQ(irq)
     irqDispatchTable[irq] = unexpectedInterrupt
 }
 
 
-public func setQueuedIrqHandler(irq: Int, handler: irq_handler) {
+public func setQueuedIrqHandler(_ irq: Int, handler: irq_handler) {
     queuedIrqHandlers[irq] = handler
     setIrqHandler(irq, handler: queueIrq)
 }

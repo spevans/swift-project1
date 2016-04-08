@@ -40,7 +40,7 @@ struct Font: CustomStringConvertible {
     }
 
 
-    func characterData(ch: CUnsignedChar) -> UnsafeBufferPointer<UInt8> {
+    func characterData(_ ch: CUnsignedChar) -> UnsafeBufferPointer<UInt8> {
         let offset = Int(ch) * bytesPerChar
         return UnsafeBufferPointer(start: data.advancedBy(bytes: offset),
             count: bytesPerChar)
@@ -54,7 +54,7 @@ protocol ScreenDriver {
     var cursorX:      Int { get set }
     var cursorY:      Int { get set }
 
-    func printChar(character: CUnsignedChar, x: Int, y: Int)
+    func printChar(_ character: CUnsignedChar, x: Int, y: Int)
     func clearScreen()
     func scrollUp()
 }
@@ -108,7 +108,7 @@ public struct TTY {
     }
 
 
-    public static func printString(string: String) {
+    public static func printString(_ string: String) {
         for ch in string.utf8 {
             printChar(CChar(ch))
         }
@@ -148,13 +148,13 @@ public struct TTY {
     }
 
 
-    public static func printChar(character: Character) {
+    public static func printChar(_ character: Character) {
         printString(String(character))
     }
 
 
     @_silgen_name("tty_print_char")
-    public static func printChar(character: CChar) {
+    public static func printChar(_ character: CChar) {
         let ch = CUnsignedChar(character)
         var (x, y) = (cursorX, cursorY)
 
@@ -225,7 +225,7 @@ struct EarlyTTY: ScreenDriver {
     }
 
 
-    func printChar(character: CUnsignedChar, x: Int, y: Int) {
+    func printChar(_ character: CUnsignedChar, x: Int, y: Int) {
         etty_print_char(x, y, character)
     }
 
@@ -292,7 +292,7 @@ struct TextTTY: ScreenDriver {
     }
 
 
-    func printChar(character: CUnsignedChar, x: Int, y: Int) {
+    func printChar(_ character: CUnsignedChar, x: Int, y: Int) {
         let offset = (y * charsPerLine) + x
         screen[offset] = UInt16(msb: textColour, lsb: character)
     }
@@ -333,7 +333,7 @@ struct TextTTY: ScreenDriver {
 
 
     // Set hardware cursor x, y on video card
-    private func writeCursor(x: Int, _ y: Int) {
+    private func writeCursor(_ x: Int, _ y: Int) {
         let (addressMSB, addressLSB) = UInt16(y * charsPerLine + x).toBytes()
         outb(crtIdxReg, cursorMSB)
         outb(crtDataReg, addressMSB)
@@ -383,7 +383,7 @@ struct FrameBufferTTY: ScreenDriver {
     }
 
 
-    func printChar(ch: CUnsignedChar, x: Int, y: Int) {
+    func printChar(_ ch: CUnsignedChar, x: Int, y: Int) {
         let colourMask = computeColourMask()
         let data = font.characterData(ch)
         var pixel = ((y * font.height * Int(frameBufferInfo.pxPerScanline)) + (x * font.width))
@@ -409,7 +409,7 @@ struct FrameBufferTTY: ScreenDriver {
     }
 
 
-    private func convertFontLine(data: UnsafeBufferPointer<UInt8>, _ mask: UInt32,
+    private func convertFontLine(_ data: UnsafeBufferPointer<UInt8>, _ mask: UInt32,
         _ offset: Int) -> Array<UInt8> {
         var array: [UInt8] = []
 
@@ -449,19 +449,19 @@ struct FrameBufferTTY: ScreenDriver {
 }
 
 
-public func kprint(string: StaticString) {
+public func kprint(_ string: StaticString) {
     early_print_string_len(UnsafePointer<Int8>(string.utf8Start),
         string.utf8CodeUnitCount)
 }
 
 
-public func bprint(string: StaticString) {
+public func bprint(_ string: StaticString) {
     bochs_print_string(UnsafePointer<Int8>(string.utf8Start),
         string.utf8CodeUnitCount)
 }
 
 
-public func kprintf(format: StaticString, _ arguments: CVarArg...) {
+public func kprintf(_ format: StaticString, _ arguments: CVarArg...) {
     withVaList(arguments) {
         kvlprintf(UnsafePointer<Int8>(format.utf8Start),
             format.utf8CodeUnitCount, $0)
@@ -469,6 +469,6 @@ public func kprintf(format: StaticString, _ arguments: CVarArg...) {
 }
 
 
-public func printf(format: String, _ arguments: CVarArg...) {
+public func printf(_ format: String, _ arguments: CVarArg...) {
     TTY.printString(String.sprintf(format, arguments))
 }

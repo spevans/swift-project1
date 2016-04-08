@@ -102,7 +102,7 @@ public struct RSDP2: CustomStringConvertible {
 }
 
 
-private func makeString(ptr: UnsafePointer<Void>, maxLength: Int) -> String {
+private func makeString(_ ptr: UnsafePointer<Void>, maxLength: Int) -> String {
     let buffer = UnsafeBufferPointer(start: UnsafePointer<UInt8>(ptr),
         count: maxLength)
     var str = ""
@@ -159,7 +159,7 @@ struct ACPI {
     }
 
 
-    private func checksum(ptr: UnsafePointer<UInt8>, size: Int) -> UInt8 {
+    private func checksum(_ ptr: UnsafePointer<UInt8>, size: Int) -> UInt8 {
         let region = UnsafeBufferPointer<UInt8>(start: ptr, count: size)
         var csum: UInt8 = 0
         for x in region {
@@ -170,12 +170,12 @@ struct ACPI {
     }
 
 
-    private func mkSDTPtr(address: UInt) -> SDTPtr {
+    private func mkSDTPtr(_ address: UInt) -> SDTPtr {
         return SDTPtr(bitPattern: vaddrFromPaddr(address))
     }
 
 
-    private func sdtEntries32(ptr: SDTPtr) -> UnsafeBufferPointer<UInt32>? {
+    private func sdtEntries32(_ ptr: SDTPtr) -> UnsafeBufferPointer<UInt32>? {
         let entryCount = (Int(ptr.pointee.length) - strideof(acpi_sdt_header))
             / sizeof(UInt32)
 
@@ -189,7 +189,7 @@ struct ACPI {
     }
 
 
-    private func findRSDT(rsdpPtr: UnsafePointer<rsdp1_header>) -> SDTPtr {
+    private func findRSDT(_ rsdpPtr: UnsafePointer<rsdp1_header>) -> SDTPtr {
         var rsdtAddr: UInt = 0
         if rsdpPtr.pointee.revision == 1 {
             let rsdp2Ptr = UnsafePointer<rsdp2_header>(rsdpPtr)

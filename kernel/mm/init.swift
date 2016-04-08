@@ -99,7 +99,7 @@ func setupMM() {
 
 // Convert a virtual address between kernel_start and kernel_end into a physical
 // address
-private func kernelPhysAddress(address: VirtualAddress) -> PhysAddress {
+private func kernelPhysAddress(_ address: VirtualAddress) -> PhysAddress {
     guard address >= _kernel_start_ptr().address
     && address <= _kernel_end_ptr().address else {
         kprintf("kernelPhysAddress: invalid address: %p", address)
@@ -111,7 +111,7 @@ private func kernelPhysAddress(address: VirtualAddress) -> PhysAddress {
 
 // Convert a physical kernel address in a page directory/table entry intto a
 // virtual address
-private func kernelVirtualAddress(paddress: PhysAddress) -> VirtualAddress {
+private func kernelVirtualAddress(_ paddress: PhysAddress) -> VirtualAddress {
     let physAddressMask:UInt = 0x0000fffffffff000
     let address = paddress & physAddressMask
     let kernelSize = _kernel_end_ptr().address - _kernel_start_ptr().address
@@ -126,7 +126,7 @@ private func kernelVirtualAddress(paddress: PhysAddress) -> VirtualAddress {
 
 // FIXME: Should map more closely to the real map, not map holes
 // and map the reserved mem as RO etc
-private func mapPhysicalMemory(maxAddress: PhysAddress) {
+private func mapPhysicalMemory(_ maxAddress: PhysAddress) {
     var inc: UInt = 0
     var mapper :(UInt, PhysAddress) -> ()
 
@@ -157,12 +157,12 @@ private func mapPhysicalMemory(maxAddress: PhysAddress) {
 }
 
 
-private func roundToPage(size: UInt) -> UInt {
+private func roundToPage(_ size: UInt) -> UInt {
     return (size + PAGE_MASK) & ~PAGE_MASK
 }
 
 
-private func getPageAtIndex(dirPage: PageTableDirectory, _ idx: Int) -> PageTableDirectory {
+private func getPageAtIndex(_ dirPage: PageTableDirectory, _ idx: Int) -> PageTableDirectory {
     if !pagePresent(dirPage[idx]) {
         let newPage = alloc_pages(1)
         let paddr = kernelPhysAddress(newPage.address)
@@ -175,7 +175,8 @@ private func getPageAtIndex(dirPage: PageTableDirectory, _ idx: Int) -> PageTabl
 }
 
 
-private func addMapping(start start: VirtualAddress, size: UInt, physStart: PhysAddress, readWrite: Bool,
+private func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
+    readWrite: Bool,
     noExec: Bool) -> Bool {
 
     let endAddress = start + size
@@ -211,7 +212,7 @@ private func addMapping(start start: VirtualAddress, size: UInt, physStart: Phys
 }
 
 
-private func add2MBMapping(addr: VirtualAddress, physAddress: PhysAddress) {
+private func add2MBMapping(_ addr: VirtualAddress, physAddress: PhysAddress) {
     let idx0 = pml4Index(addr)
     let idx1 = pdpIndex(addr)
     let idx2 = pdIndex(addr)
@@ -230,7 +231,7 @@ private func add2MBMapping(addr: VirtualAddress, physAddress: PhysAddress) {
 }
 
 
-private func add1GBMapping(addr: VirtualAddress, physAddress: PhysAddress) {
+private func add1GBMapping(_ addr: VirtualAddress, physAddress: PhysAddress) {
     let idx0 = pml4Index(addr)
     let idx1 = pdpIndex(addr)
 

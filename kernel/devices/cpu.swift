@@ -33,7 +33,7 @@ struct CPUID: CustomStringConvertible {
 
 
     init() {
-        func testBit(v: UInt32, _ bit: Int) -> Bool {
+        func testBit(_ v: UInt32, _ bit: Int) -> Bool {
             if (v & UInt32(1 << bit)) != 0 {
                 return true
             } else {
@@ -100,7 +100,7 @@ struct CPU {
     }
 
 
-    static func enableWP(enable: Bool) {
+    static func enableWP(_ enable: Bool) {
         let WPbit: UInt64 = 1 << 16
 
         var cr0 = getCR0()
@@ -113,7 +113,7 @@ struct CPU {
     }
 
 
-    static func enableNXE(enable: Bool) -> Bool {
+    static func enableNXE(_ enable: Bool) -> Bool {
         if cpuId.nxe && cpuId.hasMSR && cpuId.IA32_EFER {
             var (eax, edx) = readMSR(0xC0000080)
             eax |= 1 << 11
@@ -124,13 +124,13 @@ struct CPU {
     }
 
 
-    static func readMSR(msr: UInt32) -> (UInt32, UInt32) {
+    private static func readMSR(_ msr: UInt32) -> (UInt32, UInt32) {
         let result = rdmsr(msr)
         return (result.eax, result.edx)
     }
 
 
-    static func writeMSR(msr: UInt32, _ eax: UInt32, _ edx: UInt32) {
+    private static func writeMSR(_ msr: UInt32, _ eax: UInt32, _ edx: UInt32) {
         wrmsr(msr, eax, edx)
     }
 }

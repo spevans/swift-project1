@@ -29,7 +29,7 @@ enum GateType: UInt8 {
 }
 
 // Helper method to construct an IDT entry
-private func IDTEntry(address address: UInt, selector: UInt16, gateType: GateType, dpl: UInt8) -> idt_entry {
+private func IDTEntry(address: UInt, selector: UInt16, gateType: GateType, dpl: UInt8) -> idt_entry {
 
     let level = (dpl & 3) << 5
     let flags: UInt8 = 128 | level | gateType.rawValue  // 128 = Present Bit set

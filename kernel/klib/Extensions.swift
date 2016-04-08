@@ -11,12 +11,12 @@
 
 extension String {
 
-    public static func sprintf(format: String, _ arguments: CVarArg...) -> String {
+    public static func sprintf(_ format: String, _ arguments: CVarArg...) -> String {
         return sprintf(format, arguments)
     }
 
 
-    static func sprintf(format: String, _ arguments: [CVarArg]) -> String {
+    static func sprintf(_ format: String, _ arguments: [CVarArg]) -> String {
         let bufferLen = 1024
         var result: String?
 
@@ -57,7 +57,7 @@ extension UInt16 {
     }
 
 
-    public func bitSet(bit: UInt16) -> Bool {
+    public func bitSet(_ bit: UInt16) -> Bool {
         return self & (1 << bit) != 0
     }
 }
@@ -71,7 +71,7 @@ extension UnsafePointer {
 
 
     // Increment a pointer by x bytes and recast to a new type
-    public func advancedBy<T>(bytes bytes: Int) -> UnsafePointer<T> {
+    public func advancedBy<T>(bytes: Int) -> UnsafePointer<T> {
         return UnsafePointer<T>(bitPattern: ptr_to_uint(self) + UInt(bytes))
     }
 }
@@ -85,7 +85,7 @@ extension UnsafeMutablePointer {
 
 
     // Increment a pointer by x bytes and recast to a new type
-    public func advancedBy<T>(bytes bytes: Int) -> UnsafeMutablePointer<T> {
+    public func advancedBy<T>(bytes: Int) -> UnsafeMutablePointer<T> {
         return UnsafeMutablePointer<T>(bitPattern: ptr_to_uint(self) + UInt(bytes))
     }
 }
@@ -102,7 +102,7 @@ extension UnsafeBufferPointer {
 }
 
 
-public func dumpRegion(ptr ptr: UnsafePointer<Void>, size: Int) {
+public func dumpRegion(ptr: UnsafePointer<Void>, size: Int) {
     let buffer = UnsafeBufferPointer<UInt8>(start: UnsafePointer<UInt8>(ptr),
         count: size)
     for idx in 0..<buffer.count {

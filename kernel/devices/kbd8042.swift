@@ -24,7 +24,7 @@ struct KBD8042 {
         private let TimeOut:       UInt8 = 0x40
         private let ParityError:   UInt8 = 0x80
 
-        private func bit(bit: UInt8) -> Bool { return (status & bit) == bit }
+        private func bit(_ bit: UInt8) -> Bool { return (status & bit) == bit }
         var outputFull:    Bool { return bit(OutputFull) }
         var inputFull:     Bool { return bit(InputFull) }
         var system:        Bool { return bit(System) }
@@ -51,7 +51,7 @@ struct KBD8042 {
         private let Port2Disable:    UInt8 = 0x20
         private let TranslateEnable: UInt8 = 0x40
 
-        private mutating func bit(bit: UInt8, _ flag: Bool) {
+        private mutating func bit(_ bit: UInt8, _ flag: Bool) {
             if flag {
                 rawValue |= bit
             } else {
@@ -59,7 +59,7 @@ struct KBD8042 {
             }
         }
 
-        private func bit(bit: UInt8) -> Bool {
+        private func bit(_ bit: UInt8) -> Bool {
             return (rawValue & bit) == bit
         }
 
@@ -263,7 +263,7 @@ struct KBD8042 {
     }
 
 
-    private static func writeData(data: UInt8) {
+    private static func writeData(_ data: UInt8) {
         outb(DATA_PORT, data)
     }
 
@@ -321,7 +321,7 @@ struct KBD8042 {
     }
 
 
-    static func sendCommand(cmd: I8042Command) -> Bool {
+    static func sendCommand(_ cmd: I8042Command) -> Bool {
         if waitForInputEmpty() {
             outb(COMMAND_REGISTER, cmd.rawValue)
             return true
@@ -332,7 +332,7 @@ struct KBD8042 {
     }
 
 
-    static func sendCommand(cmd: I8042Command, data: UInt8) -> Bool {
+    static func sendCommand(_ cmd: I8042Command, data: UInt8) -> Bool {
         if sendCommand(cmd) {
             writeData(data)
             return true
@@ -351,7 +351,7 @@ struct KBD8042 {
     }
 
 
-    static func sendCommandGetResponse(cmd: I8042Command) -> UInt8? {
+    static func sendCommandGetResponse(_ cmd: I8042Command) -> UInt8? {
         if sendCommand(cmd) {
             return getResponse()
         }
@@ -361,7 +361,7 @@ struct KBD8042 {
     }
 
 
-    static func sendData1stPort(data: UInt8) -> Bool {
+    static func sendData1stPort(_ data: UInt8) -> Bool {
         if waitForInputEmpty() {
             writeData(data)
             if waitForOutput() {
@@ -383,12 +383,12 @@ struct KBD8042 {
     }
 
 
-    static func sendCommand1stPort(cmd: PS2KeyboardCommand) -> Bool {
+    static func sendCommand1stPort(_ cmd: PS2KeyboardCommand) -> Bool {
         return sendData1stPort(cmd.rawValue)
     }
 
 
-    static func sendCommand1stPort(cmd: PS2KeyboardCommand, data: UInt8) -> Bool {
+    static func sendCommand1stPort(_ cmd: PS2KeyboardCommand, data: UInt8) -> Bool {
         if sendCommand1stPort(cmd) {
             if sendData1stPort(data) {
                 return true

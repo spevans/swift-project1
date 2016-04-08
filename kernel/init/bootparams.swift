@@ -110,7 +110,7 @@ protocol BootParamsData {
 }
 
 
-private func readSignature(address: PhysAddress) -> String? {
+private func readSignature(_ address: PhysAddress) -> String? {
     let signatureSize = 8
     let membuf = MemoryBufferReader(address, size: signatureSize)
     guard let sig = try? membuf.readASCIIZString(maxSize: signatureSize) else {
@@ -203,7 +203,7 @@ struct BootParams {
     }
 
 
-    static func parse(bootParamsAddr: UInt) {
+    static func parse(_ bootParamsAddr: UInt) {
         kprintf("parsing bootParams @ 0x%lx\n", bootParamsAddr)
         if (bootParamsAddr == 0) {
             koops("bootParamsAddr is null")
@@ -259,7 +259,7 @@ struct BootParams {
 
     // Find any holes in the memory ranges and add a fake range. This
     // allows finding gaps later on for MMIO space etc
-    private static func findHoles(ranges: inout [MemoryRange]) {
+    private static func findHoles(_ ranges: inout [MemoryRange]) {
         var addr: UInt = 0
         sortRanges(&ranges)
         for entry in ranges {
@@ -274,7 +274,7 @@ struct BootParams {
     }
 
 
-    private static func sortRanges(ranges: inout [MemoryRange]) {
+    private static func sortRanges(_ ranges: inout [MemoryRange]) {
         ranges.sort(isOrderedBefore:{
             $0.start < $1.start
         })
@@ -435,7 +435,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
 
     // SMBios table
     private func findSMBIOS() -> UnsafePointer<smbios_header>? {
-        let region: ScanArea = mapPhysicalRegion(0xf0000, size: 0x10000)
+        let region: ScanArea = mapPhysicalRegion(start: 0xf0000, size: 0x10000)
         if let ptr = scanForSignature(region, SMBIOS.SMBIOS_SIG) {
             return UnsafePointer<smbios_header>(ptr)
         } else {
@@ -445,13 +445,13 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
 
 
     private func getEBDA() -> ScanArea? {
-        let ebdaRegion: UnsafeBufferPointer<UInt16> = mapPhysicalRegion(0x40E, size: 1)
+        let ebdaRegion: UnsafeBufferPointer<UInt16> = mapPhysicalRegion(start: 0x40E, size: 1)
         let ebda = ebdaRegion[0] //UInt16(msb: ebdaRegion[1], lsb: ebdaRegion[0])
         // Convert realmode segment to linear address
         let rsdpAddr = UInt(ebda) * 16
 
         if rsdpAddr > 0x400 {
-            let region: ScanArea = mapPhysicalRegion(rsdpAddr, size: 1024)
+            let region: ScanArea = mapPhysicalRegion(start: rsdpAddr, size: 1024)
             return region
         } else {
             return nil
@@ -460,12 +460,12 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
 
 
     private func getUpperMemoryArea() -> ScanArea {
-        let region: ScanArea = mapPhysicalRegion(0xE0000, size: 0x20000)
+        let region: ScanArea = mapPhysicalRegion(start: 0xE0000, size: 0x20000)
         return region
     }
 
 
-    private func scanForRSDP(area: ScanArea) -> UnsafePointer<rsdp1_header>? {
+    private func scanForRSDP(_ area: ScanArea) -> UnsafePointer<rsdp1_header>? {
         if let ptr = scanForSignature(area, RSDP_SIG) {
             return UnsafePointer<rsdp1_header>(ptr)
         } else {
@@ -474,14 +474,14 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
     }
 
 
-    private func scanForSignature(area: ScanArea, _ signature: StaticString) -> UnsafePointer<Void>? {
+    private func scanForSignature(_ area: ScanArea, _ signature: StaticString) -> UnsafePointer<Void>? {
         assert(signature.utf8CodeUnitCount != 0)
         assert(signature.isASCII)
 
         for idx in stride(from: 0, to: area.count - strideof(rsdp1_header), by: 16) {
             if memcmp(signature.utf8Start, area.baseAddress + idx,
                 signature.utf8CodeUnitCount) == 0 {
-                let region: UnsafePointer<Void> = area.regionPointer(idx)
+                let region: UnsafePointer<Void> = area.regionPointer(offset: idx)
                 return region
             }
         }
@@ -642,7 +642,7 @@ struct EFIBootParams: BootParamsData {
     }
 
 
-    private func matchGUID(guid1: efi_guid_t, _ guid2: efi_guid_t) -> Bool {
+    private func matchGUID(_ guid1: efi_guid_t, _ guid2: efi_guid_t) -> Bool {
         return (guid1.data1 == guid2.data1) && (guid1.data2 == guid2.data2)
         && (guid1.data3 == guid2.data3)
         && guid1.data4.0 == guid2.data4.0 && guid1.data4.1 == guid2.data4.1
@@ -652,7 +652,7 @@ struct EFIBootParams: BootParamsData {
     }
 
 
-    private func printGUID(guid: efi_guid_t) {
+    private func printGUID(_ guid: efi_guid_t) {
         printf("EFI: { %#8.8x, %#8.4x, %#4.4x, { %#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x }}\n",
             guid.data1, guid.data2, guid.data3, guid.data4.0, guid.data4.1,
             guid.data4.2, guid.data4.3, guid.data4.4, guid.data4.5,
@@ -660,7 +660,7 @@ struct EFIBootParams: BootParamsData {
     }
 
 
-    private func findGUID(guid: efi_guid_t) -> UnsafePointer<Void>? {
+    private func findGUID(_ guid: efi_guid_t) -> UnsafePointer<Void>? {
         for entry in configTables! {
             if matchGUID(entry.guid, guid) {
                 return ptrFromPhysicalPtr(UnsafePointer<rsdp1_header>(entry.table))
@@ -674,7 +674,7 @@ struct EFIBootParams: BootParamsData {
     private mutating func parseConfigTables() -> [EFIConfigTableEntry] {
         var entries: [EFIConfigTableEntry] = []
         let tables: UnsafeBufferPointer<efi_config_table_t> =
-        mapPhysicalRegion(configTablePtr, size: Int(configTableCount))
+        mapPhysicalRegion(start: configTablePtr, size: Int(configTableCount))
 
         for table in tables {
             let entry = EFIConfigTableEntry(guid: table.vendor_guid,

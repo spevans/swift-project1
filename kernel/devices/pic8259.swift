@@ -57,7 +57,7 @@ public class PIC8259 {
     }
 
 
-    static func enableIRQ(irq: Int) {
+    static func enableIRQ(_ irq: Int) {
         guard irq < 16 else {
             kprintf("Enabling invalid IRQ: %2.2x\n", irq)
             return
@@ -74,7 +74,7 @@ public class PIC8259 {
     }
 
 
-    static func disableIRQ(irq: Int) {
+    static func disableIRQ(_ irq: Int) {
         guard irq < 16 else {
             kprintf("Enabling invalid IRQ: %2.2x\n", irq)
             return
@@ -104,7 +104,7 @@ public class PIC8259 {
 
 
     // Helper rounint for readIRR()/readISR(), UInt16 is mask of IRQ0-15
-    static func readIRQReg(cmd: UInt8) -> UInt16 {
+    static func readIRQReg(_ cmd: UInt8) -> UInt16 {
         outb(PIC1Cmd, cmd)
         outb(PIC2Cmd, cmd)
         return UInt16(msb: inb(PIC2Cmd), lsb: inb(PIC1Cmd))

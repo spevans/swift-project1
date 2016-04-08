@@ -61,7 +61,7 @@ struct MCFG: ACPITable {
     }
 
 
-    func baseAddressForBus(bus: UInt8) -> UInt? {
+    func baseAddressForBus(_ bus: UInt8) -> UInt? {
         for entry in allocations {
             if bus >= entry.startBus && bus <= entry.endBus {
                 return entry.baseAddress
