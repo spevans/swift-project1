@@ -287,7 +287,7 @@ struct TextTTY: ScreenDriver {
         charsPerLine = 80
         totalChars = totalLines * charsPerLine
         bytesPerLine = 160
-        screenBase = UnsafeMutablePointer<UInt16>(bitPattern: PHYSICAL_MEM_BASE + 0xB8000)
+        screenBase = UnsafeMutablePointer<UInt16>(bitPattern: PHYSICAL_MEM_BASE + 0xB8000)!
         screen = UnsafeMutableBufferPointer(start: screenBase, count: totalChars)
     }
 
@@ -378,7 +378,7 @@ struct FrameBufferTTY: ScreenDriver {
         lastLineScrollArea = bytesPerTextLine * (totalLines - 1)
         let size = Int(frameBufferInfo.pxPerScanline) * Int(frameBufferInfo.height)
                 * depthInBytes
-        screenBase = UnsafeMutablePointer<UInt8>(bitPattern: PHYSICAL_MEM_BASE + frameBufferInfo.address)
+        screenBase = UnsafeMutablePointer<UInt8>(bitPattern: PHYSICAL_MEM_BASE + frameBufferInfo.address)!
         screen = UnsafeMutableBufferPointer<UInt8>(start: screenBase, count: size)
     }
 

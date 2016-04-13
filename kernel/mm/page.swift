@@ -50,7 +50,7 @@ func mapPhysicalRegion<T>(start: UnsafePointer<T>, size: Int) -> UnsafeBufferPoi
 
 
 func ptrFromPhysicalPtr<T>(_ ptr: UnsafePointer<T>) -> UnsafePointer<T> {
-    let ret: UnsafePointer<T> = UnsafePointer(bitPattern: PHYSICAL_MEM_BASE + ptr.address)
+    let ret: UnsafePointer<T> = UnsafePointer(bitPattern: PHYSICAL_MEM_BASE + ptr.address)!
     return ret;
 }
 
@@ -63,7 +63,7 @@ func vaddrFromPaddr(_ ptr: PhysAddress) -> VirtualAddress {
 
 func copyPhysicalRegion<T>(_ start: PhysAddress) -> T {
     let region = UnsafePointer<T>(bitPattern: PHYSICAL_MEM_BASE + start)
-    return region.pointee
+    return region!.pointee
 }
 
 

@@ -422,13 +422,13 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
     // Root System Description Pointer
     private func findRSDP() -> UnsafePointer<rsdp1_header>? {
         if let ebda = getEBDA() {
-            printf("ACPI: EBDA: %#8.8lx len: %#4.4lx\n", ebda.baseAddress, ebda.count)
+            printf("ACPI: EBDA: %#8.8lx len: %#4.4lx\n", ebda.baseAddress!, ebda.count)
             if let rsdp = scanForRSDP(ebda) {
                 return rsdp
             }
         }
         let upper = getUpperMemoryArea()
-        printf("ACPI: Upper: %#8.8lx len: %#4.4lx\n", upper.baseAddress, upper.count)
+        printf("ACPI: Upper: %#8.8lx len: %#4.4lx\n", upper.baseAddress!, upper.count)
         return scanForRSDP(upper)
     }
 
@@ -479,7 +479,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
         assert(signature.isASCII)
 
         for idx in stride(from: 0, to: area.count - strideof(rsdp1_header), by: 16) {
-            if memcmp(signature.utf8Start, area.baseAddress + idx,
+            if memcmp(signature.utf8Start, area.baseAddress! + idx,
                 signature.utf8CodeUnitCount) == 0 {
                 let region: UnsafePointer<Void> = area.regionPointer(offset: idx)
                 return region

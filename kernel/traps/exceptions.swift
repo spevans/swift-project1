@@ -9,56 +9,58 @@
  *
  */
 
+typealias ExceptionRegisters = UnsafeMutablePointer<exception_regs>
 
-func divideByZeroException(registers: UnsafeMutablePointer<exception_regs>) {
+
+func divideByZeroException(registers: ExceptionRegisters) {
     kprint("divideByZero\n")
     dump_registers(registers)
     stop()
 }
 
 
-func debugException(registers: UnsafeMutablePointer<exception_regs>) {
+func debugException(registers: ExceptionRegisters) {
     kprint("debugException\n")
     dump_registers(registers)
     stop()
 }
 
 
-func nonMaskableInterrupt(registers: UnsafeMutablePointer<exception_regs>) {
+func nonMaskableInterrupt(registers: ExceptionRegisters) {
     kprint("NMI\n")
     dump_registers(registers)
     stop()
 }
 
 
-func singleStepBreakpoint(registers: UnsafeMutablePointer<exception_regs>) {
+func singleStepBreakpoint(registers: ExceptionRegisters) {
     kprint("Breakpoint\n")
     dump_registers(registers)
 }
 
 
-func overflowException(registers: UnsafeMutablePointer<exception_regs>) {
+func overflowException(registers: ExceptionRegisters) {
     kprint("Overflow Exception\n")
     dump_registers(registers)
     stop()
 }
 
 
-func boundsException(registers: UnsafeMutablePointer<exception_regs>) {
+func boundsException(registers: ExceptionRegisters) {
     kprint("Bounds Exception\n")
     dump_registers(registers)
     stop()
 }
 
 
-func invalidOpcodeException(registers: UnsafeMutablePointer<exception_regs>) {
+func invalidOpcodeException(registers: ExceptionRegisters) {
     kprint("Invalid Opcode Exception\n")
     dump_registers(registers)
     stop()
 }
 
 
-func doubleFault(registers: UnsafeMutablePointer<exception_regs>) {
+func doubleFault(registers: ExceptionRegisters) {
     //let errorCode = registers.pointee.error_code
     kprint("Double Fault\n")
     dump_registers(registers)
@@ -66,7 +68,7 @@ func doubleFault(registers: UnsafeMutablePointer<exception_regs>) {
 }
 
 
-func invalidTSSException(registers: UnsafeMutablePointer<exception_regs>) {
+func invalidTSSException(registers: ExceptionRegisters) {
     //let errorCode = registers.pointee.error_code
     kprint("Invalid Task State Segment\n");
     dump_registers(registers)
@@ -74,7 +76,7 @@ func invalidTSSException(registers: UnsafeMutablePointer<exception_regs>) {
 }
 
 
-func segmentNotPresentException(registers: UnsafeMutablePointer<exception_regs>) {
+func segmentNotPresentException(registers: ExceptionRegisters) {
     //let errorCode = registers.pointee.error_code
     kprint("Segment Not Present Exception\n")
     dump_registers(registers)
@@ -82,7 +84,7 @@ func segmentNotPresentException(registers: UnsafeMutablePointer<exception_regs>)
 }
 
 
-func stackFault(registers: UnsafeMutablePointer<exception_regs>) {
+func stackFault(registers: ExceptionRegisters) {
     //let errorCode = registers.pointee.error_code
     kprint("Stack Fault\n")
     dump_registers(registers)
@@ -90,7 +92,7 @@ func stackFault(registers: UnsafeMutablePointer<exception_regs>) {
 }
 
 
-func generalProtectionFault(registers: UnsafeMutablePointer<exception_regs>) {
+func generalProtectionFault(registers: ExceptionRegisters) {
     let errorCode = UInt32(registers.pointee.error_code)
     kprint("GP Fault code: ")
     print_dword(errorCode)
@@ -100,7 +102,7 @@ func generalProtectionFault(registers: UnsafeMutablePointer<exception_regs>) {
 }
 
 
-func pageFault(registers: UnsafeMutablePointer<exception_regs>) {
+func pageFault(registers: ExceptionRegisters) {
     let errorCode = UInt32(registers.pointee.error_code)
     kprint("Page Fault: ")
     print_dword(errorCode)
@@ -110,14 +112,14 @@ func pageFault(registers: UnsafeMutablePointer<exception_regs>) {
 }
 
 
-func fpuFault(registers: UnsafeMutablePointer<exception_regs>) {
+func fpuFault(registers: ExceptionRegisters) {
     kprint("FPU Fault")
     dump_registers(registers)
     stop()
 }
 
 
-func alignmentCheckException(registers: UnsafeMutablePointer<exception_regs>) {
+func alignmentCheckException(registers: ExceptionRegisters) {
     //let errorCode = registers.pointee.error_code
     kprint("Alignment Check Exception\n")
     dump_registers(registers)
@@ -125,21 +127,21 @@ func alignmentCheckException(registers: UnsafeMutablePointer<exception_regs>) {
 }
 
 
-func machineCheckException(registers: UnsafeMutablePointer<exception_regs>) {
+func machineCheckException(registers: ExceptionRegisters) {
     kprint("Machine Check Exception")
     dump_registers(registers)
     stop()
 }
 
 
-func simdException(registers: UnsafeMutablePointer<exception_regs>) {
+func simdException(registers: ExceptionRegisters) {
     kprint("SIMD Exception")
     dump_registers(registers)
     stop()
 }
 
 
-func unhandledException(registers: UnsafeMutablePointer<exception_regs>) {
+func unhandledException(registers: ExceptionRegisters) {
     //let errorCode = registers.pointee.error_code
     kprint("Unhandled Exception\n")
     dump_registers(registers)

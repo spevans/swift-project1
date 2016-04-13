@@ -11,10 +11,11 @@
 #ifndef __X86_DEFS_H__
 #define __X86_DEFS_H__
 
-// Descriptor table info used for both GDT and IDT
+// Descriptor table info used for both GDT and IDT. `base' can be zero
+// but it doesnt mean null, however mark it nullable as a workaround.
 struct dt_info {
         uint16_t limit;
-        void *address;
+        void * _Nullable base;
 } __attribute__((packed));
 
 
@@ -97,9 +98,9 @@ struct smbios_header {
 #define NR_TRAPS 32     // CPU faults and exceptions 0 - 31
 #define NR_IRQS 16L     // hardware IRQs
 extern struct idt_entry idt[NR_INTERRUPTS];
-extern void (*trap_dispatch_table[NR_TRAPS])(struct exception_regs *);
+extern void (* _Nullable trap_dispatch_table[NR_TRAPS])(struct exception_regs * _Nonnull);
 
 typedef void (*irq_handler)(long irq);
-extern irq_handler irq_dispatch_table[];
+extern irq_handler _Nullable irq_dispatch_table[];
 
 #endif  // __X86_DEFS_H__

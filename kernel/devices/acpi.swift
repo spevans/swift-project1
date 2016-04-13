@@ -171,7 +171,7 @@ struct ACPI {
 
 
     private func mkSDTPtr(_ address: UInt) -> SDTPtr {
-        return SDTPtr(bitPattern: vaddrFromPaddr(address))
+        return SDTPtr(bitPattern: vaddrFromPaddr(address))!
     }
 
 
@@ -181,7 +181,7 @@ struct ACPI {
 
         if entryCount > 0 {
             let entryPtr: UnsafePointer<UInt32> =
-                UnsafePointer(bitPattern: ptr.advanced(by: 1).address)
+                UnsafePointer(bitPattern: ptr.advanced(by: 1).address)!
             return UnsafeBufferPointer(start: entryPtr, count: entryCount)
         } else {
             return nil

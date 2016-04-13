@@ -12,7 +12,7 @@
  */
 
 private var gdt = theGDT()
-private var gdtInfo = dt_info(limit: UInt16(strideof(theGDT) - 1), address: &gdt)
+private var gdtInfo = dt_info(limit: UInt16(strideof(theGDT) - 1), base: &gdt)
 
 
 // Helper method to construct a GDT entry
@@ -55,15 +55,22 @@ private struct theGDT {
 public func setupGDT() {
     print("Initialising GDT:")
     let tlsPtr = UnsafeMutablePointer<UInt>(initial_tls_end_addr)
-    tlsPtr.pointee = initial_tls_end_addr.address
+    tlsPtr!.pointee = initial_tls_end_addr.address
 
-    var currentGdtInfo = dt_info(limit: 0, address: nil)
+    func printGDT(_ msg: String, _ gdt: dt_info) {
+        // 0 is a valid address for a GDT, so map nil to 0
+        let address = (gdt.base != nil) ? gdt.base!.address : 0
+        print(msg, terminator: "")
+        printf(" GDTInfo: %p/%u\n", address, gdt.limit)
+    }
+
+    var currentGdtInfo = dt_info(limit: 0, base: nil)
     sgdt(&currentGdtInfo)
-    printf("Current GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.limit)
+    printGDT("Current", currentGdtInfo)
     lgdt(&gdtInfo)
 
     // Below is not really needed except to validate that the setup worked ok
     sgdt(&currentGdtInfo)
-    printf("New GDTInfo: %p/%u\n", currentGdtInfo.address, currentGdtInfo.limit)
+    printGDT("New %u", currentGdtInfo)
     reload_segments()
 }

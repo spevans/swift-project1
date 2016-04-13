@@ -71,8 +71,9 @@ extension UnsafePointer {
 
 
     // Increment a pointer by x bytes and recast to a new type
+    // Unwrapped result as nil pointers cant be advanced
     public func advancedBy<T>(bytes: Int) -> UnsafePointer<T> {
-        return UnsafePointer<T>(bitPattern: ptr_to_uint(self) + UInt(bytes))
+        return UnsafePointer<T>(bitPattern: ptr_to_uint(self) + UInt(bytes))!
     }
 }
 
@@ -85,8 +86,9 @@ extension UnsafeMutablePointer {
 
 
     // Increment a pointer by x bytes and recast to a new type
+    // Unwrapped result as nil pointers cant be advanced
     public func advancedBy<T>(bytes: Int) -> UnsafeMutablePointer<T> {
-        return UnsafeMutablePointer<T>(bitPattern: ptr_to_uint(self) + UInt(bytes))
+        return UnsafeMutablePointer<T>(bitPattern: ptr_to_uint(self) + UInt(bytes))!
     }
 }
 
@@ -97,7 +99,7 @@ extension UnsafeBufferPointer {
         let max = offset + strideof(T)
         assert(max <= self.count)
         let region = ptr_to_uint(self.baseAddress) + UInt(offset)
-        return UnsafePointer<T>(bitPattern: region)
+        return UnsafePointer<T>(bitPattern: region)!
     }
 }
 

@@ -22,7 +22,7 @@ public class MemoryBufferReader {
 
 
     public init(_ baseAddr: UInt, size: Int) {
-        ptr = UnsafePointer<UInt8>(bitPattern: baseAddr)
+        ptr = UnsafePointer<UInt8>(bitPattern: baseAddr)!
         buffer = UnsafeBufferPointer<UInt8>(start: ptr, count: size)
     }
 

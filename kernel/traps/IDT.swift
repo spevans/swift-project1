@@ -17,7 +17,7 @@
 
 // FIXME when strideof can be used with arrays
 private let idtSize = NR_INTERRUPTS * sizeof(idt_entry)
-private var idtInfo = dt_info(limit: UInt16(idtSize - 1), address: &idt)
+private var idtInfo = dt_info(limit: UInt16(idtSize - 1), base: &idt)
 
 
 
@@ -48,9 +48,17 @@ private func IDTEntry(address: UInt, selector: UInt16, gateType: GateType, dpl: 
 public func setupIDT() {
     print("Initialising IDT:")
     PIC8259.initPIC()
-    var currentIdtInfo = dt_info(limit: 0, address: nil)
+
+    func printIDT(_ msg: String, _ idt: dt_info) {
+        // 0 is a valid address for a IDT, so map nil to 0
+        let address = (idt.base != nil) ? idt.base!.address : 0
+        print(msg, terminator: "")
+        printf(" IDTInfo: %p/%u\n", address, idt.limit)
+    }
+    var currentIdtInfo = dt_info(limit: 0, base: nil)
     sidt(&currentIdtInfo)
-    printf("Current IDTInfo: %p/%u\n", currentIdtInfo.address, currentIdtInfo.limit)
+    printIDT("Current", currentIdtInfo)
+
     idt.0 = IDTEntry(address: divide_by_zero_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
     idt.1 = IDTEntry(address: debug_exception_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
     idt.2 = IDTEntry(address: nmi_stub_addr(), selector: 0x8, gateType: .TRAP_GATE, dpl: 0)
@@ -115,7 +123,7 @@ public func setupIDT() {
 
     // Below is not needed except to validate that the setup worked ok and test some exceptions
     sidt(&currentIdtInfo)
-    printf("New IDTInfo: %p/%u\n", currentIdtInfo.address, currentIdtInfo.limit)
+    printIDT("New", currentIdtInfo)
     print("Testing Breakpoint:")
     test_breakpoint()
     // Test Null page read fault
