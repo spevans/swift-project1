@@ -28,7 +28,7 @@ guard args.count == 5 else {
 }
 print("Bootsect: \(args[1]) loader: \(args[2]) kernel: \(args[3]) output: \(args[4])")
 
-func openOrQuit(filename: String) -> NSData {
+func openOrQuit(_ filename: String) -> NSData {
     guard let file = NSMutableData(contentsOfFile: filename) else {
         fatalError("Cant open \(filename)")
     }
@@ -36,7 +36,7 @@ func openOrQuit(filename: String) -> NSData {
 }
 
 
-func patchValue<T>(data: NSData, offset: Int, value: T) {
+func patchValue<T>(_ data: NSData, offset: Int, value: T) {
     guard offset >= 0 && offset < data.length else {
         fatalError("Invalid offset: \(offset)")
     }
@@ -45,7 +45,7 @@ func patchValue<T>(data: NSData, offset: Int, value: T) {
 }
 
 
-func readValue<T>(data: NSData, offset: Int) -> T {
+func readValue<T>(_ data: NSData, offset: Int) -> T {
     guard offset >= 0 && offset < data.length else {
         fatalError("Invalid offset: \(offset)")
     }
@@ -74,7 +74,7 @@ extension UInt32 {
 
 
 // BIOS bootsector
-func patchBootSector(bootsect: NSData, _ loaderSectors: UInt16, _ kernelSectors: UInt16) {
+func patchBootSector(_ bootsect: NSData, _ loaderSectors: UInt16, _ kernelSectors: UInt16) {
     // Ensure bootsector + loader == 2048 bytes so that if loaded from cd it fits in one
     // ISO9660 sector
     let loaderLen: UInt16 = (2048 - 512) / 512
@@ -94,10 +94,10 @@ func patchBootSector(bootsect: NSData, _ loaderSectors: UInt16, _ kernelSectors:
 }
 
 
-func writeOutImage(filename: String, _ bootsect: NSData, _ loader: NSData,
+func writeOutImage(to filename: String, _ bootsect: NSData, _ loader: NSData,
     _ kernel: NSData, padding: Int = 0) {
     let outputData = NSMutableData(data: bootsect)
-    outputData.appendData(loader)
+    outputData.append(loader)
 
     // Make sure kernel starts on a sector boundary
     let seek = (outputData.length + 511) & ~511
@@ -106,23 +106,23 @@ func writeOutImage(filename: String, _ bootsect: NSData, _ loader: NSData,
         fatalError("kernel padding too much \(kernelPadding)")
     }
     print("Adding \(kernelPadding) bytes to start of kernel")
-    outputData.increaseLengthBy(kernelPadding)
-    outputData.appendData(kernel)
+    outputData.increaseLength(by: kernelPadding)
+    outputData.append(kernel)
 
     // FIXME: make padding a cmd line arg, this is needed to make a bochs disk image
     if padding > outputData.length {
         print("Padding output to \(padding) bytes")
-        outputData.increaseLengthBy(padding - outputData.length)
+        outputData.increaseLength(by: padding - outputData.length)
     }
 
-    guard outputData.writeToFile(filename, atomically: false) else {
+    guard outputData.write(toFile: filename, atomically: false) else {
         fatalError("Cant write to output file \(filename)");
     }
 }
 
 
 // break a device name eg /dev/sda3 into /dev/sda and 3
-func driveAndPartition(device: String) -> (String, Int?) {
+func driveAndPartition(_ device: String) -> (String, Int?) {
     let devname = NSString(string: device)
     let numbers = NSCharacterSet.decimalDigitCharacterSet()
     let offset = devname.rangeOfCharacterFromSet(numbers)
@@ -137,12 +137,12 @@ func driveAndPartition(device: String) -> (String, Int?) {
 }
 
 
-func getPartitionLBA(device: String) -> UInt64 {
+func getPartitionLBA(_ device: String) -> UInt64 {
     var stat_buf = stat_info()
 
     let ndevice = NSString(string: device)
     let cname  = ndevice.cStringUsingEncoding(NSASCIIStringEncoding)
-    let err = stat(cname, &stat_buf)
+    let err = stat(cname!, &stat_buf)
     guard err == 0 else {
         print("Cant read device information for \(device)")
         return 0
@@ -168,7 +168,7 @@ func getPartitionLBA(device: String) -> UInt64 {
         fatalError("Cant read MBR")
     }
     let ptRange = NSMakeRange(0x1be, strideof(hd_partition) * 4)
-    let partitionTable = UnsafePointer<hd_partition>(mbr.subdataWithRange(ptRange).bytes)
+    let partitionTable = UnsafePointer<hd_partition>(mbr.subdata(with: ptRange).bytes)
     let partitionInfo = partitionTable[partitionIdx]
     print("system: \(partitionInfo.system) LBA: \(partitionInfo.LBA_start)")
     guard partitionInfo.system == 0x52 else {
@@ -189,4 +189,4 @@ let kernelSectors = UInt16((kernel.length + 511) / 512)
 
 patchBootSector(bootsect, loaderSectors, kernelSectors)
 // Extra padding to make valid Bochs HD
-writeOutImage(args[4], bootsect, loader, kernel, padding: (20 * 16 * 63 * 512))
+writeOutImage(to: args[4], bootsect, loader, kernel, padding: (20 * 16 * 63 * 512))

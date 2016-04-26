@@ -16,7 +16,7 @@ import Foundation
 
 
 @noreturn
-func exitWithMessage(msg: String) {
+func exitWithMessage(_ msg: String) {
     print(msg)
     exit(1)
 }
@@ -35,7 +35,7 @@ extension Int32 {
 }
 
 
-func parseHex(number: String) -> UInt? {
+func parseHex(_ number: String) -> UInt? {
      if (number.hasPrefix("0x")) {
         return UInt(number.stringByReplacingOccurrencesOfString("0x", withString: ""),
             radix: 16)
@@ -45,14 +45,14 @@ func parseHex(number: String) -> UInt? {
 }
 
 
-func openOrQuit(filename: String) -> NSData {
+func openOrQuit(_ filename: String) -> NSData {
     guard let file = NSMutableData(contentsOfFile: filename) else {
         exitWithMessage("Cant open \(filename)")
     }
     return file
 }
 
-func parseMap(filename: String) -> Dictionary<String, UInt> {
+func parseMap(_ filename: String) -> Dictionary<String, UInt> {
     guard let kernelMap = try? String(contentsOfFile: filename, encoding: NSASCIIStringEncoding) else {
         exitWithMessage("Cant open \(filename)")
     }
@@ -127,6 +127,6 @@ buf[2] = UInt8(truncatingBitPattern: offset >> 8)
 buf[3] = UInt8(truncatingBitPattern: offset >> 16)
 buf[4] = UInt8(truncatingBitPattern: offset >> 24)
 
-guard bin.writeToFile(binFile, atomically: true) else {
+guard bin.write(toFile: binFile, atomically: true) else {
     exitWithMessage("Cant write output")
 }

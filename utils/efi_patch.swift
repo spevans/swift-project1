@@ -11,7 +11,7 @@
 import Foundation
 
 
-func openOrQuit(filename: String) -> NSData {
+func openOrQuit(_ filename: String) -> NSData {
     guard let file = NSData(contentsOfFile: filename) else {
         exitWithMessage("Cant open \(filename)")
     }
@@ -20,13 +20,13 @@ func openOrQuit(filename: String) -> NSData {
 
 
 @noreturn
-func exitWithMessage(msg: String) {
+func exitWithMessage(_ msg: String) {
     print(msg)
     exit(1)
 }
 
 
-func patchValue<T>(data: NSData, offset: Int, value: T) {
+func patchValue<T>(_ data: NSData, offset: Int, value: T) {
     guard offset >= 0 && offset < data.length else {
         exitWithMessage("Invalid offset: \(offset)")
     }
@@ -35,7 +35,7 @@ func patchValue<T>(data: NSData, offset: Int, value: T) {
 }
 
 
-func readValue<T>(data: NSData, offset: Int) -> T {
+func readValue<T>(_ data: NSData, offset: Int) -> T {
     guard offset >= 0 && offset < data.length else {
         exitWithMessage("Invalid offset: \(offset)")
     }
@@ -59,7 +59,7 @@ extension UInt {
 
 
 
-func patchEFIHeader(header: NSData, _ loaderSectors: UInt16) -> Int {
+func patchEFIHeader(_ header: NSData, _ loaderSectors: UInt16) -> Int {
     // SizeOfCode
     let sizeOfCode = UInt32(loaderSectors) * 512
     print("SizeOfCode:", sizeOfCode.asHex())
@@ -80,25 +80,25 @@ func patchEFIHeader(header: NSData, _ loaderSectors: UInt16) -> Int {
 }
 
 
-func writeOutImage(filename: String, _ bootsect: NSData, _ loader: NSData,
+func writeOutImage(_ filename: String, _ bootsect: NSData, _ loader: NSData,
     padding: Int = 0) {
 
     let outputData = NSMutableData(data: bootsect)
-    outputData.appendData(loader)
+    outputData.append(loader)
 
     // FIXME: make padding a cmd line arg, this is needed to make a bochs disk image
     if padding > outputData.length {
         print("Padding output to \(padding) bytes")
-        outputData.increaseLengthBy(padding - outputData.length)
+        outputData.increaseLength(by: padding - outputData.length)
     }
 
-    guard outputData.writeToFile(filename, atomically: false) else {
+    guard outputData.write(toFile: filename, atomically: false) else {
         exitWithMessage("Cant write to output file \(filename)");
     }
 }
 
 
-func parseHex(number: String) -> UInt? {
+func parseHex(_ number: String) -> UInt? {
      if (number.hasPrefix("0x")) {
         return UInt(number.stringByReplacingOccurrencesOfString("0x", withString: ""),
             radix: 16)
@@ -108,7 +108,7 @@ func parseHex(number: String) -> UInt? {
 }
 
 
-func parseMap(filename: String) -> Dictionary<String, UInt> {
+func parseMap(_ filename: String) -> Dictionary<String, UInt> {
     guard let kernelMap = try? String(contentsOfFile: filename, encoding: NSASCIIStringEncoding) else {
         exitWithMessage("Cant open \(filename)")
     }
