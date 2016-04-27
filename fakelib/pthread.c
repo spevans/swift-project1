@@ -21,6 +21,7 @@ typedef struct pthread_mutexattr pthread_mutexattr_t;
 typedef struct pthread_cond pthread_cond_t;
 typedef struct pthread_condattr pthread_condattr_t;
 typedef struct pthread_rw_lock pthread_rwlock_t;
+typedef struct pthread_rwlockattr pthread_rwlockattr_t;
 typedef int pthread_once_t;
 typedef unsigned int pthread_key_t;
 typedef unsigned long int pthread_t;
@@ -136,6 +137,31 @@ pthread_cond_wait(pthread_cond_t *restrict cond,
 
 
 int
+pthread_rwlock_init(pthread_rwlock_t *restrict rwlock,
+                    const pthread_rwlockattr_t *restrict attr)
+{
+        debugf("pthread_rwlock_init(%p, %p)\n", rwlock, attr);
+        return 0;
+}
+
+
+int
+pthread_rwlock_destroy(pthread_rwlock_t *rwlock)
+{
+        debugf("pthread_rwlock_destroy(%p)\n", rwlock);
+        return 0;
+}
+
+
+int
+pthread_rwlock_tryrdlock(pthread_rwlock_t *rwlock)
+{
+        debugf("pthread_rwlock_tryrdlock(%p)\n", rwlock);
+        return 0;
+}
+
+
+int
 pthread_rwlock_rdlock(pthread_rwlock_t *rwlock)
 {
         debugf("pthread_rwlock_rdlock(%p)\n", rwlock);
@@ -144,9 +170,9 @@ pthread_rwlock_rdlock(pthread_rwlock_t *rwlock)
 
 
 int
-pthread_rwlock_unlock(pthread_rwlock_t *rwlock)
+pthread_rwlock_trywrlock(pthread_rwlock_t *rwlock)
 {
-        debugf("pthread_rwlock_unlock(%p)\n", rwlock);
+        debugf("pthread_tryrwlock_wrlock(%p)\n", rwlock);
         return 0;
 }
 
@@ -155,6 +181,14 @@ int
 pthread_rwlock_wrlock(pthread_rwlock_t *rwlock)
 {
         debugf("pthread_rwlock_wrlock(%p)\n", rwlock);
+        return 0;
+}
+
+
+int
+pthread_rwlock_unlock(pthread_rwlock_t *rwlock)
+{
+        debugf("pthread_rwlock_unlock(%p)\n", rwlock);
         return 0;
 }
 
