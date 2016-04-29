@@ -11,7 +11,8 @@ stopping the use of the Swift releases that can be downloaded from swift.org.~~
 Ive moved to Swift-3.0 since this is where the latest changes are happening
 and I will need to move to it anyway at some point so its easier to track the
 syntax changes as they occur. However you will need to compile a custom version
-of Swift and its Stdlib
+of Swift and its Stdlib for building the kernel but a normal snapshot for the
+utils that are run on Linux.
 
 
 ## Red zone
@@ -24,30 +25,8 @@ clang so swift and stdlib need to be recompiled to disable its use.
 
 I forked swift and added a `-disable-red-zone` option for compiling and removed
 the floating point code and other unneeded bits from Stdlib so that it could be
-compiled without using SSE registers.
-
-The [kernel-lib](https://github.com/spevans/swift/tree/kernel-lib)
-branch can be cloned from https://github.com/spevans/swift.git the rest
-from https://github.com/apple.
-
-| repo    | branch     |
-|---------|------------|
-| clang   | stable     |
-| cmark   | master     |
-| llvm    | stable     |
-| ninja   | master     |
-| swift   | kernel-lib |
-
-
-Run:
-```
-cd swift/swift
-mkdir -p ~/swift/build ~/swift-redzone
-HOME=~ SWIFT_BUILD_ROOT=~/swift/build ./utils/build-script --assertions --no-swift-stdlib-assertions --build-subdir=buildbot_linux --release -- --swift-enable-ast-verifier=0 --install-swift --install-prefix=/usr '--swift-install-components=autolink-driver;compiler;clang-builtin-headers;stdlib;sdk-overlay;license' --build-swift-static-stdlib --build-swift-stdlib-unittest-extra --skip-test-lldb --install-destdir=$HOME/swift-kernel --installable-package=$HOME/swift/swift-`date '+%F-%X'`.tar.gz --reconfigure  --verbose-build --build-jobs=2 2>&1|tee build.log
-```
-
-This will build and install swift in `~/swift-kernel/usr/bin`. Adjust `--build-jobs=2`
-as required.
+compiled without using SSE registers. See https://github.com/spevans/swift/blob/kernel-lib/KERNEL_LIB.txt
+for how to build and install the compiler
 
 
 ## Using the compiler
@@ -75,7 +54,7 @@ went wrong when an exception handler simply gives the instruction pointer as the
 source of an error.
 
 `-Xfrontend -disable-red-zone` ensures that code generated from the swiftc
-doesnt generate red zone code.
+doesn't generate red zone code.
 
 `-Xcc -mno-red-zone` tells the `clang` compiler not to use the red zone on any
 files it compiles. `clang` is used if there is any code in the header file you
@@ -97,7 +76,7 @@ and function names. However actual module files are not created with this option
 
 Now that a .o ELF file has been produced it needs to be linked to a final
 executable. Swift requires that its stdlib is linked in as this provides some
-qbasic functions that are needed by Swift at runtime.
+basic functions that are needed by Swift at runtime.
 
 The library name is `libswiftCore.a` and should be in `lib/swift_static/linux`
 under the install directory.
@@ -136,17 +115,12 @@ public func startup() {
 }
 ```
 
-
 ## Stdlib
 
-It would be possible to alter the stdlib code to remove a lot of the functions
-that ar erequired for linking but not actually needed by the kernel (eg the maths
-functions) however I decided against doing any alterations to stdlib as I didnt
-want to have to maintain a patch against it. Given the number of changes made to
-stdlib since Swift went open source, I also didnt want to keep maintaining an
-extra patch that could just diverge too much. Adding stub functions for the
-unused parts wasnt a big problem.
-
+As I was maintaining a separate branch of the swift compiler I decided to remove
+some bits of Stdlib mostly to remove floating point and the use of SSE. I also
+removed the math functions (sin, cos, etc) as these are not needed and help
+reduce the size of the stdlib library file.
 
 ## Swift modules
 
@@ -187,7 +161,7 @@ When a Swift function is first called there is some global
 initialisation performed in the libraries (wrapped in a `pthread_once()/
 dispatch_once()`). This calls `malloc()/free()` and some C++ string
 functions so all of the C code is required to perform this basic
-initialisation. The TTY driver in C is requred for any debugging / oops
+initialisation. The TTY driver in C is required for any debugging / oops
 messages until Swift is initialised and can take over the display.
 
 Originally I had planned to add more functionality in Swift but it took
@@ -202,7 +176,7 @@ Currently it will not build on OSX. I originally started developing on OSX
 against the libswiftCore.dylib shipped with the latest Xcode including writing
 a static linker to link the .dylib with the stub C functions to produce a
 binary. This was working however I got stuck doing the stubs for the Obj-C
-functions. Then Swift went open source and since the linux libary is not
+functions. Then Swift went open source and since the linux library is not
 compiled with Obj-C support it removed a whole slew of functions and symbols
 that would need to be supported.
 

@@ -11,10 +11,16 @@ else
 	OPTO_FLAG := -O
 endif
 
-SWIFTDIR := $(shell readlink -f ~/swift-kernel/usr)
-SWIFT := $(SWIFTDIR)/bin/swift
-SWIFTC := $(SWIFTDIR)/bin/swiftc
-SWIFTLIB := $(SWIFTDIR)/lib/swift_static/linux/libswiftCore.a
+
+# The normal swift-3 compiler
+SWIFT3 := ~/swift-3
+SWIFT3C := $(SWIFT3)/usr/bin/swiftc
+
+# The path to the kernel-lib swift compiler
+SWIFTDIR := $(shell readlink -f ~/swift-kernel)
+SWIFT := $(SWIFTDIR)/usr/bin/swift
+SWIFTC := $(SWIFTDIR)/usr/bin/swiftc
+SWIFTLIB := $(SWIFTDIR)/usr/lib/swift_static/linux/libswiftCore.a
 SWIFTC_FLAGS := -gnone $(OPTO_FLAG) -Xfrontend -disable-red-zone -Xcc -mno-red-zone -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -I$(MODULE_DIR)
 
 ifndef USE_FP
@@ -24,7 +30,7 @@ endif
 
 
 ifdef BUILD_ONONE
-      SWIFTLIB := $(SWIFTLIB) $(SWIFTDIR)/lib/swift_static/linux/libswiftSwiftOnoneSupport.a
+      SWIFTLIB := $(SWIFTLIB) $(SWIFTDIR)/usr/lib/swift_static/linux/libswiftSwiftOnoneSupport.a
 endif
 
 NASM_OBJ_FLAGS := -felf64

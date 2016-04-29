@@ -14,23 +14,30 @@ writeup about it [here](http://si.org/projects/project1).
 - Scans PCI bus
 - Initialises timer and keyboard
 
+Currently working on implementing pthread functions and getting simple tasks up
+and running.
+
 
 ## How to build it
 
-Curently it only builds on linux. It requires:
+Currently it only builds on linux. It requires:
 
 * clang
 * xorriso
 * mtools
 * nasm (known to work with 2.11.09rc1 but earlier should be ok)
 
-Swift 3.0 is also required along with a special version to disable the red zone.
+A normal Swift 3.0 [snapshot](https://swift.org/download/#snapshots) is also
+required along with a special version to disable the red zone.
 See [here](doc/development.md#red-zone) to build a swift compiler and stdlib
 with red-zone disabled.
 
 
-If you install the swift compiler into a different directory to `~/usr` then
-edit `SWIFTDIR` in `Makedefs`
+You should now have 2 compilers installed, one in `~/swift-kernel` and the other
+where ever you installed the snapshot (I install it and symlink `~/swift-3`)
+
+Edit the `Makedefs` file and alter the `SWIFT3` and `SWIFTDIR` as appropriate
+
 
 then:
 ```
@@ -42,7 +49,6 @@ $ bochs -q  (then press 'c' to run)
 ```
 
 ![Screenshot](doc/screenshot.png)
-
 
 
 Copyright (c) 2015 Simon Evans
