@@ -115,7 +115,7 @@ public struct TTY {
     }
 
 
-    public static func printString(string: StaticString) {
+    public static func printString(_ string: StaticString) {
         if string.hasPointerRepresentation {
             for ch in UnsafeBufferPointer(start: string.utf8Start,
                 count: Int(string.utf8CodeUnitCount)) {
