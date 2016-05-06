@@ -28,8 +28,8 @@
 struct bios_boot_params {
         char signature[8];      // ASCIIZ string 'BIOS'
         size_t size;            // Size of entire table including embedded data and signature
-        void *kernel_phys_addr;
-        void *e820_map;
+        void * _Nonnull kernel_phys_addr;
+        void * _Nonnull e820_map;
         size_t e820_entries;    // Number of e820 memory map entries
         char data[0];
 }  __attribute__((packed));
@@ -38,19 +38,19 @@ struct bios_boot_params {
 struct efi_boot_params {
         char signature[8];      // ASCIIZ string 'EFI'
         size_t size;            // Size of entire table including embedded data and signature
-        void *kernel_phys_addr;
-        void *memory_map;
+        void * _Nonnull kernel_phys_addr;
+        void * _Nonnull memory_map;
         size_t memory_map_size;
         size_t memory_map_desc_size;
         struct frame_buffer fb;
         uint64_t nr_efi_config_entries;
-        efi_config_table_t *efi_config_table;
+        efi_config_table_t * _Nonnull efi_config_table;
 }  __attribute__((packed));
 
 
-extern void *(*alloc_pages)(size_t count);
-extern void (*free_pages)(void *pages, size_t count);
-void *malloc(size_t size);
-void free(void *ptr);
+extern void * _Nonnull (* _Nonnull alloc_pages)(size_t count);
+extern void (* _Nonnull free_pages)(void * _Nullable pages, size_t count);
+void * _Nullable malloc(size_t size);
+void free(void * _Nullable ptr);
 
 #endif  // __MM_H__

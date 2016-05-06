@@ -220,7 +220,7 @@ __pthread_key_create (pthread_key_t *key,
 pthread_t
 pthread_self()
 {
-        debugf("pthread_self called");
+        debugf("pthread_self()\n");
         return 1;
 }
 
@@ -231,4 +231,12 @@ void __once_proxy()
         if (_ZSt11__once_call) {
                 _ZSt11__once_call();
         }
+}
+
+
+int
+sched_yield()
+{
+        debugf("sched_yield()\n");
+        return 0;
 }
