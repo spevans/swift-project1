@@ -373,44 +373,50 @@ set_print_functions_to_swift()
 
 /* Simple number printing functions that dont invoke *printf */
 
-void print_nibble(int value)
+void
+kprint_nibble(uint8_t value)
 {
         static char *hex = "0123456789ABCDEF";
         early_print_char(hex[value & 0xf]);
 }
 
 
-void print_byte(int value)
+void
+kprint_byte(uint8_t value)
 {
-        print_nibble((value >> 4) & 0xf);
-        print_nibble(value & 0xf);
+        kprint_nibble((value >> 4) & 0xf);
+        kprint_nibble(value & 0xf);
 }
 
 
-void print_word(int value)
+void
+kprint_word(uint16_t value)
 {
-        print_byte((value >> 8) & 0xff);
-        print_byte(value & 0xff);
+        kprint_byte((value >> 8) & 0xff);
+        kprint_byte(value & 0xff);
 }
 
 
-void print_dword(unsigned int value)
+void
+kprint_dword(uint32_t value)
 {
-        print_word((value >> 16) & 0xffff);
-        print_word(value & 0xffff);
+        kprint_word((value >> 16) & 0xffff);
+        kprint_word(value & 0xffff);
 
 }
 
 
-void print_qword(uint64_t value)
+void
+kprint_qword(uint64_t value)
 {
-        print_dword((value >> 32) & 0xffffffff);
-        print_dword(value & 0xffffffff);
+        kprint_dword((value >> 32) & 0xffffffff);
+        kprint_dword(value & 0xffffffff);
 }
 
 
-void print_pointer(void *ptr)
+void
+kprint_pointer(void *ptr)
 {
-        print_string("0x");
-        print_qword((uintptr_t)ptr);
+        early_print_string("0x");
+        kprint_qword((uintptr_t)ptr);
 }

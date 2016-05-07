@@ -76,6 +76,6 @@ public func queuedIRQsTask() {
 
 func unexpectedInterrupt(irq: Int) {
     kprint("unexpected interrupt: ")
-    print_dword(UInt32(irq))
+    kprint_dword(UInt32(irq))
     kprint("\n");
 }

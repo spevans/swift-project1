@@ -62,9 +62,3 @@ size_t strlen(const char *s);
 extern void (*print_char)(const char ch);
 extern void (*print_string)(const char *str);
 extern void (*print_string_len)(const char *str, size_t len);
-
-void print_nibble(int value);
-void print_byte(int value);
-void print_word(int value);
-void print_dword(unsigned int value);
-void print_qword(uint64_t value);

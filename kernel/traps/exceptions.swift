@@ -95,7 +95,7 @@ func stackFault(registers: ExceptionRegisters) {
 func generalProtectionFault(registers: ExceptionRegisters) {
     let errorCode = UInt32(registers.pointee.error_code)
     kprint("GP Fault code: ")
-    print_dword(errorCode)
+    kprint_dword(errorCode)
     kprintf("\n")
     dump_registers(registers)
     stop()
@@ -105,7 +105,7 @@ func generalProtectionFault(registers: ExceptionRegisters) {
 func pageFault(registers: ExceptionRegisters) {
     let errorCode = UInt32(registers.pointee.error_code)
     kprint("Page Fault: ")
-    print_dword(errorCode)
+    kprint_dword(errorCode)
     kprint("\n")
     dump_registers(registers)
     stop()

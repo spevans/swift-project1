@@ -54,9 +54,7 @@ _ZSt17__throw_bad_allocv()
 void
 _ZSt20__throw_system_errori(int error)
 {
-        print_string("System error: ");
-        print_dword(error);
-        asm volatile ("hlt" : : : "memory");
+        koops("System error: %d", error);
 }
 
 
@@ -274,7 +272,7 @@ _ZNSsC1EPKcRKSaIcE(struct basic_string **this_p, char const *string, void *alloc
         struct basic_string *result = _ZNSs12_S_constructIPKcEEPcT_S3_RKSaIcESt20forward_iterator_tag(string, end, allocator, 0);
         dump_basic_string(result - 1);
         *this_p = result;
-        print_string("_ZNSsC1EPKcRKSaIcE finished\n");
+        kprintf("_ZNSsC1EPKcRKSaIcE finished\n");
         hlt();
 }
 
