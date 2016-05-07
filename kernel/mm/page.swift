@@ -18,19 +18,19 @@ let entriesPerPageMask: UInt = entriesPerPage - 1
 
 
 // Only Lower 48bits are valid in a physical address and lower 12 are flags
-private let physAddressMask  :UInt = 0x0000fffffffff000
-private let pagePresent      :UInt = 0b0000000000001
-private let readWriteFlag    :UInt = 0b0000000000010
-private let userAccessFlag   :UInt = 0b0000000000100
-private let writeThruFlag    :UInt = 0b0000000001000
-private let cacheDisableFlag :UInt = 0b0000000010000
-private let accessedBit      :UInt = 0b0000000100000
-private let dirtyBit         :UInt = 0b0000001000000
-private let largePageFlag    :UInt = 0b0000010000000     // 2MB or 1GB page
-private let PATFlag          :UInt = 0b0000010000000     // PAT flag for 4K pages
-private let largePagePATFlag :UInt = 0b1000000000000
-private let globalFlag       :UInt = 0b0000100000000
-private let executeDisableFlag :UInt = 1 << 63
+private let physAddressMask:    UInt = 0x0000fffffffff000
+private let pagePresent:        UInt = 0b0000000000001
+private let readWriteFlag:      UInt = 0b0000000000010
+private let userAccessFlag:     UInt = 0b0000000000100
+private let writeThruFlag:      UInt = 0b0000000001000
+private let cacheDisableFlag:   UInt = 0b0000000010000
+private let accessedBit:        UInt = 0b0000000100000
+private let dirtyBit:           UInt = 0b0000001000000
+private let largePageFlag:      UInt = 0b0000010000000     // 2MB or 1GB page
+private let PATFlag:            UInt = 0b0000010000000     // PAT flag for 4K pages
+private let largePagePATFlag:   UInt = 0b1000000000000
+private let globalFlag:         UInt = 0b0000100000000
+private let executeDisableFlag: UInt = 1 << 63
 
 private let physicalMemPtr = UnsafeMutablePointer<UInt>(bitPattern: PHYSICAL_MEM_BASE)
 private let physicalMemory = UnsafeMutableBufferPointer(start: physicalMemPtr,

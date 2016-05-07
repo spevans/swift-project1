@@ -73,6 +73,6 @@ public func setupGDT() {
 
     // Below is not really needed except to validate that the setup worked ok
     sgdt(&currentGdtInfo)
-    printGDT("New %u", currentGdtInfo)
+    printGDT("New", currentGdtInfo)
     reload_segments()
 }
