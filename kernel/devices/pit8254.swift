@@ -160,7 +160,11 @@ public class PIT8254 {
 }
 
 
-var ticks: UInt64 = 0;
+private var ticks: UInt64 = 0
 func timerInterrupt(irq: Int) {
+    ticks += 1
+    if (ticks % 32000) == 0 {
+        kprint("timerInterrupt\n")
+    }
     // Do nothing for now
 }

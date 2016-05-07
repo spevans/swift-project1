@@ -172,7 +172,7 @@ malloc(size_t size)
         if (sizeof(struct slab_header) != PAGE_SIZE) {
                 koops("slab_header is %lu bytes", sizeof(struct slab_header));
         }
-        if (int_nest_count > 0) {
+        if (read_int_nest_count() > 0) {
                 koops("malloc called in interrupt handler");
         }
 
@@ -230,7 +230,7 @@ free(void *ptr)
         if (unlikely(ptr == NULL)) {
                 return;
         }
-        if (int_nest_count > 0) {
+        if (read_int_nest_count() > 0) {
                 koops("malloc called in interrupt handler");
         }
 
@@ -287,7 +287,7 @@ malloc_usable_size(void *ptr)
         if (atomic_fetch_add(&malloc_lock, 1) != 0) {
                 koops("(usable_size)malloc_lock != 0");
         }
-        if (int_nest_count > 0) {
+        if (read_int_nest_count() > 0) {
                 koops("malloc called in interrupt handler");
         }
 

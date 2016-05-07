@@ -10,9 +10,13 @@
  */
 
 
-private let irqDispatchTablePtr = UnsafeMutablePointer<irq_handler>(irq_dispatch_table_addr)
-private let irqDispatchTable = UnsafeMutableBufferPointer(start: irqDispatchTablePtr, count:NR_IRQS)
-private var queuedIrqHandlers: [irq_handler] = []
+public typealias IRQHandler = Int -> ()
+
+private var irqHandlers: [IRQHandler] = Array(repeating: unexpectedInterrupt,
+    count: NR_IRQS)
+
+private var queuedIrqHandlers: [IRQHandler] = Array(repeating: unexpectedInterrupt,
+    count: NR_IRQS)
 
 // Circular queue of IRQs
 private let irqQueueSize = 128
@@ -21,36 +25,79 @@ private var irqQIn = 0
 private var irqQOut = 0
 
 
-public func initIRQs() {
+func initIRQs() {
     irqQueue.reserveCapacity(irqQueueSize)
-    for idx in 0..<irqDispatchTable.endIndex {
-        irqDispatchTable[idx] = unexpectedInterrupt
-    }
-    queuedIrqHandlers = Array(repeating: unexpectedInterrupt, count: NR_IRQS)
 }
 
 
-public func enableIRQs() {
+func enableIRQs() {
     print("Enabling IRQs")
     sti()
 }
 
 
-public func setIrqHandler(_ irq: Int, handler: irq_handler) {
-    irqDispatchTable[irq] = handler
+public func setIrqHandler(_ irq: Int, handler: IRQHandler) {
+    irqHandlers[irq] = handler
     PIC8259.enableIRQ(irq)
 }
 
 
 public func removeIrqHandler(_ irq: Int) {
     PIC8259.disableIRQ(irq)
-    irqDispatchTable[irq] = unexpectedInterrupt
+    irqHandlers[irq] = unexpectedInterrupt
 }
 
 
-public func setQueuedIrqHandler(_ irq: Int, handler: irq_handler) {
+public func setQueuedIrqHandler(_ irq: Int, handler: IRQHandler) {
     queuedIrqHandlers[irq] = handler
     setIrqHandler(irq, handler: queueIrq)
+}
+
+
+func queuedIRQsTask() {
+    while (irqQOut != irqQIn) {
+        irqQOut = (irqQOut + 1) & (irqQueueSize - 1)
+        let irq = irqQueue[irqQOut]
+        queuedIrqHandlers[irq](irq)
+    }
+}
+
+
+/* The following functions all run inside an IRQ so cannot call
+ * malloc() etc and so cant use [CVarArgs] so no printf() functions.
+ * irqHandler does everything except save/restore the registers and
+ * the IRET. The IRQ number is passed on the stack in the ExceptionRegisters
+ * (include/x86defs.h:excpetion_regs) as the error_code.
+ * This interrupt handler currently suffers from overrun as it is too slow.
+ * because the code is currently compiled without optimisation due to SR-1318.
+ * The kprint_* functions are used because they do not take var args and print
+ * to the screen using the early_tty.c print routines.
+ */
+
+// Called from entry.asm:_irq_handlers
+@_silgen_name("irqHandler")
+public func irqHandler(registers: ExceptionRegisters) {
+    let irq = Int(registers.pointee.error_code)
+    let c = read_int_nest_count()
+    if c > 1 {
+        kprint("int_nest_count: ")
+        kprint_dword(c)
+        kprint("\n")
+    }
+    irqHandlers[irq](irq)
+    // EOI
+    PIC8259.sendEOI(irq: irq)
+}
+
+
+private func unexpectedInterrupt(irq: Int) {
+    kprint("unexpected interrupt: ")
+    kprint_byte(UInt8(truncatingBitPattern: irq))
+    kprint(" irr: ")
+    kprint_word(PIC8259.readIRR())
+    kprint(" isr: ")
+    kprint_word(PIC8259.readISR())
+    kprint("\n")
 }
 
 
@@ -62,20 +109,4 @@ private func queueIrq(irq: Int) {
         irqQueue[nextIn] = irq
         irqQIn = nextIn
     }
-}
-
-
-public func queuedIRQsTask() {
-    while (irqQOut != irqQIn) {
-        irqQOut = (irqQOut + 1) & (irqQueueSize - 1)
-        let irq = irqQueue[irqQOut]
-        queuedIrqHandlers[irq](irq)
-    }
-}
-
-
-func unexpectedInterrupt(irq: Int) {
-    kprint("unexpected interrupt: ")
-    kprint_dword(UInt32(irq))
-    kprint("\n");
 }

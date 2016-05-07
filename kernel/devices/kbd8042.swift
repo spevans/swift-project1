@@ -248,7 +248,7 @@ struct KBD8042 {
         }
 
         flushOutput()
-        setQueuedIrqHandler(1, handler: kbdInterrupt)
+        setIrqHandler(1, handler: kbdInterrupt)
         print("i8042: kbd initialised")
     }
 
@@ -431,7 +431,10 @@ struct KBD8042 {
         sendCommand(.Disable1stPort)
         while readStatus().outputFull {
             let scanCode = readData()
-            printf("kbd: scanCode: %2.2x: ", scanCode)
+            kprint("kbd: scanCode:")
+            kprint_byte(scanCode)
+            kprint("\n")
+
 
             if scanCode == 0xf0 {
                 breakCode = 0xff
@@ -452,8 +455,11 @@ struct KBD8042 {
                             keyCode = 0
                         }
                     } else {
-                        printf("kbd: Ignoring E0 sequence (%02X %02X)\n",
-                            prevScanCode, keyCode)
+                        kprint("kbd: Ignoring E0 sequence (")
+                        kprint_word(prevScanCode)
+                        kprint(" ")
+                        kprint_byte(keyCode)
+                        kprint("\n")
                         keyCode = 0
                     }
                     prevScanCode = 0
@@ -464,8 +470,9 @@ struct KBD8042 {
                     keyCode = E0_ScanCodes.Pause.rawValue
                     prevScanCode = 0
                 }
-                printf("keyCode: %02x, ", keyCode)
-                print(upCode != 0 ? "Up" : "Down")
+                kprint("keyCode: ")
+                kprint_byte(keyCode)
+                kprint(upCode != 0 ? ", Up\n" : ", Down\n")
             }
         }
         sendCommand(.Enable1stPort)

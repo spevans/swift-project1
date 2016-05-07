@@ -36,8 +36,9 @@ public func startup(bootParams: UInt) {
 
 
 private func initialiseDevices() {
-    // Set the timer interrupt for 8000Hz
-    PIT8254.setChannel(PIT8254.TimerChannel.CHANNEL_0, mode: PIT8254.OperatingMode.MODE_3, hz: 8000)
+    // Set the timer interrupt for 200Hz
+    PIT8254.setChannel(PIT8254.TimerChannel.CHANNEL_0,
+        mode: PIT8254.OperatingMode.MODE_3, hz: 200)
     PIT8254.showStatus()
     KBD8042.initKbd()
     PCI.scan()

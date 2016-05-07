@@ -50,7 +50,7 @@ struct exception_regs {
         uint64_t rbp;
         uint64_t fs;
         uint64_t gs;
-        uint64_t error_code;
+        uint64_t error_code;    // or IRQ
         uint64_t rip;
         uint64_t cs;
         uint64_t eflags;
@@ -99,8 +99,5 @@ struct smbios_header {
 #define NR_IRQS 16L     // hardware IRQs
 extern struct idt_entry idt[NR_INTERRUPTS];
 extern void (* _Nullable trap_dispatch_table[NR_TRAPS])(struct exception_regs * _Nonnull);
-
-typedef void (*irq_handler)(long irq);
-extern irq_handler _Nullable irq_dispatch_table[];
 
 #endif  // __X86_DEFS_H__

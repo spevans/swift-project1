@@ -24,7 +24,6 @@ typedef int64_t off_t;
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
 
-extern int int_nest_count;
 
 // kprintf
 
@@ -62,3 +61,6 @@ size_t strlen(const char *s);
 extern void (*print_char)(const char ch);
 extern void (*print_string)(const char *str);
 extern void (*print_string_len)(const char *str, size_t len);
+
+
+unsigned int read_int_nest_count();

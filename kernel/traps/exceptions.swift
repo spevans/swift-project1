@@ -9,7 +9,7 @@
  *
  */
 
-typealias ExceptionRegisters = UnsafeMutablePointer<exception_regs>
+public typealias ExceptionRegisters = UnsafeMutablePointer<exception_regs>
 
 
 func divideByZeroException(registers: ExceptionRegisters) {

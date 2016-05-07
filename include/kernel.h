@@ -117,4 +117,7 @@ ptr_to_uint(const void *ptr)
         return (uintptr_t)ptr;
 }
 
+unsigned int read_int_nest_count();
+
+
 #endif  // __KERNEL_H__

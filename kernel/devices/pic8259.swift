@@ -12,7 +12,7 @@
 public class PIC8259 {
     static let PIC1Cmd:  UInt16 = 0x20
     static let PIC1Data: UInt16 = 0x21
-    static let PIC2Cmd:  UInt16 = 0x0A
+    static let PIC2Cmd:  UInt16 = 0xA0
     static let PIC2Data: UInt16 = 0xA1
 
     static let ICW1_ICW4:       UInt8 = 0x01    // ICW1/ICW4
@@ -30,7 +30,8 @@ public class PIC8259 {
     static let OCW3_READ_IRR:   UInt8 = 0x0A    // OCW3 IRR read
     static let OCW3_READ_ISR:   UInt8 = 0x0B    // OCW3 ISR read
     static let EOI:             UInt8 = 0x20    // End of interrupt
-
+    static let SPECIFIC_EOI:    UInt8 = 0x60    // Specific IRQ (+ irq)
+    static let CASCADE_IRQ:     UInt8 = 0x02    // PIC2 is at IRQ2 on PIC1
 
     static func initPIC() {
         // Disable all IRQs
@@ -47,12 +48,12 @@ public class PIC8259 {
 
         outb(PIC1Cmd, ICW1_ICW4 | ICW1_INIT)
         outb(PIC1Data, loVector)
-        outb(PIC1Data, 4)       // PIC2 is at IRQ2
+        outb(PIC1Data, 1 << CASCADE_IRQ)
         outb(PIC1Data, ICW4_8086)
 
         outb(PIC2Cmd, ICW1_ICW4 | ICW1_INIT)
         outb(PIC2Data, hiVector)
-        outb(PIC2Data, 2)       // PIC2's cascade identity
+        outb(PIC2Data, CASCADE_IRQ)
         outb(PIC2Data, ICW4_8086)
     }
 
@@ -91,19 +92,37 @@ public class PIC8259 {
     }
 
 
-    public static func sendEOI(irq: Int) {
-        guard irq < 16 else {
-            kprintf("EOI invalid IRQ: %2.2x\n", irq)
-            return
-        }
-        if (irq > 7) {
-            outb(PIC2Cmd, EOI)
-        }
-        outb(PIC1Cmd, EOI)
+    private static func specificEOIFor(irq: Int) -> UInt8 {
+        return SPECIFIC_EOI + UInt8(irq & 0x7)
     }
 
 
-    // Helper rounint for readIRR()/readISR(), UInt16 is mask of IRQ0-15
+    public static func sendEOI(irq: Int) {
+        guard irq < 16 else {
+            kprint("EOI invalid IRQ: ")
+            kprint_byte(UInt8(truncatingBitPattern: irq))
+            kprint("\n")
+            return
+        }
+
+        // Check real IRQ occurred
+        let active = readISR().bitSet(UInt16(irq))
+        if !active {
+            kprint("Spurious IRQ: ")
+            kprint_byte(UInt8(irq))
+            kprint("\n")
+        }
+
+        if (irq > 7) {
+            outb(PIC2Cmd, specificEOIFor(irq: irq))
+            outb(PIC2Cmd, specificEOIFor(irq: Int(CASCADE_IRQ)))
+        } else {
+            outb(PIC1Cmd, specificEOIFor(irq: irq))
+        }
+    }
+
+
+    // Helper routine for readIRR()/readISR(), UInt16 is mask of IRQ0-15
     static func readIRQReg(_ cmd: UInt8) -> UInt16 {
         outb(PIC1Cmd, cmd)
         outb(PIC2Cmd, cmd)
