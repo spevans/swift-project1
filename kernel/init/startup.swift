@@ -14,7 +14,7 @@ public func startup(bootParams: UInt) {
     printf("bootParams: %p\n", bootParams)
     // BootParams must come first to get framebuffer and kernel address
     BootParams.parse(bootParams)
-    TTY.initTTY(frameBufferInfo: BootParams.frameBufferInfo)
+    TTY.sharedInstance.setTTY(frameBufferInfo: BootParams.frameBufferInfo)
     printf("Highest Address: %p kernel phys address: %p\n",
         BootParams.highestMemoryAddress, BootParams.kernelAddress)
     setupGDT()
@@ -26,6 +26,7 @@ public func startup(bootParams: UInt) {
     print("Hello world")
 
     enableIRQs()
+    TTY.sharedInstance.scrollTimingTest()
     // Idle, woken up by interrupts
     while true {
         hlt()
@@ -45,6 +46,13 @@ private func initialiseDevices() {
 }
 
 
+func benchmark(_ function: () -> ()) -> UInt64 {
+    let t0 = rdtsc()
+    function()
+    return rdtsc() - t0
+}
+
+
 public func printSections() {
     let text_start = _text_start_ptr()
     let text_end = _text_end_ptr()
@@ -53,10 +61,10 @@ public func printSections() {
     let bss_start = _bss_start_ptr()
     let bss_end = _bss_end_ptr()
 
-    TTY.printString("_text_start: \(text_start)\n")
-    TTY.printString("_text_end:   \(text_end)\n")
-    TTY.printString("_data_start: \(data_start)\n")
-    TTY.printString("_data_end:   \(data_end)\n")
-    TTY.printString("_bss_start:  \(bss_start)\n")
-    TTY.printString("_bss_end:    \(bss_end)\n")
+    print("_text_start: \(text_start)")
+    print("_text_end:   \(text_end)")
+    print("_data_start: \(data_start)")
+    print("_data_end:   \(data_end)")
+    print("_bss_start:  \(bss_start)")
+    print("_bss_end:    \(bss_end)")
 }

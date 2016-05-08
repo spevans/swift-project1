@@ -218,6 +218,16 @@ int3()
 }
 
 
+static inline uint64_t
+rdtsc()
+{
+        uint64_t edx, eax;
+        asm volatile ("rdtsc\n"
+                      : "=d" (edx), "=a" (eax) : : );
+
+        return (edx << 32) | eax;
+}
+
 // kernel/klib/x86.asm functions
 void reload_segments();
 void test_breakpoint();
