@@ -46,7 +46,7 @@ private func IDTEntry(address: UInt, selector: UInt16 = CODE_SEG, gateType: Gate
 
 public func setupIDT() {
     print("Initialising IDT:")
-    PIC8259.initPIC()
+    irqController.disableAllIRQs()
 
     func printIDT(_ msg: String, _ idt: dt_info) {
         // 0 is a valid address for a IDT, so map nil to 0

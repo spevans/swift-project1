@@ -9,95 +9,86 @@
  */
 
 
-public class PIC8259 {
-    static let PIC1Cmd:  UInt16 = 0x20
-    static let PIC1Data: UInt16 = 0x21
-    static let PIC2Cmd:  UInt16 = 0xA0
-    static let PIC2Data: UInt16 = 0xA1
+class PIC8259: InterruptController {
 
-    static let ICW1_ICW4:       UInt8 = 0x01    // ICW1/ICW4
-    static let ICW1_SINGLE:     UInt8 = 0x02    // Single (cascade) mode
-    static let ICW1_INTERVAL4:  UInt8 = 0x04    // Call address interval 4 (8)
-    static let ICW1_LEVEL:      UInt8 = 0x08    // Level triggered (edge) mode
-    static let ICW1_INIT:       UInt8 = 0x10    // Initialization
+    // singleton
+    static let sharedInstance = PIC8259()
 
-    static let ICW4_8086:       UInt8 = 0x01    // 8086/88 (MCS-80/85) mode
-    static let ICW4_AUTO:       UInt8 = 0x02    // Auto (normal) EOI
-    static let ICW4_BUF_SLAVE:  UInt8 = 0x08	// Buffered mode/slave
-    static let ICW4_BUF_MASTER: UInt8 = 0x0C    // Buffered mode/master
-    static let ICW4_SFNM:       UInt8 = 0x10    // Special fully nested (not)
+    // IO Port addresses
+    private let PIC1_CMD_REG:  UInt16 = 0x20
+    private let PIC1_DATA_REG: UInt16 = 0x21
+    private let PIC2_CMD_REG:  UInt16 = 0xA0
+    private let PIC2_DATA_REG: UInt16 = 0xA1
 
-    static let OCW3_READ_IRR:   UInt8 = 0x0A    // OCW3 IRR read
-    static let OCW3_READ_ISR:   UInt8 = 0x0B    // OCW3 ISR read
-    static let EOI:             UInt8 = 0x20    // End of interrupt
-    static let SPECIFIC_EOI:    UInt8 = 0x60    // Specific IRQ (+ irq)
-    static let CASCADE_IRQ:     UInt8 = 0x02    // PIC2 is at IRQ2 on PIC1
+    // 8259 Commands
+    private let ICW1_ICW4:       UInt8 = 0x01    // ICW1/ICW4
+    private let ICW1_SINGLE:     UInt8 = 0x02    // Single (cascade) mode
+    private let ICW1_INTERVAL4:  UInt8 = 0x04    // Call address interval 4 (8)
+    private let ICW1_LEVEL:      UInt8 = 0x08    // Level triggered (edge) mode
+    private let ICW1_INIT:       UInt8 = 0x10    // Initialization
 
-    static func initPIC() {
+    private let ICW4_8086:       UInt8 = 0x01    // 8086/88 (MCS-80/85) mode
+    private let ICW4_AUTO:       UInt8 = 0x02    // Auto (normal) EOI
+    private let ICW4_BUF_SLAVE:  UInt8 = 0x08    // Buffered mode/slave
+    private let ICW4_BUF_MASTER: UInt8 = 0x0C    // Buffered mode/master
+    private let ICW4_SFNM:       UInt8 = 0x10    // Special fully nested (not)
+
+    private let OCW3_READ_IRR:   UInt8 = 0x0A    // OCW3 IRR read
+    private let OCW3_READ_ISR:   UInt8 = 0x0B    // OCW3 ISR read
+    private let EOI:             UInt8 = 0x20    // End of interrupt
+    private let SPECIFIC_EOI:    UInt8 = 0x60    // Specific IRQ (+ irq)
+    private let CASCADE_IRQ:     UInt8 = 0x02    // PIC2 is at IRQ2 on PIC1
+
+
+    private init() {
         // Disable all IRQs
+        disableAllIRQs()
         rebaseIRQs()
-        outb(PIC1Data, 0xff)
-        outb(PIC2Data, 0xff)
+        print("pic: initialised")
     }
 
 
-    // Reroute the interrupts to vectors 0x20 - 0x2F
-    static func rebaseIRQs() {
-        let loVector: UInt8 = 0x20
-        let hiVector: UInt8 = 0x28
-
-        outb(PIC1Cmd, ICW1_ICW4 | ICW1_INIT)
-        outb(PIC1Data, loVector)
-        outb(PIC1Data, 1 << CASCADE_IRQ)
-        outb(PIC1Data, ICW4_8086)
-
-        outb(PIC2Cmd, ICW1_ICW4 | ICW1_INIT)
-        outb(PIC2Data, hiVector)
-        outb(PIC2Data, CASCADE_IRQ)
-        outb(PIC2Data, ICW4_8086)
-    }
-
-
-    static func enableIRQ(_ irq: Int) {
+    func enableIRQ(_ irq: Int) {
         guard irq < 16 else {
             kprintf("Enabling invalid IRQ: %2.2x\n", irq)
             return
         }
         if (irq <= 7) {
-            var mask = inb(PIC1Data)
+            var mask = inb(PIC1_DATA_REG)
             mask &= ~(UInt8(1 << irq))
-            outb(PIC1Data, mask)
+            outb(PIC1_DATA_REG, mask)
         } else {
-            var mask = inb(PIC2Data)
+            var mask = inb(PIC2_DATA_REG)
             mask &= ~(1 << UInt8(irq - 7))
-            outb(PIC2Data, mask)
+            outb(PIC2_DATA_REG, mask)
         }
     }
 
 
-    static func disableIRQ(_ irq: Int) {
+    func disableIRQ(_ irq: Int) {
         guard irq < 16 else {
             kprintf("Enabling invalid IRQ: %2.2x\n", irq)
             return
         }
         if (irq <= 7) {
-            var mask = inb(PIC1Data)
+            var mask = inb(PIC1_DATA_REG)
             mask |= (1 << UInt8(irq))
-            outb(PIC1Data, mask)
+            outb(PIC1_DATA_REG, mask)
         } else {
-            var mask = inb(PIC2Data)
+            var mask = inb(PIC2_DATA_REG)
             mask |= (1 << UInt8(irq - 7))
-            outb(PIC2Data, mask)
+            outb(PIC2_DATA_REG, mask)
         }
     }
 
 
-    private static func specificEOIFor(irq: Int) -> UInt8 {
-        return SPECIFIC_EOI + UInt8(irq & 0x7)
+    func disableAllIRQs() {
+        outb(PIC1_DATA_REG, 0xff)
+        outb(PIC2_DATA_REG, 0xff)
     }
 
 
-    public static func sendEOI(irq: Int) {
+    func ackIRQ(_ irq: Int) {
         guard irq < 16 else {
             kprint("EOI invalid IRQ: ")
             kprint_byte(UInt8(truncatingBitPattern: irq))
@@ -114,30 +105,62 @@ public class PIC8259 {
         }
 
         if (irq > 7) {
-            outb(PIC2Cmd, specificEOIFor(irq: irq))
-            outb(PIC2Cmd, specificEOIFor(irq: Int(CASCADE_IRQ)))
+            outb(PIC2_CMD_REG, specificEOIFor(irq: irq))
+            outb(PIC2_CMD_REG, specificEOIFor(irq: Int(CASCADE_IRQ)))
         } else {
-            outb(PIC1Cmd, specificEOIFor(irq: irq))
+            outb(PIC1_CMD_REG, specificEOIFor(irq: irq))
         }
     }
 
 
+    // This isnt a var returning a String to avoid a malloc() as its called
+    // inside an interrupt handler
+    func printStatus() {
+        kprint("pic: irr: ")
+        kprint_word(readIRR())
+        kprint(" isr: ")
+        kprint_word(readISR())
+    }
+
+
+    private func specificEOIFor(irq: Int) -> UInt8 {
+        return SPECIFIC_EOI + UInt8(irq & 0x7)
+    }
+
+
+    // Reroute the interrupts to vectors 0x20 - 0x2F
+    private func rebaseIRQs() {
+        let loVector: UInt8 = 0x20
+        let hiVector: UInt8 = 0x28
+
+        outb(PIC1_CMD_REG, ICW1_ICW4 | ICW1_INIT)
+        outb(PIC1_DATA_REG, loVector)
+        outb(PIC1_DATA_REG, 1 << CASCADE_IRQ)
+        outb(PIC1_DATA_REG, ICW4_8086)
+
+        outb(PIC2_CMD_REG, ICW1_ICW4 | ICW1_INIT)
+        outb(PIC2_DATA_REG, hiVector)
+        outb(PIC2_DATA_REG, CASCADE_IRQ)
+        outb(PIC2_DATA_REG, ICW4_8086)
+    }
+
+
     // Helper routine for readIRR()/readISR(), UInt16 is mask of IRQ0-15
-    static func readIRQReg(_ cmd: UInt8) -> UInt16 {
-        outb(PIC1Cmd, cmd)
-        outb(PIC2Cmd, cmd)
-        return UInt16(msb: inb(PIC2Cmd), lsb: inb(PIC1Cmd))
+    private func readIRQReg(_ cmd: UInt8) -> UInt16 {
+        outb(PIC1_CMD_REG, cmd)
+        outb(PIC2_CMD_REG, cmd)
+        return UInt16(msb: inb(PIC2_CMD_REG), lsb: inb(PIC1_CMD_REG))
     }
 
 
     // Read Interrupt Request Register, interrupts that have been raised
-    static func readIRR() -> UInt16 {
+    private func readIRR() -> UInt16 {
         return readIRQReg(OCW3_READ_IRR)
     }
 
 
     // Read Interrupt Service Register, interrupts that are being serviced (sent to CPU)
-    static func readISR() -> UInt16 {
+    private func readISR() -> UInt16 {
         return readIRQReg(OCW3_READ_ISR)
     }
 }

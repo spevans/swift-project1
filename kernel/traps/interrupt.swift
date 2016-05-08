@@ -12,6 +12,16 @@
 
 public typealias IRQHandler = Int -> ()
 
+protocol InterruptController {
+    func enableIRQ(_ irq: Int)
+    func disableIRQ(_ irq: Int)
+    func disableAllIRQs()
+    func ackIRQ(_ irq: Int)
+    func printStatus()
+}
+
+
+let irqController = PIC8259.sharedInstance
 private var irqHandlers: [IRQHandler] = Array(repeating: unexpectedInterrupt,
     count: NR_IRQS)
 
@@ -38,12 +48,12 @@ func enableIRQs() {
 
 public func setIrqHandler(_ irq: Int, handler: IRQHandler) {
     irqHandlers[irq] = handler
-    PIC8259.enableIRQ(irq)
+    irqController.enableIRQ(irq)
 }
 
 
 public func removeIrqHandler(_ irq: Int) {
-    PIC8259.disableIRQ(irq)
+    irqController.disableIRQ(irq)
     irqHandlers[irq] = unexpectedInterrupt
 }
 
@@ -86,17 +96,14 @@ public func irqHandler(registers: ExceptionRegisters) {
     }
     irqHandlers[irq](irq)
     // EOI
-    PIC8259.sendEOI(irq: irq)
+    irqController.ackIRQ(irq)
 }
 
 
 private func unexpectedInterrupt(irq: Int) {
     kprint("unexpected interrupt: ")
     kprint_byte(UInt8(truncatingBitPattern: irq))
-    kprint(" irr: ")
-    kprint_word(PIC8259.readIRR())
-    kprint(" isr: ")
-    kprint_word(PIC8259.readISR())
+    irqController.printStatus()
     kprint("\n")
 }
 
