@@ -9,17 +9,29 @@
  */
 
 
-public class PIT8254 {
+class PIT8254: CustomStringConvertible {
 
-    private static let oscillator = 1193182         // Base frequency
-    private static let commandPort: UInt16 = 0x43
+    // singleton
+    static let sharedInstance = PIT8254()
+
+    private let oscillator = 1193182         // Base frequency
+    private let commandPort: UInt16 = 0x43
+
 
     // Raw Value is the I/O port
     enum TimerChannel: UInt16 {
         case CHANNEL_0 = 0x40
         // CHANNEL_1 is not valid
         case CHANNEL_2 = 0x42
+
+        var channelSelect: ChannelSelect {
+            switch self {
+            case .CHANNEL_0: return ChannelSelect.CHANNEL0
+            case .CHANNEL_2: return ChannelSelect.CHANNEL2
+            }
+        }
     }
+
 
     // Mode / Command Register commands
     enum ChannelSelect: UInt8 {
@@ -86,13 +98,32 @@ public class PIT8254 {
     }
 
 
-    private static func toCommandByte(_ channel: ChannelSelect, _ access: AccessMode,
+    var description: String {
+        // Readback command, latch status, readback for channels 0,1,2
+        let readBackCmd: UInt8 = ChannelSelect.READBACK.rawValue | 0b00101110
+        outb(commandPort, readBackCmd)
+
+        // Channel select isnt present in status readback
+        var (_, access, mode, number) = fromCommandByte(inb(TimerChannel.CHANNEL_0.rawValue))
+        var divider = (access.rawValue == AccessMode.LO_HI_BYTE.rawValue) ? getCount(TimerChannel.CHANNEL_0) : 0
+        var result = "pit: Channel0: access: \(access), mode: \(mode), value: \(number), count: \(divider)\n"
+
+        (_, access, mode, number) = fromCommandByte(inb(TimerChannel.CHANNEL_2.rawValue))
+        divider = (access.rawValue == AccessMode.LO_HI_BYTE.rawValue) ? getCount(TimerChannel.CHANNEL_2) : 0
+        result += "pit: Channel2: access: \(access), mode: \(mode), value: \(number), count: \(divider)"
+
+        return result
+    }
+
+
+    private func toCommandByte(_ channel: ChannelSelect, _ access: AccessMode,
         _ mode: OperatingMode, _ number: NumberMode) -> UInt8 {
             return channel.rawValue | access.rawValue | mode.rawValue | number.rawValue
     }
 
 
-    private static func fromCommandByte(_ command: UInt8) -> (ChannelSelect, AccessMode, OperatingMode, NumberMode) {
+    private func fromCommandByte(_ command: UInt8) ->
+        (ChannelSelect, AccessMode, OperatingMode, NumberMode) {
         return (ChannelSelect(channel: command),
                 AccessMode(mode: command),
                 OperatingMode(mode: command),
@@ -100,7 +131,7 @@ public class PIT8254 {
         )
     }
 
-    private static func mapChannelToSelect(_ channel: TimerChannel) -> ChannelSelect {
+    private func mapChannelToSelect(_ channel: TimerChannel) -> ChannelSelect {
         switch(channel) {
         case .CHANNEL_0: return ChannelSelect.CHANNEL0
         case .CHANNEL_2: return ChannelSelect.CHANNEL2
@@ -108,7 +139,8 @@ public class PIT8254 {
     }
 
 
-    static func setChannel(_ channel: TimerChannel, mode: OperatingMode, hz: Int) {
+    func setChannel(_ channel: TimerChannel, mode: OperatingMode,
+        hz: Int) {
         let cmd = toCommandByte(mapChannelToSelect(channel), AccessMode.LO_HI_BYTE,
             mode, NumberMode.BINARY)
         outb(commandPort, cmd)
@@ -117,8 +149,8 @@ public class PIT8254 {
     }
 
 
-    static func getCount(_ channel: TimerChannel) -> UInt16 {
-        let latchCmd = mapChannelToSelect(channel).rawValue
+    private func getCount(_ channel: TimerChannel) -> UInt16 {
+        let latchCmd = channel.channelSelect.rawValue
         outb(commandPort, latchCmd)
         let lsb = inb(channel.rawValue)
         let msb = inb(channel.rawValue)
@@ -127,44 +159,30 @@ public class PIT8254 {
     }
 
 
-    static func setDivisor(_ channel: TimerChannel, _ value: UInt16) {
+    private func setDivisor(_ channel: TimerChannel, _ value: UInt16) {
         let (msb, lsb) = value.toBytes()
         outb(channel.rawValue, lsb)
         outb(channel.rawValue, msb)
     }
 
 
-    static func setHz(_ channel: TimerChannel, _ hz: Int) -> Int {
+    private func setHz(_ channel: TimerChannel, _ hz: Int) -> Int {
         let divisor = UInt16(oscillator / hz)
         setDivisor(channel, divisor)
 
         return Int(oscillator / Int(divisor))
     }
-
-
-    static func showStatus() {
-        // Readback command, latch status, readback for channels 0,1,2
-        let readBackCmd: UInt8 = ChannelSelect.READBACK.rawValue | 0b00101110
-        outb(commandPort, readBackCmd)
-
-        // Channel select isnt present in status readback
-        var (_, access, mode, number) = fromCommandByte(inb(TimerChannel.CHANNEL_0.rawValue))
-        var divider = (access.rawValue == AccessMode.LO_HI_BYTE.rawValue) ? getCount(TimerChannel.CHANNEL_0) : 0
-        print("Channel0: access: \(access), mode: \(mode), value: \(number), count: \(divider)")
-
-        (_, access, mode, number) = fromCommandByte(inb(TimerChannel.CHANNEL_2.rawValue))
-        divider = (access.rawValue == AccessMode.LO_HI_BYTE.rawValue) ? getCount(TimerChannel.CHANNEL_2) : 0
-        print("Channel2: access: \(access), mode: \(mode), value: \(number), count: \(divider)")
-
-    }
 }
 
 
+// FIXME: This is unsafe, needs atomic read/write or some locking
 private var ticks: UInt64 = 0
 func timerInterrupt(irq: Int) {
     ticks += 1
-    if (ticks % 32000) == 0 {
-        kprint("timerInterrupt\n")
+    if (ticks % 0x2000) == 0 {
+        kprint("timerInterrupt:")
+        kprint_qword(ticks)
+        kprint("\n")
     }
     // Do nothing for now
 }
