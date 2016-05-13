@@ -26,7 +26,7 @@ koops(const char *fmt, ...)
 
 
 void *
-memset(void *dest, char c, size_t count)
+memset(void *dest, int c, size_t count)
 {
         debugf("memset(%p,%u,%lu)\n", dest, (uint8_t)c, count);
 

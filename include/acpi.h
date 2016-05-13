@@ -8,6 +8,9 @@
  *
  */
 
+#ifndef __ACPI_H__
+#define __ACPI_H__
+
 #include <stdint.h>
 
 
@@ -103,3 +106,4 @@ struct acpi_facp_table {
         uint8_t hypervisor_vendor_id[8];
 } __attribute__((packed));
 
+#endif  // __ACPI_H__

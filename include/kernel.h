@@ -14,8 +14,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdarg.h>
-#include "x86funcs.h"
-#include "mm.h"
+#include "klibc.h"
 #include "acpi.h"
 
 // Export as [symbol]_ptr of type UnsafePointer<Void>
@@ -81,37 +80,5 @@ EXPORTED_SYMBOL_AS_UINTPTR(irq15_stub);
 EXPORTED_SYMBOL_AS_PTR(fontdata_8x16, uint8_t);
 
 extern const void *initial_tls_end_addr;
-extern const void *irq_dispatch_table_addr;
-
-void set_print_functions_to_swift();
-void early_print_string(const char *text);
-void early_print_string_len(const char *text, size_t len);
-void kprint_byte(uint8_t value);
-void kprint_word(uint16_t value);
-void kprint_dword(uint32_t value);
-void kprint_qword(uint64_t value);
-int kvprintf(const char *fmt, va_list args) __attribute__ ((format (printf, 1, 0)));
-int kvsnprintf(char *buf, size_t size, const char *fmt, va_list args) __attribute__ ((format (printf, 3, 0)));
-int kvlprintf(const char *fmt, size_t len, va_list args);
-void bochs_print_string(const char *str, size_t len);
-void dump_registers(struct exception_regs *registers);
-
-int memcmp(const void *s1, const void *s2, size_t count);
-
-
-// early_tty interface for TTY.EarlyTTY driver
-void (*etty_print_char)(long x, long y, const unsigned char ch);
-void (*etty_clear_screen)();
-void (*etty_scroll_up)();
-long etty_chars_per_line();
-long etty_total_lines();
-long etty_get_cursor_x();
-long etty_get_cursor_y();
-void etty_set_cursor_x(long x);
-void etty_set_cursor_y(long y);
-
-
-unsigned int read_int_nest_count();
-
 
 #endif  // __KERNEL_H__

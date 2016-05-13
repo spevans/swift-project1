@@ -14,6 +14,7 @@
 private let TAB: CUnsignedChar = 0x09
 private let NEWLINE: CUnsignedChar = 0x0A
 private let SPACE: CUnsignedChar = 0x20
+typealias TextCoord = text_coord
 
 
 // printf via the Swift TTY driver (print() is also routed to here)
@@ -45,12 +46,12 @@ public func bprint(_ string: StaticString) {
 
 
 protocol ScreenDriver {
-    var charsPerLine: Int { get }
-    var totalLines:   Int { get }
-    var cursorX:      Int { get set }
-    var cursorY:      Int { get set }
+    var charsPerLine: TextCoord { get }
+    var totalLines:   TextCoord { get }
+    var cursorX:      TextCoord { get set }
+    var cursorY:      TextCoord { get set }
 
-    func printChar(_ character: CUnsignedChar, x: Int, y: Int)
+    func printChar(_ character: CUnsignedChar, x: TextCoord, y: TextCoord)
     func clearScreen()
     func scrollUp()
 }
@@ -67,7 +68,7 @@ public class TTY {
 
     // The cursorX and cursorY and managed by early_tty.c so they
     // can be kept in sync
-    private var cursorX: Int {
+    private var cursorX: TextCoord {
         get { return earlyTTY.cursorX }
         set(newX) {
             earlyTTY.cursorX = newX
@@ -76,7 +77,7 @@ public class TTY {
     }
 
 
-    private var cursorY: Int {
+    private var cursorY: TextCoord {
         get { return earlyTTY.cursorY }
         set(newY) {
             earlyTTY.cursorY = newY
@@ -228,21 +229,21 @@ public class TTY {
 
 private class EarlyTTY: ScreenDriver {
 
-    var charsPerLine: Int { return etty_chars_per_line() }
-    var totalLines:   Int { return etty_total_lines() }
+    var charsPerLine: TextCoord { return etty_chars_per_line() }
+    var totalLines:   TextCoord { return etty_total_lines() }
 
-    var cursorX:      Int {
-        get { return Int(etty_get_cursor_x()) }
+    var cursorX:      TextCoord {
+        get { return etty_get_cursor_x() }
         set(newX) { etty_set_cursor_x(newX) }
     }
 
-    var cursorY:      Int {
+    var cursorY:      TextCoord {
         get { return etty_get_cursor_y(); }
         set(newY) { etty_set_cursor_y(newY) }
     }
 
 
-    func printChar(_ character: CUnsignedChar, x: Int, y: Int) {
+    func printChar(_ character: CUnsignedChar, x: TextCoord, y: TextCoord) {
         etty_print_char(x, y, character)
     }
 
@@ -273,9 +274,9 @@ private class TextTTY: ScreenDriver {
     private let CURSOR_MSB_IDX: UInt8 = 0xE
     private let CURSOR_LSB_IDX: UInt8 = 0xF
 
-    private let totalLines = 25
-    private let charsPerLine = 80
-    private let bytesPerLine = 160
+    private let totalLines: TextCoord = 25
+    private let charsPerLine: TextCoord = 80
+    private let bytesPerLine: TextCoord = 160
     private let totalChars: Int
     private let screenBase: UnsafeMutablePointer<UInt16>
     private let screen: UnsafeMutableBufferPointer<UInt16>
@@ -287,20 +288,26 @@ private class TextTTY: ScreenDriver {
     private let blankChar = UInt16(msb: 0, lsb: SPACE)
 
 
-    private var _cursorX = 0
-    private var _cursorY = 0
+    private var _cursorX: TextCoord = 0
+    private var _cursorY: TextCoord = 0
 
-    var cursorX: Int {
+    var cursorX: TextCoord {
         get { return _cursorX }
         set(newX) {
+            guard newX < charsPerLine else {
+                return
+            }
             _cursorX = newX
             writeCursor(_cursorX, cursorY)
         }
     }
 
-    var cursorY: Int {
+    var cursorY: TextCoord {
         get { return _cursorY }
         set(newY) {
+            guard newY < totalLines else {
+                return
+            }
             _cursorY = newY
             writeCursor(_cursorX, _cursorY)
         }
@@ -308,14 +315,17 @@ private class TextTTY: ScreenDriver {
 
 
     private init() {
-        totalChars = totalLines * charsPerLine
+        totalChars = Int(totalLines) * Int(charsPerLine)
         screenBase = UnsafeMutablePointer<UInt16>(bitPattern: PHYSICAL_MEM_BASE + SCREEN_BASE_ADDRESS)!
         screen = UnsafeMutableBufferPointer(start: screenBase, count: totalChars)
     }
 
 
-    func printChar(_ character: CUnsignedChar, x: Int, y: Int) {
-        let offset = (y * charsPerLine) + x
+    func printChar(_ character: CUnsignedChar, x: TextCoord, y: TextCoord) {
+        guard x < charsPerLine && y < totalLines else {
+            return
+        }
+        let offset = Int((y * charsPerLine) + x)
         screen[offset] = UInt16(msb: textColour, lsb: character)
     }
 
@@ -329,15 +339,15 @@ private class TextTTY: ScreenDriver {
 
     func scrollUp() {
         // Scroll screen up by one line
-        let charCount = (totalLines - 1) * charsPerLine
+        let charCount = Int((totalLines - 1) * charsPerLine)
 
         for i in 0..<charCount {
-            screen[i] = screen[charsPerLine + i]
+            screen[i] = screen[Int(charsPerLine) + i]
         }
 
         // Clear new bottom line with blank characters
-        let bottomLine = (totalLines - 1) * charsPerLine
-        for i in 0..<charsPerLine {
+        let bottomLine = Int((totalLines - 1) * charsPerLine)
+        for i in 0..<Int(charsPerLine) {
             screen[bottomLine + i] = blankChar
         }
     }
@@ -345,34 +355,43 @@ private class TextTTY: ScreenDriver {
 
     // FIXME: I/O Access to CRT Registers should be behind a lock
     // Return hardware cursor x, y from video card
-    private func readCursor() -> (Int, Int) {
+    private func readCursor() -> (TextCoord, TextCoord) {
         outb(CRT_IDX_REG, CURSOR_MSB_IDX)
         let msb = inb(CRT_DATA_REG)
         outb(CRT_IDX_REG, CURSOR_LSB_IDX)
         let lsb = inb(CRT_DATA_REG)
-        let address = Int(UInt16(msb: msb, lsb: lsb))
-        return (Int(address % charsPerLine), Int(address / charsPerLine))
+        let address = UInt16(msb: msb, lsb: lsb)
+        let x = address % UInt16(charsPerLine)
+        let y = address / UInt16(charsPerLine)
+        return fixCursor(TextCoord(x), TextCoord(y))
     }
 
 
     // Set hardware cursor x, y on video card
-    private func writeCursor(_ x: Int, _ y: Int) {
+    private func writeCursor(_ x: TextCoord, _ y: TextCoord) {
+        let (x, y) = fixCursor(x, y)
         let (addressMSB, addressLSB) = UInt16(y * charsPerLine + x).toBytes()
         outb(CRT_IDX_REG, CURSOR_MSB_IDX)
         outb(CRT_DATA_REG, addressMSB)
         outb(CRT_IDX_REG, CURSOR_MSB_IDX)
         outb(CRT_DATA_REG, addressLSB)
     }
+
+
+    // Dont let the HW cursor off the screen
+    private func fixCursor(_ x: TextCoord, _ y: TextCoord) -> (TextCoord, TextCoord) {
+        return (min(x, charsPerLine - 1), min(y, totalLines - 1))
+    }
 }
 
 
 private class FrameBufferTTY: ScreenDriver {
     struct Font: CustomStringConvertible {
-        let width:  Int
-        let height: Int
+        let width:  UInt32
+        let height: UInt32
         let data: UnsafePointer<UInt8>
-        let bytesPerFontLine: Int
-        let bytesPerChar: Int
+        let bytesPerFontLine: UInt32
+        let bytesPerChar: UInt32
 
         var fontData: UnsafeBufferPointer<UInt8> {
             let size = Int(width) * Int(height)
@@ -385,7 +404,7 @@ private class FrameBufferTTY: ScreenDriver {
         }
 
 
-        init(width: Int, height: Int, data: UnsafePointer<UInt8>) {
+        init(width: UInt32, height: UInt32, data: UnsafePointer<UInt8>) {
             self.width = width
             self.height = height
             self.data = data
@@ -395,15 +414,15 @@ private class FrameBufferTTY: ScreenDriver {
 
 
         func characterData(_ ch: CUnsignedChar) -> UnsafeBufferPointer<UInt8> {
-            let offset = Int(ch) * bytesPerChar
+            let offset = Int(ch) * Int(bytesPerChar)
             return UnsafeBufferPointer(start: data.advancedBy(bytes: offset),
-                count: bytesPerChar)
+                count: Int(bytesPerChar))
         }
     }
 
 
-    private let charsPerLine: Int
-    private let totalLines: Int
+    private let charsPerLine: TextCoord
+    private let totalLines: TextCoord
     private let screenBase: UnsafeMutablePointer<UInt8>
     private let screen: UnsafeMutableBufferPointer<UInt8>
     private let font: Font
@@ -416,8 +435,29 @@ private class FrameBufferTTY: ScreenDriver {
     private var textGreen: UInt8 = 0xff
     private var textBlue: UInt8 = 0x12
     private var frameBufferInfo: FrameBufferInfo
-    var cursorX = 0
-    var cursorY = 0
+
+    private var _cursorX: TextCoord = 0
+    private var _cursorY: TextCoord = 0
+
+    var cursorX: TextCoord {
+        get { return _cursorX }
+        set(newX) {
+            guard newX < charsPerLine else {
+                return
+            }
+            _cursorX = newX
+         }
+    }
+
+    var cursorY: TextCoord {
+        get { return _cursorY }
+        set(newY) {
+            guard newY < totalLines else {
+                return
+            }
+            _cursorY = newY
+         }
+    }
 
 
     var description: String {
@@ -428,13 +468,13 @@ private class FrameBufferTTY: ScreenDriver {
     private init(frameBufferInfo: FrameBufferInfo) {
         self.frameBufferInfo = frameBufferInfo
         font = Font(width: 8, height: 16, data: fontdata_8x16_ptr())
-        charsPerLine = Int(frameBufferInfo.width) / font.width
-        totalLines = Int(frameBufferInfo.height) / font.height
+        charsPerLine = TextCoord(frameBufferInfo.width / font.width)
+        totalLines = TextCoord(frameBufferInfo.height / font.height)
         depthInBytes = Int(frameBufferInfo.depth) / 8
-        bytesPerChar = font.bytesPerChar
+        bytesPerChar = Int(font.bytesPerChar)
         bytesPerTextLine = Int(frameBufferInfo.pxPerScanline) * Int(font.height)
                 * depthInBytes
-        lastLineScrollArea = bytesPerTextLine * (totalLines - 1)
+        lastLineScrollArea = bytesPerTextLine * (Int(totalLines) - 1)
         let size = Int(frameBufferInfo.pxPerScanline) * Int(frameBufferInfo.height)
                 * depthInBytes
         screenBase = UnsafeMutablePointer<UInt8>(bitPattern: PHYSICAL_MEM_BASE + frameBufferInfo.address)!
@@ -442,15 +482,21 @@ private class FrameBufferTTY: ScreenDriver {
     }
 
 
-    func printChar(_ ch: CUnsignedChar, x: Int, y: Int) {
+    func printChar(_ ch: CUnsignedChar, x: TextCoord, y: TextCoord) {
+        guard x < charsPerLine && y < totalLines else {
+            return
+        }
+
         let colourMask = computeColourMask()
         let data = font.characterData(ch)
-        var pixel = ((y * font.height * Int(frameBufferInfo.pxPerScanline)) + (x * font.width))
+        var pixel = Int(UInt32(y) * font.height * frameBufferInfo.pxPerScanline)
+            + Int(UInt32(x) * font.width)
         pixel *= depthInBytes
 
         for line in 0..<font.height {
             var i = 0;
-            for px in convertFontLine(data, colourMask, line * font.bytesPerFontLine) {
+            let offset = Int(line * font.bytesPerFontLine)
+            for px in convertFontLine(data, colourMask, offset) {
                 screen[pixel + i] = px
                 i += 1
             }

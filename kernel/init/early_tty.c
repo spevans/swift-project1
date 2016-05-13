@@ -27,17 +27,17 @@ void (*print_char)(const char) = early_print_char;
 void (*print_string)(const char *) = early_print_string;
 void (*print_string_len)(const char *, size_t) = early_print_string_len;
 
-void (*etty_print_char)(unsigned int x, unsigned int y, const unsigned char ch);
+void (*etty_print_char)(text_coord x, text_coord y, const unsigned char ch);
 void (*etty_clear_screen)();
 void (*etty_scroll_up)();
 
-static void text_mode_print_char(unsigned int x, unsigned int y, const unsigned char ch);
+static void text_mode_print_char(text_coord x, text_coord y, const unsigned char ch);
 static void text_mode_clear_screen();
 static void text_mode_scroll_up();
-static void fb_print_char(unsigned int x, unsigned int y, const unsigned char ch);
+static void fb_print_char(text_coord x, text_coord y, const unsigned char ch);
 static void fb_clear_screen();
 static void fb_scroll_up();
-static void get_hw_cursor(unsigned int *x, unsigned int *y);
+static void get_hw_cursor(text_coord *x, text_coord *y);
 
 
 // Base address of PC text screen or framebuffer memory
@@ -48,10 +48,10 @@ static const uint16_t crt_data_reg = 0x3D5;
 static const uint8_t cursor_msb = 0xE;
 static const uint8_t cursor_lsb = 0xF;
 
-static unsigned int text_width = 80;
-static unsigned int text_height = 25;
-static unsigned int cursor_x = 0;
-static unsigned int cursor_y = 0;
+static text_coord text_width = 80;
+static text_coord text_height = 25;
+static text_coord cursor_x = 0;
+static text_coord cursor_y = 0;
 static int text_mode = 1;
 static struct frame_buffer frame_buffer;
 static const struct font *font;
@@ -89,32 +89,32 @@ init_early_tty(struct frame_buffer *fb)
                 kprintf("Using framebuffer mode: ");
         }
         etty_clear_screen();
-        kprintf("Console size: %dx%d\n", text_width, text_height);
+        kprintf("Console size: %ux%u\n", text_width, text_height);
 }
 
 
-long
+text_coord
 etty_chars_per_line()
 {
         return text_width;
 }
 
 
-long
+text_coord
 etty_total_lines()
 {
         return text_height;
 }
 
 
-long
+text_coord
 etty_get_cursor_x()
 {
         return cursor_x;
 }
 
 
-long
+text_coord
 etty_get_cursor_y()
 {
         return cursor_y;
@@ -122,33 +122,34 @@ etty_get_cursor_y()
 
 
 void
-etty_set_cursor_x(long x)
+etty_set_cursor_x(text_coord x)
 {
-        if (x >= 0 && x < text_width) {
+        if (x < text_width) {
                 cursor_x = x;
         }
 }
 
 
 void
-etty_set_cursor_y(long y)
+etty_set_cursor_y(text_coord y)
 {
-        if (y >= 0 && y < text_height) {
+        if (y < text_height) {
                 cursor_y = y;
         }
 }
 
 
+// If cursor is outside of screen, set to bottom right
 static void
-fix_cursor(unsigned int *x, unsigned int *y)
+fix_cursor(text_coord *x, text_coord *y)
 {
         if (*x >= text_width) *x = text_width - 1;
-        if (*y >= text_height) *y =text_height - 1;
+        if (*y >= text_height) *y = text_height - 1;
 }
 
 
 static void
-get_hw_cursor(unsigned int *x, unsigned int *y)
+get_hw_cursor(text_coord *x, text_coord *y)
 {
         // FIXME: need save_flags() / cli
         outb(crt_idx_reg, cursor_msb);
@@ -162,7 +163,7 @@ get_hw_cursor(unsigned int *x, unsigned int *y)
 
 
 static void
-set_hw_cursor(unsigned int x, unsigned int y)
+set_hw_cursor(text_coord x, text_coord y)
 {
         fix_cursor(&x, &y);
         uint16_t address = (y * 80) + x;
@@ -174,8 +175,11 @@ set_hw_cursor(unsigned int x, unsigned int y)
 
 
 static void
-text_mode_print_char(unsigned int x, unsigned int y, const unsigned char ch)
+text_mode_print_char(text_coord x, text_coord y, const unsigned char ch)
 {
+        if (x >= text_width || y >= text_height) {
+                return;
+        }
         unsigned char *cursor_char = screen_buffer + (2 *  (y * text_width + x));
         *cursor_char = ch;
         *(cursor_char + 1) = 0x07;
@@ -242,8 +246,12 @@ set_text_colour(uint32_t colour)
 
 
 static void
-fb_print_char(unsigned int x, unsigned int y, const unsigned char ch)
+fb_print_char(text_coord x, text_coord y, const unsigned char ch)
 {
+        if (x >= text_width || y >= text_height) {
+                return;
+        }
+
         int bytes_per_char = ((font->width + 7) / 8) * font->height;
         const unsigned char *char_data = font->data + (bytes_per_char * ch);
 

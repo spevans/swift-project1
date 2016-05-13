@@ -11,6 +11,9 @@
 #ifndef __FBCON_H__
 #define __FBCON_H__
 
+#include <stdint.h>
+
+
 struct frame_buffer {
         void *address;
         uint64_t size;
