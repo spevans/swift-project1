@@ -66,14 +66,14 @@ extension UInt16 {
 extension UnsafePointer {
 
     public var address: UInt {
-        return ptr_to_uint(self)
+        return UInt(bitPattern: self)
     }
 
 
     // Increment a pointer by x bytes and recast to a new type
     // Unwrapped result as nil pointers cant be advanced
     public func advancedBy<T>(bytes: Int) -> UnsafePointer<T> {
-        return UnsafePointer<T>(bitPattern: ptr_to_uint(self) + UInt(bytes))!
+        return UnsafePointer<T>(bitPattern: UInt(bitPattern: self) + UInt(bytes))!
     }
 }
 
@@ -81,14 +81,14 @@ extension UnsafePointer {
 extension UnsafeMutablePointer {
 
     public var address: UInt {
-        return ptr_to_uint(self)
+        return UInt(bitPattern: self)
     }
 
 
     // Increment a pointer by x bytes and recast to a new type
     // Unwrapped result as nil pointers cant be advanced
     public func advancedBy<T>(bytes: Int) -> UnsafeMutablePointer<T> {
-        return UnsafeMutablePointer<T>(bitPattern: ptr_to_uint(self) + UInt(bytes))!
+        return UnsafeMutablePointer<T>(bitPattern: UInt(bitPattern: self) + UInt(bytes))!
     }
 }
 
@@ -98,7 +98,7 @@ extension UnsafeBufferPointer {
     public func regionPointer<T>(offset: Int) -> UnsafePointer<T> {
         let max = offset + strideof(T)
         assert(max <= self.count)
-        let region = ptr_to_uint(self.baseAddress) + UInt(offset)
+        let region = UInt(bitPattern: self.baseAddress) + UInt(offset)
         return UnsafePointer<T>(bitPattern: region)!
     }
 }

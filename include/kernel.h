@@ -111,12 +111,6 @@ void etty_set_cursor_x(long x);
 void etty_set_cursor_y(long y);
 
 
-static inline uintptr_t
-ptr_to_uint(const void *ptr)
-{
-        return (uintptr_t)ptr;
-}
-
 unsigned int read_int_nest_count();
 
 
