@@ -27,7 +27,6 @@ abort()
 }
 
 
-
 /*
  * I/O functions
  */
@@ -259,11 +258,7 @@ munmap(void *addr, size_t length)
 
 UNIMPLEMENTED(__divti3)
 UNIMPLEMENTED(sysconf)
-UNIMPLEMENTED(trunc)
-UNIMPLEMENTED(truncf)
-UNIMPLEMENTED(isalnum)
 UNIMPLEMENTED(backtrace)
-UNIMPLEMENTED(backtrace_symbols)
 
 
 /* Floating point functions.
@@ -317,5 +312,7 @@ UNIMPLEMENTED(sinf)
 UNIMPLEMENTED(strtod_l)
 UNIMPLEMENTED(strtof_l)
 UNIMPLEMENTED(strtold_l)
+UNIMPLEMENTED(trunc)
+UNIMPLEMENTED(truncf)
 
 #endif

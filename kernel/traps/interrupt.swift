@@ -10,7 +10,7 @@
  */
 
 
-public typealias IRQHandler = Int -> ()
+public typealias IRQHandler = (Int) -> ()
 
 protocol InterruptController {
     func enableIRQ(_ irq: Int)

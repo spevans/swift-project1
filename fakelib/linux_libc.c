@@ -68,6 +68,22 @@ dlsym(void *handle, const char *symbol)
 }
 
 
+int
+dladdr(const void *addr, Dl_info *info)
+{
+        // FIXME: Dummy implementation for now, returns `not found'
+        kprintf("dladdr() required for %p\n", addr);
+
+        // info declared as nonnull in dlfcn.h
+        info->dli_fname = NULL;
+        info->dli_fbase = NULL;
+        info->dli_sname = NULL;
+        info->dli_saddr = NULL;
+
+        return 0;
+}
+
+
 // Sanity check the handle
 int
 dlclose(void *handle)
@@ -94,9 +110,6 @@ dl_iterate_phdr(int (*callback) (struct dl_phdr_info *info,
 
 
 UNIMPLEMENTED(__getdelim)
-UNIMPLEMENTED(__errno_location)
-UNIMPLEMENTED(newlocale)
-UNIMPLEMENTED(uselocale)
 
 
 // Unicode
