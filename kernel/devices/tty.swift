@@ -31,7 +31,7 @@ public func kprint(_ string: StaticString) {
 
 // kprintf via the C early_tty.c driver
 public func kprintf(_ format: StaticString, _ arguments: CVarArg...) {
-    withVaList(arguments) {
+    _ = withVaList(arguments) {
         kvlprintf(UnsafePointer<Int8>(format.utf8Start),
             format.utf8CodeUnitCount, $0)
     }

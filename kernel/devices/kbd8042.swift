@@ -290,11 +290,12 @@ struct KBD8042 {
 
 
     // returns true if controller flushed ok
+    @discardableResult
     static func flushOutput() -> Bool {
         var count = I8042_BUFFER_SIZE
         while count >= 0 && readStatus().outputFull {
             count -= 1
-            readData()
+            _ = readData()
         }
         return count >= 0
     }
@@ -321,6 +322,7 @@ struct KBD8042 {
     }
 
 
+    @discardableResult
     static func sendCommand(_ cmd: I8042Command) -> Bool {
         if waitForInputEmpty() {
             outb(COMMAND_REGISTER, cmd.rawValue)
@@ -332,6 +334,7 @@ struct KBD8042 {
     }
 
 
+    @discardableResult
     static func sendCommand(_ cmd: I8042Command, data: UInt8) -> Bool {
         if sendCommand(cmd) {
             writeData(data)
@@ -383,11 +386,13 @@ struct KBD8042 {
     }
 
 
+    @discardableResult
     static func sendCommand1stPort(_ cmd: PS2KeyboardCommand) -> Bool {
         return sendData1stPort(cmd.rawValue)
     }
 
 
+    @discardableResult
     static func sendCommand1stPort(_ cmd: PS2KeyboardCommand, data: UInt8) -> Bool {
         if sendCommand1stPort(cmd) {
             if sendData1stPort(data) {

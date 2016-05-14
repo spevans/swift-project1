@@ -58,7 +58,11 @@ func setupMM() {
     let stackHeapSize = bssEnd - VirtualAddress(_stack_start_ptr().address)
 
     // Enable No Execute so data mappings can be set XD (Execute Disable)
-    CPU.enableNXE(true)
+    if CPU.enableNXE(true) {
+        print("CPU NXE enabled")
+    } else {
+        print("CPU NXE cant be enabled")
+    }
 
     // Add 4 mappings for text, rodata, data + bss and the stack
     // with appropiate protections. There is a guard page between
@@ -177,8 +181,7 @@ private func getPageAtIndex(_ dirPage: PageTableDirectory, _ idx: Int) -> PageTa
 
 
 private func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
-    readWrite: Bool,
-    noExec: Bool) -> Bool {
+    readWrite: Bool, noExec: Bool) {
 
     let endAddress = start + size
     let pageCnt = ((endAddress - start) / PAGE_SIZE)
@@ -208,8 +211,6 @@ private func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddres
         physAddress += PAGE_SIZE
     }
     printf("Added kernel mapping from %p-%p [%p-%p]\n", start, endAddress, physStart, physAddress)
-
-    return true
 }
 
 

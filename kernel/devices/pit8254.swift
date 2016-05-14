@@ -166,6 +166,7 @@ class PIT8254: CustomStringConvertible {
     }
 
 
+    @discardableResult
     private func setHz(_ channel: TimerChannel, _ hz: Int) -> Int {
         let divisor = UInt16(oscillator / hz)
         setDivisor(channel, divisor)
