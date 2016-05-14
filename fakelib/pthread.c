@@ -232,11 +232,3 @@ void __once_proxy()
                 _ZSt11__once_call();
         }
 }
-
-
-int
-sched_yield()
-{
-        debugf("sched_yield()\n");
-        return 0;
-}

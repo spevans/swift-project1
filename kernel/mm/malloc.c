@@ -176,6 +176,7 @@ malloc(size_t size)
                 koops("malloc called in interrupt handler");
         }
 
+        uint64_t flags = local_irq_save();
         if (atomic_fetch_add(&malloc_lock, 1) != 0) {
                 koops("(malloc)malloc_lock != 0");
         }
@@ -219,6 +220,7 @@ malloc(size_t size)
         if (atomic_fetch_sub(&malloc_lock, 1) != 1) {
                 koops("(malloc)malloc_lock != 1");
         }
+        load_eflags(flags);
         return retval;
 }
 
@@ -234,6 +236,7 @@ free(void *ptr)
                 koops("malloc called in interrupt handler");
         }
 
+        uint64_t flags = local_irq_save();
         if (atomic_fetch_add(&malloc_lock, 1) != 0) {
                 koops("(free)malloc_lock != 0");
         }
@@ -275,6 +278,7 @@ free(void *ptr)
         if (atomic_fetch_sub(&malloc_lock, 1) != 1) {
                 koops("(free)malloc_lock != 1");
         }
+        load_eflags(flags);
 }
 
 
@@ -284,11 +288,13 @@ UNIMPLEMENTED(malloc_default_zone)
 size_t
 malloc_usable_size(void *ptr)
 {
-        if (atomic_fetch_add(&malloc_lock, 1) != 0) {
-                koops("(usable_size)malloc_lock != 0");
-        }
         if (read_int_nest_count() > 0) {
                 koops("malloc called in interrupt handler");
+        }
+
+        uint64_t flags = local_irq_save();
+        if (atomic_fetch_add(&malloc_lock, 1) != 0) {
+                koops("(usable_size)malloc_lock != 0");
         }
 
         debugf("%s(%p)=", __func__, ptr);
@@ -300,6 +306,7 @@ malloc_usable_size(void *ptr)
                 koops("(usable_size)malloc_lock != 1");
         }
 
+        load_eflags(flags);
         return retval;
 }
 

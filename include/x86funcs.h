@@ -18,6 +18,31 @@
 #include "x86defs.h"
 
 
+static inline uint64_t
+save_eflags()
+{
+        uint64_t flags;
+        asm volatile ("pushf\n"
+                      "pop %0"
+                      : "=rm" (flags)
+                      :
+                      : "memory");
+        return flags;
+}
+
+
+static inline void
+load_eflags(uint64_t flags)
+{
+        asm volatile ("push %0\n"
+                      "popf"
+                      :
+                      : "g" (flags)
+                      : "memory", "cc");
+}
+
+
+
 static inline void
 cli()
 {
@@ -29,6 +54,15 @@ static inline void
 sti()
 {
         asm volatile ("sti" : : : "memory");
+}
+
+
+static inline uint64_t
+local_irq_save()
+{
+        uint64_t flags = save_eflags();
+        cli();
+        return flags;
 }
 
 

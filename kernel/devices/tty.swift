@@ -161,35 +161,41 @@ public class TTY {
 
 
     func printChar(_ character: CChar) {
-        let ch = CUnsignedChar(character)
-        var (x, y) = (cursorX, cursorY)
+        /* FIXME: Disable interrupts for exclusive access to screen memory
+         * and instance vars but this function takes far too long because of
+         * scrollUp() and so lots of timer interrupts are currently missed
+         */
+        noInterrupt({
+                let ch = CUnsignedChar(character)
+                var (x, y) = (cursorX, cursorY)
 
-        if ch == NEWLINE {
-            x = 0
-            y += 1
-        } else if ch == TAB {
-            let newX = (x + 8) & ~7
-            while (x < newX && x < driver.charsPerLine) {
-                driver.printChar(SPACE, x: x, y: y)
-                x += 1
-            }
-            x = newX
-        } else {
-            driver.printChar(ch, x: x, y: y)
-            x += 1
-        }
+                if ch == NEWLINE {
+                    x = 0
+                    y += 1
+                } else if ch == TAB {
+                    let newX = (x + 8) & ~7
+                    while (x < newX && x < driver.charsPerLine) {
+                        driver.printChar(SPACE, x: x, y: y)
+                        x += 1
+                    }
+                    x = newX
+                } else {
+                    driver.printChar(ch, x: x, y: y)
+                    x += 1
+                }
 
-        if x >= driver.charsPerLine {
-            x = 0
-            y += 1
-        }
+                if x >= driver.charsPerLine {
+                    x = 0
+                    y += 1
+                }
 
-        while (y >= driver.totalLines) {
-            driver.scrollUp()
-            y -= 1
-        }
-        cursorX = x
-        cursorY = y
+                while (y >= driver.totalLines) {
+                    driver.scrollUp()
+                    y -= 1
+                }
+                cursorX = x
+                cursorY = y
+            })
     }
 
 

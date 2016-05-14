@@ -8,10 +8,13 @@
 ;;; saving then call the real handler store in the
 ;;; trap_dispatch_table
 
-        EXTERN  trap_dispatch_table
         GLOBAL  test_breakpoint
         GLOBAL  read_int_nest_count
+        GLOBAL  run_first_task
+        EXTERN  trap_dispatch_table
         EXTERN  irqHandler
+        EXTERN  getFirstTask
+        EXTERN  getNextTask
 
 
 
@@ -109,12 +112,29 @@ _irq_handler:
         SAVE_REGS
         cld                     ; ABI requires DF clear and stack 16byte aligned
         ALIGN_STACK
+        mov     r12, rsp
         call    irqHandler
-        UNALIGN_STACK
+
+        mov     rdi, r12
+        call    getNextTask
+        mov     rsp, [rax + 8]
         RESTORE_REGS
         add     rsp, 8          ; pop irq ('error code')
         lock    dec dword [int_nest_count]
         iretq
+
+
+run_first_task:
+        SAVE_REGS
+        ALIGN_STACK
+        cld
+        mov     rdi, rsp
+        call    getFirstTask
+        mov     rsp, [rax + 8]  ; unalign stack
+        RESTORE_REGS
+        add     rsp, 8  ; skip error code
+        iretq
+
 
 read_int_nest_count:
         mov eax, [int_nest_count]

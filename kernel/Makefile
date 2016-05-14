@@ -22,7 +22,8 @@ SWIFT_SRCS :=	init/startup.swift		\
 		devices/pic8259.swift		\
 		traps/exceptions.swift		\
 		traps/interrupt.swift		\
-		traps/IDT.swift
+		traps/IDT.swift			\
+		tasks/tasks.swift
 
 KERNEL_OBJS := init/init.o mm/mm.o klib/klib.o traps/traps.o SwiftKernel.o
 

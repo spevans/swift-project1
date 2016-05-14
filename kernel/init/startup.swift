@@ -25,21 +25,29 @@ public func startup(bootParams: UInt) {
     initialiseDevices()
     print("Hello world")
 
-    enableIRQs()
     TTY.sharedInstance.scrollTimingTest()
+    _ = addTask(task: mainLoop)
+    runTasks()
+    run_first_task()
+    koops("Shouldnt get here")
+}
+
+
+private func mainLoop() {
+    enableIRQs()
     // Idle, woken up by interrupts
     while true {
         hlt()
         queuedIRQsTask()
+        yield()
     }
-
 }
 
 
 private let timer = PIT8254.sharedInstance
 private func initialiseDevices() {
     // Set the timer interrupt for 200Hz
-    timer.setChannel(.CHANNEL_0, mode: .MODE_3, hz: 0x100)
+    timer.setChannel(.CHANNEL_0, mode: .MODE_3, hz: 20)
     print(timer)
     KBD8042.initKbd()
     PCI.scan()
