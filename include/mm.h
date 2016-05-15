@@ -31,7 +31,10 @@ struct bios_boot_params {
         void * _Nonnull kernel_phys_addr;
         void * _Nonnull e820_map;
         size_t e820_entries;    // Number of e820 memory map entries
-        char data[0];
+
+        // FIXME: The following line triggers SR-1318 so is commented out but
+        // isnt currently needed anyway
+        // char data[0];
 }  __attribute__((packed));
 
 

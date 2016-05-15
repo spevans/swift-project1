@@ -5,12 +5,6 @@ NASM := nasm
 NASM_FLAGS := -Werror -p$(TOPDIR)/include/macros.asm
 MODULE_DIR := $(TOPDIR)/modules
 
-ifdef BUILD_ONONE
-	OPTO_FLAG := -Onone
-else
-	OPTO_FLAG := -O
-endif
-
 
 # The normal swift-3 compiler
 SWIFT3 := ~/swift-3
@@ -30,7 +24,11 @@ endif
 
 
 ifdef BUILD_ONONE
-      SWIFTLIB := $(SWIFTLIB) $(SWIFTDIR)/usr/lib/swift_static/linux/libswiftSwiftOnoneSupport.a
+	SWIFTC_FLAGS += -Onone
+	SWIFTLIB += $(SWIFTDIR)/usr/lib/swift_static/linux/libswiftSwiftOnoneSupport.a
+else
+	SWIFTC_FLAGS +=-O
+	CFLAGS += -O3
 endif
 
 NASM_OBJ_FLAGS := -felf64
