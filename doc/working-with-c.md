@@ -1,10 +1,17 @@
 # Working with C
 
-Integration between C and Swift is very easy, with Swift using the same calling convention for passing arguments (its a bit different for return values due to optionals and tuples) [FIXME: Expand This]
+[Note: This information applies to Swift3]
 
-The easiest way to export types and function prototypes is to have one main header file which includes all others and then use the `-import-objc-header` option to `swiftc` to use it.
+The [Swift calling convention](https://github.com/apple/swift/blob/master/docs/CallingConvention.rst#the-swift-calling-convention) basically states that calls from Swift to C should follow the platform ABI and that all the Swift compiler needs are correct headers with the C function prototypes and other types.
 
-Access to assembly is easy using static inline assembly declared in the header file eg
+Calling Swift from C is not currently guaranteed to work since Swift will doesnt try to define an external calling convention for its functions so that it has more flexibilty with internal Swift to Swift calls.
+
+However currently only a few Swift functions are called from C/asm and these
+either take no parameters or a few scalar values so its easy to abuse the guarantee for the few functions need
+
+The easiest way to export C types and function prototypes is to have one main header file which includes all others and then use the `-import-objc-header` option to `swiftc` to use it.
+
+Access to assembly is easy using static inline assembly declared in header files eg
 
 ```c
 static inline uint64_t
@@ -28,46 +35,41 @@ Allows the CR3 register to be get/set easily using `let addr = getCR3()` and `se
 
 ## Pointers
 
+Pointers in Swift use the types `UnsafePointer` and `UnsafeMutablePointer` and can be created from an address using the `init(bitPattern: UInt)?` method. It returns an Optional which will be `nil` if the address was 0. 
+
+
 Pointer values (uintptr_t) can be represented using `UInt`. A couple of macros allow symbols to be exported from C to Swift:
 
 ```c
-// Export as [symbol]_addr suitable to use as an arg to UnsafeMutablePointer()
+// Export as [symbol]_ptr of type UnsafePointer<Void>
 #define EXPORTED_SYMBOL_AS_VOIDPTR(x) \
         static inline const void *x##_ptr() { extern uintptr_t x; return &x; }
 
-// Export as [symbol]_addr suitable to use as an arg to UnsafePointer()
+// Export as [symbol]_ptr of type UnsafePointer<t>
 #define EXPORTED_SYMBOL_AS_PTR(x, t) \
         static inline const t *x##_ptr() { extern t x; return &x; }
 
-// Export as [symbol]_addr as a unitptr_t to be manipulated as a `UInt`
+// Export as [symbol]_addr as a unitptr_t to be manipulated as a UInt
 #define EXPORTED_SYMBOL_AS_UINTPTR(x) \
         static inline uintptr_t x##_addr() { extern uintptr_t x; return (uintptr_t)&x; }
 ```
 
 `UnsafePointer` and `UnsafeMutablePointer` values can be converted to a
-`UInt` if the address is needed using the following function:
-
-```c
-static inline uintptr_t
-ptr_to_uint(const void *ptr)
-{
-        return (uintptr_t)ptr;
-}
-```
+`UInt` if the address is needed using the `bitPattern` argument:
 
 With a simple extension allowing it to be a property:
 
 
 ```swift
 extension UnsafePointer {
-    public var address: UInt {
-        return ptr_to_uint(self)
+    var address: UInt {
+        return UInt(bitPattern: self)
     }
 }
 
 extension UnsafeMutablePointer {
-    public var address: UInt {
-        return ptr_to_uint(self)
+    var address: UInt {
+        return UInt(bitPattern: self)
     }
 }
 ```
@@ -127,7 +129,7 @@ Disassembly of section .text:
 With function1's name decoding to:
 
 ```bash
-$ ~/usr/bin/swift-demangle _TF4test9function1FSiSu
+$ swift-demangle _TF4test9function1FSiSu
 _TF4test9function1FSiSu ---> test.function1 (Swift.Int) -> Swift.UInt
 ```
 
@@ -198,7 +200,7 @@ func printInt(a: Int) {
 
 printInt(Int(ONE))
 printInt(TWO)
-printInt(Int(THREEb))
+printInt(Int(THREE))
 ```
 
 ```bash
@@ -225,6 +227,11 @@ struct register_set {
         unsigned long rdx;
 };
 
+static inline const struct register_set * _Nonnull
+register_set_addr(struct register_set * _Nonnull set)
+{
+        return set;
+}
 ```
 
 ```swift
@@ -241,7 +248,7 @@ rax = 0
 rbx = 0
 ```
 
-This allows easy initialisation of empty structs where all of the elements are set to zero. If data in a fixed memory table (eg ACPI tables) needs to be parsed and only the address is known then this is also easy to accomplish using the `memory` property:
+This allows easy initialisation of empty structs where all of the elements are set to zero. If data in a fixed memory table (eg ACPI tables) needs to be parsed and only the address is known then this is also easy to accomplish using the `pointee` property:
 
 ```swift
 var registers = register_set()
@@ -251,8 +258,8 @@ registers.rbx = 456
 let addr = register_set_addr(&registers)
 let r = UnsafePointer<register_set>(addr)
 print("addr = ", addr, addr.dynamicType)
-print("rax =", r.memory.rax)
-print("rbx =", r.memory.rbx)
+print("rax =", r.pointee.rax)
+print("rbx =", r.pointee.rbx)
 ```
 ```bash
 ./test
@@ -260,6 +267,8 @@ addr =  0x000000010136c210 UnsafePointer<register_set>
 rax = 123
 rbx = 456
 ```
+
+[Note: the use of `_Nonnull` in test.h. This makes the return type of `register_set_addr()` be an `UnsafePointer<register_set>` instead of an `Optional<UnsafePointer<register_set>>`. Of course you need to ensure that the address passed to `register_set_addr()` is non-NULL]
 
 There are two advantages of C structs over Swift struct:
 
@@ -269,11 +278,23 @@ If the data has a pre defined format that you dont control and the struct requir
 
 
 ```c
+// test.h
+
+#include <stdint.h>
+#include <stddef.h>
+
 // Descriptor table info used for both GDT and IDT
 struct dt_info {
         uint16_t limit;
         uint64_t address;
 } __attribute__((packed));
+
+
+static inline ptrdiff_t
+offset_of(void * _Nonnull base, void * _Nonnull ptr)
+{
+        return ptr - base;
+}
 ```
 
 ```swift
@@ -283,18 +304,17 @@ struct DTInfo {
 }
 
 var info1 = DTInfo(limit: 31, address: 0xabcd)
-let limitOffset1 = ptr_to_uint(&info1.limit) - ptr_to_uint(&info1)
-let addrOffset1 = ptr_to_uint(&info1.address) - ptr_to_uint(&info1)
+let limitOffset1 = offset_of(&info1, &info1.limit)
+let addrOffset1 = offset_of(&info1, &info1.address)
 print("Swift: limitOffset:", limitOffset1, "addrOffset:", addrOffset1)
 
 var info2 = dt_info(limit: 31, address: 0xabcd)
-let limitOffset2 = ptr_to_uint(&info2.limit) - ptr_to_uint(&info2)
-let addrOffset2 = ptr_to_uint(&info2.address) - ptr_to_uint(&info2)
+let limitOffset2 = offset_of(&info2, &info2.limit)
+let addrOffset2 = offset_of(&info2, &info2.address)
 print("C: limitOffset:", limitOffset2, "addrOffset:", addrOffset2)
 ```
 
-[Note: due to the lack of an offsetOf() function to find the offset of a field
-in a struct a few pointer tricks have to be used]
+[Note: due to the lack of an offsetOf() function a C function is used to calculate the offset using some pointer arithmetic]
 
 ```bash
 Swift: limitOffset: 0 addrOffset: 8
@@ -320,7 +340,7 @@ gives the error
 
 ```bash
 $ swiftc -import-objc-header test.h test.swift
-test.swift:1:18: error: fixed-length arrays are not yet supported
+test.swift:1:18: error: array types are now written with the brackets around the element type
     var sz: UInt8[8]
                  ^~
 ```
@@ -396,7 +416,7 @@ print_array()
 $ clang -c array.c
 $ swiftc -Xlinker array.o  -import-objc-header test.h -emit-executable test.swift
 $ ./test
-testArray: UnsafeMutableBufferPointer(start: 0x000000010eb7d190, length: 8)
+testArray: UnsafeMutableBufferPointer(start: 0x000000010eb7d190, count: 8)
 0 1 2 3 0 0 0 0
 0 1 2 3 4 5 6 7
 ```

@@ -1,0 +1,6 @@
+Write AML parse to read SDST ACPI tables
+Enable multicore
+Load kernel as ELF and implement dladdr()/backtrace()
+fix interrupt masking / timer overrun
+Add exception and IRQ ISTs
+Locks for hardware access eg PIC
