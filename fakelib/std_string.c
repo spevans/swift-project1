@@ -1,10 +1,10 @@
 /*
- * fakelib/linux_libcpp.c
+ * fakelib/std_string.c
  *
  * Created by Simon Evans on 07/12/2015.
  * Copyright © 2015, 2016 Simon Evans. All rights reserved.
  *
- * Fake libcpp calls used by Linux/ELF libswiftCore
+ * Fake libcpp std::string calls used by Linux/ELF libswiftCore
  *
  */
 
@@ -12,59 +12,6 @@
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
-
-
-/*
- * memory
- */
-
-//_operator delete(void*)
-void _ZdlPv(void *this) {
-        debugf("%p->delete()\n", this);
-        free(this);
-}
-
-
-//_operator new(unsigned long)
-void *_Znwm(unsigned long size) {
-
-        void *result = malloc(size);
-        debugf("(_Znwm)new(%lu)=%p\n", size, result);
-        return result;
-}
-
-
-// std::__throw_length_error(char const*)
-void
-_ZSt20__throw_length_errorPKc(char const *error)
-{
-        koops("OOPS! Length error: %s", error);
-}
-
-
-// std::__throw_bad_alloc()
-void
-_ZSt17__throw_bad_allocv()
-{
-        koops("Bad Alloc");
-}
-
-
-// std::__throw_system_error(int)
-void
-_ZSt20__throw_system_errori(int error)
-{
-        koops("System error: %d", error);
-}
-
-
-//std::__throw_out_of_range(char const*)
-void
-_ZSt20__throw_out_of_rangePKc(char const *error)
-{
-        koops("Out of range: %s", error);
-}
-
 
 /*
  * std::string / std::basic_string
@@ -120,7 +67,7 @@ _ZNSs4_Rep9_S_createEmmRKSaIcE(size_t capacity, size_t old_capacity, void *alloc
 {
         debugf("_ZNSs4_Rep9_S_createEmmRKSaIcE(%lu,%lu,%p)\n", capacity, old_capacity, allocator);
         if (capacity > str_max_size) {
-                _ZSt20__throw_length_errorPKc("string too long");
+                koops("OOPS! Length error: string too long");
         }
 
         if (capacity > old_capacity && capacity < 2 * old_capacity) {
@@ -134,7 +81,7 @@ _ZNSs4_Rep9_S_createEmmRKSaIcE(size_t capacity, size_t old_capacity, void *alloc
         size_t size = sizeof(struct basic_string) + capacity + 1;
         debugf("creating string size= %lu capacity = %lu\n", size, capacity);
 
-        struct basic_string *result = _Znwm(size); // new
+        struct basic_string *result = malloc(size); // new
         result->capacity = capacity;
         result->refcount = 0;
         debugf("_S_create(%lu,%lu,%p)=%p\n", capacity, old_capacity, allocator, result);
@@ -373,7 +320,7 @@ _ZNSs6appendEPKcm(struct basic_string **this_p, char const *string, size_t len)
 
         if (len) {
                 if (len > str_max_size) {
-                        _ZSt20__throw_length_errorPKc("basic_string::append");
+                        koops("OOPS! Length error: basic_string::append");
                 }
                 size_t newlen = len + this->length;
                 if (newlen > this->capacity || is_string_shared(this)) {
@@ -421,47 +368,29 @@ _ZNSs4swapERSs(struct  basic_string **this_p)
 }
 
 
-int
-__cxa_guard_acquire(void *guard)
-{
-        debugf("__cxa_guard_acquire(%p)\n", guard);
-        return 0;
-}
-
-void __cxa_guard_release(void *guard)
-{
-        debugf("__cxa_guard_release(%p)\n", guard);
-}
-
-UNIMPLEMENTED(__cxa_demangle)
-UNIMPLEMENTED(__overflow)
-
-
 // std::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(std::string const&, unsigned long, unsigned long)
-UNIMPLEMENTED(_ZNSsC1ERKSsmm);
+//UNIMPLEMENTED(_ZNSsC1ERKSsmm);
 
 // std::string::replace(unsigned long, unsigned long, char const*, unsigned long)
 UNIMPLEMENTED(_ZNSs7replaceEmmPKcm);
 
 // std::string::assign(std::string const&)
-UNIMPLEMENTED(_ZNSs6assignERKSs);
+//UNIMPLEMENTED(_ZNSs6assignERKSs);
 
 //std::__throw_out_of_range_fmt(char const*, ...)
-UNIMPLEMENTED(_ZSt24__throw_out_of_range_fmtPKcz);
+//UNIMPLEMENTED(_ZSt24__throw_out_of_range_fmtPKcz);
 
 // std::string::assign(char const*, unsigned long)
-UNIMPLEMENTED(_ZNSs6assignEPKcm);
+//UNIMPLEMENTED(_ZNSs6assignEPKcm);
 
 // std::string::_M_leak_hard()
-UNIMPLEMENTED(_ZNSs12_M_leak_hardEv)
+//UNIMPLEMENTED(_ZNSs12_M_leak_hardEv)
 
 // demangledLinePrefix(std::string, std::string, std::string&, bool (*)(std::string, std::string&))
-UNIMPLEMENTED(_ZZL13demangledLineSsEN3$_08__invokeESsRSs);
+//UNIMPLEMENTED(_ZZL13demangledLineSsEN3$_08__invokeESsRSs);
 
 
 #if DEBUG_BUILD
-UNIMPLEMENTED(__cxa_demangle);
-UNIMPLEMENTED(__cxa_pure_virtual)
 
 //std::string::data() const
 UNIMPLEMENTED(_ZNKSs4dataEv)
@@ -535,23 +464,3 @@ UNIMPLEMENTED(_ZNKSs4findEPKcm)
 //std::string::operator=(std::string&&)
 UNIMPLEMENTED(_ZNSsaSEOSs)
 #endif
-
-
-//std::condition_variable::condition_variable()
-void
-_ZNSt18condition_variableC1Ev(void *cv)
-{
-        memset(cv, 0, 48);
-        debugf("creating condition variable @ %p\n", cv);
-}
-
-
-//std::condition_variable::notify_all()
-void
-_ZNSt18condition_variable10notify_allEv(void *cv)
-{
-        debugf("notify_all called on %p\n", cv);
-}
-
-//std::condition_variable::wait(std::unique_lock<std::mutex>&)
-UNIMPLEMENTED(_ZNSt18condition_variable4waitERSt11unique_lockISt5mutexE)
