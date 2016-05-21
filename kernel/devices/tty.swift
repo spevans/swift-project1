@@ -18,19 +18,19 @@ typealias TextCoord = text_coord
 
 
 // printf via the Swift TTY driver (print() is also routed to here)
-public func printf(_ format: String, _ arguments: CVarArg...) {
+func printf(_ format: String, _ arguments: CVarArg...) {
     TTY.sharedInstance.printString(String.sprintf(format, arguments))
 }
 
 
 // kprint via the C early_tty.c driver
-public func kprint(_ string: StaticString) {
+func kprint(_ string: StaticString) {
     TTY.sharedInstance.earlyTTY.printString(string)
 }
 
 
 // kprintf via the C early_tty.c driver
-public func kprintf(_ format: StaticString, _ arguments: CVarArg...) {
+func kprintf(_ format: StaticString, _ arguments: CVarArg...) {
     _ = withVaList(arguments) {
         kvlprintf(UnsafePointer<Int8>(format.utf8Start),
             format.utf8CodeUnitCount, $0)
@@ -39,7 +39,7 @@ public func kprintf(_ format: StaticString, _ arguments: CVarArg...) {
 
 
 // print to the Bochs console via the E9 port
-public func bprint(_ string: StaticString) {
+func bprint(_ string: StaticString) {
     bochs_print_string(UnsafePointer<Int8>(string.utf8Start),
         string.utf8CodeUnitCount)
 }
@@ -57,10 +57,10 @@ protocol ScreenDriver {
 }
 
 
-public class TTY {
+class TTY {
 
     // singleton
-    public static let sharedInstance = TTY()
+    static let sharedInstance = TTY()
 
     private let earlyTTY = EarlyTTY()
     private var driver: ScreenDriver

@@ -8,26 +8,26 @@
  *
  */
 
-public enum ReadError: ErrorProtocol {
+enum ReadError: ErrorProtocol {
     case InvalidOffset
     case InvalidData
 }
 
 
-public class MemoryBufferReader {
+class MemoryBufferReader {
     let ptr: UnsafePointer<UInt8>
     let buffer: UnsafeBufferPointer<UInt8>
     var offset: Int = 0
     var bytesRemaining: Int { return (buffer.count - offset) }
 
 
-    public init(_ baseAddr: UInt, size: Int) {
+    init(_ baseAddr: UInt, size: Int) {
         ptr = UnsafePointer<UInt8>(bitPattern: baseAddr)!
         buffer = UnsafeBufferPointer<UInt8>(start: ptr, count: size)
     }
 
 
-    public init(_ basePtr: UnsafePointer<UInt8>, size: Int) {
+    init(_ basePtr: UnsafePointer<UInt8>, size: Int) {
         ptr = basePtr
         buffer = UnsafeBufferPointer<UInt8>(start: ptr, count: size)
     }
@@ -86,7 +86,7 @@ public class MemoryBufferReader {
     }
 
 
-    public func read<T>() throws -> T {
+    func read<T>() throws -> T {
         guard bytesRemaining > 0 else {
             throw ReadError.InvalidOffset
         }
@@ -102,7 +102,7 @@ public class MemoryBufferReader {
     }
 
 
-    public func readAtIndex<T>(_ index: Int) throws -> T {
+    func readAtIndex<T>(_ index: Int) throws -> T {
         guard index + sizeof(T) <= buffer.count else {
             throw ReadError.InvalidOffset
         }
@@ -134,7 +134,7 @@ public class MemoryBufferReader {
     }
 
 
-    public func dumpBuffer(startOffset: Int, _ endOffset: Int) {
+    func dumpBuffer(startOffset: Int, _ endOffset: Int) {
         let saved = offset
         let count = endOffset - startOffset
 
@@ -147,7 +147,7 @@ public class MemoryBufferReader {
     }
 
 
-    public func readULEB128() throws -> UInt64 {
+    func readULEB128() throws -> UInt64 {
         var value: UInt64 = 0
         var shift: UInt64 = 0
         var byte: UInt8 = 0
@@ -162,7 +162,7 @@ public class MemoryBufferReader {
     }
 
 
-    public func readSLEB128() throws -> Int64 {
+    func readSLEB128() throws -> Int64 {
         var value: Int64 = 0
         var shift: Int64 = 0
         var byte: UInt8 = 0

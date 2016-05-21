@@ -48,7 +48,7 @@ struct ACPI_SDT: CustomStringConvertible {
 }
 
 
-public struct RSDP1: CustomStringConvertible {
+struct RSDP1: CustomStringConvertible {
     let signature: String
     let checksum:  UInt8
     let oemId:     String
@@ -56,7 +56,7 @@ public struct RSDP1: CustomStringConvertible {
     let rsdtAddr:  UInt32
     var rsdt:      UInt { return UInt(rsdtAddr) }
 
-    public var description: String {
+    var description: String {
         return String.sprintf("ACPI: \(signature): \(oemId): rev: \(revision) ptr: %p", rsdt)
     }
 
@@ -72,7 +72,7 @@ public struct RSDP1: CustomStringConvertible {
 }
 
 
-public struct RSDP2: CustomStringConvertible {
+struct RSDP2: CustomStringConvertible {
     let signature: String
     let checksum:  UInt8
     let oemId:     String
@@ -83,7 +83,7 @@ public struct RSDP2: CustomStringConvertible {
     let checksum2: UInt8
     var rsdt:      UInt { return (xsdtAddr != 0) ? UInt(xsdtAddr) : UInt(rsdtAddr) }
 
-    public var description: String {
+    var description: String {
         return String.sprintf("ACPI: \(signature): \(oemId): rev: \(revision) ptr: %p", rsdt)
     }
 

@@ -61,7 +61,7 @@ func benchmark(_ function: () -> ()) -> UInt64 {
 }
 
 
-public func printSections() {
+func printSections() {
     let text_start = _text_start_ptr()
     let text_end = _text_end_ptr()
     let data_start = _data_start_ptr()

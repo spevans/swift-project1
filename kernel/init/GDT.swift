@@ -54,7 +54,7 @@ private struct theGDT {
 }
 
 
-public func setupGDT() {
+func setupGDT() {
     print("Initialising GDT:")
     let tlsPtr = UnsafeMutablePointer<UInt>(initial_tls_end_addr)
     tlsPtr!.pointee = initial_tls_end_addr.address

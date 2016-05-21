@@ -10,7 +10,7 @@
  */
 
 
-public typealias IRQHandler = (Int) -> ()
+typealias IRQHandler = (Int) -> ()
 
 protocol InterruptController {
     func enableIRQ(_ irq: Int)
@@ -46,19 +46,19 @@ func enableIRQs() {
 }
 
 
-public func setIrqHandler(_ irq: Int, handler: IRQHandler) {
+func setIrqHandler(_ irq: Int, handler: IRQHandler) {
     irqHandlers[irq] = handler
     irqController.enableIRQ(irq)
 }
 
 
-public func removeIrqHandler(_ irq: Int) {
+func removeIrqHandler(_ irq: Int) {
     irqController.disableIRQ(irq)
     irqHandlers[irq] = unexpectedInterrupt
 }
 
 
-public func setQueuedIrqHandler(_ irq: Int, handler: IRQHandler) {
+func setQueuedIrqHandler(_ irq: Int, handler: IRQHandler) {
     queuedIrqHandlers[irq] = handler
     setIrqHandler(irq, handler: queueIrq)
 }

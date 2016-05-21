@@ -11,7 +11,7 @@
 
 extension String {
 
-    public static func sprintf(_ format: String, _ arguments: CVarArg...) -> String {
+    static func sprintf(_ format: String, _ arguments: CVarArg...) -> String {
         return sprintf(format, arguments)
     }
 
@@ -47,17 +47,17 @@ extension String {
 
 extension UInt16 {
 
-    public init(msb: UInt8, lsb: UInt8) {
+    init(msb: UInt8, lsb: UInt8) {
         self = UInt16(msb) << 8 | UInt16(lsb)
     }
 
     // return (msb, lsb)
-    public func toBytes() -> (UInt8, UInt8) {
+    func toBytes() -> (UInt8, UInt8) {
         return (UInt8(self >> 8), UInt8(self & 0xff))
     }
 
 
-    public func bitSet(_ bit: UInt16) -> Bool {
+    func bitSet(_ bit: UInt16) -> Bool {
         return self & (1 << bit) != 0
     }
 }
@@ -65,14 +65,14 @@ extension UInt16 {
 
 extension UnsafePointer {
 
-    public var address: UInt {
+    var address: UInt {
         return UInt(bitPattern: self)
     }
 
 
     // Increment a pointer by x bytes and recast to a new type
     // Unwrapped result as nil pointers cant be advanced
-    public func advancedBy<T>(bytes: Int) -> UnsafePointer<T> {
+    func advancedBy<T>(bytes: Int) -> UnsafePointer<T> {
         return UnsafePointer<T>(bitPattern: UInt(bitPattern: self) + UInt(bytes))!
     }
 }
@@ -80,14 +80,14 @@ extension UnsafePointer {
 
 extension UnsafeMutablePointer {
 
-    public var address: UInt {
+    var address: UInt {
         return UInt(bitPattern: self)
     }
 
 
     // Increment a pointer by x bytes and recast to a new type
     // Unwrapped result as nil pointers cant be advanced
-    public func advancedBy<T>(bytes: Int) -> UnsafeMutablePointer<T> {
+    func advancedBy<T>(bytes: Int) -> UnsafeMutablePointer<T> {
         return UnsafeMutablePointer<T>(bitPattern: UInt(bitPattern: self) + UInt(bytes))!
     }
 }
@@ -95,7 +95,7 @@ extension UnsafeMutablePointer {
 
 extension UnsafeBufferPointer {
 
-    public func regionPointer<T>(offset: Int) -> UnsafePointer<T> {
+    func regionPointer<T>(offset: Int) -> UnsafePointer<T> {
         let max = offset + strideof(T)
         assert(max <= self.count)
         let region = UInt(bitPattern: self.baseAddress) + UInt(offset)
@@ -104,7 +104,7 @@ extension UnsafeBufferPointer {
 }
 
 
-public func dumpRegion(ptr: UnsafePointer<Void>, size: Int) {
+func dumpRegion(ptr: UnsafePointer<Void>, size: Int) {
     let buffer = UnsafeBufferPointer<UInt8>(start: UnsafePointer<UInt8>(ptr),
         count: size)
     for idx in 0..<buffer.count {

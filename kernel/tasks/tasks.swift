@@ -15,7 +15,7 @@ private let stackPages = 2
 private let stackSize = stackPages * Int(PAGE_SIZE)
 private var tasks: [Task] = []
 private var currentTask = 0
-public var nextTask = 0
+private var nextTask = 0
 private var nextPID: UInt = 1
 
 

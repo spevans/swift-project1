@@ -485,11 +485,11 @@ struct KBD8042 {
 }
 
 
-public func kbdInterrupt(irq: Int) {
+func kbdInterrupt(irq: Int) {
     KBD8042.readKeyboard()
 }
 
 
-public func mouseInterrupt(irq: Int) {
+func mouseInterrupt(irq: Int) {
     KBD8042.readKeyboard()
 }

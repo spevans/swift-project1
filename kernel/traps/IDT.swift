@@ -44,7 +44,7 @@ private func IDTEntry(address: UInt, selector: UInt16 = CODE_SEG, gateType: Gate
 }
 
 
-public func setupIDT() {
+func setupIDT() {
     print("Initialising IDT:")
     irqController.disableAllIRQs()
 
