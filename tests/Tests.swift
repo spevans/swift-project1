@@ -8,12 +8,15 @@
  */
 
 import XCTest
-import Klib
 
+
+func printf(_ format: String, _ arguments: CVarArg...) {
+    print(String.sprintf(format, arguments))
+}
 
 class Tests: XCTestCase {
 
-    var allTests : [(String, () -> Void)] {
+    static var allTests : [(String, (Tests) -> () throws -> Void)] {
         return [
             ("testSprintf", testSprintf),
             ("testUInt16", testUInt16)
@@ -44,6 +47,7 @@ class Tests: XCTestCase {
 }
 
 
-public func runTests() {
-    XCTMain([Tests()])
+@_silgen_name("runTests")
+public func runTes() {
+    XCTMain([ testCase(Tests.allTests) ])
 }

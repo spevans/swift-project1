@@ -7,8 +7,8 @@ MODULE_DIR := $(TOPDIR)/modules
 
 
 # The normal swift-3 compiler
-SWIFT3 := ~/swift-3
-SWIFT3C := $(SWIFT3)/usr/bin/swiftc
+SWIFT3DIR := $(shell readlink -f ~/swift-3)
+SWIFT3C := $(SWIFT3DIR)/usr/bin/swiftc
 
 # The path to the kernel-lib swift compiler
 SWIFTDIR := $(shell readlink -f ~/swift-kernel)

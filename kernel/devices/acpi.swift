@@ -159,7 +159,7 @@ struct ACPI {
     }
 
 
-    private func checksum(_ ptr: UnsafePointer<UInt8>, size: Int) -> UInt8 {
+    func checksum(_ ptr: UnsafePointer<UInt8>, size: Int) -> UInt8 {
         let region = UnsafeBufferPointer<UInt8>(start: ptr, count: size)
         var csum: UInt8 = 0
         for x in region {

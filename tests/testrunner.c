@@ -11,7 +11,10 @@
 #include <string.h>
 #include <assert.h>
 
-extern void _TF5Tests8runTestsFT_T_(void);
+void runTests(void);
+// argc/argv setup
+void _TFs20_stdlib_didEnterMainFT4argcVs5Int324argvGSpGSqGSpVs4Int8____T_(int argc, char **argv);
+
 
 int ksnprintf(char *buf, size_t size, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 int kprintf(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
@@ -25,21 +28,12 @@ early_print_char(const char ch)
 }
 
 
-int main()
+int main(int argc, char **argv)
 {
-        char buf[128];
-
-        size_t len;
-        size_t n = 1;
-        do {
-                len = ksnprintf(buf, n, "This is a long string: %s %d", "with more text", 123);
-                kprintf("len = %lu n = %lu, buf = #%s#\n", len, n, buf);
-                n *= 2;
-                assert(strlen(buf) <= n );
-        } while (strlen(buf) < len);
-
+        _TFs20_stdlib_didEnterMainFT4argcVs5Int324argvGSpGSqGSpVs4Int8____T_(argc, argv);
+        
         // Tests.runTests()
-        _TF5Tests8runTestsFT_T_();
+        runTests();
 
         return 0;
 }
