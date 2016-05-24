@@ -5,8 +5,8 @@
 
 - BIOS
 
-Everything from the boot sector until startup() in [startup.swift](https://github.com/spevans/swift-project1/blob/master/kernel/init/startup.swift) is written in x86
-assembly.
+Everything from the boot sector until startup() in [startup.swift](https://github.com/spevans/swift-project1/blob/master/kernel/init/startup.swift)
+is written in x86 assembly.
 
 Boot sectors are always written in ASM due to the small size (512 bytes) and
 the need to put certain bytes in certain offsets. It may be possible to write
@@ -40,10 +40,10 @@ assembly routines. Swift's safety would offer very little advantage here.
 
 - EFI
 
-EFI booting was added so that I could test on my Macbook (3,1 Late 2007). The EFI
-code is much simplified because the firmware already puts the cpu into 64bit mode
-and loads the kernel (embedded in a .efi file) into memory. The EFI code only
-needs to do the following:
+EFI booting was added so that I could test on my Macbook (3,1 Late 2007). The
+EFI code is much simplified because the firmware already puts the cpu into 64bit
+mode and loads the kernel (embedded in a .efi file) into memory. The EFI code
+only needs to do the following:
 
 1. Allocate memory for the kernel and BSS and copy the kernel to the new memory
 2. Setup page tables for kernel
@@ -84,23 +84,39 @@ Swift uses the SSE registers (xmm0 - xmm15) in stdlib which means that SSE
 instructions need to be enabled in CR0/CR4 registers, this is done in [main.asm](https://github.com/spevans/swift-project1/blob/master/kernel/init/main.asm#L89).
 Normally kernel code would not use these extra registers as it requires more
 registers to be saved in a context switch however it was easier to support them
-then to work out how to build the Swift compiler and stdlib to exclude their use.
+then to work out how to build the Swift compiler and stdlib to exclude their
+use.
 
-Since context switching is not currently implemented anyway it was easier to
-just enable SSE and use the extra registers for now.
+~~Since context switching is not currently implemented anyway it was easier to
+just enable SSE and use the extra registers for now.~~
+
+Since I removed floating point from [stdlib](development.md#stdlib) SSE is no
+longer enabled in the kernel and the SSE register are not used or saved in
+interrupt handlers.
+
+
+## globalinit*()
+
+[TODO]
+
+
+## malloc() and free()
+
+[TODO]
 
 
 ## Reading data tables in Swift
 
 One of the main parts of the kernel startup was reading various system tables
-(ACPI, SMBIOS etc). These can be represented by a struct and I came up with three
-different ways of reading the data. In all cases the only inital parameter I had
-was the memory address of the table
+(ACPI, SMBIOS etc). These can be represented by a struct and I came up with
+three different ways of reading the data. In all cases the only inital parameter
+I had was the memory address of the table.
 
 
 #### 1. Directly reading into a Swift struct
 
-The pointer can be cast to the struct and then accessed or copied using the `.memory` property
+The pointer can be cast to the struct and then accessed or copied using the
+`.pointee` property
 
 ```swift
 struct Test {
@@ -110,9 +126,9 @@ struct Test {
 
 
 var s = Test(data1: 1234, data2: 123)
-let ptr = UnsafePointer<Test>(bitPattern: ptr_to_uint(&s))
-print("data1:", ptr.memory.data1, "data2", ptr.memory.data2)
-let data = ptr.memory
+let ptr = UnsafePointer<Test>(bitPattern: ptr_to_uint(&s))!
+print("data1:", ptr.pointee.data1, "data2", ptr.pointee.data2)
+let data = ptr.pointee
 print("data1:", data.data1, "data2", data.data2)
 ```
 
@@ -123,8 +139,9 @@ data1: 1234 data2 123
 data1: 1234 data2 123
 ```
 
-Whilst simple to use it has some drawbacks. The first is that because of the lack
-of `__attribute__((packed))` a Swift struct cannot always accurately map to a system structure [see working with C structs](working-with-c.md#structs).
+Whilst simple to use it has some drawbacks. The first is that because of the
+lack of `__attribute__((packed))` a Swift struct cannot always accurately map to
+a system structure [see working with C structs](working-with-c.md#structs).
 
 Secondly, some data types most notably strings do not always have a good mapping
 between a system table and Swift. The data may simply be a fixed length string
@@ -132,23 +149,27 @@ between a system table and Swift. The data may simply be a fixed length string
 be mapped to a tuple since Swift doesn't support fixed length arrays.
 
 Finally, just pointing a struct to a memory address and directly reading values
-skips any validation of the underlying data.
+skips any validation of the underlying data. Also, using `ptr_to_uint` to find
+the address of a struct is a hack and not guaranteed to work. It is mostly
+exploiting how Swift currently treats structs and could break in the future.
 
 
 #### 2. Use a C struct and a Swift struct
 
-This method uses a C struct to accurately represent the memory layout and a Swift
-struct to represent a more useful view including using String etc for any parsed
-strings. As struct members are copied from the C version to the Swift one they
-can go through any required validation. [SMBios:init()](https://github.com/spevans/swift-project1/blob/master/kernel/init/smbios.swift#L73) is an example of this
-converting a C `struct smbios_header` to a Swift `struct SMBIOS`.
+This method uses a C struct to accurately represent the memory layout and a
+Swift struct to represent a more useful view including using String etc for any
+parsed strings. As struct members are copied from the C version to the Swift one
+they can go through any required validation. [SMBios:init()](https://github.com/spevans/swift-project1/blob/master/kernel/init/smbios.swift#L73)
+is an example of this converting a C `struct smbios_header` to a Swift
+`struct SMBIOS`.
 
 
 #### 3. Read individual elements from a buffer
 
-An earlier method I had come up with was [MemoryBufferReader](https://github.com/spevans/swift-project1/blob/master/kernel/klib/MemoryBufferReader.swift). This was
-used for reading from mmapped files or any `UnsafeBufferPointer`. Individual
-items of different types can be sequentially read and it allows for sub-buffers
-to be created and read. An example of its use can be seen [here](https://github.com/spevans/swift-project1/blob/master/kernel/init/bootparams.swift#L514).
+An earlier method I had come up with was [MemoryBufferReader](https://github.com/spevans/swift-project1/blob/master/kernel/klib/MemoryBufferReader.swift).
+This was used for reading from mmapped files or any `UnsafeBufferPointer`.
+Individual items of different types can be sequentially read and it allows for
+sub-buffers to be created and read. An example of its use can be seen [here](https://github.com/spevans/swift-project1/blob/master/kernel/init/bootparams.swift#L514).
 
-Im still undecided about the best method for reading raw tables, however method 2 is currently my preferred one.
+Im still undecided about the best method for reading raw tables, however method
+2 is currently my preferred one.

@@ -2,16 +2,25 @@
 
 [Note: This information applies to Swift3]
 
-The [Swift calling convention](https://github.com/apple/swift/blob/master/docs/CallingConvention.rst#the-swift-calling-convention) basically states that calls from Swift to C should follow the platform ABI and that all the Swift compiler needs are correct headers with the C function prototypes and other types.
+The [Swift calling convention](https://github.com/apple/swift/blob/master/docs/CallingConvention.rst#the-swift-calling-convention)
+basically states that calls from Swift to C should follow the platform ABI and
+that all the Swift compiler needs are correct headers with the C function
+prototypes and other types.
 
-Calling Swift from C is not currently guaranteed to work since Swift will doesnt try to define an external calling convention for its functions so that it has more flexibilty with internal Swift to Swift calls.
+Calling Swift from C is not currently guaranteed to work since Swift will
+doesnt try to define an external calling convention for its functions so that
+it has more flexibilty with internal Swift to Swift calls.
 
 However currently only a few Swift functions are called from C/asm and these
-either take no parameters or a few scalar values so its easy to abuse the guarantee for the few functions need
+either take no parameters or a few scalar values so its easy to abuse the
+guarantee for the few functions need.
 
-The easiest way to export C types and function prototypes is to have one main header file which includes all others and then use the `-import-objc-header` option to `swiftc` to use it.
+The easiest way to export C types and function prototypes is to have one main
+header file which includes all others and then use the `-import-objc-header`
+option to `swiftc` to use it.
 
-Access to assembly is easy using static inline assembly declared in header files eg
+Access to assembly is easy using static inline assembly declared in header
+files eg:
 
 ```c
 static inline uint64_t
@@ -30,15 +39,19 @@ setCR3(uint64_t value)
 }
 ```
 
-Allows the CR3 register to be get/set easily using `let addr = getCR3()` and `setCR3(addr)` etc.
+Allows the CR3 register to be get/set easily using `let addr = getCR3()` and
+`setCR3(addr)` etc.
 
 
 ## Pointers
 
-Pointers in Swift use the types `UnsafePointer` and `UnsafeMutablePointer` and can be created from an address using the `init(bitPattern: UInt)?` method. It returns an Optional which will be `nil` if the address was 0. 
+Pointers in Swift use the types `UnsafePointer` and `UnsafeMutablePointer` and
+can be created from an address using the `init(bitPattern: UInt)?` method. It
+returns an Optional which will be `nil` if the address was 0. 
 
 
-Pointer values (uintptr_t) can be represented using `UInt`. A couple of macros allow symbols to be exported from C to Swift:
+Pointer values (uintptr_t) can be represented using `UInt`. A couple of macros
+allow symbols to be exported from C to Swift:
 
 ```c
 // Export as [symbol]_ptr of type UnsafePointer<Void>
@@ -74,12 +87,20 @@ extension UnsafeMutablePointer {
 }
 ```
 
-Although using functions to return the address of a symbol may look a bit cumbersome, the use of inlined functions along with the linking creating a binary with a specific start address (as in the case of a kernel etc) means that the function gets converted to the absolute address of the symbol at link time so there is no calling overhead or excess pollution of the name space with lots of `*_ptr()` and `*_addr()` functions.
+Although using functions to return the address of a symbol may look a bit
+cumbersome, the use of inlined functions along with the linking creating a
+binary with a specific start address (as in the case of a kernel etc) means
+that the function gets converted to the absolute address of the symbol at link
+time so there is no calling overhead or excess pollution of the name space with
+lots of `*_ptr()` and `*_addr()` functions.
 
 
 ## Swift function names
 
-Swift function names use name mangling to include the module name and method signature. However when exporting to C or asm this can be inconvenient especially if the function signature changes. `@_silgen_name` can be used to provide an override for a function so that it has a consistent name:
+Swift function names use name mangling to include the module name and method
+signature. However when exporting to C or asm this can be inconvenient
+especially if the function signature changes. `@_silgen_name` can be used to
+provide an override for a function so that it has a consistent name:
 
 ```swift
 func function1(a: Int) -> UInt {
@@ -136,7 +157,9 @@ _TF4test9function1FSiSu ---> test.function1 (Swift.Int) -> Swift.UInt
 
 ## Defines and constants
 
-When using `#define` in .h files remember that C integer values actually have a type and this needs to be taken into account when used in Swift. The values are not simply substituted in to the code as they are in C. Consider:
+When using `#define` in .h files remember that C integer values actually have a
+type and this needs to be taken into account when used in Swift. The values are
+not simply substituted in to the code as they are in C. Consider:
 
 ```c
 // test.h
@@ -216,7 +239,8 @@ Which is something to remember when using constants in header files.
 
 ## Structs
 
-A struct can be defined in a .h file and then easily used in Swift. The struct can be addressed just be its name without `struct` eg:
+A struct can be defined in a .h file and then easily used in Swift. The struct
+can be addressed just be its name without `struct` eg:
 
 ```c
 // test.h
@@ -248,7 +272,10 @@ rax = 0
 rbx = 0
 ```
 
-This allows easy initialisation of empty structs where all of the elements are set to zero. If data in a fixed memory table (eg ACPI tables) needs to be parsed and only the address is known then this is also easy to accomplish using the `pointee` property:
+This allows easy initialisation of empty structs where all of the elements are
+set to zero. If data in a fixed memory table (eg ACPI tables) needs to be
+parsed and only the address is known then this is also easy to accomplish using
+the `pointee` property:
 
 ```swift
 var registers = register_set()
@@ -268,13 +295,19 @@ rax = 123
 rbx = 456
 ```
 
-[Note: the use of `_Nonnull` in test.h. This makes the return type of `register_set_addr()` be an `UnsafePointer<register_set>` instead of an `Optional<UnsafePointer<register_set>>`. Of course you need to ensure that the address passed to `register_set_addr()` is non-NULL]
+[Note: the use of `_Nonnull` in test.h. This makes the return type of
+`register_set_addr()` be an `UnsafePointer<register_set>` instead of an
+`Optional<UnsafePointer<register_set>>`. Of course you need to ensure that
+the address passed to `register_set_addr()` is non-NULL]
 
 There are two advantages of C structs over Swift struct:
 
 1. Packed structures
 
-If the data has a pre defined format that you dont control and the struct requires packing using `__attribute__((packed))` then it can only be defined in a .h file as Swift does not currently have a method of setting struct attributes. Due to alignment padding it will add in extra space. Compare:
+If the data has a pre defined format that you dont control and the struct
+requires packing using `__attribute__((packed))` then it can only be defined
+in a .h file as Swift does not currently have a method of setting struct
+attributes. Due to alignment padding it will add in extra space. Compare:
 
 
 ```c
@@ -314,21 +347,27 @@ let addrOffset2 = offset_of(&info2, &info2.address)
 print("C: limitOffset:", limitOffset2, "addrOffset:", addrOffset2)
 ```
 
-[Note: due to the lack of an offsetOf() function a C function is used to calculate the offset using some pointer arithmetic]
+[Note: due to the lack of an offsetOf() function a C function is used to
+calculate the offset using some pointer arithmetic]
 
 ```bash
 Swift: limitOffset: 0 addrOffset: 8
 C: limitOffset: 0 addrOffset: 2
 ```
 
-As we can see the Swift defined `SomeTable` aligns each field to its natural size so the `data` field is placed on the next UInt64 boundary. C would naturally do the same but the behaviour is overriden using the `__attribute__((packed))` option.
+As we can see the Swift defined `SomeTable` aligns each field to its natural
+size so the `data` field is placed on the next UInt64 boundary. C would
+naturally do the same but the behaviour is overriden using the
+`__attribute__((packed))` option.
 
 
 2. Fixed Arrays
 
-Swift does not current support fixed size arrays and they must be represented as a tuple. Although this does not stop you from defining the struct in Swift, it can make the code quite unreadable if the array has a large number of elements
+Swift does not currently support fixed size arrays and they must be represented
+as a tuple. Although this does not stop you from defining the struct in Swift,
+it can make the code quite unreadable if the array has a large number of
+elements, eg:
 
-eg
 
 ```swift
 struct Foo {
@@ -336,7 +375,7 @@ struct Foo {
 }
 ```
 
-gives the error
+gives the error:
 
 ```bash
 $ swiftc -import-objc-header test.h test.swift
@@ -360,7 +399,8 @@ let x = foo(x: (1,2,3,4,5,6,7,8))
 print(x)
 ```
 
-Works and gives the following output, although x needs to be initialised using a tuple:
+Works and gives the following output, although x needs to be initialised using
+a tuple:
 
 ```bash
 foo(x: (0, 0, 0, 0, 0, 0, 0, 0))
@@ -370,7 +410,9 @@ foo(x: (1, 2, 3, 4, 5, 6, 7, 8))
 
 ## Arrays
 
-Because fixed size arrays are seen as tuples by Swift, to treat them as indexable arrays they need to be accessed using `UnsafeBufferPointer` and `UnsafeMutableBufferPointer`
+Because fixed size arrays are seen as tuples by Swift, to treat them as
+indexable arrays they need to be accessed using `UnsafeBufferPointer` and
+`UnsafeMutableBufferPointer`.
 
 
 ```c
@@ -424,12 +466,17 @@ testArray: UnsafeMutableBufferPointer(start: 0x000000010eb7d190, count: 8)
 
 ## StaticString
 
-When passing strings to C especially if they are to be printed by a simple low level text only console driver it can be useful to make use of `StaticString`. It has a few advantages over `String` when it can be used:
+When passing strings to C especially if they are to be printed by a simple
+low level text only console driver it can be useful to make use of
+`StaticString`. It has a few advantages over `String` when it can be used:
 
-1. It has an `isASCII` property which can be useful to `assert()` on. This means that a console driver that may not understand unicode knows it wont be getting any unicode characters.
+1. It has an `isASCII` property which can be useful to `assert()` on. This
+means that a console driver that may not understand unicode knows it wont be
+getting any unicode characters.
 
-2. The `utf8start` property returns a simple pointer to the string which can be passed around, which is a lot simpler to use than `String`.
+2. The `utf8start` property returns a simple pointer to the string which can
+be passed around, which is a lot simpler to use than `String`.
 
 `StaticString` cannot be used in all circumstances but for `printf` style
-functions it is often used for error or debug messages as the format string is
-usually a constant string.
+functions it is often used for error or debug messages as the format string
+is usually a constant string.

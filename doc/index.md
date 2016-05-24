@@ -1,8 +1,10 @@
 # Overview
 
-project1 is a technical exercise to evaluate Swift as a systems language by
-writing some low level code using it. It is not an operating system or
-even a kernel although as an ongoing project it may develop into one.
+project1 - writing a simple bare metal kernel in Swift
+
+A project to write a kernel in Swift with that can boot on a Mac or PC.
+The main aim is to get a simple kernel booting up with a CLI with full
+concurrency/thread support on multiple cores.
 
 [project1 on github](https://github.com/spevans/swift-project1)
 
@@ -15,6 +17,11 @@ Current status:
 - Sets up paging
 - Scans PCI bus
 - Initialises timer and keyboard
+- Initialises PIC, PIT and PS/2 keyboard controller
+- Runs two simple tasks, one printing 'A' and the other printing 'B' in a loop
+  with a simple stack context switch
+
+The next step is to get multi processor support working
 
 
 The main aspects investigated were:
@@ -32,12 +39,15 @@ The main aspects investigated were:
 
 ## [Initialisation](initialisation.md)
 - From boot to swift startup()
+- globalinit*()
+- malloc() and free()
 - Thread Local Storage (TLS)
 - Streaming SIMD Extensions (SSE)
 - Reading data tables in swift
 
 
 ## [Working with C](working-with-c.md)
+- Swift calling convention
 - Pointers
 - Swift function names
 - Defines and constants
