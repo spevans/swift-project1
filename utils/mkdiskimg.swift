@@ -124,14 +124,14 @@ func writeOutImage(to filename: String, _ bootsect: NSData, _ loader: NSData,
 // break a device name eg /dev/sda3 into /dev/sda and 3
 func driveAndPartition(_ device: String) -> (String, Int?) {
     let devname = NSString(string: device)
-    let numbers = NSCharacterSet.decimalDigitCharacterSet()
-    let offset = devname.rangeOfCharacterFromSet(numbers)
+    let numbers = NSCharacterSet.decimalDigits()
+    let offset = devname.rangeOfCharacter(from: numbers)
 
     if offset.length == 0 {
         return (device, nil)
     } else {
-        let newDevice = devname.substringToIndex(offset.location)
-        let partition = Int(devname.substringFromIndex(offset.location))
+        let newDevice = devname.substring(to: offset.location)
+        let partition = Int(devname.substring(from: offset.location))
         return (newDevice, partition)
     }
 }
@@ -141,7 +141,7 @@ func getPartitionLBA(_ device: String) -> UInt64 {
     var stat_buf = stat_info()
 
     let ndevice = NSString(string: device)
-    let cname  = ndevice.cStringUsingEncoding(NSASCIIStringEncoding)
+    let cname  = ndevice.cString(using: NSASCIIStringEncoding)
     let err = stat(cname!, &stat_buf)
     guard err == 0 else {
         print("Cant read device information for \(device)")

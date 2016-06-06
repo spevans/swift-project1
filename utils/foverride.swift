@@ -37,7 +37,7 @@ extension Int32 {
 
 func parseHex(_ number: String) -> UInt? {
      if (number.hasPrefix("0x")) {
-        return UInt(number.stringByReplacingOccurrencesOfString("0x", withString: ""),
+        return UInt(number.replacingOccurrences(of: "0x", with: ""),
             radix: 16)
     } else {
         return nil
@@ -58,9 +58,9 @@ func parseMap(_ filename: String) -> Dictionary<String, UInt> {
     }
 
     var symbols = Dictionary<String, UInt>(minimumCapacity: 16384)
-    for line in kernelMap.componentsSeparatedByString("\n") {
+    for line in kernelMap.components(separatedBy: "\n") {
         // Split by multiple spaces
-        let components = line.componentsSeparatedByString(" ").flatMap {
+        let components = line.components(separatedBy: " ").flatMap {
             $0 == "" ? nil : $0
         }
 
