@@ -15,7 +15,7 @@ SWIFTDIR := $(shell readlink -f ~/swift-kernel)
 SWIFT := $(SWIFTDIR)/usr/bin/swift
 SWIFTC := $(SWIFTDIR)/usr/bin/swiftc
 SWIFTLIB := $(SWIFTDIR)/usr/lib/swift_static/linux/libswiftCore.a
-SWIFTC_FLAGS := -gnone $(OPTO_FLAG) -Xfrontend -disable-red-zone -Xcc -mno-red-zone -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -I$(MODULE_DIR)
+SWIFTC_FLAGS := -gnone $(OPTO_FLAG) -Xfrontend -disable-red-zone -Xcc -mno-red-zone -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -I$(MODULE_DIR) -warnings-as-errors
 
 ifndef USE_FP
 	CFLAGS := $(CFLAGS) -mno-mmx -mno-sse -mno-sse2
