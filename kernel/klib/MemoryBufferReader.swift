@@ -91,19 +91,19 @@ class MemoryBufferReader {
             throw ReadError.InvalidOffset
         }
 
-        guard bytesRemaining >= sizeof(T) else {
+        guard bytesRemaining >= sizeof(T.self) else {
             throw ReadError.InvalidOffset
         }
         let resultPtr : UnsafePointer<T> = UnsafePointer(ptr + offset)
         let result = resultPtr.pointee
-        offset += sizeof(T)
+        offset += sizeof(T.self)
 
         return result
     }
 
 
     func readAtIndex<T>(_ index: Int) throws -> T {
-        guard index + sizeof(T) <= buffer.count else {
+        guard index + sizeof(T.self) <= buffer.count else {
             throw ReadError.InvalidOffset
         }
         let resultPtr : UnsafePointer<T> = UnsafePointer(ptr + index)
@@ -173,7 +173,7 @@ class MemoryBufferReader {
             shift += 7
         } while (byte & 0x80) == 0x80
 
-        if (Int(shift) < sizeof(Int64)) && (byte & 0x40) == 0x40 {
+        if (Int(shift) < sizeof(Int64.self)) && (byte & 0x40) == 0x40 {
             // sign bit set so sign extend
             value |= -(1 << shift)
         }

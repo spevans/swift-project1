@@ -14,7 +14,7 @@
 let CODE_SEG: UInt16 = 8
 
 private var gdt = theGDT()
-private var gdtInfo = dt_info(limit: UInt16(strideof(theGDT) - 1), base: &gdt)
+private var gdtInfo = dt_info(limit: UInt16(strideof(theGDT.self) - 1), base: &gdt)
 
 
 // Helper method to construct a GDT entry

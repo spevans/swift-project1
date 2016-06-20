@@ -16,7 +16,7 @@
 
 
 // FIXME when strideof can be used with arrays
-private let idtSize = NR_INTERRUPTS * sizeof(idt_entry)
+private let idtSize = NR_INTERRUPTS * sizeof(idt_entry.self)
 private var idtInfo = dt_info(limit: UInt16(idtSize - 1), base: &idt)
 
 

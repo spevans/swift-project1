@@ -357,7 +357,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
             return nil
         }
         let membuf = MemoryBufferReader(bootParamsAddr,
-            size: strideof(bios_boot_params))
+            size: strideof(bios_boot_params.self))
         membuf.offset = 8       // skip signature
         do {
             // FIXME: use bootParamsSize to size a buffer limit
@@ -386,7 +386,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
         var ranges: [MemoryRange] = []
         ranges.reserveCapacity(Int(e820Entries))
         let buf = MemoryBufferReader(e820MapAddr,
-            size: strideof(E820MemoryRange) * Int(e820Entries))
+            size: strideof(E820MemoryRange.self) * Int(e820Entries))
         for _ in 0..<e820Entries {
             if let entry: E820MemoryRange = try? buf.read() {
                 print(entry)
@@ -478,7 +478,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
         assert(signature.utf8CodeUnitCount != 0)
         assert(signature.isASCII)
 
-        for idx in stride(from: 0, to: area.count - strideof(rsdp1_header), by: 16) {
+        for idx in stride(from: 0, to: area.count - strideof(rsdp1_header.self), by: 16) {
             if memcmp(signature.utf8Start, area.baseAddress! + idx,
                 signature.utf8CodeUnitCount) == 0 {
                 let region: UnsafePointer<Void> = area.regionPointer(offset: idx)
@@ -568,7 +568,7 @@ struct EFIBootParams: BootParamsData {
             return nil
         }
         let membuf = MemoryBufferReader(bootParamsAddr,
-            size: strideof(efi_boot_params))
+            size: strideof(efi_boot_params.self))
         membuf.offset = 8       // skip signature
         do {
             let bootParamsSize: UInt = try membuf.read()

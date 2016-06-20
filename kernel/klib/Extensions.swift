@@ -96,7 +96,7 @@ extension UnsafeMutablePointer {
 extension UnsafeBufferPointer {
 
     func regionPointer<T>(offset: Int) -> UnsafePointer<T> {
-        let max = offset + strideof(T)
+        let max = offset + strideof(T.self)
         assert(max <= self.count)
         let region = UInt(bitPattern: self.baseAddress) + UInt(offset)
         return UnsafePointer<T>(bitPattern: region)!

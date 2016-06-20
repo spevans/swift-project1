@@ -77,8 +77,8 @@ struct SMBIOS {
             print("SMBIOS: anchor is \(anchor)")
             return nil
         }
-        if Int(header.ep_length) != sizeof(smbios_header) {
-            print("header length should be", sizeof(smbios_header), "but is",
+        if Int(header.ep_length) != sizeof(smbios_header.self) {
+            print("header length should be", sizeof(smbios_header.self), "but is",
                 header.ep_length)
             return nil
         }
