@@ -13,6 +13,10 @@
 #include <link.h>
 #include <dlfcn.h>
 
+#define _UNISTD_H   // Avoid including all of unistd.h
+#include <bits/confname.h>
+
+
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 
@@ -28,6 +32,7 @@ __assert_fail (const char *err, const char *file,
         debugf("assert:%s:%s:%d:%s\n", file, function, line, err);
         hlt();
 }
+
 
 void
 abort()
@@ -138,8 +143,21 @@ dl_iterate_phdr(int (*callback) (struct dl_phdr_info *info,
 }
 
 
+
+long
+sysconf(int name)
+{
+        switch(name) {
+        case _SC_PAGESIZE:
+                return PAGE_SIZE;
+
+        default:
+                koops("UNIMPLEMENTED sysconf: name = %d\n", name);
+        }
+}
+
+
 UNIMPLEMENTED(__divti3)
-UNIMPLEMENTED(sysconf)
 UNIMPLEMENTED(backtrace)
 
 
