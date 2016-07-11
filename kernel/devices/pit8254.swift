@@ -76,10 +76,10 @@ class PIT8254: CustomStringConvertible {
 
         init(mode: UInt8) {
             var value = UInt8(mode & OperatingMode.mask);
-            if (value == MODE_6.rawValue) {
-                value = MODE_2.rawValue
-            } else if (value == MODE_7.rawValue) {
-                value = MODE_3.rawValue
+            if (value == OperatingMode.MODE_6.rawValue) {
+                value = OperatingMode.MODE_2.rawValue
+            } else if (value == OperatingMode.MODE_7.rawValue) {
+                value = OperatingMode.MODE_3.rawValue
             }
             self.init(rawValue: value)!
         }
