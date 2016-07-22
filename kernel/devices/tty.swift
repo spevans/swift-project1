@@ -519,7 +519,7 @@ private class FrameBufferTTY: ScreenDriver {
 
 
     func scrollUp() {
-        screenBase.assignFrom(screenBase.advancedBy(bytes: bytesPerTextLine),
+        screenBase.assign(from: screenBase.advancedBy(bytes: bytesPerTextLine),
             count: lastLineScrollArea)
 
         // Clear the bottom line

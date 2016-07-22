@@ -275,9 +275,7 @@ struct BootParams {
 
 
     private static func sortRanges(_ ranges: inout [MemoryRange]) {
-        ranges.sort(isOrderedBefore:{
-            $0.start < $1.start
-        })
+        ranges.sort(by: { $0.start < $1.start })
     }
 }
 

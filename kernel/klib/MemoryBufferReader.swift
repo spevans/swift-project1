@@ -8,7 +8,7 @@
  *
  */
 
-enum ReadError: ErrorProtocol {
+enum ReadError: Error {
     case InvalidOffset
     case InvalidData
 }

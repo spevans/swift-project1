@@ -134,7 +134,7 @@ class Task: CustomStringConvertible {
         let stateOffset = stackSize - sizeof(exception_regs.self)
         rsp = stack.advancedBy(bytes: stateOffset - sizeof(UInt.self))
         state = stack.advancedBy(bytes: stateOffset)
-        state.initialize(with: exception_regs())
+        state.initialize(to: exception_regs())
         state.pointee.es = 0x10
         state.pointee.ds = 0x10
         state.pointee.ss = 0x10

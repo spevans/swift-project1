@@ -22,18 +22,18 @@ extension String {
 
         withVaList(arguments) {
             let len = format.utf8.count + 1
-            let buffer = UnsafeMutablePointer<CChar>(allocatingCapacity: len)
+            let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: len)
             var idx = 0
             for ch in format.utf8 {
                 buffer[idx] = CChar(ch)
                 idx += 1
             }
             buffer[idx] = CChar(0)
-            let output = UnsafeMutablePointer<CChar>(allocatingCapacity: bufferLen)
+            let output = UnsafeMutablePointer<CChar>.allocate(capacity: bufferLen)
             kvsnprintf(output, bufferLen, buffer, $0)
             result = String(cString: output)
-            buffer.deallocateCapacity(len)
-            output.deallocateCapacity(bufferLen)
+            buffer.deallocate(capacity: len)
+            output.deallocate(capacity: bufferLen)
         }
 
         if (result == nil) {
