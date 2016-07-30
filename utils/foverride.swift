@@ -1,5 +1,3 @@
-#!/usr/bin/swift
-
 /*
  * utils/foverride.swift
  *
@@ -15,118 +13,51 @@
 import Foundation
 
 
-func exitWithMessage(_ msg: String) -> Never {
-    print(msg)
-    exit(1)
-}
-
-
-extension UInt {
-    func asHex() -> String {
-        return String(format:"%x", self)
-    }
-}
-
-extension Int32 {
-    func asHex() -> String {
-        return String(format:"%x", self)
-    }
-}
-
-
-func parseHex(_ number: String) -> UInt? {
-     if (number.hasPrefix("0x")) {
-        return UInt(number.replacingOccurrences(of: "0x", with: ""),
-            radix: 16)
-    } else {
-        return nil
-    }
-}
-
-
-func openOrQuit(_ filename: String) -> NSMutableData {
-    guard let file = NSMutableData(contentsOfFile: filename) else {
-        exitWithMessage("Cant open \(filename)")
-    }
-    return file
-}
-
-func parseMap(_ filename: String) -> Dictionary<String, UInt> {
-    guard let kernelMap = try? String(contentsOfFile: filename,
-        encoding: String.Encoding.ascii) else {
-        exitWithMessage("Cant open \(filename)")
+@_silgen_name("main")
+func main() {
+    let args = CommandLine.arguments
+    guard args.count == 5 else {
+        fatalError("usage: \(args[0]) <kernel.bin> <kernel.map> <function> <new function>")
     }
 
-    var symbols = Dictionary<String, UInt>(minimumCapacity: 16384)
-    for line in kernelMap.components(separatedBy: "\n") {
-        // Split by multiple spaces
-        let components = line.components(separatedBy: " ").flatMap {
-            $0 == "" ? nil : $0
-        }
+    let (binFile, mapFile, oldFunction, newFunction) = (args[1], args[2],
+        args[3], args[4])
 
-        // Ignore any lines which arent [<Hex>, <String>] but allow lines
-        // which are [<Hex>, <String>, = .]
-        if components.count == 4 {
-            if components[2] != "=" || components[3] != "." {
-                continue
-            }
-        } else if components.count != 2 {
-            continue
-        }
-
-        if components[1] == "0x0" {
-            continue
-        }
-        guard let address = parseHex(components[0]) else {
-            continue
-        }
-        let symbol = components[1]
-        symbols[symbol] = address
+    print("Parsing", mapFile)
+    let symbols = parseMap(mapFile)
+    guard let textStart = symbols["_text_start"] else {
+        fatalError("Cant find _text_start address")
     }
-    return symbols
-}
 
+    guard let oldFunc = symbols[oldFunction] else {
+        fatalError("Cant find \(args[3]) address")
+    }
 
-let args = CommandLine.arguments
-guard args.count == 5 else {
-    exitWithMessage("usage: \(args[0]) <kernel.bin> <kernel.map> <function> <new function>")
-}
+    guard let newFunc = symbols[newFunction] else {
+        fatalError("Cant find \(args[4]) address")
+    }
 
-let (binFile, mapFile, oldFunction, newFunction) = (args[1], args[2], args[3], args[4])
+    let address = oldFunc - textStart
+    let target = newFunc - textStart
+    // May overflow if offset is > ± signed 32bit
+    // +5 since the jmp is relative to the next instruction
+    let offset = Int32(Int(target) - Int(address + 5));
 
-print("Parsing", mapFile)
-let symbols = parseMap(mapFile)
-guard let textStart = symbols["_text_start"] else {
-    exitWithMessage("Cant find _text_start address")
-}
+    print("\(oldFunction):", oldFunc.asHex(), "\(newFunction):", newFunc.asHex())
+    print("Patching", args[3], oldFunc.asHex(), "[\(address.asHex())] -> ",
+        args[4], newFunc.asHex(), "[\(target.asHex())] offset:", offset.asHex())
+    let bin = NSMutableData(data: openOrQuit(binFile))
+    let rawPtr = bin.mutableBytes + Int(address)
+    let ptr = rawPtr.bindMemory(to: UInt8.self, capacity: 5)
+    let buf = UnsafeMutableBufferPointer(start: ptr, count: 5)
+    buf[0] = 0xe9   // jmp with 32bit realative offset
+    buf[1] = UInt8(truncatingBitPattern: offset >> 0)
+    buf[2] = UInt8(truncatingBitPattern: offset >> 8)
+    buf[3] = UInt8(truncatingBitPattern: offset >> 16)
+    buf[4] = UInt8(truncatingBitPattern: offset >> 24)
 
-guard let oldFunc = symbols[oldFunction] else {
-    exitWithMessage("Cant find \(args[3]) address")
-}
-
-guard let newFunc = symbols[newFunction] else {
-    exitWithMessage("Cant find \(args[4]) address")
-}
-
-let address = oldFunc - textStart
-let target = newFunc - textStart
-// May overflow if offset is > ± signed 32bit
-// +5 since the jmp is relative to the next instruction
-let offset = Int32(Int(target) - Int(address + 5));
-
-print("\(oldFunction):", oldFunc.asHex(), "\(newFunction):", newFunc.asHex())
-print("Patching", args[3], oldFunc.asHex(), "[\(address.asHex())] -> ", args[4],
-    newFunc.asHex(), "[\(target.asHex())] offset:", offset.asHex())
-let bin = openOrQuit(binFile);
-let rawPtr = bin.mutableBytes + Int(address)
-let ptr = rawPtr.bindMemory(to: UInt8.self, capacity: 5)
-let buf = UnsafeMutableBufferPointer(start: ptr, count: 5)
-buf[0] = 0xe9   // jmp with 32bit realative offset
-buf[1] = UInt8(truncatingBitPattern: offset >> 0)
-buf[2] = UInt8(truncatingBitPattern: offset >> 8)
-buf[3] = UInt8(truncatingBitPattern: offset >> 16)
-buf[4] = UInt8(truncatingBitPattern: offset >> 24)
-
-guard bin.write(toFile: binFile, atomically: true) else {
-    exitWithMessage("Cant write output")
+    guard bin.write(toFile: binFile, atomically: true) else {
+        fatalError("Cant write output")
+    }
+    exit(0)
 }

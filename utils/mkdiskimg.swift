@@ -1,5 +1,3 @@
-#!/usr/bin/swift
-
 /*
  * utils/mkdiskimage.swift
  *
@@ -22,69 +20,34 @@
 import Foundation
 
 
-let args = CommandLine.arguments
-guard args.count == 5 else {
-      fatalError("usage: \(args[0]) <bootsector.bin> <loader.bin> <kernel.bin> <output>")
-}
-print("Bootsect: \(args[1]) loader: \(args[2]) kernel: \(args[3]) output: \(args[4])")
-
-func openOrQuit(_ filename: String) -> Data {
-    let url = URL(fileURLWithPath: filename)
-    guard let file = try? Data(contentsOf: url) else {
-        fatalError("Cant open \(filename)")
+@_silgen_name("main")
+func main() {
+    let args = CommandLine.arguments
+    guard args.count == 5 else {
+        fatalError("usage: \(args[0]) <bootsector.bin> <loader.bin> <kernel.bin> <output>")
     }
-    return file
-}
-
-
-// FIXME: workaround until Data(count:) works correctly to use calloc()
-func makePadding(count: Int) -> Data {
-    if var p = Data(count: count) {
-        p.resetBytes(in: Range<Int>(0..<count))
-        return p
-    } else {
-        fatalError("memory")
+    print("Bootsect: \(args[1]) loader: \(args[2]) kernel: \(args[3]) output: \(args[4])")
+    var bootsect = openOrQuit(args[1])
+    guard bootsect.count == 512 else {
+        fatalError("Bootsector should be 512 bytes but is \(bootsect.count)")
     }
+    let loader = openOrQuit(args[2])
+    let kernel = openOrQuit(args[3])
+    let outputName = args[4]
+    let loaderSectors = UInt16((loader.count + 511) / 512)
+    let kernelSectors = UInt16((kernel.count + 511) / 512)
+
+    patchBootSector(&bootsect, loaderSectors, kernelSectors, outputName: outputName)
+
+    // Extra padding to make valid Bochs HD
+    let hdSize = 20 * 16 * 63 * 512
+    writeOutImage(to: outputName, bootsect, loader, kernel, padding: hdSize)
+    exit(0)
 }
-
-
-// Allows arbitary offsets not necessarily aligned to the width of T
-func patchValue<T>(_ data: inout Data, offset: Int, value: T) {
-    guard offset >= 0 else {
-        fatalError("offset < 0: \(offset)")
-    }
-    guard offset + sizeof(T.self) <= data.count else {
-        fatalError("offset overflow: \(offset) > \(data.count)")
-    }
-
-    // FIXME:
-    // This is how it should work but Data.swift if broken
-    //var value = value
-    //let x = Data(buffer: UnsafeBufferPointer(start: &value, count: 1))
-    //let range: Range<Int> = offset..<(offset + x.count)
-    //print(#function, "offset: \(offset), value: \(value), range, \(range)")
-    //data.replaceBytes(in: range, with: x) - needs fixing
-
-    
-    let d = NSMutableData(data: data)
-    let ptr = d.mutableBytes + offset
-
-    ptr.bindMemory(to: T.self, capacity: 1).pointee = value
-    let buffer = d.mutableBytes.bindMemory(to: UInt8.self, capacity: data.count)
-    data = Data(buffer: UnsafeBufferPointer(start: buffer, count: data.count))
-}
-
-
-func readValue<T>(_ data: Data, offset: Int) -> T {
-    let range: Range<Int> = offset..<(offset + sizeof(T.self))
-    let value = data.subdata(in: range)
-    return value.withUnsafeBytes { $0.pointee }
-}
-
 
 
 // BIOS bootsector
-func patchBootSector(_ bootsect: inout Data, _ loaderSectors: UInt16, _ kernelSectors: UInt16) {
+func patchBootSector(_ bootsect: inout Data, _ loaderSectors: UInt16, _ kernelSectors: UInt16, outputName: String) {
     // Ensure bootsector + loader == 2048 bytes so that if loaded from cd it fits in one
     // ISO9660 sector
     let loaderLen: UInt16 = (2048 - 512) / 512
@@ -92,7 +55,7 @@ func patchBootSector(_ bootsect: inout Data, _ loaderSectors: UInt16, _ kernelSe
         fatalError("Loader should be \(loaderLen) sectors but is \(loaderSectors)")
     }
 
-    let loaderLBA = getPartitionLBA(args[4]) + 1
+    let loaderLBA = getPartitionLBA(outputName) + 1
     let kernelLBA = loaderLBA + UInt64(loaderSectors)
 
     print("Loader: LBA: \(loaderLBA) sectors:\(loaderSectors)  kernel: LBA:\(kernelLBA) sectors:\(kernelSectors)")
@@ -187,18 +150,3 @@ func getPartitionLBA(_ device: String) -> UInt64 {
     }
     return UInt64(partitionInfo.LBA_start)
 }
-
-
-var bootsect = openOrQuit(args[1])
-guard bootsect.count == 512 else {
-    fatalError("Bootsector should be 512 bytes but is \(bootsect.count)")
-}
-let loader = openOrQuit(args[2])
-let kernel = openOrQuit(args[3])
-let loaderSectors = UInt16((loader.count + 511) / 512)
-let kernelSectors = UInt16((kernel.count + 511) / 512)
-
-patchBootSector(&bootsect, loaderSectors, kernelSectors)
-
-// Extra padding to make valid Bochs HD
-writeOutImage(to: args[4], bootsect, loader, kernel, padding: (20 * 16 * 63 * 512))
