@@ -15,8 +15,7 @@
 import Foundation
 
 
-@noreturn
-func exitWithMessage(_ msg: String) {
+func exitWithMessage(_ msg: String) -> Never {
     print(msg)
     exit(1)
 }
@@ -24,13 +23,13 @@ func exitWithMessage(_ msg: String) {
 
 extension UInt {
     func asHex() -> String {
-        return String(NSString(format:"%x", self))
+        return String(format:"%x", self)
     }
 }
 
 extension Int32 {
     func asHex() -> String {
-        return String(NSString(format:"%x", self))
+        return String(format:"%x", self)
     }
 }
 
@@ -45,7 +44,7 @@ func parseHex(_ number: String) -> UInt? {
 }
 
 
-func openOrQuit(_ filename: String) -> NSData {
+func openOrQuit(_ filename: String) -> NSMutableData {
     guard let file = NSMutableData(contentsOfFile: filename) else {
         exitWithMessage("Cant open \(filename)")
     }
@@ -53,7 +52,8 @@ func openOrQuit(_ filename: String) -> NSData {
 }
 
 func parseMap(_ filename: String) -> Dictionary<String, UInt> {
-    guard let kernelMap = try? String(contentsOfFile: filename, encoding: NSASCIIStringEncoding) else {
+    guard let kernelMap = try? String(contentsOfFile: filename,
+        encoding: String.Encoding.ascii) else {
         exitWithMessage("Cant open \(filename)")
     }
 
@@ -87,7 +87,7 @@ func parseMap(_ filename: String) -> Dictionary<String, UInt> {
 }
 
 
-let args = Process.arguments
+let args = CommandLine.arguments
 guard args.count == 5 else {
     exitWithMessage("usage: \(args[0]) <kernel.bin> <kernel.map> <function> <new function>")
 }
@@ -118,9 +118,9 @@ print("\(oldFunction):", oldFunc.asHex(), "\(newFunction):", newFunc.asHex())
 print("Patching", args[3], oldFunc.asHex(), "[\(address.asHex())] -> ", args[4],
     newFunc.asHex(), "[\(target.asHex())] offset:", offset.asHex())
 let bin = openOrQuit(binFile);
-
-let ptr: UnsafeMutablePointer<UInt8> = UnsafeMutablePointer(bin.bytes).advanced(by: Int(address))
-let buf: UnsafeMutableBufferPointer<UInt8> = UnsafeMutableBufferPointer(start: ptr, count: 5)
+let rawPtr = bin.mutableBytes + Int(address)
+let ptr = rawPtr.bindMemory(to: UInt8.self, capacity: 5)
+let buf = UnsafeMutableBufferPointer(start: ptr, count: 5)
 buf[0] = 0xe9   // jmp with 32bit realative offset
 buf[1] = UInt8(truncatingBitPattern: offset >> 0)
 buf[2] = UInt8(truncatingBitPattern: offset >> 8)
