@@ -70,9 +70,9 @@ func setupMM() {
     // FIXME: Dont waste the physical page that is not mapped under
     // the guard page
     printf("_text:   %p - %p\n_rodata: %p - %p\n_data:   %p - %p\n",
-        _kernel_start_ptr(), _kernel_start_ptr().address + textSize,
-        _rodata_start_ptr(), _rodata_start_ptr().address + rodataSize,
-        _data_start_ptr(), _data_start_ptr().address + dataSize)
+        _kernel_start_ptr().address, _kernel_start_ptr().address + textSize,
+        _rodata_start_ptr().address, _rodata_start_ptr().address + rodataSize,
+        _data_start_ptr().address, _data_start_ptr().address + dataSize)
 
     addMapping(start: _kernel_start_ptr().address, size: textSize,
         physStart: kernelPhysBase, readWrite: false, noExec: false)

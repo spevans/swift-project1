@@ -104,6 +104,21 @@ extension UnsafeBufferPointer {
 }
 
 
+extension UnsafeRawPointer {
+    var address: UInt {
+        return UInt(bitPattern: self)
+    }
+}
+
+
+extension UnsafeMutableRawPointer {
+    var address: UInt {
+        return UInt(bitPattern: self)
+    }
+}
+
+
+
 func dumpRegion(ptr: UnsafePointer<Void>, size: Int) {
     let buffer = UnsafeBufferPointer<UInt8>(start: UnsafePointer<UInt8>(ptr),
         count: size)

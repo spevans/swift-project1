@@ -49,12 +49,6 @@ func mapPhysicalRegion<T>(start: UnsafePointer<T>, size: Int) -> UnsafeBufferPoi
 }
 
 
-func ptrFromPhysicalPtr<T>(_ ptr: UnsafePointer<T>) -> UnsafePointer<T> {
-    let ret: UnsafePointer<T> = UnsafePointer(bitPattern: PHYSICAL_MEM_BASE + ptr.address)!
-    return ret;
-}
-
-
 // Map a physical address to a kernel virtual address
 func vaddrFromPaddr(_ ptr: PhysAddress) -> VirtualAddress {
     return PHYSICAL_MEM_BASE + ptr;

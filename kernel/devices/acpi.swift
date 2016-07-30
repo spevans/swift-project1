@@ -8,7 +8,6 @@
  *
  */
 
-typealias ScanArea = UnsafeBufferPointer<UInt8>
 typealias SDTPtr = UnsafePointer<acpi_sdt_header>
 
 

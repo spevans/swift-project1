@@ -79,7 +79,7 @@ EXPORTED_SYMBOL_AS_UINTPTR(irq14_stub);
 EXPORTED_SYMBOL_AS_UINTPTR(irq15_stub);
 EXPORTED_SYMBOL_AS_PTR(fontdata_8x16, uint8_t);
 
-extern const void *initial_tls_end_addr;
+extern void * const initial_tls_end_addr;
 void run_first_task();
 
 #endif  // __KERNEL_H__

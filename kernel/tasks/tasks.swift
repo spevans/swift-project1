@@ -94,7 +94,7 @@ private func testTaskB() {
 
 
 class Task: CustomStringConvertible {
-    let stack: UnsafeMutablePointer<Void>!
+    let stack: UnsafeMutableRawPointer
     var state: UnsafeMutablePointer<exception_regs>
     let pid: UInt
     var rsp: UnsafeMutablePointer<UInt>
@@ -132,8 +132,8 @@ class Task: CustomStringConvertible {
         let addr = unsafeBitCast(entry, to: UInt.self)
         stack = alloc_pages(stackPages)
         let stateOffset = stackSize - sizeof(exception_regs.self)
-        rsp = stack.advancedBy(bytes: stateOffset - sizeof(UInt.self))
-        state = stack.advancedBy(bytes: stateOffset)
+        rsp = stack.advanced(by: stateOffset - sizeof(UInt.self)).bindMemory(to: UInt.self, capacity: 1)
+        state = stack.advanced(by: stateOffset).bindMemory(to: exception_regs.self, capacity: 1)
         state.initialize(to: exception_regs())
         state.pointee.es = 0x10
         state.pointee.ds = 0x10
@@ -148,7 +148,7 @@ class Task: CustomStringConvertible {
         state.pointee.eflags = 512 + 2  // Default flags has interrupts enabled
 
         // Alignment hack. See ALIGN_STACK / UNALIGN_STACK in entry.asm
-        let topOfStack: UnsafeMutablePointer<Void> = stack.advancedBy(bytes: stackSize)
+        let topOfStack = stack.advanced(by: stackSize)
         state.pointee.rsp = UInt64(topOfStack.address)
         rsp.pointee = state.address
         rsp -= 1

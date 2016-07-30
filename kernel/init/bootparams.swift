@@ -11,6 +11,8 @@
 
 let kb: UInt = 1024
 let mb: UInt = 1048576
+typealias ScanArea = UnsafeBufferPointer<UInt8>
+
 
 // These memory types are just the EFI ones, the BIOS ones are
 // actually a subset so these definitions cover both cases
@@ -71,7 +73,7 @@ struct FrameBufferInfo: CustomStringConvertible {
 
 
     init(fb: frame_buffer) {
-        address = fb.address.address
+        address = UInt(bitPattern: fb.address)
         size = UInt(fb.size)
         width = fb.width
         height = fb.height
@@ -398,7 +400,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
             koops("Cant find any memory in the e820 map")
         }
 
-        let size = _kernel_end_ptr().address - _kernel_start_ptr().address
+        let size = UInt(_kernel_start_ptr().distance(to: _kernel_end_ptr()))
         printf("Kernel size: %lx\n", size)
         ranges.append(MemoryRange(type: .Kernel, start: kernelPhysAddress,
                 size: size))
@@ -435,7 +437,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
     private func findSMBIOS() -> UnsafePointer<smbios_header>? {
         let region: ScanArea = mapPhysicalRegion(start: 0xf0000, size: 0x10000)
         if let ptr = scanForSignature(region, SMBIOS.SMBIOS_SIG) {
-            return UnsafePointer<smbios_header>(ptr)
+            return ptr.bindMemory(to: smbios_header.self, capacity: 1)
         } else {
             return nil
         }
@@ -465,22 +467,22 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
 
     private func scanForRSDP(_ area: ScanArea) -> UnsafePointer<rsdp1_header>? {
         if let ptr = scanForSignature(area, RSDP_SIG) {
-            return UnsafePointer<rsdp1_header>(ptr)
+            return ptr.bindMemory(to: rsdp1_header.self, capacity: 1)
         } else {
             return nil
         }
     }
 
 
-    private func scanForSignature(_ area: ScanArea, _ signature: StaticString) -> UnsafePointer<Void>? {
+    private func scanForSignature(_ area: ScanArea, _ signature: StaticString)
+        -> UnsafeRawPointer? {
         assert(signature.utf8CodeUnitCount != 0)
         assert(signature.isASCII)
 
         for idx in stride(from: 0, to: area.count - strideof(rsdp1_header.self), by: 16) {
             if memcmp(signature.utf8Start, area.baseAddress! + idx,
                 signature.utf8CodeUnitCount) == 0 {
-                let region: UnsafePointer<Void> = area.regionPointer(offset: idx)
-                return region
+                return UnsafeRawPointer(area.regionPointer(offset: idx))
             }
         }
 
@@ -533,7 +535,7 @@ struct EFIBootParams: BootParamsData {
 
     struct EFIConfigTableEntry {
         let guid: efi_guid_t
-        let table: UnsafePointer<Void>
+        let table: UnsafeRawPointer
     }
 
     private let guidACPI1 = efi_guid_t(data1: 0xeb9d2d30, data2: 0x2d88,
@@ -602,14 +604,14 @@ struct EFIBootParams: BootParamsData {
 
             // Root System Description Pointer
             if let ptr = findGUID(guidACPI1) {
-                rsdp = UnsafePointer<rsdp1_header>(ptr)
+                rsdp = ptr.bindMemory(to: rsdp1_header.self, capacity: 1)
             }
 
             // SMBios table
             if let ptr = findGUID(guidSMBIOS3) {
-                smbios = UnsafePointer<smbios_header>(ptr)
+                smbios = ptr.bindMemory(to: smbios_header.self, capacity: 1)
             } else if let ptr = findGUID(guidSMBIOS) {
-                smbios = UnsafePointer<smbios_header>(ptr)
+                smbios = ptr.bindMemory(to: smbios_header.self, capacity: 1)
             }
         }
     }
@@ -658,10 +660,11 @@ struct EFIBootParams: BootParamsData {
     }
 
 
-    private func findGUID(_ guid: efi_guid_t) -> UnsafePointer<Void>? {
+    private func findGUID(_ guid: efi_guid_t) -> UnsafeRawPointer? {
         for entry in configTables! {
             if matchGUID(entry.guid, guid) {
-                return ptrFromPhysicalPtr(UnsafePointer<rsdp1_header>(entry.table))
+                let paddr = entry.table.address
+                return UnsafeRawPointer(bitPattern: vaddrFromPaddr(paddr))
             }
         }
 

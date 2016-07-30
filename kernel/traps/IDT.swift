@@ -49,11 +49,10 @@ func setupIDT() {
     irqController.disableAllIRQs()
 
     func printIDT(_ msg: String, _ idt: dt_info) {
-        // 0 is a valid address for a IDT, so map nil to 0
-        let address = (idt.base != nil) ? idt.base!.address : 0
         print(msg, terminator: "")
-        printf(" IDTInfo: %p/%u\n", address, idt.limit)
+        printf(" IDTInfo: %p/%u\n", UInt(bitPattern: idt.base), idt.limit)
     }
+
     var currentIdtInfo = dt_info(limit: 0, base: nil)
     sidt(&currentIdtInfo)
     printIDT("Current", currentIdtInfo)
