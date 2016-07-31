@@ -120,7 +120,7 @@ class MemoryBufferReader {
             for idx in 0..<buffer.count {
                 if (idx > 0) && (idx % 32) == 0 {
                     print(str)
-                    str = String(format: "%04X: ", idx)
+                    str = String(idx, radix: 16format: "%04X: ", idx)
                 }
 
                 let data: UInt8 = try! read()

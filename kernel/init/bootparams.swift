@@ -306,7 +306,11 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
             } else {
                 desc += String.sprintf(" %6uKB  ", size / kb)
             }
-            desc += String(E820Type.init(rawValue: type)!)
+            if let x = E820Type(rawValue: type) {
+                desc += String(describing: x)
+            } else {
+                desc += "type: \(type) is invalid"
+            }
 
             return desc
         }

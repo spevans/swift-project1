@@ -210,10 +210,11 @@ struct SMBIOS {
         var str = ""
 
         for ch in buffer {
-            if (ch != 0) {
-                str += String(Character(UnicodeScalar(ch)))
-            } else {
-                break
+            if ch != 0 {
+                let us = UnicodeScalar(ch)
+                if us.isASCII {
+                    str += String(us)
+                }
             }
         }
 
