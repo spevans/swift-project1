@@ -204,9 +204,10 @@ struct SMBIOS {
     }
 
 
-    static func makeString(_ ptr: UnsafePointer<Void>, maxLength: Int) -> String {
-        let buffer = UnsafeBufferPointer(start: UnsafePointer<UInt8>(ptr),
-            count: maxLength)
+    // FIXME: This function can probably be merged into something better
+    static func makeString(_ rawPtr: UnsafeRawPointer, maxLength: Int) -> String {
+        let ptr = rawPtr.bindMemory(to: UInt8.self, capacity: maxLength)
+        let buffer = UnsafeBufferPointer(start: ptr, count: maxLength)
         var str = ""
 
         for ch in buffer {

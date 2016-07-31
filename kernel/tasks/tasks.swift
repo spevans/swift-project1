@@ -131,8 +131,8 @@ class Task: CustomStringConvertible {
         nextPID += 1
         let addr = unsafeBitCast(entry, to: UInt.self)
         stack = alloc_pages(stackPages)
-        let stateOffset = stackSize - sizeof(exception_regs.self)
-        rsp = stack.advanced(by: stateOffset - sizeof(UInt.self)).bindMemory(to: UInt.self, capacity: 1)
+        let stateOffset = stackSize - MemoryLayout<exception_regs>.size
+        rsp = stack.advanced(by: stateOffset - MemoryLayout<UInt>.size).bindMemory(to: UInt.self, capacity: 1)
         state = stack.advanced(by: stateOffset).bindMemory(to: exception_regs.self, capacity: 1)
         state.initialize(to: exception_regs())
         state.pointee.es = 0x10

@@ -118,7 +118,7 @@ extension UnsafeMutableRawPointer {
 }
 
 
-
+/**
 func dumpRegion(ptr: UnsafePointer<Void>, size: Int) {
     let buffer = UnsafeBufferPointer<UInt8>(start: UnsafePointer<UInt8>(ptr),
         count: size)
@@ -132,3 +132,4 @@ func dumpRegion(ptr: UnsafePointer<Void>, size: Int) {
         printf("%2.2x ", buffer[idx])
     }
 }
+**/

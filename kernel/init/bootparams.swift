@@ -167,6 +167,8 @@ struct BootParams {
 
         if BootParams.acpiTables == nil {
             print("Cant find ACPI tables")
+        } else {
+            print("Found ACPI tables")
         }
     }
 

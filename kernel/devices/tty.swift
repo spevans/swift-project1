@@ -32,16 +32,16 @@ func kprint(_ string: StaticString) {
 // kprintf via the C early_tty.c driver
 func kprintf(_ format: StaticString, _ arguments: CVarArg...) {
     _ = withVaList(arguments) {
-        kvlprintf(UnsafePointer<Int8>(format.utf8Start),
-            format.utf8CodeUnitCount, $0)
+        let ptr = unsafeBitCast(format.utf8Start, to: UnsafePointer<Int8>.self)
+        kvlprintf(UnsafePointer<Int8>?(ptr), format.utf8CodeUnitCount, $0)
     }
 }
 
 
 // print to the Bochs console via the E9 port
 func bprint(_ string: StaticString) {
-    bochs_print_string(UnsafePointer<Int8>(string.utf8Start),
-        string.utf8CodeUnitCount)
+    let ptr = unsafeBitCast(string.utf8Start, to: UnsafePointer<Int8>.self)
+    bochs_print_string(UnsafePointer<Int8>?(ptr), string.utf8CodeUnitCount)
 }
 
 
@@ -255,7 +255,8 @@ private class EarlyTTY: ScreenDriver {
 
 
     func printString(_ string: StaticString) {
-        early_print_string_len(UnsafePointer<Int8>(string.utf8Start),
+        let ptr = unsafeBitCast(string.utf8Start, to: UnsafePointer<Int8>.self)
+        early_print_string_len(UnsafePointer<Int8>?(ptr),
             string.utf8CodeUnitCount)
     }
 

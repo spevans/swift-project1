@@ -15,26 +15,28 @@ enum ReadError: Error {
 
 
 class MemoryBufferReader {
-    let ptr: UnsafePointer<UInt8>
+    let ptr: UnsafeRawPointer
     let buffer: UnsafeBufferPointer<UInt8>
     var offset: Int = 0
     var bytesRemaining: Int { return (buffer.count - offset) }
 
 
     init(_ baseAddr: UInt, size: Int) {
-        ptr = UnsafePointer<UInt8>(bitPattern: baseAddr)!
-        buffer = UnsafeBufferPointer<UInt8>(start: ptr, count: size)
+        ptr = UnsafeRawPointer(bitPattern: baseAddr)!
+        let bufferPtr = ptr.bindMemory(to: UInt8.self, capacity: size)
+        buffer = UnsafeBufferPointer(start: bufferPtr, count: size)
     }
 
 
-    init(_ basePtr: UnsafePointer<UInt8>, size: Int) {
+    init(_ basePtr: UnsafeRawPointer, size: Int) {
         ptr = basePtr
-        buffer = UnsafeBufferPointer<UInt8>(start: ptr, count: size)
+        let bufferPtr = ptr.bindMemory(to: UInt8.self, capacity: size)
+        buffer = UnsafeBufferPointer(start: bufferPtr, count: size)
     }
 
 
     func subBufferAtOffset(_ start: Int, size: Int) -> MemoryBufferReader {
-        return MemoryBufferReader(ptr.advancedBy(bytes: start), size: size)
+        return MemoryBufferReader(ptr.advanced(by: start), size: size)
     }
 
 
@@ -94,9 +96,8 @@ class MemoryBufferReader {
         guard bytesRemaining >= MemoryLayout<T>.size else {
             throw ReadError.InvalidOffset
         }
-        let resultPtr : UnsafePointer<T> = UnsafePointer(ptr + offset)
-        let result = resultPtr.pointee
-        offset += sizeof(T.self)
+        let result = ptr.load(fromByteOffset: offset, as: T.self)
+        offset += MemoryLayout<T>.size
 
         return result
     }
@@ -106,13 +107,11 @@ class MemoryBufferReader {
         guard index + MemoryLayout<T>.size <= buffer.count else {
             throw ReadError.InvalidOffset
         }
-        let resultPtr : UnsafePointer<T> = UnsafePointer(ptr + index)
-        let result = resultPtr.pointee
-
-        return result
+        return ptr.load(fromByteOffset: index, as: T.self)
     }
 
 
+    /***
     func dumpBuffer() {
         var str = "0000: "
 
@@ -145,6 +144,7 @@ class MemoryBufferReader {
         }
         offset = saved
     }
+    ***/
 
 
     func readULEB128() throws -> UInt64 {
