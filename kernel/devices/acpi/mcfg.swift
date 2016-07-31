@@ -34,9 +34,10 @@ struct MCFG: ACPITable {
 
     init(acpiHeader: ACPI_SDT, ptr: UnsafePointer<acpi_sdt_header>) {
         header = acpiHeader
-        let headerSize = sizeof(acpi_sdt_header.self) + 8 // 8 is for reserved bytes
+        // 8 is for reserved bytes
+        let headerSize = MemoryLayout<acpi_sdt_header>.size + 8
         let itemLen = Int(header.length) - headerSize
-        let itemCnt = itemLen / strideof(ConfigBaseAddress.self)
+        let itemCnt = itemLen / MemoryLayout<ConfigBaseAddress>.stride
         var items: [ConfigBaseAddress] = []
         let dataPtr: UnsafePointer<ConfigBaseAddress> = ptr.advancedBy(bytes: headerSize)
         let dataBuffer = UnsafeBufferPointer(start: dataPtr, count: itemCnt)
