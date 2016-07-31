@@ -312,7 +312,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
         }
 
 
-        private func toMemoryRange() -> MemoryRange? {
+        fileprivate func toMemoryRange() -> MemoryRange? {
             guard let e820type = E820Type(rawValue: self.type) else {
                 print("Invalid memory type: \(self.type)")
                 return nil
@@ -497,12 +497,12 @@ struct EFIBootParams: BootParamsData {
 
     // Physical layout in memory
     struct EFIMemoryDescriptor: CustomStringConvertible {
-        private let type: MemoryType
-        private let padding: UInt32
-        private let physicalStart: EFIPhysicalAddress
-        private let virtualStart: EFIVirtualAddress
-        private let numberOfPages: UInt64
-        private let attribute: UInt64
+        let type: MemoryType
+        let padding: UInt32
+        let physicalStart: EFIPhysicalAddress
+        let virtualStart: EFIVirtualAddress
+        let numberOfPages: UInt64
+        let attribute: UInt64
 
         var description: String {
             let size = UInt(numberOfPages) * PAGE_SIZE

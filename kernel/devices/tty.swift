@@ -62,7 +62,7 @@ class TTY {
     // singleton
     static let sharedInstance = TTY()
 
-    private let earlyTTY = EarlyTTY()
+    fileprivate let earlyTTY = EarlyTTY()
     private var driver: ScreenDriver
 
 
@@ -280,8 +280,8 @@ private class TextTTY: ScreenDriver {
     private let CURSOR_MSB_IDX: UInt8 = 0xE
     private let CURSOR_LSB_IDX: UInt8 = 0xF
 
-    private let totalLines: TextCoord = 25
-    private let charsPerLine: TextCoord = 80
+    let totalLines: TextCoord = 25
+    let charsPerLine: TextCoord = 80
     private let bytesPerLine: TextCoord = 160
     private let totalChars: Int
     private let screenBase: UnsafeMutablePointer<UInt16>
@@ -320,7 +320,7 @@ private class TextTTY: ScreenDriver {
     }
 
 
-    private init() {
+    init() {
         totalChars = Int(totalLines) * Int(charsPerLine)
         screenBase = UnsafeMutablePointer<UInt16>(bitPattern: PHYSICAL_MEM_BASE + SCREEN_BASE_ADDRESS)!
         screen = UnsafeMutableBufferPointer(start: screenBase, count: totalChars)
@@ -427,8 +427,8 @@ private class FrameBufferTTY: ScreenDriver {
     }
 
 
-    private let charsPerLine: TextCoord
-    private let totalLines: TextCoord
+    let charsPerLine: TextCoord
+    let totalLines: TextCoord
     private let screenBase: UnsafeMutablePointer<UInt8>
     private let screen: UnsafeMutableBufferPointer<UInt8>
     private let font: Font
@@ -471,7 +471,7 @@ private class FrameBufferTTY: ScreenDriver {
     }
 
 
-    private init(frameBufferInfo: FrameBufferInfo) {
+    fileprivate init(frameBufferInfo: FrameBufferInfo) {
         self.frameBufferInfo = frameBufferInfo
         font = Font(width: 8, height: 16, data: fontdata_8x16_ptr())
         charsPerLine = TextCoord(frameBufferInfo.width / font.width)

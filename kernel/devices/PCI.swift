@@ -192,7 +192,7 @@ struct PCI {
 
 
     // FIXME: should do something better then a bruteforce scan
-    private static func scanAllBuses() -> [PCIDeviceFunction] {
+    fileprivate static func scanAllBuses() -> [PCIDeviceFunction] {
         var devices: [PCIDeviceFunction] = []
         for bus in 0...255 {
             if let pciBus = findPciBus(UInt8(bus)) {
