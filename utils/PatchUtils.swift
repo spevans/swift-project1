@@ -39,7 +39,7 @@ func patchValue<T>(_ data: inout Data, offset: Int, value: T) {
     guard offset >= 0 else {
         fatalError("offset < 0: \(offset)")
     }
-    guard offset + sizeof(T.self) <= data.count else {
+    guard offset + MemoryLayout<T>.size <= data.count else {
         fatalError("offset overflow: \(offset) > \(data.count)")
     }
 
@@ -62,7 +62,7 @@ func patchValue<T>(_ data: inout Data, offset: Int, value: T) {
 
 
 func readValue<T>(_ data: Data, offset: Int) -> T {
-    let range: Range<Int> = offset..<(offset + sizeof(T.self))
+    let range: Range<Int> = offset..<(offset + MemoryLayout<T>.size)
     let value = data.subdata(in: range)
     return value.withUnsafeBytes { $0.pointee }
 }

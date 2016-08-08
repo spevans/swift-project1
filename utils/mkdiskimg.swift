@@ -142,7 +142,7 @@ func getPartitionLBA(_ device: String) -> UInt64 {
     guard mbr.count == 512 else {
         fatalError("Cant read MBR, only read \(mbr.count) bytes")
     }
-    let offset = 0x1be + (strideof(hd_partition.self) * partitionIdx)
+    let offset = 0x1be + (MemoryLayout<hd_partition>.stride * partitionIdx)
     let partitionInfo: hd_partition = readValue(mbr, offset: offset)
     print("system: \(partitionInfo.system) LBA: \(partitionInfo.LBA_start)")
     guard partitionInfo.system == 0x52 else {
