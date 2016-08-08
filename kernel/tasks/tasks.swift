@@ -35,7 +35,7 @@ func addTask(task: @convention(c)() -> ()) -> UInt {
 }
 
 
-func noInterrupt(_ task: @noescape () -> ()) {
+func noInterrupt(_ task: () -> ()) {
     let flags = local_irq_save()
     task()
     load_eflags(flags)
