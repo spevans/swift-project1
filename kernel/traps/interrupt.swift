@@ -46,7 +46,7 @@ func enableIRQs() {
 }
 
 
-func setIrqHandler(_ irq: Int, handler: IRQHandler) {
+func setIrqHandler(_ irq: Int, handler: @escaping IRQHandler) {
     irqHandlers[irq] = handler
     irqController.enableIRQ(irq)
 }
@@ -58,7 +58,7 @@ func removeIrqHandler(_ irq: Int) {
 }
 
 
-func setQueuedIrqHandler(_ irq: Int, handler: IRQHandler) {
+func setQueuedIrqHandler(_ irq: Int, handler: @escaping IRQHandler) {
     queuedIrqHandlers[irq] = handler
     setIrqHandler(irq, handler: queueIrq)
 }
