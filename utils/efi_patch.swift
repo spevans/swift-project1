@@ -86,7 +86,7 @@ func writeOutImage(_ filename: String, _ bootsect: Data, _ loader: Data,
     // FIXME: make padding a cmd line arg, this is needed to make a bochs disk image
     if padding > outputData.count {
         print("Padding output to \(padding) bytes")
-        outputData.append(makePadding(count: padding - outputData.count))
+        outputData.append(Data(count: padding - outputData.count))
     }
 
     do {

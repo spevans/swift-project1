@@ -23,17 +23,6 @@ func openOrQuit(_ filename: String) -> Data {
 }
 
 
-// FIXME: workaround until Data(count:) works correctly to use calloc()
-func makePadding(count: Int) -> Data {
-    if var p = Data(count: count) {
-        p.resetBytes(in: Range<Int>(0..<count))
-        return p
-    } else {
-        fatalError("memory")
-    }
-}
-
-
 // Allows arbitary offsets not necessarily aligned to the width of T
 func patchValue<T>(_ data: inout Data, offset: Int, value: T) {
     guard offset >= 0 else {

@@ -79,13 +79,13 @@ func writeOutImage(to filename: String, _ bootsect: Data, _ loader: Data,
         fatalError("kernel padding too much \(kernelPadding)")
     }
     print("Adding \(kernelPadding) bytes to start of kernel")
-    outputData.append(makePadding(count: kernelPadding))
+    outputData.append(Data(count: kernelPadding))
     outputData.append(kernel)
 
     // FIXME: make padding a cmd line arg, this is needed to make a bochs disk image
     if padding > outputData.count {
         print("Padding output to \(padding) bytes")
-        outputData.append(makePadding(count: padding - outputData.count))
+        outputData.append(Data(count: padding - outputData.count))
     }
 
     do {
@@ -99,7 +99,7 @@ func writeOutImage(to filename: String, _ bootsect: Data, _ loader: Data,
 // break a device name eg /dev/sda3 into /dev/sda and 3
 func driveAndPartition(_ device: String) -> (String, Int?) {
     let devname = NSString(string: device)
-    let numbers = NSCharacterSet.decimalDigits()
+    let numbers = CharacterSet.decimalDigits
     let offset = devname.rangeOfCharacter(from: numbers)
 
     if offset.length == 0 {
