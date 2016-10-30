@@ -18,8 +18,9 @@ endif
 	mkdir -p $(MODULE_DIR) output
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir; done
 	# initial link must be via ELF to produce a GOT
-	ld --no-demangle -static -Tlinker.script -Map=output/kernel.map -o output/kernel.elf $(KERNEL_OBJS) $(SWIFTLIB)
+	ld --no-demangle -static -Tlinker.script -Map=output/kernel.map -o output/kernel.elf $(KERNEL_OBJS) $(SWIFTLIBS)
 
+output/kernel.elf: kernel
 
 output/kernel.bin: output/kernel.elf
 	objcopy -O binary $^ $@

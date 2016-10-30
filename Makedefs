@@ -1,21 +1,22 @@
 UNAME_S := $(shell uname -s)
 CC := clang
-CFLAGS := -Wall -std=gnu11 -Wextra -Werror -fno-builtin -fno-stack-protector -fno-common -mno-red-zone -I$(TOPDIR)/include
 NASM := nasm
 NASM_FLAGS := -Werror -p$(TOPDIR)/include/macros.asm
 MODULE_DIR := $(TOPDIR)/modules
 
-
-# The normal swift-3 compiler
-SWIFT3DIR := $(shell readlink -f ~/swift-3)
+# The normal swift compiler
+SWIFT3DIR := $(shell readlink -f ~/swift)
 SWIFT3C := $(SWIFT3DIR)/usr/bin/swiftc
 
 # The path to the kernel-lib swift compiler
 SWIFTDIR := $(shell readlink -f ~/swift-kernel)
 SWIFT := $(SWIFTDIR)/usr/bin/swift
 SWIFTC := $(SWIFTDIR)/usr/bin/swiftc
-SWIFTLIB := $(SWIFTDIR)/usr/lib/swift_static/linux/libswiftCore.a
-SWIFTC_FLAGS := -gnone $(OPTO_FLAG) -Xfrontend -disable-red-zone -Xcc -mno-red-zone -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -I$(MODULE_DIR) -warnings-as-errors
+SWIFTLIBDIR := $(SWIFTDIR)/usr/lib/swift_static/linux
+SWIFTLIBS := $(SWIFTLIBDIR)/libswiftCore.a $(SWIFTLIBDIR)/libswiftSectionDataStatic.a
+SWIFTC_FLAGS := -gnone -Xfrontend -disable-red-zone -Xcc -mno-red-zone -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -warnings-as-errors
+
+CFLAGS := -Wall -std=gnu11 -Wextra -Werror -fno-builtin -fno-stack-protector -fno-common -mno-red-zone -I$(TOPDIR)/include
 
 ifndef USE_FP
 	CFLAGS := $(CFLAGS) -mno-mmx -mno-sse -mno-sse2
@@ -25,7 +26,7 @@ endif
 
 ifdef BUILD_ONONE
 	SWIFTC_FLAGS += -Onone
-	SWIFTLIB += $(SWIFTDIR)/usr/lib/swift_static/linux/libswiftSwiftOnoneSupport.a
+	SWIFTLIBS += $(SWIFTLIBDIR)/libswiftSwiftOnoneSupport.a
 else
 	SWIFTC_FLAGS +=-O
 	CFLAGS += -O3
