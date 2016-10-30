@@ -70,6 +70,9 @@ sysconf(int name)
         case _SC_PAGESIZE:
                 return PAGE_SIZE;
 
+        case _SC_NPROCESSORS_ONLN:
+                return 1;
+
         default:
                 koops("UNIMPLEMENTED sysconf: name = %d\n", name);
         }
@@ -80,7 +83,7 @@ UNIMPLEMENTED(__divti3)
 UNIMPLEMENTED(backtrace)
 
 
-// Unicode
+// Unicode (libicu)
 UNIMPLEMENTED(ucol_closeElements_52)
 UNIMPLEMENTED(ucol_next_52)
 UNIMPLEMENTED(ucol_open_52)
@@ -92,16 +95,3 @@ UNIMPLEMENTED(uiter_setUTF8_52)
 UNIMPLEMENTED(u_strToLower_52)
 UNIMPLEMENTED(u_strToUpper_52)
 UNIMPLEMENTED(ucol_strcollIter_52)
-
-
-// Unused functions either not currently used by stdlib or have been commented
-// out in the kernel-lib branch
-#if 0
-
-void
-bzero(void *dest, size_t count)
-{
-        memset(dest, 0, count);
-}
-
-#endif
