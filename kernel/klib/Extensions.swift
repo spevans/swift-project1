@@ -117,6 +117,10 @@ extension UnsafeMutableRawPointer {
     }
 }
 
+/// Convert the given numeric value to a hexadecimal string.
+public func asHex<T : Integer>(_ x: T) -> String {
+  return "0x" + String(x.toIntMax(), radix: 16)
+}
 
 /**
 func dumpRegion(ptr: UnsafePointer<Void>, size: Int) {

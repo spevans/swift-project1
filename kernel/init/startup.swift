@@ -22,6 +22,7 @@ public func startup(bootParams: UInt) {
     CPU.getInfo()
     setupMM()
     BootParams.findTables()
+    printSections()
     initialiseDevices()
     print("Hello world")
 
@@ -62,17 +63,10 @@ func benchmark(_ function: () -> ()) -> UInt64 {
 
 
 func printSections() {
-    let text_start = _text_start_ptr()
-    let text_end = _text_end_ptr()
-    let data_start = _data_start_ptr()
-    let data_end = _data_end_ptr()
-    let bss_start = _bss_start_ptr()
-    let bss_end = _bss_end_ptr()
-
-    print("_text_start: \(text_start)")
-    print("_text_end:   \(text_end)")
-    print("_data_start: \(data_start)")
-    print("_data_end:   \(data_end)")
-    print("_bss_start:  \(bss_start)")
-    print("_bss_end:    \(bss_end)")
+    print("_text_start:", asHex(_text_start_addr()))
+    print("_text_end:  ", asHex(_text_end_addr()))
+    print("_data_start:", asHex(_data_start_addr()))
+    print("_data_end:  ", asHex(_data_end_addr()))
+    print("_bss_start: ", asHex(_bss_start_addr()))
+    print("_bss_end:   ", asHex(_bss_end_addr()))
 }

@@ -45,17 +45,17 @@ private let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_ptr().address
 func setupMM() {
     // Setup initial page tables and map kernel
 
-    let textEnd: VirtualAddress = _text_end_ptr().address
-    let rodataStart: VirtualAddress = _rodata_start_ptr().address
-    let dataStart: VirtualAddress = _data_start_ptr().address
-    let bssEnd: VirtualAddress = _bss_end_ptr().address
-    let guardPage: VirtualAddress = _guard_page_ptr().address
-    let kernelBase: VirtualAddress = _kernel_start_ptr().address
+    let textEnd: VirtualAddress = _text_end_addr()
+    let rodataStart: VirtualAddress = _rodata_start_addr()
+    let dataStart: VirtualAddress = _data_start_addr()
+    let bssEnd: VirtualAddress = _bss_end_addr()
+    let guardPage: VirtualAddress = _guard_page_addr()
+    let kernelBase: VirtualAddress = _kernel_start_addr()
 
-    let textSize = roundToPage(textEnd - _kernel_start_ptr().address)
+    let textSize = roundToPage(textEnd - _kernel_start_addr())
     let rodataSize = roundToPage(dataStart - rodataStart)
     let dataSize = roundToPage(guardPage - dataStart)
-    let stackHeapSize = bssEnd - VirtualAddress(_stack_start_ptr().address)
+    let stackHeapSize = bssEnd - VirtualAddress(_stack_start_addr())
 
     // Enable No Execute so data mappings can be set XD (Execute Disable)
     if CPU.enableNXE(true) {
@@ -70,17 +70,17 @@ func setupMM() {
     // FIXME: Dont waste the physical page that is not mapped under
     // the guard page
     printf("_text:   %p - %p\n_rodata: %p - %p\n_data:   %p - %p\n",
-        _kernel_start_ptr().address, _kernel_start_ptr().address + textSize,
-        _rodata_start_ptr().address, _rodata_start_ptr().address + rodataSize,
-        _data_start_ptr().address, _data_start_ptr().address + dataSize)
+        _kernel_start_addr(), _kernel_start_addr() + textSize,
+        _rodata_start_addr(), _rodata_start_addr() + rodataSize,
+        _data_start_addr(), _data_start_addr() + dataSize)
 
-    addMapping(start: _kernel_start_ptr().address, size: textSize,
+    addMapping(start: _kernel_start_addr(), size: textSize,
         physStart: kernelPhysBase, readWrite: false, noExec: false)
     addMapping(start: rodataStart, size: rodataSize, physStart: kernelPhysBase + textSize,
         readWrite: false, noExec: true)
     addMapping(start: dataStart, size: dataSize, physStart: kernelPhysBase + textSize + rodataSize,
         readWrite: true, noExec: true)
-    addMapping(start: _stack_start_ptr().address, size: stackHeapSize,
+    addMapping(start: _stack_start_addr(), size: stackHeapSize,
         physStart: kernelPhysBase + textSize + rodataSize + dataSize + PAGE_SIZE,
         readWrite: true, noExec: true)
 
@@ -104,12 +104,12 @@ func setupMM() {
 // Convert a virtual address between kernel_start and kernel_end into a physical
 // address
 private func kernelPhysAddress(_ address: VirtualAddress) -> PhysAddress {
-    guard address >= _kernel_start_ptr().address
-    && address <= _kernel_end_ptr().address else {
+    guard address >= _kernel_start_addr()
+    && address <= _kernel_end_addr() else {
         kprintf("kernelPhysAddress: invalid address: %p", address)
         stop()
     }
-    return kernelPhysBase + (address - _kernel_start_ptr().address)
+    return kernelPhysBase + (address - _kernel_start_addr())
 }
 
 
@@ -118,13 +118,13 @@ private func kernelPhysAddress(_ address: VirtualAddress) -> PhysAddress {
 private func kernelVirtualAddress(_ paddress: PhysAddress) -> VirtualAddress {
     let physAddressMask:UInt = 0x0000fffffffff000
     let address = paddress & physAddressMask
-    let kernelSize = _kernel_end_ptr().address - _kernel_start_ptr().address
+    let kernelSize = _kernel_end_addr() - _kernel_start_addr()
     guard address >= kernelPhysBase
         && address <= kernelPhysBase + kernelSize else {
         kprintf("kernelVirtualAddress: invalid address: %p", address)
         stop()
     }
-    return _kernel_start_ptr().address + (address - kernelPhysBase)
+    return _kernel_start_addr() + (address - kernelPhysBase)
 }
 
 
