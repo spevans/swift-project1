@@ -115,8 +115,6 @@ func driveAndPartition(_ device: String) -> (String, Int?) {
 func getPartitionLBA(_ device: String) -> UInt64 {
     var stat_buf = stat_info()
 
-//    let ndevice = NSString(string: device)
-//    let cname  = ndevice.cString(using: NSASCIIStringEncoding)
     let err = stat(device, &stat_buf)
     guard err == 0 else {
         print("Cant read device information for \(device)")
@@ -129,7 +127,7 @@ func getPartitionLBA(_ device: String) -> UInt64 {
         return 0;
     }
     let (dev, partition) = driveAndPartition(device)
-    print("newDevice: #\(dev)# partition: #\(partition)#")
+    print("newDevice: #\(dev)# partition: #\(String(describing: partition))#")
     guard partition != nil && partition! > 0 else {
         fatalError("Block device is not a partition")
     }

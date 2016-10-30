@@ -406,7 +406,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
             koops("Cant find any memory in the e820 map")
         }
 
-        let size = UInt(_kernel_start_ptr().distance(to: _kernel_end_ptr()))
+        let size = UInt(_kernel_end_addr() - _kernel_start_addr())
         printf("Kernel size: %lx\n", size)
         ranges.append(MemoryRange(type: .Kernel, start: kernelPhysAddress,
                 size: size))
@@ -593,7 +593,9 @@ struct EFIBootParams: BootParamsData {
             descriptorSize = try membuf.read()
             print("reading frameBufferInfo")
             frameBufferInfo = FrameBufferInfo(fb: try membuf.read())
-            print(frameBufferInfo)
+            if let fb = frameBufferInfo {
+                print(fb)
+            }
             configTableCount = try membuf.read()
             print("reading ctp")
             configTablePtr = try membuf.read()
