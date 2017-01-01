@@ -1,7 +1,12 @@
 TOPDIR := ..
 include $(TOPDIR)/Makedefs
 
-FAKELIB_OBJS := misc.o math.o io.o printf.o pthread.o libcpp.o std_string.o
+FAKELIB_OBJS := misc.o math.o io.o printf.o pthread.o libcpp.o
+
+FAKELIB_OBJS += std_cxx11_string.o
+
+# used if compiled against older libcstd++
+# FAKELIB_OBJS += std_string.o
 
 
 all: fakelib.o

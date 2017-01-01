@@ -42,6 +42,14 @@ _ZSt20__throw_length_errorPKc(char const *error)
 }
 
 
+// std::__throw_logic_error(char const*)
+void
+_ZSt19__throw_logic_errorPKc(char const *error)
+{
+        koops("Logic error: %s", error);
+}
+
+
 // std::__throw_bad_alloc()
 void
 _ZSt17__throw_bad_allocv()
