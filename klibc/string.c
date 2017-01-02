@@ -1,10 +1,10 @@
 /*
- * kernel/klibc/misc.c
+ * klibc/string.c
  *
  * Created by Simon Evans on 10/12/2015.
  * Copyright © 2015, 2016 Simon Evans. All rights reserved.
  *
- * Miscellaneous functions mostly string/memory
+ * Miscellaneous string/memory functions.
  *
  */
 

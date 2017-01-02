@@ -25,9 +25,9 @@ SWIFT_SRCS :=	init/startup.swift		\
 		traps/IDT.swift			\
 		tasks/tasks.swift
 
-KERNEL_OBJS := init/init.o mm/mm.o klib/klib.o traps/traps.o SwiftKernel.o
+KERNEL_OBJS := init/init.o mm/mm.o traps/traps.o SwiftKernel.o
 
-SUBDIRS := klib devices mm traps init
+SUBDIRS := devices mm traps init
 HEADERS = $(TOPDIR)/include/*.h
 
 all: kernel.o
@@ -44,4 +44,3 @@ $(SWIFT_OBJS): $(SWIFT_SRCS) $(HEADERS)
 clean:
 	rm -f *.bin *.o *.s
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir clean; done
-

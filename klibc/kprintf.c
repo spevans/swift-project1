@@ -1,9 +1,9 @@
 /*
- * kernel/klibc/kprintf.c
+ * klibc/kprintf.c
  *
  * Copyright © 2015 Simon Evans. All rights reserved.
  *
- * printf style functions
+ * printf style functions.
  *
  */
 

@@ -1,5 +1,5 @@
 /*
- * fakelib/std_cx11_string.c
+ * klibc/std_cx11_string.c
  *
  * Created by Simon Evans on 27/12/2016.
  * Copyright © 2016 Simon Evans. All rights reserved.

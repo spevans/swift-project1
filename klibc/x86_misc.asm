@@ -1,9 +1,9 @@
-;;; kernel/klib/x86.asm
+;;; klibc/x86_misc.asm
 ;;;
 ;;; Created by Simon Evans on 28/12/2015.
 ;;; Copyright © 2015, 2016 Simon Evans. All rights reserved.
 ;;;
-;;; x86 CPU specific functions
+;;; x86 CPU specific functions.
 
         BITS    64
 

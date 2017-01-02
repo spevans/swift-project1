@@ -1,5 +1,5 @@
 /*
- * fakelib/std_string.c
+ * klibc/std_string.c
  *
  * Created by Simon Evans on 07/12/2015.
  * Copyright © 2015, 2016 Simon Evans. All rights reserved.

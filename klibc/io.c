@@ -1,5 +1,5 @@
 /*
- * fakelib/io.c
+ * klibc/io.c
  *
  * Created by Simon Evans on 21/05/2016.
  * Copyright © 2016 Simon Evans. All rights reserved.

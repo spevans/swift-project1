@@ -1,10 +1,10 @@
 TOPDIR := .
 include $(TOPDIR)/Makedefs
 
-KERNEL_OBJS := kernel/kernel.o fakelib/fakelib.o
+KERNEL_OBJS := kernel/kernel.o klibc/klibc.o
 
 
-SUBDIRS := boot kernel fakelib utils
+SUBDIRS := boot kernel klibc utils
 
 
 .PHONY: clean kernel
@@ -28,7 +28,7 @@ output/kernel.bin: output/kernel.elf
 	objdump -d output/kernel.elf | $(SWIFT)-demangle > output/kernel.dmp
 
 
-output/kernel.efi: output/kernel.bin boot/efi_entry.asm boot/efi_main.c kernel/klib/kprintf.c
+output/kernel.efi: output/kernel.bin boot/efi_entry.asm boot/efi_main.c klibc/kprintf.c
 	make -C boot
 	objcopy	-I binary -O elf64-x86-64 -B i386:x86-64 output/kernel.bin output/kernel.bin.obj
 	ld --no-demangle -static -Tboot/efi_linker.script -Map=output/efi_body.map -o output/efi_body.bin boot/efi_entry.o boot/efi_main.o boot/kprintf.o

@@ -1,5 +1,5 @@
 /*
- * fakelib/pthread.c
+ * klibc/pthread.c
  *
  * Created by Simon Evans on 02/04/2016.
  * Copyright © 2016 Simon Evans. All rights reserved.

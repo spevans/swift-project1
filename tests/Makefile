@@ -20,7 +20,7 @@ all: tests runtests
 
 SFLAGS := -g -parse-as-library -import-objc-header ../include/kernel.h -whole-module-optimization -emit-object
 CFLAGS := -ggdb  -I../include -Xlinker -rpath=$(SOLIBDIR) $(EXTRALIBS)
-CFILES := testrunner.c ../kernel/klib/kprintf.c
+CFILES := testrunner.c ../klibc/kprintf.c
 
 tests: tests.swift ../kernel/klib/Extensions.swift 
 	$(SWIFT3C) $(SFLAGS) -o $@.o $^

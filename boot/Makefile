@@ -13,7 +13,7 @@ boot16to64.bin: boot16to64.asm utils.asm a20.asm cpu_check.asm page_tables.asm p
 efi_main.o: efi_main.c
 	$(CC) $(EFI_CFLAGS) -c -o $@ $<
 
-kprintf.o: ../kernel/klib/kprintf.c
+kprintf.o: ../klibc/kprintf.c
 	$(CC) $(EFI_CFLAGS) -c -o $@ $<
 
 clean:
