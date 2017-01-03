@@ -64,6 +64,8 @@ func setupMM() {
         print("CPU NXE cant be enabled")
     }
 
+    CPU.setupPAT()
+
     // Add 4 mappings for text, rodata, data + bss and the stack
     // with appropiate protections. There is a guard page between
     // BSS and stack that isnt mapped.
