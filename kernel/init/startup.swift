@@ -14,13 +14,13 @@ public func startup(bootParams: UInt) {
     printf("bootParams: %p\n", bootParams)
     // BootParams must come first to get framebuffer and kernel address
     BootParams.parse(bootParams)
-    TTY.sharedInstance.setTTY(frameBufferInfo: BootParams.frameBufferInfo)
-    printf("Highest Address: %p kernel phys address: %p\n",
-        BootParams.highestMemoryAddress, BootParams.kernelAddress)
     setupGDT()
     setupIDT()
     CPU.getInfo()
     setupMM()
+    TTY.sharedInstance.setTTY(frameBufferInfo: BootParams.frameBufferInfo)
+    printf("Highest Address: %p kernel phys address: %p\n",
+        BootParams.highestMemoryAddress, BootParams.kernelAddress)
     BootParams.findTables()
     printSections()
     initialiseDevices()

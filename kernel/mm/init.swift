@@ -182,14 +182,18 @@ private func getPageAtIndex(_ dirPage: PageTableDirectory, _ idx: Int) -> PageTa
 }
 
 
-private func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
-    readWrite: Bool, noExec: Bool) {
+func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
+    readWrite: Bool, noExec: Bool, cacheType: Int = 0 /* WriteBack */) {
 
     let endAddress = start + size
-    let pageCnt = ((endAddress - start) / PAGE_SIZE)
+    let pageCnt = ((size + PAGE_SIZE - 1) / PAGE_SIZE)
     var physAddress = physStart
     var addr = start
 
+    // Encode cacheType (0 - 7) PAT Enrty index
+    let writeThrough = (cacheType & 1) == 1
+    let cacheDisable = (cacheType & 2) == 2
+    let pat = (cacheType & 4) == 4
     for _ in 0..<pageCnt {
         let idx0 = pml4Index(addr)
         let idx1 = pdpIndex(addr)
@@ -201,9 +205,10 @@ private func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddres
         let ptPage = getPageAtIndex(pdPage, idx2)
 
         if !pagePresent(ptPage[idx3]) {
-            let entry = makePTE(address: physAddress, readWrite: readWrite, userAccess: false,
-                writeThrough: true, cacheDisable: false, global: false, noExec: noExec,
-                largePage: false, PAT: false)
+            let entry = makePTE(address: physAddress, readWrite: readWrite,
+                userAccess: false, writeThrough: writeThrough,
+                cacheDisable: cacheDisable, global: false, noExec: noExec,
+                largePage: false, PAT: pat)
             ptPage[idx3] = entry
         } else {
             koops("page is already present!")

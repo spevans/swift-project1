@@ -285,15 +285,12 @@ private class TextTTY: ScreenDriver {
     let charsPerLine: TextCoord = 80
     private let bytesPerLine: TextCoord = 160
     private let totalChars: Int
-    private let screenBase: UnsafeMutablePointer<UInt16>
     private let screen: UnsafeMutableBufferPointer<UInt16>
 
     // bright green characters on a black background
     private let textColour: CUnsignedChar = 0xA
-
     // black space on black background
     private let blankChar = UInt16(msb: 0, lsb: SPACE)
-
 
     private var _cursorX: TextCoord = 0
     private var _cursorY: TextCoord = 0
@@ -323,7 +320,10 @@ private class TextTTY: ScreenDriver {
 
     init() {
         totalChars = Int(totalLines) * Int(charsPerLine)
-        screenBase = UnsafeMutablePointer<UInt16>(bitPattern: PHYSICAL_MEM_BASE + SCREEN_BASE_ADDRESS)!
+        let vaddr: VirtualAddress = 0x4000000000 // 256GB
+        addMapping(start: vaddr, size: UInt(totalChars * 2), physStart: SCREEN_BASE_ADDRESS,
+            readWrite: true, noExec: true, cacheType: 2 /* WriteCombining */)
+        let screenBase = UnsafeMutablePointer<UInt16>(bitPattern: vaddr)
         screen = UnsafeMutableBufferPointer(start: screenBase, count: totalChars)
     }
 
@@ -480,11 +480,16 @@ private class FrameBufferTTY: ScreenDriver {
         depthInBytes = Int(frameBufferInfo.depth) / 8
         bytesPerChar = Int(font.bytesPerChar)
         bytesPerTextLine = Int(frameBufferInfo.pxPerScanline) * Int(font.height)
-                * depthInBytes
+            * depthInBytes
         lastLineScrollArea = bytesPerTextLine * (Int(totalLines) - 1)
         let size = Int(frameBufferInfo.pxPerScanline) * Int(frameBufferInfo.height)
-                * depthInBytes
-        screenBase = UnsafeMutablePointer<UInt8>(bitPattern: PHYSICAL_MEM_BASE + frameBufferInfo.address)!
+            * depthInBytes
+
+        let vaddr: VirtualAddress = 0x4000000000 // 256GB
+        addMapping(start: vaddr, size: UInt(size),
+            physStart: frameBufferInfo.address,
+            readWrite: true, noExec: true)
+        screenBase = UnsafeMutablePointer<UInt8>(bitPattern: vaddr)!
         screen = UnsafeMutableBufferPointer<UInt8>(start: screenBase, count: size)
     }
 
