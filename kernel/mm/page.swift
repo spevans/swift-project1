@@ -109,8 +109,8 @@ func ptIndex(_ address: VirtualAddress) -> Int {
 
 
 // 4KB page entry or 2MB/1GB if largePage is set
-func makePTE(address: PhysAddress, readWrite: Bool, userAccess: Bool, writeThrough: Bool,
-    cacheDisable: Bool, global: Bool, noExec: Bool,
+func makePTE(address: PhysAddress, readWrite: Bool, userAccess: Bool,
+    writeThrough: Bool, cacheDisable: Bool, global: Bool, noExec: Bool,
     largePage: Bool, PAT: Bool) -> PageTableEntry {
 
         var entry: UInt = address & physAddressMask
@@ -133,8 +133,8 @@ func makePTE(address: PhysAddress, readWrite: Bool, userAccess: Bool, writeThrou
 
 
 // Entry in Page Directory, Page Directory Pointer or Page Map Level 4 tables
-func makePDE(address: PhysAddress, readWrite: Bool, userAccess: Bool, writeThrough: Bool,
-    cacheDisable: Bool, noExec: Bool) -> PageTableEntry {
+func makePDE(address: PhysAddress, readWrite: Bool, userAccess: Bool,
+    writeThrough: Bool, cacheDisable: Bool, noExec: Bool) -> PageTableEntry {
         var entry: UInt = address & physAddressMask
         entry |= pagePresent
         entry |= readWrite ? readWriteFlag : 0

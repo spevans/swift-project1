@@ -320,11 +320,11 @@ private class TextTTY: ScreenDriver {
 
     init() {
         totalChars = Int(totalLines) * Int(charsPerLine)
-        let vaddr: VirtualAddress = 0x4000000000 // 256GB
-        addMapping(start: vaddr, size: UInt(totalChars * 2), physStart: SCREEN_BASE_ADDRESS,
-            readWrite: true, noExec: true, cacheType: 2 /* WriteCombining */)
+        let vaddr = mapIORegion(physicalAddr: SCREEN_BASE_ADDRESS,
+            size: totalChars * 2, cacheType: 2 /* WriteCombining */)
         let screenBase = UnsafeMutablePointer<UInt16>(bitPattern: vaddr)
-        screen = UnsafeMutableBufferPointer(start: screenBase, count: totalChars)
+        screen = UnsafeMutableBufferPointer(start: screenBase,
+            count: totalChars)
     }
 
 
@@ -482,15 +482,14 @@ private class FrameBufferTTY: ScreenDriver {
         bytesPerTextLine = Int(frameBufferInfo.pxPerScanline) * Int(font.height)
             * depthInBytes
         lastLineScrollArea = bytesPerTextLine * (Int(totalLines) - 1)
-        let size = Int(frameBufferInfo.pxPerScanline) * Int(frameBufferInfo.height)
-            * depthInBytes
+        let size = Int(frameBufferInfo.pxPerScanline)
+            * Int(frameBufferInfo.height) * depthInBytes
 
-        let vaddr: VirtualAddress = 0x4000000000 // 256GB
-        addMapping(start: vaddr, size: UInt(size),
-            physStart: frameBufferInfo.address,
-            readWrite: true, noExec: true)
+        let vaddr = mapIORegion(physicalAddr: frameBufferInfo.address,
+            size: size, cacheType: 2 /* WriteCombining */)
         screenBase = UnsafeMutablePointer<UInt8>(bitPattern: vaddr)!
-        screen = UnsafeMutableBufferPointer<UInt8>(start: screenBase, count: size)
+        screen = UnsafeMutableBufferPointer<UInt8>(start: screenBase,
+            count: size)
     }
 
 

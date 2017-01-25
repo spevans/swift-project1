@@ -173,8 +173,8 @@ private func getPageAtIndex(_ dirPage: PageTableDirectory, _ idx: Int) -> PageTa
         // FIXME: should call a swift func for alloc_pages()
         let newPage = alloc_pages(1)
         let paddr = kernelPhysAddress(newPage.address)
-        let entry = makePDE(address: paddr, readWrite: true, userAccess: false, writeThrough: true,
-            cacheDisable: false, noExec: false)
+        let entry = makePDE(address: paddr, readWrite: true, userAccess: false,
+            writeThrough: true, cacheDisable: false, noExec: false)
         dirPage[idx] = entry
     }
 
@@ -182,10 +182,25 @@ private func getPageAtIndex(_ dirPage: PageTableDirectory, _ idx: Int) -> PageTa
 }
 
 
+private var nextIOVirtualAddress: VirtualAddress = 0x4000000000 // 256GB
+func mapIORegion(physicalAddr: PhysAddress, size: Int,
+    cacheType: Int = 7 /* Uncacheable */) -> VirtualAddress {
+    let newSize = roundToPage(UInt(size))
+    let vaddr = nextIOVirtualAddress
+    addMapping(start: vaddr, size: newSize, physStart: physicalAddr,
+        readWrite: true, noExec: true, cacheType: cacheType)
+    nextIOVirtualAddress += newSize
+    nextIOVirtualAddress += PAGE_SIZE // Add an extra page to catch overruns
+
+    return vaddr
+}
+
+
+
 func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
     readWrite: Bool, noExec: Bool, cacheType: Int = 0 /* WriteBack */) {
 
-    let endAddress = start + size
+    let endAddress = start + size - 1
     let pageCnt = ((size + PAGE_SIZE - 1) / PAGE_SIZE)
     var physAddress = physStart
     var addr = start
@@ -217,7 +232,7 @@ func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
         addr += PAGE_SIZE
         physAddress += PAGE_SIZE
     }
-    printf("Added kernel mapping from %p-%p [%p-%p]\n", start, endAddress, physStart, physAddress)
+    printf("Added kernel mapping from %p-%p [%p-%p]\n", start, endAddress, physStart, physAddress - 1)
 }
 
 
