@@ -152,8 +152,11 @@ func unhandledException(registers: ExceptionRegisters) {
 func koops(_ format: StaticString, _ arguments: CVarArg...) -> Never {
     kprint("oops: ")
     _ = withVaList(arguments) {
-        let ptr = unsafeBitCast(format.utf8Start, to: UnsafePointer<Int8>.self)
-        kvlprintf(UnsafePointer<Int8>?(ptr), format.utf8CodeUnitCount, $0)
+        let args = $0
+         _ = format.utf8Start.withMemoryRebound(to: CChar.self,
+            capacity: format.utf8CodeUnitCount) {
+            kvlprintf($0, format.utf8CodeUnitCount, args)
+        }
     }
     kprint("\n")
     stop()

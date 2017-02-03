@@ -63,10 +63,15 @@ func benchmark(_ function: () -> ()) -> UInt64 {
 
 
 func printSections() {
-    print("_text_start:", asHex(_text_start_addr()))
-    print("_text_end:  ", asHex(_text_end_addr()))
-    print("_data_start:", asHex(_data_start_addr()))
-    print("_data_end:  ", asHex(_data_end_addr()))
-    print("_bss_start: ", asHex(_bss_start_addr()))
-    print("_bss_end:   ", asHex(_bss_end_addr()))
+    print("_text_start:   ", asHex(_text_start_addr))
+    print("_text_end:     ", asHex(_text_end_addr))
+    print("_data_start:   ", asHex(_data_start_addr))
+    print("_data_end:     ", asHex(_data_end_addr))
+    print("_bss_start:    ", asHex(_bss_start_addr))
+    print("_bss_end:      ", asHex(_bss_end_addr))
+    print("_kernel_start: ", asHex(_kernel_start_addr))
+    print("_kernel_end:   ", asHex(_kernel_end_addr))
+    print("_guard_page:   ", asHex(_guard_page_addr))
+    print("_stack_start:  ", asHex(_stack_start_addr))
+    print("initial_pml4:  ", asHex(initial_pml4_addr))
 }

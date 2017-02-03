@@ -26,7 +26,7 @@ func runTasks() {
 
 
 @discardableResult
-func addTask(task: @convention(c)() -> ()) -> UInt {
+func addTask(task: @escaping @convention(c)() -> ()) -> UInt {
     let newTask = Task(entry: task)
     print("Task:", newTask)
     printf("Adding task @ %p\n", newTask.state.pointee.rip)
@@ -125,11 +125,10 @@ class Task: CustomStringConvertible {
         return r
     }
 
-
-    init(entry: @convention(c)() -> ()) {
+    init(entry: @escaping @convention(c)() -> ()) {
         pid = nextPID
         nextPID += 1
-        let addr = unsafeBitCast(entry, to: UInt.self)
+        let addr = unsafeBitCast(entry, to: UInt64.self)
         stack = alloc_pages(stackPages)
         let stateOffset = stackSize - MemoryLayout<exception_regs>.size
         rsp = stack.advanced(by: stateOffset - MemoryLayout<UInt>.size).bindMemory(to: UInt.self, capacity: 1)

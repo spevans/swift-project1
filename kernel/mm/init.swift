@@ -9,8 +9,7 @@
  */
 
 private let kernelPhysBase: PhysAddress = BootParams.kernelAddress
-private let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_ptr().address)
-
+private let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_addr)
 
 /* The page table setup by the BIOS boot loader setup 3 mappings of the
  * first 16MB of memory
@@ -45,17 +44,17 @@ private let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_ptr().address
 func setupMM() {
     // Setup initial page tables and map kernel
 
-    let textEnd: VirtualAddress = _text_end_addr()
-    let rodataStart: VirtualAddress = _rodata_start_addr()
-    let dataStart: VirtualAddress = _data_start_addr()
-    let bssEnd: VirtualAddress = _bss_end_addr()
-    let guardPage: VirtualAddress = _guard_page_addr()
-    let kernelBase: VirtualAddress = _kernel_start_addr()
+    let textEnd: VirtualAddress = _text_end_addr
+    let rodataStart: VirtualAddress = _rodata_start_addr
+    let dataStart: VirtualAddress = _data_start_addr
+    let bssEnd: VirtualAddress = _bss_end_addr
+    let guardPage: VirtualAddress = _guard_page_addr
+    let kernelBase: VirtualAddress = _kernel_start_addr
 
-    let textSize = roundToPage(textEnd - _kernel_start_addr())
+    let textSize = roundToPage(textEnd - _kernel_start_addr)
     let rodataSize = roundToPage(dataStart - rodataStart)
     let dataSize = roundToPage(guardPage - dataStart)
-    let stackHeapSize = bssEnd - VirtualAddress(_stack_start_addr())
+    let stackHeapSize = bssEnd - VirtualAddress(_stack_start_addr)
 
     // Enable No Execute so data mappings can be set XD (Execute Disable)
     if CPU.enableNXE(true) {
@@ -72,31 +71,38 @@ func setupMM() {
     // FIXME: Dont waste the physical page that is not mapped under
     // the guard page
     printf("_text:   %p - %p\n_rodata: %p - %p\n_data:   %p - %p\n",
-        _kernel_start_addr(), _kernel_start_addr() + textSize,
-        _rodata_start_addr(), _rodata_start_addr() + rodataSize,
-        _data_start_addr(), _data_start_addr() + dataSize)
+        _kernel_start_addr, _kernel_start_addr + textSize - 1,
+        _rodata_start_addr, _rodata_start_addr + rodataSize - 1,
+        _data_start_addr, _data_start_addr + dataSize - 1)
 
-    addMapping(start: _kernel_start_addr(), size: textSize,
+    addMapping(start: _kernel_start_addr, size: textSize,
         physStart: kernelPhysBase, readWrite: false, noExec: false)
-    addMapping(start: rodataStart, size: rodataSize, physStart: kernelPhysBase + textSize,
-        readWrite: false, noExec: true)
-    addMapping(start: dataStart, size: dataSize, physStart: kernelPhysBase + textSize + rodataSize,
-        readWrite: true, noExec: true)
-    addMapping(start: _stack_start_addr(), size: stackHeapSize,
+
+    addMapping(start: rodataStart, size: rodataSize,
+        physStart: kernelPhysBase + textSize, readWrite: false, noExec: true)
+
+    addMapping(start: dataStart, size: dataSize,
+        physStart: kernelPhysBase + textSize + rodataSize, readWrite: true,
+        noExec: true)
+
+    addMapping(start: _stack_start_addr, size: stackHeapSize,
         physStart: kernelPhysBase + textSize + rodataSize + dataSize + PAGE_SIZE,
         readWrite: true, noExec: true)
 
-    printf("Physical address of kernelBase (%p) = (%p)\n", kernelBase,
+    printf("Physical address of kernelBase (%p): (%p)\n", kernelBase,
         kernelPhysAddress(kernelBase))
-    printf("Physical address of rodata (%p) = (%p)\n", kernelBase + textSize,
+    printf("Physical address of rodata (%p):     (%p)\n", kernelBase + textSize,
         kernelPhysAddress(kernelBase + textSize))
-    printf("Physical address of data (%p) = (%p)\n", kernelBase + textSize + rodataSize,
+    printf("Physical address of data (%p):       (%p)\n",
+        kernelBase + textSize + rodataSize,
         kernelPhysAddress(kernelBase + textSize + rodataSize))
-    printf("Physical address of stack and heap (%p) = (%p)\n",
+    printf("Physical address of stack and heap (%p): (%p)\n",
         kernelBase + textSize + rodataSize + dataSize + PAGE_SIZE,
         kernelPhysAddress(kernelBase + textSize + rodataSize + dataSize + PAGE_SIZE))
+
     mapPhysicalMemory(BootParams.highestMemoryAddress)
-    let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_ptr().address))
+    let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_addr))
+    printf("Updating CR3 to %p\n", pml4paddr)
     setCR3(pml4paddr)
     CPU.enableWP(true)
     printf("CR3 Updated to %p\n", pml4paddr)
@@ -106,27 +112,26 @@ func setupMM() {
 // Convert a virtual address between kernel_start and kernel_end into a physical
 // address
 private func kernelPhysAddress(_ address: VirtualAddress) -> PhysAddress {
-    guard address >= _kernel_start_addr()
-    && address <= _kernel_end_addr() else {
+    guard address >= _kernel_start_addr && address <= _kernel_end_addr else {
         kprintf("kernelPhysAddress: invalid address: %p", address)
         stop()
     }
-    return kernelPhysBase + (address - _kernel_start_addr())
+    return kernelPhysBase + (address - _kernel_start_addr)
 }
 
 
-// Convert a physical kernel address in a page directory/table entry intto a
+// Convert a physical kernel address in a page directory/table entry into a
 // virtual address
 private func kernelVirtualAddress(_ paddress: PhysAddress) -> VirtualAddress {
     let physAddressMask:UInt = 0x0000fffffffff000
     let address = paddress & physAddressMask
-    let kernelSize = _kernel_end_addr() - _kernel_start_addr()
+    let kernelSize = _kernel_end_addr - _kernel_start_addr
     guard address >= kernelPhysBase
         && address <= kernelPhysBase + kernelSize else {
         kprintf("kernelVirtualAddress: invalid address: %p", address)
         stop()
     }
-    return _kernel_start_addr() + (address - kernelPhysBase)
+    return _kernel_start_addr + (address - kernelPhysBase)
 }
 
 
@@ -134,10 +139,9 @@ private func kernelVirtualAddress(_ paddress: PhysAddress) -> VirtualAddress {
 // and map the reserved mem as RO etc
 private func mapPhysicalMemory(_ maxAddress: PhysAddress) {
     var inc: UInt = 0
-    var mapper :(UInt, PhysAddress) -> ()
+    var mapper: (UInt, PhysAddress) -> ()
 
     printf("Mapping physical memory from 0 - %p\n", maxAddress)
-
     // Map physical memory using 1GB pages if available else 2MB pages
     if CPU.capabilities.pages1G {
         inc = 0x40000000    // 1GB

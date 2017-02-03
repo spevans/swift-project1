@@ -31,17 +31,22 @@ func kprint(_ string: StaticString) {
 
 // kprintf via the C early_tty.c driver
 func kprintf(_ format: StaticString, _ arguments: CVarArg...) {
-    _ = withVaList(arguments) {
-        let ptr = unsafeBitCast(format.utf8Start, to: UnsafePointer<Int8>.self)
-        kvlprintf(UnsafePointer<Int8>?(ptr), format.utf8CodeUnitCount, $0)
+    withVaList(arguments) {
+        let args = $0
+        _ = format.utf8Start.withMemoryRebound(to: CChar.self,
+            capacity: format.utf8CodeUnitCount) {
+            kvlprintf($0, format.utf8CodeUnitCount, args)
+        }
     }
 }
 
 
 // print to the Bochs console via the E9 port
 func bprint(_ string: StaticString) {
-    let ptr = unsafeBitCast(string.utf8Start, to: UnsafePointer<Int8>.self)
-    bochs_print_string(UnsafePointer<Int8>?(ptr), string.utf8CodeUnitCount)
+    _ = string.utf8Start.withMemoryRebound(to: CChar.self,
+        capacity: string.utf8CodeUnitCount) {
+        bochs_print_string($0, string.utf8CodeUnitCount)
+    }
 }
 
 
@@ -255,9 +260,10 @@ private class EarlyTTY: ScreenDriver {
 
 
     func printString(_ string: StaticString) {
-        let ptr = unsafeBitCast(string.utf8Start, to: UnsafePointer<Int8>.self)
-        early_print_string_len(UnsafePointer<Int8>?(ptr),
-            string.utf8CodeUnitCount)
+        string.utf8Start.withMemoryRebound(to: CChar.self,
+            capacity: string.utf8CodeUnitCount) {
+            early_print_string_len($0, string.utf8CodeUnitCount)
+        }
     }
 
 
@@ -474,7 +480,8 @@ private class FrameBufferTTY: ScreenDriver {
 
     fileprivate init(frameBufferInfo: FrameBufferInfo) {
         self.frameBufferInfo = frameBufferInfo
-        font = Font(width: 8, height: 16, data: fontdata_8x16_ptr())
+        font = Font(width: 8, height: 16,
+            data: UnsafePointer<UInt8>(bitPattern: fontdata_8x16_addr)!)
         charsPerLine = TextCoord(frameBufferInfo.width / font.width)
         totalLines = TextCoord(frameBufferInfo.height / font.height)
         depthInBytes = Int(frameBufferInfo.depth) / 8

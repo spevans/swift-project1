@@ -27,9 +27,12 @@ enum GateType: UInt8 {
     case TRAP_GATE = 15
 }
 
-// Helper method to construct an IDT entry
-private func IDTEntry(address: UInt, selector: UInt16 = CODE_SEG, gateType: GateType, dpl: UInt8 = 0) -> idt_entry {
 
+// Helper method to construct an IDT entry
+private func IDTEntry(function: (@escaping @convention(c) () -> Void),
+                      selector: UInt16 = CODE_SEG, gateType: GateType,
+                      dpl: UInt8 = 0) -> idt_entry {
+    let address = unsafeBitCast(function, to: UInt64.self)
     let level = (dpl & 3) << 5
     let flags: UInt8 = 128 | level | gateType.rawValue  // 128 = Present Bit set
 
@@ -57,26 +60,26 @@ func setupIDT() {
     sidt(&currentIdtInfo)
     printIDT("Current", currentIdtInfo)
 
-    idt.0 = IDTEntry(address: divide_by_zero_stub_addr(), gateType: .TRAP_GATE)
-    idt.1 = IDTEntry(address: debug_exception_stub_addr(), gateType: .TRAP_GATE)
-    idt.2 = IDTEntry(address: nmi_stub_addr(), gateType: .TRAP_GATE)
-    idt.3 = IDTEntry(address: single_step_stub_addr(), gateType: .TRAP_GATE)
-    idt.4 = IDTEntry(address: overflow_stub_addr(), gateType: .TRAP_GATE)
-    idt.5 = IDTEntry(address: bounds_stub_addr(), gateType: .TRAP_GATE)
-    idt.6 = IDTEntry(address: invalid_opcode_stub_addr(), gateType: .TRAP_GATE)
-    idt.7 = IDTEntry(address: unused_stub_addr(), gateType: .TRAP_GATE)
-    idt.8 = IDTEntry(address: double_fault_stub_addr(), gateType: .TRAP_GATE)
-    idt.9 = IDTEntry(address: unused_stub_addr(), gateType: .TRAP_GATE)
-    idt.10 = IDTEntry(address: invalid_tss_stub_addr(), gateType: .TRAP_GATE)
-    idt.11 = IDTEntry(address: seg_not_present_stub_addr(), gateType: .TRAP_GATE)
-    idt.12 = IDTEntry(address: stack_fault_stub_addr(), gateType: .TRAP_GATE)
-    idt.13 = IDTEntry(address: gpf_stub_addr(), gateType: .TRAP_GATE)
-    idt.14 = IDTEntry(address: page_fault_stub_addr(), gateType: .TRAP_GATE)
-    idt.15 = IDTEntry(address: unused_stub_addr(), gateType: .TRAP_GATE)
-    idt.16 = IDTEntry(address: fpu_fault_stub_addr(), gateType: .TRAP_GATE)
-    idt.17 = IDTEntry(address: alignment_exception_stub_addr(), gateType: .TRAP_GATE)
-    idt.18 = IDTEntry(address: mce_stub_addr(), gateType: .TRAP_GATE)
-    idt.19 = IDTEntry(address: simd_exception_stub_addr(), gateType: .TRAP_GATE)
+    idt.0 = IDTEntry(function: divide_by_zero_stub, gateType: .TRAP_GATE)
+    idt.1 = IDTEntry(function: debug_exception_stub, gateType: .TRAP_GATE)
+    idt.2 = IDTEntry(function: nmi_stub, gateType: .TRAP_GATE)
+    idt.3 = IDTEntry(function: single_step_stub, gateType: .TRAP_GATE)
+    idt.4 = IDTEntry(function: overflow_stub, gateType: .TRAP_GATE)
+    idt.5 = IDTEntry(function: bounds_stub, gateType: .TRAP_GATE)
+    idt.6 = IDTEntry(function: invalid_opcode_stub, gateType: .TRAP_GATE)
+    idt.7 = IDTEntry(function: unused_stub, gateType: .TRAP_GATE)
+    idt.8 = IDTEntry(function: double_fault_stub, gateType: .TRAP_GATE)
+    idt.9 = IDTEntry(function: unused_stub, gateType: .TRAP_GATE)
+    idt.10 = IDTEntry(function: invalid_tss_stub, gateType: .TRAP_GATE)
+    idt.11 = IDTEntry(function: seg_not_present_stub, gateType: .TRAP_GATE)
+    idt.12 = IDTEntry(function: stack_fault_stub, gateType: .TRAP_GATE)
+    idt.13 = IDTEntry(function: gpf_stub, gateType: .TRAP_GATE)
+    idt.14 = IDTEntry(function: page_fault_stub, gateType: .TRAP_GATE)
+    idt.15 = IDTEntry(function: unused_stub, gateType: .TRAP_GATE)
+    idt.16 = IDTEntry(function: fpu_fault_stub, gateType: .TRAP_GATE)
+    idt.17 = IDTEntry(function: alignment_exception_stub, gateType: .TRAP_GATE)
+    idt.18 = IDTEntry(function: mce_stub, gateType: .TRAP_GATE)
+    idt.19 = IDTEntry(function: simd_exception_stub, gateType: .TRAP_GATE)
 
     trap_dispatch_table.0 = divideByZeroException
     trap_dispatch_table.1 = debugException
@@ -100,23 +103,22 @@ func setupIDT() {
     trap_dispatch_table.19 = simdException
     lidt(&idtInfo)
 
-    idt.32 = IDTEntry(address: irq00_stub_addr(), gateType: .INTR_GATE)
-    idt.33 = IDTEntry(address: irq01_stub_addr(), gateType: .INTR_GATE)
-    idt.34 = IDTEntry(address: irq02_stub_addr(), gateType: .INTR_GATE)
-    idt.35 = IDTEntry(address: irq03_stub_addr(), gateType: .INTR_GATE)
-    idt.36 = IDTEntry(address: irq04_stub_addr(), gateType: .INTR_GATE)
-    idt.37 = IDTEntry(address: irq05_stub_addr(), gateType: .INTR_GATE)
-    idt.38 = IDTEntry(address: irq06_stub_addr(), gateType: .INTR_GATE)
-    idt.39 = IDTEntry(address: irq07_stub_addr(), gateType: .INTR_GATE)
-    idt.40 = IDTEntry(address: irq08_stub_addr(), gateType: .INTR_GATE)
-    idt.41 = IDTEntry(address: irq09_stub_addr(), gateType: .INTR_GATE)
-    idt.42 = IDTEntry(address: irq10_stub_addr(), gateType: .INTR_GATE)
-    idt.43 = IDTEntry(address: irq11_stub_addr(), gateType: .INTR_GATE)
-    idt.44 = IDTEntry(address: irq12_stub_addr(), gateType: .INTR_GATE)
-    idt.45 = IDTEntry(address: irq13_stub_addr(), gateType: .INTR_GATE)
-    idt.46 = IDTEntry(address: irq14_stub_addr(), gateType: .INTR_GATE)
-    idt.47 = IDTEntry(address: irq15_stub_addr(), gateType: .INTR_GATE)
-
+    idt.32 = IDTEntry(function: irq00_stub, gateType: .INTR_GATE)
+    idt.33 = IDTEntry(function: irq01_stub, gateType: .INTR_GATE)
+    idt.34 = IDTEntry(function: irq02_stub, gateType: .INTR_GATE)
+    idt.35 = IDTEntry(function: irq03_stub, gateType: .INTR_GATE)
+    idt.36 = IDTEntry(function: irq04_stub, gateType: .INTR_GATE)
+    idt.37 = IDTEntry(function: irq05_stub, gateType: .INTR_GATE)
+    idt.38 = IDTEntry(function: irq06_stub, gateType: .INTR_GATE)
+    idt.39 = IDTEntry(function: irq07_stub, gateType: .INTR_GATE)
+    idt.40 = IDTEntry(function: irq08_stub, gateType: .INTR_GATE)
+    idt.41 = IDTEntry(function: irq09_stub, gateType: .INTR_GATE)
+    idt.42 = IDTEntry(function: irq10_stub, gateType: .INTR_GATE)
+    idt.43 = IDTEntry(function: irq11_stub, gateType: .INTR_GATE)
+    idt.44 = IDTEntry(function: irq12_stub, gateType: .INTR_GATE)
+    idt.45 = IDTEntry(function: irq13_stub, gateType: .INTR_GATE)
+    idt.46 = IDTEntry(function: irq14_stub, gateType: .INTR_GATE)
+    idt.47 = IDTEntry(function: irq15_stub, gateType: .INTR_GATE)
     initIRQs()
 
     // Below is not needed except to validate that the setup worked ok and test some exceptions

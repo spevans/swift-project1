@@ -17,18 +17,14 @@
 #include "klibc.h"
 #include "acpi.h"
 
-// Export as [symbol]_ptr of type UnsafePointer<Void>
-#define EXPORTED_SYMBOL_AS_VOIDPTR(x) \
-        static inline const void *x##_ptr() { extern uintptr_t x; return &x; }
-
-// Export as [symbol]_ptr of type UnsafePointer<t>
-#define EXPORTED_SYMBOL_AS_PTR(x, t) \
-        static inline const t *x##_ptr() { extern t x; return &x; }
-
 // Export as [symbol]_addr as a unitptr_t to be manipulated as a UInt
-#define EXPORTED_SYMBOL_AS_UINTPTR(x) \
-        static inline uintptr_t x##_addr() { extern uintptr_t x; return (uintptr_t)&x; }
+#define EXPORTED_SYMBOL_AS_UINTPTR(x)               \
+extern const void * _Nonnull x;                     \
+__attribute__((section("/DISCARD/")))               \
+static const uintptr_t x##_addr = (uintptr_t)&x;
 
+
+// Symbols to export as [symbol]_addr
 EXPORTED_SYMBOL_AS_UINTPTR(_text_start);
 EXPORTED_SYMBOL_AS_UINTPTR(_text_end);
 EXPORTED_SYMBOL_AS_UINTPTR(_rodata_start);
@@ -41,45 +37,48 @@ EXPORTED_SYMBOL_AS_UINTPTR(_kernel_start);
 EXPORTED_SYMBOL_AS_UINTPTR(_kernel_end);
 EXPORTED_SYMBOL_AS_UINTPTR(_guard_page);
 EXPORTED_SYMBOL_AS_UINTPTR(_stack_start);
-EXPORTED_SYMBOL_AS_VOIDPTR(_kernel_stack);
-EXPORTED_SYMBOL_AS_VOIDPTR(initial_pml4);
-EXPORTED_SYMBOL_AS_UINTPTR(divide_by_zero_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(debug_exception_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(nmi_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(single_step_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(overflow_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(bounds_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(invalid_opcode_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(unused_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(double_fault_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(invalid_tss_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(seg_not_present_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(stack_fault_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(gpf_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(page_fault_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(fpu_fault_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(alignment_exception_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(mce_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(simd_exception_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(irq00_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(irq01_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(irq02_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(irq03_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(irq04_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(irq05_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(irq06_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(irq07_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(irq08_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(irq09_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(irq10_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(irq11_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(irq12_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(irq13_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(irq14_stub);
-EXPORTED_SYMBOL_AS_UINTPTR(irq15_stub);
-EXPORTED_SYMBOL_AS_PTR(fontdata_8x16, uint8_t);
+EXPORTED_SYMBOL_AS_UINTPTR(initial_pml4);
+EXPORTED_SYMBOL_AS_UINTPTR(fontdata_8x16);
 
-extern void * const initial_tls_end_addr;
+extern void * _Nonnull const initial_tls_end_addr;
+
+// kernel/traps/entry.asm
 void run_first_task();
+
+// Exception and trap handler entry stubs
+void divide_by_zero_stub();
+void debug_exception_stub();
+void nmi_stub();
+void single_step_stub();
+void overflow_stub();
+void bounds_stub();
+void invalid_opcode_stub();
+void unused_stub();
+void double_fault_stub();
+void invalid_tss_stub();
+void seg_not_present_stub();
+void stack_fault_stub();
+void gpf_stub();
+void page_fault_stub();
+void fpu_fault_stub();
+void alignment_exception_stub();
+void mce_stub();
+void simd_exception_stub();
+void irq00_stub();
+void irq01_stub();
+void irq02_stub();
+void irq03_stub();
+void irq04_stub();
+void irq05_stub();
+void irq06_stub();
+void irq07_stub();
+void irq08_stub();
+void irq09_stub();
+void irq10_stub();
+void irq11_stub();
+void irq12_stub();
+void irq13_stub();
+void irq14_stub();
+void irq15_stub();
 
 #endif  // __KERNEL_H__

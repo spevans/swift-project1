@@ -406,7 +406,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
             koops("Cant find any memory in the e820 map")
         }
 
-        let size = UInt(_kernel_end_addr() - _kernel_start_addr())
+        let size = UInt(_kernel_end_addr - _kernel_start_addr)
         printf("Kernel size: %lx\n", size)
         ranges.append(MemoryRange(type: .Kernel, start: kernelPhysAddress,
                 size: size))

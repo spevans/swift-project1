@@ -41,6 +41,15 @@ kernel.o: SwiftKernel.o
 $(SWIFT_OBJS): $(SWIFT_SRCS) $(HEADERS)
 	$(SWIFTC) $(SWIFTC_FLAGS) -whole-module-optimization -module-name $(SWIFT_MODULE) -emit-object -o $@ $(SWIFT_SRCS)
 
+SwiftKernel.sil: $(SWIFT_SRCS) $(HEADERS)
+	$(SWIFTC) $(SWIFTC_FLAGS) -whole-module-optimization -module-name $(SWIFT_MODULE) -emit-sil -o $@ $(SWIFT_SRCS)
+
+SwiftKernel.silgen: $(SWIFT_SRCS) $(HEADERS)
+	$(SWIFTC) $(SWIFTC_FLAGS) -whole-module-optimization -module-name $(SWIFT_MODULE) -emit-silgen -o $@ $(SWIFT_SRCS)
+
+
+sil: SwiftKernel.sil
+
 clean:
-	rm -f *.bin *.o *.s
+	rm -f *.bin *.o *.s *.sil
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir clean; done
