@@ -80,7 +80,7 @@ void __cxa_guard_release(void *guard)
 
 UNIMPLEMENTED(__cxa_demangle)
 UNIMPLEMENTED(__overflow)
-
+UNIMPLEMENTED(_ZNKSt8__detail20_Prime_rehash_policy14_M_need_rehashEmmm)
 
 // Unused
 #if 0
