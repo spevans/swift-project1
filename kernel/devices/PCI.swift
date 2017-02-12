@@ -127,8 +127,9 @@ struct PCIDeviceFunction: CustomStringConvertible {
     var headerType:   UInt8 { return readConfigBytes(0xc).2 }
 
     var description: String {
-        return String.sprintf("%2.2X:%2.2X/%d: %4.4X:%4.4X [%2.2X%2.2X] HT: %2.2X \(bus)",
-            bus.bus, device, function, vendor, deviceId, classCode, subClassCode, headerType)
+        let fmt: StaticString = "%2.2X:%2.2X/%d: %4.4X:%4.4X [%2.2X%2.2X] HT: %2.2X "
+        return String.sprintf(fmt, bus.bus, device, function, vendor, deviceId,
+            classCode, subClassCode, headerType) + "\(bus)"
     }
 
 

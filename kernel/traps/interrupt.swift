@@ -41,7 +41,7 @@ func initIRQs() {
 
 
 func enableIRQs() {
-    print("Enabling IRQs")
+    print("INT: Enabling IRQs")
     sti()
 }
 

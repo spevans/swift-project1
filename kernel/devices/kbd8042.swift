@@ -475,7 +475,7 @@ struct KBD8042 {
                     keyCode = E0_ScanCodes.Pause.rawValue
                     prevScanCode = 0
                 }
-                kprint("keyCode: ")
+                kprint("kbd: keyCode: ")
                 kprint_byte(keyCode)
                 kprint(upCode != 0 ? ", Up\n" : ", Down\n")
             }

@@ -18,7 +18,7 @@ typealias TextCoord = text_coord
 
 
 // printf via the Swift TTY driver (print() is also routed to here)
-func printf(_ format: String, _ arguments: CVarArg...) {
+func printf(_ format: StaticString, _ arguments: CVarArg...) {
     TTY.sharedInstance.printString(String.sprintf(format, arguments))
 }
 
@@ -33,10 +33,14 @@ func kprint(_ string: StaticString) {
 func kprintf(_ format: StaticString, _ arguments: CVarArg...) {
     withVaList(arguments) {
         let args = $0
-        _ = format.utf8Start.withMemoryRebound(to: CChar.self,
-            capacity: format.utf8CodeUnitCount) {
-            kvlprintf($0, format.utf8CodeUnitCount, args)
-        }
+        _ = format.withUTF8Buffer({ buffer in
+                if let addr = buffer.baseAddress {
+                    _ = addr.withMemoryRebound(to: CChar.self,
+                    capacity: buffer.count) {
+                        kvlprintf($0, buffer.count, args)
+                    }
+                }
+            })
     }
 }
 
@@ -102,7 +106,6 @@ class TTY {
         } else {
             driver = TextTTY()
         }
-        testTTY()
         clearScreen()
         print("Switching to Swift TTY driver")
         set_print_functions_to_swift()
@@ -130,12 +133,11 @@ class TTY {
 
 
     func printString(_ string: StaticString) {
-        if string.hasPointerRepresentation {
-            for ch in UnsafeBufferPointer(start: string.utf8Start,
-                count: Int(string.utf8CodeUnitCount)) {
-                printChar(CChar(ch))
-            }
-        }
+        string.withUTF8Buffer({
+            $0.forEach({
+                printChar(CChar($0))
+            })
+        })
     }
 
 
@@ -160,16 +162,12 @@ class TTY {
     }
 
 
-    func printChar(_ character: Character) {
-        printString(String(character))
-    }
-
-
     func printChar(_ character: CChar) {
         /* FIXME: Disable interrupts for exclusive access to screen memory
          * and instance vars but this function takes far too long because of
          * scrollUp() and so lots of timer interrupts are currently missed
          */
+        com1_print_char(character)
         noInterrupt({
                 let ch = CUnsignedChar(character)
                 var (x, y) = (cursorX, cursorY)
@@ -201,28 +199,6 @@ class TTY {
                 cursorX = x
                 cursorY = y
             })
-    }
-
-
-    func testTTY() {
-        print("cursorX = \(cursorX) cursorY = \(cursorY)")
-        printChar(0x0A)
-        printChar(65)
-        printChar(66)
-        printChar(67)
-        printChar(68)
-        printChar(Character("\n"))
-        printChar(Character("E"))
-        printChar(Character("F"))
-        printChar(Character("G"))
-        printChar(Character("H"))
-        printString("\n12\t12345678\t12345\t123456789\t12\t12\t0\n")
-        printString("12345678123456781234567812345678123456781234567812345678123456780")
-        printString("12345678123456781234567812345678123456781234567812345678123456781234567812345678")
-        let x = cursorX
-        print("\n   x = \(x) cursorX = \(cursorX) cursorY = \(cursorY)")
-        printString("\n\n\nNewLine")
-        print(" cursorX = \(cursorX) cursorY = \(cursorY)")
     }
 
 

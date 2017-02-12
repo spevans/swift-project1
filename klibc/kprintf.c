@@ -162,8 +162,9 @@ __kvprintf(print_char_func print_func, void *data, const char *fmt, size_t fmtle
                                         flags |= PF_ZERO;
                                         goto again;
 
-                                case '1': case '2': case '3': case '4': case '5':
-                                case '6': case '7': case '8': case '9':
+                                case '1': case '2': case '3':
+                                case '4': case '5': case '6':
+                                case '7': case '8': case '9':
                                         while(IS_DIGIT(c)) {
                                                 width = width * 10 + (c - '0');
                                                 c = next_char(&fmt, &fmtlen);
@@ -247,7 +248,8 @@ __kvprintf(print_char_func print_func, void *data, const char *fmt, size_t fmtle
                                         digits = "01234567";
                                         radix = 8;
                                         if(flags & PF_HASH) {
-                                                _print_char(print_func, data, &count, '0');
+                                                _print_char(print_func, data,
+                                                            &count, '0');
                                                 len++;
                                         }
                                         goto do_number;
@@ -257,7 +259,8 @@ __kvprintf(print_char_func print_func, void *data, const char *fmt, size_t fmtle
                                         digits = "01";
                                         radix = 2;
                                         if(flags & PF_HASH) {
-                                                _print_string(print_func, data, &count, "0b");
+                                                _print_string(print_func, data,
+                                                              &count, "0b");
                                                 len += 2;
                                         }
                                         goto do_number;
@@ -274,14 +277,16 @@ __kvprintf(print_char_func print_func, void *data, const char *fmt, size_t fmtle
                                 case 'x':
                                         digits = "0123456789abcdef";
                                         if(flags & PF_HASH) {
-                                                _print_string(print_func, data, &count, "0x");
+                                                _print_string(print_func, data,
+                                                              &count, "0x");
                                                 len += 2;
                                         }
                                         goto do_hex;
                                 case 'X':
                                         digits = "0123456789ABCDEF";
                                         if(flags & PF_HASH) {
-                                                _print_string(print_func, data, &count, "0x");
+                                                _print_string(print_func, data,
+                                                              &count, "0x");
                                                 len += 2;
                                         }
                                 do_hex:
@@ -421,7 +426,11 @@ b_print_char(void *buf_p, char ch)
 int
 kvsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 {
-        struct string_buf string_buf = { .data = buf, .count = 0, .max_len = size };
+        struct string_buf string_buf = { .data = buf, .count = 0,
+                                         .max_len = size };
+        if (size < 1) {
+                return 0;
+        }
         *buf = '\0';
 
         return __kvprintf(b_print_char, &string_buf, fmt, SIZE_MAX, args);

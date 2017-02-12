@@ -55,7 +55,8 @@ struct RSDP1: CustomStringConvertible {
     var rsdt:      UInt { return UInt(rsdtAddr) }
 
     var description: String {
-        return String.sprintf("ACPI: \(signature): \(oemId): rev: \(revision) ptr: %p", rsdt)
+        return "ACPI: \(signature): \(oemId): rev: \(revision) "
+            + "ptr: \(asHex(rsdt))"
     }
 
 
@@ -81,7 +82,8 @@ struct RSDP2: CustomStringConvertible {
     var rsdt:      UInt { return (xsdtAddr != 0) ? UInt(xsdtAddr) : UInt(rsdtAddr) }
 
     var description: String {
-        return String.sprintf("ACPI: \(signature): \(oemId): rev: \(revision) ptr: %p", rsdt)
+        return "ACPI: \(signature): \(oemId): rev: \(revision) "
+            + "ptr: \(asHex(rsdt))"
     }
 
 

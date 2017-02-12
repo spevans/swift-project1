@@ -105,8 +105,8 @@ struct SMBIOS {
             minor = header.minor_version
         }
 
-        printf("SMBIOS \(major).\(minor): \(entryCount) entries @ %p size: %u\n",
-            tableAddress, tableLength)
+        print("SMBIOS \(major).\(minor): \(entryCount) entries "
+            + "@ \(asHex(tableAddress)) size: \(tableLength)")
 
         func str(_ a: String?) -> String {
             return a == nil ? "nil" : a!

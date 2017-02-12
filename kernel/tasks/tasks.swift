@@ -72,10 +72,10 @@ public func yield() -> Int {
 
 
 private func testTaskA() {
-    let ch = Character("A")
+    let ch = "A"
     while true {
         for _ in 1...5 {
-            TTY.sharedInstance.printChar(ch)
+            TTY.sharedInstance.printString(ch)
         }
         yield()
     }
@@ -83,10 +83,10 @@ private func testTaskA() {
 
 
 private func testTaskB() {
-    let ch = Character("B")
+    let ch = "B"
     while true {
         for _ in 1...5 {
-            TTY.sharedInstance.printChar(ch)
+            TTY.sharedInstance.printString(ch)
         }
         yield()
     }

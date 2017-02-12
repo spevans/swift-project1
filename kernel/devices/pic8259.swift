@@ -10,8 +10,7 @@
 
 
 class PIC8259: InterruptController {
-
-    // singleton
+    // Singleton
     static let sharedInstance = PIC8259()
 
     // IO Port addresses
@@ -44,13 +43,13 @@ class PIC8259: InterruptController {
         // Disable all IRQs
         disableAllIRQs()
         rebaseIRQs()
-        print("pic: initialised")
+        print("PIC8259: initialised")
     }
 
 
     func enableIRQ(_ irq: Int) {
         guard irq < 16 else {
-            kprintf("Enabling invalid IRQ: %2.2x\n", irq)
+            kprintf("PIC8259: Enabling invalid IRQ: %2.2x\n", irq)
             return
         }
         if (irq <= 7) {
@@ -67,7 +66,7 @@ class PIC8259: InterruptController {
 
     func disableIRQ(_ irq: Int) {
         guard irq < 16 else {
-            kprintf("Enabling invalid IRQ: %2.2x\n", irq)
+            kprintf("PIC8259: Enabling invalid IRQ: %2.2x\n", irq)
             return
         }
         if (irq <= 7) {
@@ -90,7 +89,7 @@ class PIC8259: InterruptController {
 
     func ackIRQ(_ irq: Int) {
         guard irq < 16 else {
-            kprint("EOI invalid IRQ: ")
+            kprint("PIC8259: EOI invalid IRQ: ")
             kprint_byte(UInt8(truncatingBitPattern: irq))
             kprint("\n")
             return
@@ -99,7 +98,7 @@ class PIC8259: InterruptController {
         // Check real IRQ occurred
         let active = readISR().bitSet(UInt16(irq))
         if !active {
-            kprint("Spurious IRQ: ")
+            kprint("PIC8259: Spurious IRQ: ")
             kprint_byte(UInt8(irq))
             kprint("\n")
         }
@@ -116,10 +115,11 @@ class PIC8259: InterruptController {
     // This isnt a var returning a String to avoid a malloc() as its called
     // inside an interrupt handler
     func printStatus() {
-        kprint("pic: irr: ")
+        kprint("PIC8259:: IRR: ")
         kprint_word(readIRR())
-        kprint(" isr: ")
+        kprint(" ISR: ")
         kprint_word(readISR())
+        kprint("\n")
     }
 
 
@@ -159,7 +159,8 @@ class PIC8259: InterruptController {
     }
 
 
-    // Read Interrupt Service Register, interrupts that are being serviced (sent to CPU)
+    // Read Interrupt Service Register, interrupts that are being serviced
+    // (sent to CPU)
     private func readISR() -> UInt16 {
         return readIRQReg(OCW3_READ_ISR)
     }

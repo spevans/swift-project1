@@ -50,7 +50,8 @@ struct MemoryRange: CustomStringConvertible {
         let str = (size >= mb) ? String.sprintf(" %6uMB  ", size / mb) :
                 String.sprintf(" %6uKB  ", size / kb)
 
-        return String.sprintf("%12X - %12X \(str) \(type)", start, start + size - 1)
+        return String.sprintf("%12X - %12X ", start, start + size - 1)
+            + "\(str) \(type)"
     }
 }
 
@@ -514,8 +515,8 @@ struct EFIBootParams: BootParamsData {
         var description: String {
             let size = UInt(numberOfPages) * PAGE_SIZE
             let endAddr = physicalStart + size - 1
-            return String.sprintf("%12X - %12X %8.8X \(type)", physicalStart,
-                endAddr, size)
+            return String.sprintf("%12X - %12X %8.8X ", physicalStart,
+                endAddr, size) + "\(type)"
         }
 
 

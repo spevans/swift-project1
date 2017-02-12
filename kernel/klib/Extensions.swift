@@ -10,34 +10,26 @@
 
 
 extension String {
-    static func sprintf(_ format: String, _ arguments: CVarArg...) -> String {
+    static func sprintf(_ format: StaticString, _ arguments: CVarArg...)
+        -> String {
         return sprintf(format, arguments)
     }
 
-    static func sprintf(_ format: String, _ arguments: [CVarArg]) -> String {
-        let bufferLen = 1024
-        var result: String?
+    static func sprintf(_ format: StaticString, _ arguments: [CVarArg])
+        -> String {
+        return withVaList(arguments) {
+            let args = $0
+            return format.utf8Start.withMemoryRebound(to: CChar.self,
+                capacity: format.utf8CodeUnitCount) {
+                let bufferLen = 1024
+                let output = UnsafeMutablePointer<CChar>.allocate(capacity: bufferLen)
+                defer {
+                    output.deallocate(capacity: bufferLen)
+                }
 
-        withVaList(arguments) {
-            let len = format.utf8.count + 1
-            let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: len)
-            var idx = 0
-            for ch in format.utf8 {
-                buffer[idx] = CChar(ch)
-                idx += 1
+                kvsnprintf(output, bufferLen, $0, args)
+                return String(cString: output)
             }
-            buffer[idx] = CChar(0)
-            let output = UnsafeMutablePointer<CChar>.allocate(capacity: bufferLen)
-            kvsnprintf(output, bufferLen, buffer, $0)
-            result = String(cString: output)
-            buffer.deallocate(capacity: len)
-            output.deallocate(capacity: bufferLen)
-        }
-
-        if (result == nil) {
-             return ""
-        } else {
-             return result!
         }
     }
 }
