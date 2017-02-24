@@ -9,23 +9,13 @@
  */
 
 #include "klibc.h"
+#include <pthread.h>
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 /*
  * pthread
  */
-
-typedef struct pthread_mutex pthread_mutex_t;
-typedef struct pthread_mutexattr pthread_mutexattr_t;
-typedef struct pthread_cond pthread_cond_t;
-typedef struct pthread_condattr pthread_condattr_t;
-typedef struct pthread_rw_lock pthread_rwlock_t;
-typedef struct pthread_rwlockattr pthread_rwlockattr_t;
-typedef int pthread_once_t;
-typedef unsigned int pthread_key_t;
-typedef unsigned long int pthread_t;
-
 
 __thread void* _ZSt15__once_callable;
 __thread void (*_ZSt11__once_call)();
@@ -36,6 +26,7 @@ pthread_mutex_init(pthread_mutex_t *restrict mutex,
                    const pthread_mutexattr_t *restrict attr)
 {
         debugf("pthread_mutex_init(%p,%p)\n", mutex, attr);
+        memset(mutex, 0, sizeof(pthread_mutex_t));
         return 0;
 }
 
@@ -74,6 +65,7 @@ int
 pthread_mutexattr_init(pthread_mutexattr_t *attr)
 {
         debugf("pthread_mutexattr_init(%p)\n", attr);
+        memset(attr, 0, sizeof(pthread_mutexattr_t));
         return 0;
 }
 
@@ -98,7 +90,8 @@ int
 pthread_cond_init(pthread_cond_t *restrict cond,
                   const pthread_condattr_t *restrict cond_attr)
 {
-        debugf("pthread_cond_init(%p,%p)\n", cond, condattr);
+        debugf("pthread_cond_init(%p,%p)\n", cond, cond_attr);
+        memset(cond, 0, sizeof(pthread_cond_t));
         return 0;
 }
 

@@ -14,9 +14,10 @@
 
         extern init_early_tty
         extern init_mm
+        extern klibc_start
         extern startup ; SwiftKernel.startup () -> ()
         extern _bss_start
-        extern _kernel_end
+        extern _bss_end
         extern _kernel_stack
         extern initial_tls_end_addr
 
@@ -40,7 +41,7 @@ main:
         ;; Clear the BSS
         xor     rax, rax
         mov     rdi, _bss_start
-        mov     rcx, _kernel_end
+        mov     rcx, _bss_end
         sub     rcx, rdi
         mov     rdx, rcx
         and     rdx, 3
@@ -81,6 +82,8 @@ main:
         call    init_early_tty
         mov     rdi, r12
         call    init_mm         ; required for malloc/free
+
+        call klibc_start
         mov     rdi, r12
         mov     rsi, r13
         call    startup         ; SwiftKernel.startup

@@ -2,10 +2,8 @@ TOPDIR := .
 include $(TOPDIR)/Makedefs
 
 KERNEL_OBJS := kernel/kernel.o klibc/klibc.o
-
-
 SUBDIRS := boot kernel klibc utils
-
+EXTRA_LIBS := /usr/lib/gcc/x86_64-linux-gnu/5/libatomic.a
 
 .PHONY: clean kernel
 
@@ -18,14 +16,14 @@ endif
 	mkdir -p $(MODULE_DIR) output
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir; done
 	# initial link must be via ELF to produce a GOT
-	ld --no-demangle -static -Tlinker.script -Map=output/kernel.map -o output/kernel.elf $(KERNEL_OBJS) $(SWIFTLIBS)
+	ld --no-demangle -static -Tlinker.script -Map=output/kernel.map -o output/kernel.elf $(KERNEL_OBJS) $(SWIFTLIBS) $(EXTRA_LIBS)
 
 output/kernel.elf: kernel
 
 output/kernel.bin: output/kernel.elf
 	objcopy -O binary $^ $@
 	#utils/foverride $@ output/kernel.map _swift_stdlib_putchar_unlocked putchar
-	objdump -d output/kernel.elf | $(SWIFT)-demangle > output/kernel.dmp
+	objdump -d output/kernel.elf -Mintel | $(SWIFT)-demangle > output/kernel.dmp
 
 
 output/kernel.efi: output/kernel.bin boot/efi_entry.asm boot/efi_main.c klibc/kprintf.c

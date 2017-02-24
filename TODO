@@ -1,6 +1,13 @@
+Load kernel as ELF and implement dladdr()/backtrace()
+(-z max-page-size=0x1000)
+
 Write AML parse to read SDST ACPI tables
 Enable multicore
-Load kernel as ELF and implement dladdr()/backtrace()
 fix interrupt masking / timer overrun
 Add exception and IRQ ISTs
 Locks for hardware access eg PIC
+
+# Try out compile flags:
+-finline-small-functions
+-findirect-inlining
+-ffreestanding
