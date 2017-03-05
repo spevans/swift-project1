@@ -57,12 +57,13 @@ static struct frame_buffer frame_buffer;
 static const struct font *font;
 static uint32_t text_colour = 0x00ffffff;
 static uint8_t text_red = 0xff, text_green = 0xff, text_blue = 0xff;
-static void com1_init();
+static void serial_init();
 
 
 void
 init_early_tty(struct frame_buffer *fb)
 {
+        serial_init();
         if (fb == NULL) {
                 text_mode = 1;
                 text_width = 80;
@@ -91,22 +92,21 @@ init_early_tty(struct frame_buffer *fb)
         }
         etty_clear_screen();
         kprintf("Console size: %ux%u\n", text_width, text_height);
-        com1_init();
 }
 
 const uint16_t COM1_BASE = 0x3f8;
 
 static int
-com1_xmit_empty()
+serial_xmit_empty()
 {
         return inb(COM1_BASE + 5) & 0x20;
 }
 
 void
-com1_print_char(const char c)
+serial_print_char(const char c)
 {
         int tries = 64;
-        while (!com1_xmit_empty() && tries--);
+        while (!serial_xmit_empty() && tries--);
         if (tries > 0) {
                 outb(COM1_BASE, c);
         }
@@ -114,16 +114,17 @@ com1_print_char(const char c)
 
 
 void
-com1_print_string(const char *str)
+serial_print_string(const char *str)
 {
         while(*str) {
-                com1_print_char(*str);
+                serial_print_char(*str);
                 str++;
         }
 }
 
+
 static void
-com1_init()
+serial_init()
 {
         outb(COM1_BASE + 1, 0x00);    // Disable all interrupts
         outb(COM1_BASE + 3, 0x80);    // Enable DLAB (set baud rate divisor)
@@ -131,7 +132,7 @@ com1_init()
         outb(COM1_BASE + 1, 0x00);    //                  (hi byte)
         outb(COM1_BASE + 3, 0x03);    // 8 bits, no parity, one stop bit
         outb(COM1_BASE + 2, 0xC7);    // Enable FIFO, clear them, with 14-byte threshold
-        com1_print_string("COM1 Initialised\n");
+        serial_print_string("COM1 Initialised\n");
 }
 
 text_coord
@@ -362,7 +363,7 @@ framebuffer_test(struct frame_buffer *fb)
 void
 early_print_char(const char c)
 {
-        com1_print_char(c);
+        serial_print_char(c);
         if (c == '\n') {
                 cursor_x = 0;
                 cursor_y++;
@@ -423,6 +424,14 @@ set_print_functions_to_swift()
 
 /* Simple number printing functions that dont invoke *printf */
 
+
+void
+kprint_string(const char *text)
+{
+        early_print_string(text);
+}
+
+
 void
 kprint_nibble(uint8_t value)
 {
@@ -465,7 +474,7 @@ kprint_qword(uint64_t value)
 
 
 void
-kprint_pointer(void *ptr)
+kprint_pointer(const void *ptr)
 {
         early_print_string("0x");
         kprint_qword((uintptr_t)ptr);

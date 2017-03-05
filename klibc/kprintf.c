@@ -512,4 +512,27 @@ bprintf(const char *fmt, ...)
 
         return len;
 }
+
+
+#ifndef EFI
+static void
+serial_print_func(void *data __attribute__((unused)), const char c)
+{
+        serial_print_char(c);
+}
+
+
+int
+serial_printf(const char *fmt, ...)
+{
+        va_list args;
+        va_start(args, fmt);
+        int len = __kvprintf(serial_print_func, NULL, fmt, SIZE_MAX, args);
+        va_end(args);
+
+        return len;
+}
+#endif // EFI
+
+
 #endif // TEST

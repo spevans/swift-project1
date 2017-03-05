@@ -113,7 +113,7 @@ func setupMM() {
 // address
 private func kernelPhysAddress(_ address: VirtualAddress) -> PhysAddress {
     guard address >= _kernel_start_addr && address <= _kernel_end_addr else {
-        kprintf("kernelPhysAddress: invalid address: %p", address)
+        printf("kernelPhysAddress: invalid address: %p", address)
         stop()
     }
     return kernelPhysBase + (address - _kernel_start_addr)
@@ -128,7 +128,7 @@ private func kernelVirtualAddress(_ paddress: PhysAddress) -> VirtualAddress {
     let kernelSize = _kernel_end_addr - _kernel_start_addr
     guard address >= kernelPhysBase
         && address <= kernelPhysBase + kernelSize else {
-        kprintf("kernelVirtualAddress: invalid address: %p", address)
+        printf("MM: kernelVirtualAddress: invalid address: %p", address)
         stop()
     }
     return _kernel_start_addr + (address - kernelPhysBase)

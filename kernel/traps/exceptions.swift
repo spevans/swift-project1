@@ -96,7 +96,7 @@ func generalProtectionFault(registers: ExceptionRegisters) {
     let errorCode = UInt32(registers.pointee.error_code)
     kprint("GP Fault code: ")
     kprint_dword(errorCode)
-    kprintf("\n")
+    kprint("\n")
     dump_registers(registers)
     stop()
 }

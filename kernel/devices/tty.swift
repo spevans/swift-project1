@@ -18,6 +18,7 @@ typealias TextCoord = text_coord
 
 
 // printf via the Swift TTY driver (print() is also routed to here)
+@inline(never)
 func printf(_ format: StaticString, _ arguments: CVarArg...) {
     TTY.sharedInstance.printString(String.sprintf(format, arguments))
 }
@@ -25,31 +26,9 @@ func printf(_ format: StaticString, _ arguments: CVarArg...) {
 
 // kprint via the C early_tty.c driver
 func kprint(_ string: StaticString) {
-    TTY.sharedInstance.earlyTTY.printString(string)
-}
-
-
-// kprintf via the C early_tty.c driver
-func kprintf(_ format: StaticString, _ arguments: CVarArg...) {
-    withVaList(arguments) {
-        let args = $0
-        _ = format.withUTF8Buffer({ buffer in
-                if let addr = buffer.baseAddress {
-                    _ = addr.withMemoryRebound(to: CChar.self,
-                    capacity: buffer.count) {
-                        kvlprintf($0, buffer.count, args)
-                    }
-                }
-            })
-    }
-}
-
-
-// print to the Bochs console via the E9 port
-func bprint(_ string: StaticString) {
-    _ = string.utf8Start.withMemoryRebound(to: CChar.self,
-        capacity: string.utf8CodeUnitCount) {
-        bochs_print_string($0, string.utf8CodeUnitCount)
+    string.utf8Start.withMemoryRebound(to: CChar.self,
+        capacity: string.utf8CodeUnitCount) { text in
+        kprint_string(text)
     }
 }
 
@@ -107,9 +86,9 @@ class TTY {
             driver = TextTTY()
         }
         clearScreen()
-        print("Switching to Swift TTY driver")
+        print("tty: Switching to Swift TTY driver")
         set_print_functions_to_swift()
-        print("Swift TTY driver initialised: \(driver.charsPerLine)x\(driver.totalLines)")
+        print("tty: Swift TTY driver initialised: \(driver.charsPerLine)x\(driver.totalLines)")
     }
 
 
@@ -125,6 +104,7 @@ class TTY {
     }
 
 
+    @inline(never)
     func printString(_ string: String) {
         for ch in string.utf8 {
             printChar(CChar(ch))
@@ -132,7 +112,8 @@ class TTY {
     }
 
 
-    func printString(_ string: StaticString) {
+    @inline(never)
+    public func printString(_ string: StaticString) {
         string.withUTF8Buffer({
             $0.forEach({
                 printChar(CChar($0))
@@ -167,7 +148,7 @@ class TTY {
          * and instance vars but this function takes far too long because of
          * scrollUp() and so lots of timer interrupts are currently missed
          */
-        com1_print_char(character)
+        serial_print_char(character)
         noInterrupt({
                 let ch = CUnsignedChar(character)
                 var (x, y) = (cursorX, cursorY)
@@ -206,9 +187,9 @@ class TTY {
         let earlyTicks = benchmark(TTY.sharedInstance.earlyTTY.scrollUp)
         let swiftTicks = benchmark(TTY.sharedInstance.scrollUp)
         let ratio = swiftTicks / earlyTicks
-        print("EarlyTTY.scrollUp():", earlyTicks)
-        print("TTY.scrollUp():", swiftTicks)
-        print("Ratio: ", ratio)
+        print("tty: EarlyTTY.scrollUp():", earlyTicks)
+        print("tty: TTY.scrollUp():", swiftTicks)
+        print("tty: Ratio: ", ratio)
     }
 
 }

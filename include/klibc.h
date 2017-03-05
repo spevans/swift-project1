@@ -28,7 +28,11 @@ typedef int64_t off_t;
 #define unlikely(x)    __builtin_expect(!!(x), 0)
 
 #ifdef DEBUG
-#define debugf(...) bprintf(__VA_ARGS__)
+#define debugf(...) do {                                            \
+        serial_printf("debug: %p: ", __builtin_return_address(0));  \
+        serial_printf(__VA_ARGS__);                                 \
+} while(0)
+
 #else
 #define debugf(...) do {} while(0)
 #endif
@@ -42,6 +46,7 @@ int kprintf(const char * _Nonnull fmt, ...) __attribute__ ((format (printf, 1, 2
 // bochs printf
 int bprintf(const char * _Nonnull fmt, ...) __attribute__ ((format (printf, 1, 2)));
 void bochs_print_string(const char * _Nonnull str, size_t len);
+int serial_printf(const char * _Nonnull fmt, ...) __attribute__ ((format (printf, 1, 2)));
 
 
 // klibc
@@ -65,15 +70,17 @@ extern void (* _Nonnull print_string)(const char * _Nonnull str);
 extern void (* _Nonnull print_string_len)(const char * _Nonnull str,
                                           size_t len);
 
-void com1_print_char(const char ch);
+void serial_print_char(const char ch);
 void set_print_functions_to_swift();
 void early_print_char(const char c);
 void early_print_string(const char * _Nonnull text);
 void early_print_string_len(const char * _Nonnull text, size_t len);
+void kprint_string(const char * _Nonnull text);
 void kprint_byte(uint8_t value);
 void kprint_word(uint16_t value);
 void kprint_dword(uint32_t value);
 void kprint_qword(uint64_t value);
+void kprint_pointer(const void * _Nullable ptr);
 
 // early_tty interface for TTY.EarlyTTY driver
 extern void (* _Nonnull etty_print_char)(text_coord x, text_coord y, const unsigned char ch);

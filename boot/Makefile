@@ -1,7 +1,7 @@
 TOPDIR := ..
 include $(TOPDIR)/Makedefs
 
-EFI_CFLAGS := $(CFLAGS) -fno-stack-protector  -mno-red-zone -fpic -fshort-wchar  -fno-unwind-tables
+EFI_CFLAGS := $(CFLAGS) -fno-stack-protector  -mno-red-zone -fpic -fshort-wchar  -fno-unwind-tables -DEFI
 
 all: bootsector.bin isohdr.bin boot16to64.bin efi_header.bin efi_entry.o efi_main.o kprintf.o
 
