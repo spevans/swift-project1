@@ -156,7 +156,7 @@ struct BootParams {
 
     static func findTables() {
         if BootParams.smbiosTables == nil {
-            print("Cant find SMBIOS tables")
+            print("bootparams: Cant find SMBIOS tables")
         } else {
             if let v = BootParams.smbiosTables?.dmiBiosVendor {
                 vendor = v
@@ -167,9 +167,9 @@ struct BootParams {
         }
 
         if BootParams.acpiTables == nil {
-            print("Cant find ACPI tables")
+            print("bootparams: Cant find ACPI tables")
         } else {
-            print("Found ACPI tables")
+            print("bootparams: Found ACPI tables")
         }
     }
 
@@ -214,22 +214,22 @@ struct BootParams {
             koops("bootParamsAddr is null")
         }
         guard let signature = readSignature(bootParamsAddr) else {
-            koops("Cant find boot params signature")
+            koops("bootparams: Cant find boot params signature")
         }
-        print("signature: \(signature)");
+        print("bootparams: signature: \(signature)");
 
         if (signature == "BIOS") {
-            print("Found BIOS boot params")
+            print("bootparams: Found BIOS boot params")
             params = BiosBootParams(bootParamsAddr: bootParamsAddr)
         } else if (signature == "EFI") {
-            print("Found EFI boot params")
+            print("bootparams: Found EFI boot params")
             params = EFIBootParams(bootParamsAddr: bootParamsAddr)
         } else {
-            print("Found unknown boot params: \(signature)")
+            print("bootparams: Found unknown boot params: \(signature)")
             stop()
         }
         guard params != nil else {
-            koops("BiosBootParams returned null")
+            koops("bootparams: BiosBootParams returned null")
         }
     }
 
@@ -239,7 +239,7 @@ struct BootParams {
 
         findHoles(&ranges)
         guard ranges.count > 0 else {
-            koops("No memory found")
+            koops("bootparams: No memory found")
         }
 
         // Find the last range. If it doesnt cover the frame buffer
@@ -255,7 +255,7 @@ struct BootParams {
             if (m.type == .BootServicesCode || m.type == .BootServicesData) {
                 continue
             }
-            print("\(params!.source): \(m)")
+            print("bootparams: \(params!.source): \(m)")
         }
 
         return ranges
@@ -302,7 +302,8 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
         let type: UInt32
 
         var description: String {
-            var desc = String.sprintf("%12X - %12X %4.4X", baseAddr, baseAddr + length - 1, type)
+            var desc = String.sprintf("%12X - %12X %4.4X", baseAddr,
+                baseAddr + length - 1, type)
             let size = UInt(length)
             if (size >= mb) {
                 desc += String.sprintf(" %6uMB  ", size / mb)
@@ -321,7 +322,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
 
         fileprivate func toMemoryRange() -> MemoryRange? {
             guard let e820type = E820Type(rawValue: self.type) else {
-                print("Invalid memory type: \(self.type)")
+                print("bootparams: Invalid memory type: \(self.type)")
                 return nil
             }
             var mtype: MemoryType
@@ -353,14 +354,14 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
     var smbios: UnsafePointer<smbios_header>?
 
     var description: String {
-        return "BiosBootParams has \(memoryRanges.count) ranges"
+        return "bootparams: BiosBootParams has \(memoryRanges.count) ranges"
     }
 
 
     init?(bootParamsAddr: UInt) {
         let sig = readSignature(bootParamsAddr)
         if sig == nil || sig! != "BIOS" {
-            print("boot_params are not BIOS")
+            print("bootparams: boot_params are not BIOS")
             return nil
         }
         let membuf = MemoryBufferReader(bootParamsAddr,
@@ -370,17 +371,17 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
             // FIXME: use bootParamsSize to size a buffer limit
             let bootParamsSize: UInt = try membuf.read()
             guard bootParamsSize > 0 else {
-                print("bootParamsSize = 0")
+                print("bootparams: bootParamsSize = 0")
                 return nil
             }
             kernelPhysAddress = try membuf.read()
-            printf("bootParamsSize = %ld kernelPhysAddress: %p\n", bootParamsSize,
-                kernelPhysAddress)
+            printf("bootParamsSize = %ld kernelPhysAddress: %p\n",
+                bootParamsSize, kernelPhysAddress)
 
             e820MapAddr = try membuf.read()
             e820Entries = try membuf.read()
         } catch {
-            koops("Cant read BIOS boot params")
+            koops("bootparams: Cant read BIOS boot params")
         }
     }
 
@@ -388,7 +389,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
     // FIXME - still needs to check for overlapping regions
     private func parseE820Table() -> [MemoryRange] {
         guard e820Entries > 0 && e820MapAddr > 0 else {
-            koops("e820 map is empty")
+            koops("E820: map is empty")
         }
         var ranges: [MemoryRange] = []
         ranges.reserveCapacity(Int(e820Entries))
@@ -396,7 +397,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
             size: MemoryLayout<E820MemoryRange>.stride * Int(e820Entries))
         for _ in 0..<e820Entries {
             if let entry: E820MemoryRange = try? buf.read() {
-                print(entry)
+                print("E820: ", entry)
                 if let memEntry = entry.toMemoryRange() {
                     ranges.append(memEntry)
                 }
@@ -404,11 +405,11 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
         }
 
         guard ranges.count > 0 else {
-            koops("Cant find any memory in the e820 map")
+            koops("E820: Cant find any memory in the e820 map")
         }
 
         let size = UInt(_kernel_end_addr - _kernel_start_addr)
-        printf("Kernel size: %lx\n", size)
+        printf("E820: Kernel size: %lx\n", size)
         ranges.append(MemoryRange(type: .Kernel, start: kernelPhysAddress,
                 size: size))
 
@@ -429,7 +430,8 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
     // Root System Description Pointer
     private func findRSDP() -> UnsafePointer<rsdp1_header>? {
         if let ebda = getEBDA() {
-            printf("ACPI: EBDA: %#8.8lx len: %#4.4lx\n", ebda.baseAddress!, ebda.count)
+            printf("ACPI: EBDA: %#8.8lx len: %#4.4lx\n", ebda.baseAddress!,
+                ebda.count)
             if let rsdp = scanForRSDP(ebda) {
                 return rsdp
             }
@@ -458,7 +460,8 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
         let rsdpAddr = UInt(ebda) * 16
 
         if rsdpAddr > 0x400 {
-            let region: ScanArea = mapPhysicalRegion(start: rsdpAddr, size: 1024)
+            let region: ScanArea = mapPhysicalRegion(start: rsdpAddr,
+                size: 1024)
             return region
         } else {
             return nil
@@ -533,7 +536,7 @@ struct EFIBootParams: BootParamsData {
                 numberOfPages = try descriptor.read()
                 attribute = try descriptor.read()
             } catch {
-                printf("Cant read descriptor at offset: %d\n", offset)
+                printf("EFI: Cant read descriptor at offset: %d\n", offset)
                 return nil
             }
         }
@@ -560,7 +563,6 @@ struct EFIBootParams: BootParamsData {
     private let descriptorSize: UInt
     private var configTables: [EFIConfigTableEntry]? = nil
 
-
     let source = "EFI"
     var memoryRanges: [MemoryRange] { return parseMemoryMap() }
     var frameBufferInfo: FrameBufferInfo?
@@ -572,7 +574,7 @@ struct EFIBootParams: BootParamsData {
     init?(bootParamsAddr: UInt) {
         let sig = readSignature(bootParamsAddr)
         if sig == nil || sig! != "EFI" {
-            print("boot_params are not EFI")
+            print("bootparams: boot_params are not EFI")
             return nil
         }
         let membuf = MemoryBufferReader(bootParamsAddr,
@@ -581,29 +583,29 @@ struct EFIBootParams: BootParamsData {
         do {
             let bootParamsSize: UInt = try membuf.read()
             guard bootParamsSize > 0 else {
-                print("bootParamsSize = 0")
+                print("bootparams: bootParamsSize = 0")
                 return nil
             }
             kernelPhysAddress = try membuf.read()
 
-            printf("bootParamsSize = %ld kernelPhysAddress: %p\n",
+            printf("bootparams: bootParamsSize = %ld kernelPhysAddress: %p\n",
                 bootParamsSize, kernelPhysAddress)
 
             memoryMapAddr = try membuf.read()
             memoryMapSize = try membuf.read()
             descriptorSize = try membuf.read()
-            print("reading frameBufferInfo")
+            print("bootparams: reading frameBufferInfo")
             frameBufferInfo = FrameBufferInfo(fb: try membuf.read())
             if let fb = frameBufferInfo {
                 print(fb)
             }
             configTableCount = try membuf.read()
-            print("reading ctp")
+            print("bootparams: reading ctp")
             configTablePtr = try membuf.read()
-            printf("configTableCopunt: %ld configTablePtr: %p\n",
+            printf("bootparams: configTableCount: %ld configTablePtr: %p\n",
                 configTableCount, configTablePtr)
         } catch {
-            koops("Cant read memory map settings")
+            koops("bootparams: Cant read memory map settings")
         }
     }
 
@@ -638,7 +640,7 @@ struct EFIBootParams: BootParamsData {
         for i in 0..<descriptorCount {
             descriptorBuf.offset = Int(descriptorSize * i)
             guard let descriptor = EFIMemoryDescriptor(descriptor: descriptorBuf) else {
-                print("Failed to read descriptor")
+                print("bootparams: Failed to read descriptor")
                 continue
             }
             //descriptors.append(descriptor)

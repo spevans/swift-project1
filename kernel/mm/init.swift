@@ -57,12 +57,7 @@ func setupMM() {
     let stackHeapSize = bssEnd - VirtualAddress(_stack_start_addr)
 
     // Enable No Execute so data mappings can be set XD (Execute Disable)
-    if CPU.enableNXE(true) {
-        print("CPU NXE enabled")
-    } else {
-        print("CPU NXE cant be enabled")
-    }
-
+    _ = CPU.enableNXE(true)
     CPU.setupPAT()
 
     // Add 4 mappings for text, rodata, data + bss and the stack
@@ -70,7 +65,7 @@ func setupMM() {
     // BSS and stack that isnt mapped.
     // FIXME: Dont waste the physical page that is not mapped under
     // the guard page
-    printf("_text:   %p - %p\n_rodata: %p - %p\n_data:   %p - %p\n",
+    printf("MM: _text: %p - %p\nMM: _rodata: %p - %p\nMM: _data: %p - %p\n",
         _kernel_start_addr, _kernel_start_addr + textSize - 1,
         _rodata_start_addr, _rodata_start_addr + rodataSize - 1,
         _data_start_addr, _data_start_addr + dataSize - 1)
@@ -86,26 +81,27 @@ func setupMM() {
         noExec: true)
 
     addMapping(start: _stack_start_addr, size: stackHeapSize,
-        physStart: kernelPhysBase + textSize + rodataSize + dataSize + PAGE_SIZE,
-        readWrite: true, noExec: true)
+        physStart: kernelPhysBase + textSize + rodataSize + dataSize
+            + PAGE_SIZE, readWrite: true, noExec: true)
 
-    printf("Physical address of kernelBase (%p): (%p)\n", kernelBase,
+    printf("MM: Physical address of kernelBase (%p): (%p)\n", kernelBase,
         kernelPhysAddress(kernelBase))
-    printf("Physical address of rodata (%p):     (%p)\n", kernelBase + textSize,
-        kernelPhysAddress(kernelBase + textSize))
-    printf("Physical address of data (%p):       (%p)\n",
+    printf("MM: Physical address of rodata (%p):     (%p)\n",
+        kernelBase + textSize, kernelPhysAddress(kernelBase + textSize))
+    printf("MM: Physical address of data (%p):       (%p)\n",
         kernelBase + textSize + rodataSize,
         kernelPhysAddress(kernelBase + textSize + rodataSize))
-    printf("Physical address of stack and heap (%p): (%p)\n",
+    printf("MM: Physical address of stack and heap (%p): (%p)\n",
         kernelBase + textSize + rodataSize + dataSize + PAGE_SIZE,
-        kernelPhysAddress(kernelBase + textSize + rodataSize + dataSize + PAGE_SIZE))
+        kernelPhysAddress(kernelBase + textSize + rodataSize + dataSize
+                + PAGE_SIZE))
 
     mapPhysicalMemory(BootParams.highestMemoryAddress)
     let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_addr))
-    printf("Updating CR3 to %p\n", pml4paddr)
+    printf("MM: Updating CR3 to %p\n", pml4paddr)
     setCR3(pml4paddr)
     CPU.enableWP(true)
-    printf("CR3 Updated to %p\n", pml4paddr)
+    printf("MM: CR3 Updated to %p\n", pml4paddr)
 }
 
 
@@ -141,20 +137,20 @@ private func mapPhysicalMemory(_ maxAddress: PhysAddress) {
     var inc: UInt = 0
     var mapper: (UInt, PhysAddress) -> ()
 
-    printf("Mapping physical memory from 0 - %p\n", maxAddress)
+    printf("MM: Mapping physical memory from 0 - %p\n", maxAddress)
     // Map physical memory using 1GB pages if available else 2MB pages
     if CPU.capabilities.pages1G {
         inc = 0x40000000    // 1GB
-        printf("Using 1GB mappings: ")
+        printf("MM: Using 1GB mappings: ")
         mapper = add1GBMapping
     } else {
         inc = 0x200000      // 2MB
         mapper = add2MBMapping
-        printf("Using 2MB mappings: ")
+        printf("MM: Using 2MB mappings: ")
     }
 
     let pages = (UInt(maxAddress) + (inc - 1)) / inc
-    printf("Mapping %u pages of size %#lx\n", pages, inc)
+    printf("MM: Mapping %u pages of size %#lx\n", pages, inc)
     var vaddr = UInt(PHYSICAL_MEM_BASE)
     var paddr: PhysAddress = 0
 
@@ -163,7 +159,7 @@ private func mapPhysicalMemory(_ maxAddress: PhysAddress) {
         vaddr += inc
         paddr += inc
     }
-    printf("Added mappings upto: %p [%p]\n", vaddr, paddr)
+    printf("MM: Added mappings upto: %p [%p]\n", vaddr, paddr)
 }
 
 
@@ -172,7 +168,8 @@ private func roundToPage(_ size: UInt) -> UInt {
 }
 
 
-private func getPageAtIndex(_ dirPage: PageTableDirectory, _ idx: Int) -> PageTableDirectory {
+private func getPageAtIndex(_ dirPage: PageTableDirectory, _ idx: Int)
+    -> PageTableDirectory {
     if !pagePresent(dirPage[idx]) {
         // FIXME: should call a swift func for alloc_pages()
         let newPage = alloc_pages(1)
@@ -230,13 +227,14 @@ func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
                 largePage: false, PAT: pat)
             ptPage[idx3] = entry
         } else {
-            koops("page is already present!")
+            koops("MM: page is already present!")
         }
 
         addr += PAGE_SIZE
         physAddress += PAGE_SIZE
     }
-    printf("Added kernel mapping from %p-%p [%p-%p]\n", start, endAddress, physStart, physAddress - 1)
+    printf("MM: Added kernel mapping from %p-%p [%p-%p]\n", start, endAddress,
+        physStart, physAddress - 1)
 }
 
 
@@ -249,12 +247,12 @@ private func add2MBMapping(_ addr: VirtualAddress, physAddress: PhysAddress) {
     let pdPage = getPageAtIndex(pdpPage, idx1)
 
     if !pagePresent(pdPage[idx2]) {
-        let entry = makePTE(address: physAddress, readWrite: true, userAccess: false,
-            writeThrough: true, cacheDisable: false, global: false, noExec: true,
-            largePage: true, PAT: false)
+        let entry = makePTE(address: physAddress, readWrite: true,
+            userAccess: false, writeThrough: true, cacheDisable: false,
+            global: false, noExec: true, largePage: true, PAT: false)
         pdPage[idx2] = entry
     } else {
-        koops("2MB mapping cant be added, already present")
+        koops("MM: 2MB mapping cant be added, already present")
     }
 }
 
@@ -265,11 +263,11 @@ private func add1GBMapping(_ addr: VirtualAddress, physAddress: PhysAddress) {
 
     let pdpPage = getPageAtIndex(pmlPage, idx0)
     if !pagePresent(pdpPage[idx1]) {
-        let entry = makePTE(address: physAddress, readWrite: true, userAccess: false,
-            writeThrough: true, cacheDisable: false, global: false, noExec: true,
-            largePage: true, PAT: false)
+        let entry = makePTE(address: physAddress, readWrite: true,
+            userAccess: false, writeThrough: true, cacheDisable: false,
+            global: false, noExec: true, largePage: true, PAT: false)
         pdpPage[idx1] = entry
     } else {
-        koops("1GB mapping cant be added, already present")
+        koops("MM: 1GB mapping cant be added, already present")
     }
 }

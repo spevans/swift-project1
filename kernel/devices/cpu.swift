@@ -93,7 +93,7 @@ struct CPUID: CustomStringConvertible {
     var description: String {
         var str = String.sprintf("CPU: maxBI: %#x maxEI: %#x\n", maxBasicInput,
             maxExtendedInput)
-        str += "CPU: [\(vendorName)] [\(processorBrandString)]\n"
+        str += "CPU: [\(vendorName)] [\(processorBrandString)]\nCPU: "
         if pages1G     { str += "1GPages "     }
         if msr         { str += "msr "         }
         if IA32_EFER   { str += "IA32_EFER "   }
@@ -107,7 +107,7 @@ struct CPUID: CustomStringConvertible {
         if syscall     { str += "syscall "     }
         if mtrr        { str += "mtrr "        }
         if pat         { str += "pat "         }
-        str += "\nCPU: APIDId: \(APICId)\n"
+        str += "\nCPU: APIDId: \(APICId)"
 
         return str
     }
@@ -185,8 +185,10 @@ struct CPU {
             var (eax, edx) = readMSR(0xC0000080)
             eax |= 1 << 11
             writeMSR(0xC0000080, eax, edx)
+            print("CPU: NXE enabled")
             return true
         }
+        print("CPU: NXE cant be enabled")
         return false
     }
 
@@ -227,9 +229,9 @@ struct CPU {
         let newPat = readMSR(0x277).toBytes().map {
             PATEntry(rawValue: $0)!
         }
-        print("Page Attribute Table:")
+        print("CPU: Page Attribute Table:")
         for idx in 0..<8 {
-            print("\(idx): \(newPat[idx])")
+            print("CPU: \(idx): \(newPat[idx])")
         }
     }
 

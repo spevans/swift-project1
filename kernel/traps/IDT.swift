@@ -52,8 +52,8 @@ func setupIDT() {
     irqController.disableAllIRQs()
 
     func printIDT(_ msg: String, _ idt: dt_info) {
-        print(msg, terminator: "")
-        printf(" IDTInfo: %p/%u\n", UInt(bitPattern: idt.base), idt.limit)
+        print("IDT: ", msg, terminator: "")
+        printf(": Info: %p/%u\n", UInt(bitPattern: idt.base), idt.limit)
     }
 
     var currentIdtInfo = dt_info(limit: 0, base: nil)
@@ -124,9 +124,6 @@ func setupIDT() {
     // Below is not needed except to validate that the setup worked ok and test some exceptions
     sidt(&currentIdtInfo)
     printIDT("New", currentIdtInfo)
-    print("Testing Breakpoint:")
+    print("IDT: Testing Breakpoint:")
     test_breakpoint()
-    // Test Null page read fault
-    //let p = UnsafePointer<UInt8>(bitPattern: 0x123)
-    //print("Null: \(p.memory)")
 }

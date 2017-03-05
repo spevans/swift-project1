@@ -11,7 +11,7 @@
 
 @_silgen_name("startup")
 public func startup(bootParams: UInt) {
-    printf("bootParams: %p\n", bootParams)
+    printf("kernel: bootParams: %p\n", bootParams)
     // BootParams must come first to get framebuffer and kernel address
     BootParams.parse(bootParams)
     setupGDT()
@@ -19,18 +19,18 @@ public func startup(bootParams: UInt) {
     setupIDT()
     CPU.getInfo()
     TTY.sharedInstance.setTTY(frameBufferInfo: BootParams.frameBufferInfo)
-    printf("Highest Address: %p kernel phys address: %p\n",
+    printf("kernel: Highest Address: %p kernel phys address: %p\n",
         BootParams.highestMemoryAddress, BootParams.kernelAddress)
     BootParams.findTables()
     printSections()
     initialiseDevices()
-    print("Hello world")
+    print("kernel: Hello world")
 
     TTY.sharedInstance.scrollTimingTest()
     _ = addTask(task: mainLoop)
     _ = addTask(task: keyboardInput)
     run_first_task()
-    koops("Shouldnt get here")
+    koops("kernel: Shouldnt get here")
 }
 
 
@@ -82,15 +82,15 @@ func benchmark(_ function: () -> ()) -> UInt64 {
 
 
 func printSections() {
-    print("_text_start:   ", asHex(_text_start_addr))
-    print("_text_end:     ", asHex(_text_end_addr))
-    print("_data_start:   ", asHex(_data_start_addr))
-    print("_data_end:     ", asHex(_data_end_addr))
-    print("_bss_start:    ", asHex(_bss_start_addr))
-    print("_bss_end:      ", asHex(_bss_end_addr))
-    print("_kernel_start: ", asHex(_kernel_start_addr))
-    print("_kernel_end:   ", asHex(_kernel_end_addr))
-    print("_guard_page:   ", asHex(_guard_page_addr))
-    print("_stack_start:  ", asHex(_stack_start_addr))
-    print("initial_pml4:  ", asHex(initial_pml4_addr))
+    print("kernel: _text_start:   ", asHex(_text_start_addr))
+    print("kernel: _text_end:     ", asHex(_text_end_addr))
+    print("kernel: _data_start:   ", asHex(_data_start_addr))
+    print("kernel: _data_end:     ", asHex(_data_end_addr))
+    print("kernel: _bss_start:    ", asHex(_bss_start_addr))
+    print("kernel: _bss_end:      ", asHex(_bss_end_addr))
+    print("kernel: _kernel_start: ", asHex(_kernel_start_addr))
+    print("kernel: _kernel_end:   ", asHex(_kernel_end_addr))
+    print("kernel: _guard_page:   ", asHex(_guard_page_addr))
+    print("kernel: _stack_start:  ", asHex(_stack_start_addr))
+    print("kernel: initial_pml4:  ", asHex(initial_pml4_addr))
 }

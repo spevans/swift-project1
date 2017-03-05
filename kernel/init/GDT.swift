@@ -59,14 +59,14 @@ private struct theGDT {
 
 
 func setupGDT() {
-    print("Initialising GDT:")
+    print("GDT: Initialising..")
     // The TLS points back to itself so set the address
     let tlsPtr = initial_tls_end_addr.bindMemory(to: UInt.self, capacity: 1)
     tlsPtr.pointee = UInt(bitPattern: initial_tls_end_addr)
 
     func printGDT(_ msg: String, _ gdt: dt_info) {
-        print(msg, terminator: "")
-        printf(" GDTInfo: %p/%u\n", UInt(bitPattern: gdt.base), gdt.limit)
+        print("GDT:", msg, terminator: "")
+        printf(": Info: %p/%u\n", UInt(bitPattern: gdt.base), gdt.limit)
     }
 
     var currentGdtInfo = dt_info(limit: 0, base: nil)
