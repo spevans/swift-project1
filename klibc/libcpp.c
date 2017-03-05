@@ -134,6 +134,12 @@ _ZNSt8ios_base4InitC1Ev()
 
 UNIMPLEMENTED(_ZNSt8ios_base4InitD1Ev) // std::ios_base::Init::~Init()
 
+// std::thread::hardware_concurrency()
+// see also misc.c:sysconf()
+int _ZNSt6thread20hardware_concurrencyEv()
+{
+        return 1;
+}
 
 // Unused
 #if 0
