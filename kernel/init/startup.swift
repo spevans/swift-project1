@@ -28,7 +28,7 @@ public func startup(bootParams: UInt) {
 
     TTY.sharedInstance.scrollTimingTest()
     _ = addTask(task: mainLoop)
-    runTasks()
+    _ = addTask(task: keyboardInput)
     run_first_task()
     koops("Shouldnt get here")
 }
@@ -45,12 +45,31 @@ private func mainLoop() {
 }
 
 
+private func keyboardInput() {
+    guard let kbd = KBD8042.sharedInstance?.keyboardDevice else {
+        koops("No keyboard!")
+    }
+
+    let tty = TTY.sharedInstance
+
+    print("> ", terminator: "")
+    while true {
+        while let char = kbd.readKeyboard() {
+            if char.isASCII {
+                tty.printChar(CChar(truncatingBitPattern: char.value))
+            } else {
+                print("\(char) is not ASCII\n")
+            }
+        }
+    }
+}
+
+
 private let timer = PIT8254.sharedInstance
 private func initialiseDevices() {
     // Set the timer interrupt for 200Hz
     timer.setChannel(.CHANNEL_0, mode: .MODE_3, hz: 20)
     print(timer)
-    KBD8042.initKbd()
     PCI.scan()
 }
 

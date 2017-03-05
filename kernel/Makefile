@@ -9,6 +9,7 @@ SWIFT_SRCS :=	init/startup.swift		\
 		init/GDT.swift			\
 		klib/Extensions.swift		\
 		klib/MemoryBufferReader.swift	\
+		klib/CircularBuffer.swift	\
 		mm/init.swift			\
 		mm/page.swift			\
 		devices/acpi.swift		\
@@ -18,6 +19,7 @@ SWIFT_SRCS :=	init/startup.swift		\
 		devices/PCI.swift		\
 		devices/tty.swift		\
 		devices/kbd8042.swift		\
+		devices/ps2keyboard.swift	\
 		devices/pit8254.swift		\
 		devices/pic8259.swift		\
 		traps/exceptions.swift		\

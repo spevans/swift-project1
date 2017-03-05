@@ -4,10 +4,11 @@
  * Created by Simon Evans on 30/04/2016.
  * Copyright © 2016 Simon Evans. All rights reserved.
  *
- * Simple initial task switching with 2 tasks that print to the screen
+ * Simple initial task switching
  * Task switching is done in entry.asm:_irq_handler for now.
  * yield() just round robins to the next task
  * Currently NO locking, atomics or any safety, just the
+ *
  */
 
 
@@ -17,12 +18,6 @@ private var tasks: [Task] = []
 private var currentTask = 0
 private var nextTask = 0
 private var nextPID: UInt = 1
-
-
-func runTasks() {
-    addTask(task: testTaskA)
-    addTask(task: testTaskB)
-}
 
 
 @discardableResult
@@ -35,10 +30,11 @@ func addTask(task: @escaping @convention(c)() -> ()) -> UInt {
 }
 
 
-func noInterrupt(_ task: () -> ()) {
+func noInterrupt<Result>(_ task: () -> Result) -> Result {
     let flags = local_irq_save()
-    task()
+    let result: Result = task()
     load_eflags(flags)
+    return result
 }
 
 
@@ -68,28 +64,6 @@ public func yield() -> Int {
         nextTask = (currentTask + 1) % tasks.count
     }
     return 0
-}
-
-
-private func testTaskA() {
-    let ch = "A"
-    while true {
-        for _ in 1...5 {
-            TTY.sharedInstance.printString(ch)
-        }
-        yield()
-    }
-}
-
-
-private func testTaskB() {
-    let ch = "B"
-    while true {
-        for _ in 1...5 {
-            TTY.sharedInstance.printString(ch)
-        }
-        yield()
-    }
 }
 
 

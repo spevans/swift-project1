@@ -4,12 +4,37 @@
  * Created by Simon Evans on 08/01/2016.
  * Copyright © 2016 Simon Evans. All rights reserved.
  *
- * 8042 PS/2 keyboard controller
+ * 8042 PS/2 keyboard/mouse controller
  *
  */
 
+// FIXME: Need to get mouse (aux port) working correctly under QEMU
+// including irq12 and stop input bytes from mouse showing up as
+// keyscan codes
 
-struct KBD8042 {
+
+protocol PS2Device {
+    init(buffer: CircularBuffer<UInt8>)
+}
+
+
+class KBD8042 {
+    // singleton
+    static let sharedInstance = KBD8042()
+
+    // Constants
+    static private let DATA_PORT:        UInt16 = 0x60
+    static private let STATUS_REGISTER:  UInt16 = 0x64
+    static private let COMMAND_REGISTER: UInt16 = 0x64
+
+    /* Bits for the KB_KBD_SET_LEDS command. */
+    static private let KB_LED_SCROLL_LOCK:  UInt8 = 0x01
+    static private let KB_LED_NUM_LOCK:     UInt8 = 0x02
+    static private let KB_LED_CAPS_LOCK:    UInt8 = 0x04
+
+    static private let I8042_BUFFER_SIZE = 16
+    static private let POLL_LOOP_COUNT = 0x1000
+
 
     private struct StatusRegister {
         var status: UInt8
@@ -35,7 +60,7 @@ struct KBD8042 {
         var parityError:   Bool { return bit(ParityError) }
 
         init() {
-            status = inb(STATUS_REGISTER)
+            status = inb(KBD8042.STATUS_REGISTER)
         }
     }
 
@@ -147,30 +172,22 @@ struct KBD8042 {
     }
 
 
-    static private let DATA_PORT:        UInt16 = 0x60
-    static private let STATUS_REGISTER:  UInt16 = 0x64
-    static private let COMMAND_REGISTER: UInt16 = 0x64
-
-    /* Bits for the KB_KBD_SET_LEDS command. */
-    static private let KB_LED_SCROLL_LOCK:  UInt8 = 0x01
-    static private let KB_LED_NUM_LOCK:     UInt8 = 0x02
-    static private let KB_LED_CAPS_LOCK:    UInt8 = 0x04
-
-    static private let I8042_BUFFER_SIZE = 16
-    static private let POLL_LOOP_COUNT = 0x1000
-    static private(set) var dualChannel: Bool = false
+    private var dualChannel: Bool = false
+    private var keyboardBuffer = CircularBuffer<UInt8>(item: 0, capacity: 16)
+    private var port1device: PS2Device? = nil
+    private var port2device: PS2Device? = nil
 
 
-    static func initKbd() {
+    init?() {
         if BootParams.vendor == "Apple Inc." {
             print("i8042: Skipping on:", BootParams.vendor)
-            return
+            return nil
         }
 
         // 1. Flush output buffer
         if flushOutput() == false { // No device
             print("i8042: Cant find i8042")
-            return
+            return nil
         }
 
         // 2. Disable devices
@@ -188,10 +205,12 @@ struct KBD8042 {
             command.interrupt1 = false
             command.interrupt2 = false
             command.translateEnable = false
+            command.port2Disable = true
             sendCommand(.WriteCommandByte, data: command.rawValue)
+            //sendCommand(.Disable2ndPort)
         } else {
             print("i8042: Cant get command byte")
-            return
+            return nil
         }
 
         // 4. Send POST to controller
@@ -200,7 +219,7 @@ struct KBD8042 {
                 print("i8042: POST ok")
             } else {
                 printf("i8042: POST returned: %X\n", postResult)
-                return
+                return nil
             }
         } else {
             print("i8042: cant send POST")
@@ -225,8 +244,10 @@ struct KBD8042 {
         if let cmdByte = sendCommandGetResponse(.ReadCommandByte) {
             var command = CommandRegister(rawValue: cmdByte)
             command.interrupt1 = true
+            command.interrupt2 = true
             sendCommand(.WriteCommandByte, data: command.rawValue)
         }
+
         // 7. Reset
         if sendCommand1stPort(.ResetAndSelfTest) {
             if let resp = getResponse() {
@@ -248,29 +269,48 @@ struct KBD8042 {
         }
 
         flushOutput()
+        keyboardBuffer.clear()
+        port1device = PS2Keyboard(buffer: keyboardBuffer)
         setIrqHandler(1, handler: kbdInterrupt)
+        if dualChannel {
+            port2device = nil
+            setIrqHandler(12, handler: mouseInterrupt)
+        } else {
+            port2device = nil
+        }
         print("i8042: kbd initialised")
     }
 
 
-    private static func readStatus() -> StatusRegister {
+    public var keyboardDevice: Keyboard? {
+        if let kbd = port1device as? Keyboard {
+            return kbd
+        }
+        if let kbd = port2device as? Keyboard {
+            return kbd
+        }
+        return nil
+    }
+
+
+    private func readStatus() -> StatusRegister {
         return StatusRegister()
     }
 
 
-    private static func readData() -> UInt8 {
-        return inb(DATA_PORT)
+    private func readData() -> UInt8 {
+        return inb(KBD8042.DATA_PORT)
     }
 
 
-    private static func writeData(_ data: UInt8) {
-        outb(DATA_PORT, data)
+    private func writeData(_ data: UInt8) {
+        outb(KBD8042.DATA_PORT, data)
     }
 
 
     // Wait until the input buffer of the 8042 has data
-    static func waitForInput() -> Bool {
-        for _ in 1...POLL_LOOP_COUNT {
+    private func waitForInput() -> Bool {
+        for _ in 1...KBD8042.POLL_LOOP_COUNT {
             if readStatus().inputFull {
                 return true
             }
@@ -279,8 +319,8 @@ struct KBD8042 {
     }
 
 
-    static func waitForInputEmpty() -> Bool {
-        for _ in 1...POLL_LOOP_COUNT {
+    private func waitForInputEmpty() -> Bool {
+        for _ in 1...KBD8042.POLL_LOOP_COUNT {
             if !readStatus().inputFull {
                 return true
             }
@@ -291,8 +331,8 @@ struct KBD8042 {
 
     // returns true if controller flushed ok
     @discardableResult
-    static func flushOutput() -> Bool {
-        var count = I8042_BUFFER_SIZE
+    private func flushOutput() -> Bool {
+        var count = KBD8042.I8042_BUFFER_SIZE
         while count >= 0 && readStatus().outputFull {
             count -= 1
             _ = readData()
@@ -302,8 +342,8 @@ struct KBD8042 {
 
 
     // Wait until the output buffer of the 8042 is empty
-    static func waitForOutputEmpty() -> Bool {
-        for _ in 1...POLL_LOOP_COUNT {
+    private func waitForOutputEmpty() -> Bool {
+        for _ in 1...KBD8042.POLL_LOOP_COUNT {
             if !readStatus().outputFull {
                 return true
             }
@@ -312,8 +352,8 @@ struct KBD8042 {
     }
 
 
-    static func waitForOutput() -> Bool {
-        for _ in 1...POLL_LOOP_COUNT {
+    private func waitForOutput() -> Bool {
+        for _ in 1...KBD8042.POLL_LOOP_COUNT {
             if readStatus().outputFull {
                 return true
             }
@@ -323,9 +363,9 @@ struct KBD8042 {
 
 
     @discardableResult
-    static func sendCommand(_ cmd: I8042Command) -> Bool {
+    private func sendCommand(_ cmd: I8042Command) -> Bool {
         if waitForInputEmpty() {
-            outb(COMMAND_REGISTER, cmd.rawValue)
+            outb(KBD8042.COMMAND_REGISTER, cmd.rawValue)
             return true
         } else {
             print("i8042: Error sending command:", cmd)
@@ -335,7 +375,7 @@ struct KBD8042 {
 
 
     @discardableResult
-    static func sendCommand(_ cmd: I8042Command, data: UInt8) -> Bool {
+    private func sendCommand(_ cmd: I8042Command, data: UInt8) -> Bool {
         if sendCommand(cmd) {
             writeData(data)
             return true
@@ -345,7 +385,7 @@ struct KBD8042 {
     }
 
 
-    static func getResponse() -> UInt8? {
+    private func getResponse() -> UInt8? {
         if waitForOutput() {
             return readData()
         }
@@ -354,7 +394,7 @@ struct KBD8042 {
     }
 
 
-    static func sendCommandGetResponse(_ cmd: I8042Command) -> UInt8? {
+    private func sendCommandGetResponse(_ cmd: I8042Command) -> UInt8? {
         if sendCommand(cmd) {
             return getResponse()
         }
@@ -364,7 +404,7 @@ struct KBD8042 {
     }
 
 
-    static func sendData1stPort(_ data: UInt8) -> Bool {
+    private func sendData1stPort(_ data: UInt8) -> Bool {
         if waitForInputEmpty() {
             writeData(data)
             if waitForOutput() {
@@ -387,13 +427,13 @@ struct KBD8042 {
 
 
     @discardableResult
-    static func sendCommand1stPort(_ cmd: PS2KeyboardCommand) -> Bool {
+    private func sendCommand1stPort(_ cmd: PS2KeyboardCommand) -> Bool {
         return sendData1stPort(cmd.rawValue)
     }
 
 
     @discardableResult
-    static func sendCommand1stPort(_ cmd: PS2KeyboardCommand, data: UInt8) -> Bool {
+    private func sendCommand1stPort(_ cmd: PS2KeyboardCommand, data: UInt8) -> Bool {
         if sendCommand1stPort(cmd) {
             if sendData1stPort(data) {
                 return true
@@ -403,93 +443,27 @@ struct KBD8042 {
     }
 
 
-    static func sendCommand2ndPort(cmd: PS2KeyboardCommand) -> Bool{
+    private func sendCommand2ndPort(cmd: PS2KeyboardCommand) -> Bool{
         sendCommand(.Write2ndPortOutput)
         return sendCommand1stPort(cmd)
     }
 
 
-    enum E0_ScanCodes: UInt8 {
-    case Slash          = 0x4A
-    case PrintScreen    = 0x36
-    case RightAlt       = 0x6A
-    case RightCtrl      = 0x14
-    case Break          = 0x3E
-    case Home           = 0x6C
-    case Up             = 0x75
-    case PageUp         = 0x7d
-    case Left           = 0x6b
-    case Right          = 0x74
-    case End            = 0x69
-    case Down           = 0x72
-    case PageDown       = 0x7A
-    case Insert         = 0x52
-    case Delete         = 0x71
-    case Pause          = 0x77
-    }
-
-
-    private static var prevScanCode: UInt16 = 0
-    private static var breakCode: UInt8 = 0
-
-    static func readKeyboard() {
+    private func kbdInterrupt(irq: Int) {
+        //kprint("kbdInterrupt\n")
         sendCommand(.Disable1stPort)
         while readStatus().outputFull {
             let scanCode = readData()
-            kprint("kbd: scanCode:")
-            kprint_byte(scanCode)
-            kprint("\n")
-
-
-            if scanCode == 0xf0 {
-                breakCode = 0xff
-                continue
-            }
-
-            if scanCode == 0xe0 || scanCode == 0xe1 {
-                prevScanCode = UInt16(scanCode)
-            } else {
-                var keyCode = scanCode & 0x7f
-                let upCode = breakCode | (scanCode & 0x80)
-                breakCode = 0
-                if prevScanCode == 0xe0 {
-                    if keyCode != 0x2a && keyCode != 0x36 {
-                        if let key = E0_ScanCodes(rawValue: keyCode) {
-                            keyCode = key.rawValue
-                        } else {
-                            keyCode = 0
-                        }
-                    } else {
-                        kprint("kbd: Ignoring E0 sequence (")
-                        kprint_word(prevScanCode)
-                        kprint(" ")
-                        kprint_byte(keyCode)
-                        kprint("\n")
-                        keyCode = 0
-                    }
-                    prevScanCode = 0
-                } else if prevScanCode == 0xe1 && keyCode == 0x1d {
-                    keyCode = 0
-                    prevScanCode = 0x100
-                } else if prevScanCode == 0x100 && keyCode == 0x45 {
-                    keyCode = E0_ScanCodes.Pause.rawValue
-                    prevScanCode = 0
-                }
-                kprint("kbd: keyCode: ")
-                kprint_byte(keyCode)
-                kprint(upCode != 0 ? ", Up\n" : ", Down\n")
+            if (keyboardBuffer.add(scanCode) == false) {
+                kprint("kbd: Keyboard buffer full\n")
             }
         }
         sendCommand(.Enable1stPort)
+        //kprint("EOKI\n")
     }
-}
 
-
-func kbdInterrupt(irq: Int) {
-    KBD8042.readKeyboard()
-}
-
-
-func mouseInterrupt(irq: Int) {
-    KBD8042.readKeyboard()
+    private func mouseInterrupt(irq: Int) {
+        kprint("mouseInterrupt\n")
+        kprint("EOMI\n")
+    }
 }
