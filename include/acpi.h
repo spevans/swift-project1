@@ -106,4 +106,12 @@ struct acpi_facp_table {
         uint8_t hypervisor_vendor_id[8];
 } __attribute__((packed));
 
+
+// Multiple APIC Description Table (MADT)
+struct acpi_madt_table {
+        struct acpi_sdt_header header; // 'APIC' signature
+        uint32_t local_int_controller_addr;
+        uint32_t multiple_apic_flags;
+} __attribute__((packed));
+
 #endif  // __ACPI_H__

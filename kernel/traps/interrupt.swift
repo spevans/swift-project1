@@ -21,7 +21,15 @@ protocol InterruptController {
 }
 
 
-let irqController = PIC8259.sharedInstance
+let irqController: InterruptController = {
+    print("getting irqController")
+    guard let controller: InterruptController = PIC8259.sharedInstance else {
+        fatalError("Cannot initialise IRQ controller")
+    }
+    print("kernel: Using \(controller.self) as interrupt controller")
+    return controller
+}()
+
 private var irqHandlers: [IRQHandler] = Array(repeating: unexpectedInterrupt,
     count: NR_IRQS)
 

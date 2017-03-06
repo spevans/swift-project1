@@ -120,10 +120,9 @@ private func makeString(_ rawPtr: UnsafeRawPointer, maxLength: Int) -> String {
 
 
 struct ACPI {
-
     private(set) var mcfg: MCFG?
     private(set) var facp: FACP?
-
+    private(set) var madt: MADT?
 
     init?(rsdp: UnsafeRawPointer) {
         let rsdtPtr = findRSDT(rsdp)
@@ -134,7 +133,8 @@ struct ACPI {
 
         for entry in entries {
             let rawSDTPtr = mkSDTPtr(UInt(entry))
-            let ptr = rawSDTPtr.bindMemory(to: acpi_sdt_header.self, capacity: 1)
+            let ptr = rawSDTPtr.bindMemory(to: acpi_sdt_header.self,
+                capacity: 1)
             let header = ACPI_SDT(ptr: ptr)
             guard checksum(ptr, size: Int(ptr.pointee.length)) == 0 else {
                 printf("ACPI: Entry @ %p has bad chksum\n", ptr)
@@ -148,9 +148,17 @@ struct ACPI {
                 print("ACPI: found MCFG")
 
             case "FACP":
-                let ptr = rawSDTPtr.bindMemory(to: acpi_facp_table.self, capacity: 1)
+                let ptr = rawSDTPtr.bindMemory(to: acpi_facp_table.self,
+                    capacity: 1)
                 facp = FACP(acpiHeader: header, ptr: ptr)
                 print("ACPI: found FACP")
+
+            case "APIC":
+                let ptr = rawSDTPtr.bindMemory(to: acpi_madt_table.self,
+                    capacity: 1)
+                madt = MADT(acpiHeader: header, ptr: ptr)
+                print("ACPI: found MADT")
+                print("ACPI:", madt!)
 
             default:
                 print("ACPI: Unknown table type: \(header.signature)")
@@ -201,10 +209,12 @@ struct ACPI {
             if rsdtAddr == 0 {
                 rsdtAddr = UInt(rsdp2Ptr.pointee.rsdp1.rsdt_addr)
             }
-            //let csum = checksum(UnsafePointer<UInt8>(rsdp2Ptr), size: strideof(RSDP2))
+            //let csum = checksum(UnsafePointer<UInt8>(rsdp2Ptr),
+            // size: strideof(RSDP2))
         } else {
             rsdtAddr = UInt(rsdpPtr.pointee.rsdt_addr)
-            //let csum = checksum(UnsafePointer<UInt8>(rsdpPtr), size: strideof(RSDP1))
+            //let csum = checksum(UnsafePointer<UInt8>(rsdpPtr),
+            //size: strideof(RSDP1))
         }
         return mkSDTPtr(rsdtAddr)
     }

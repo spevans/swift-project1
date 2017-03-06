@@ -52,9 +52,19 @@ extension UInt16 {
 
 
 extension UInt32 {
+    init(byte3: UInt8, byte2: UInt8, byte1: UInt8, byte0: UInt8) {
+        self = UInt32(byte3) << 24 | UInt32(byte2) << 16 | UInt32(byte1) << 8
+        self |= UInt32(byte0)
+    }
+
     func bit(_ bit: UInt32) -> Bool {
         return self & (1 << bit) != 0
     }
+
+    func bit(_ bit: Int) -> Bool {
+        return self & (1 << UInt32(bit)) != 0
+    }
+
 }
 
 
@@ -83,6 +93,10 @@ extension UInt64 {
         | UInt64(bytes[2]) << 16 | UInt64(bytes[3]) << 24
         | UInt64(bytes[4]) << 32 | UInt64(bytes[5]) << 40
         | UInt64(bytes[6]) << 48 | UInt64(bytes[7]) << 56
+    }
+
+    func bit(_ bit: UInt64) -> Bool {
+        return self & (1 << bit) != 0
     }
 }
 

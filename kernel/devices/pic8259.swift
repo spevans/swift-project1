@@ -39,7 +39,11 @@ class PIC8259: InterruptController {
     private let CASCADE_IRQ:     UInt8 = 0x02    // PIC2 is at IRQ2 on PIC1
 
 
-    private init() {
+    fileprivate init?() {
+        guard BootParams.acpiTables?.madt?.hasCompatDual8259 == true else {
+            print("PIC8259: Not installed")
+            return nil
+        }
         // Disable all IRQs
         disableAllIRQs()
         rebaseIRQs()
