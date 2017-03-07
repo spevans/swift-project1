@@ -17,6 +17,7 @@ struct CPUID: CustomStringConvertible {
 
     let cpuid01: cpuid_result
     let cpuid80000001: cpuid_result
+    let cpuid80000008: cpuid_result
 
     var APICId:      UInt8 { return UInt8(cpuid01.u.regs.ebx >> 24) }
     var sse3:        Bool { return cpuid01.u.regs.ecx.bit(0) }
@@ -89,6 +90,14 @@ struct CPUID: CustomStringConvertible {
     var pages1G:     Bool { return cpuid80000001.u.regs.edx.bit(26) }
     var IA32_EFER:   Bool { return cpuid80000001.u.regs.edx.bit(29) }
 
+    var maxPhyAddrBits: UInt {
+        let max = UInt(cpuid80000008.u.regs.eax & 0xff)
+        if max > 0 {
+            return max
+        } else {
+            return 36
+        }
+    }
 
     var description: String {
         var str = String.sprintf("CPU: maxBI: %#x maxEI: %#x\n", maxBasicInput,
@@ -134,6 +143,14 @@ struct CPUID: CustomStringConvertible {
             cpuid80000001 = info
         } else {
             cpuid80000001 = cpuid_result()
+        }
+
+        // Physical & Virtual address size information
+        if (maxExtendedInput >= 0x80000008) {
+            cpuid(0x80000008, &info)
+            cpuid80000008 = info
+        } else {
+            cpuid80000008 = cpuid_result()
         }
 
         if (maxExtendedInput >= 0x80000004) {
@@ -236,21 +253,21 @@ struct CPU {
     }
 
 
-    private static func readMSR(_ msr: UInt32) -> (UInt32, UInt32) {
+    static func readMSR(_ msr: UInt32) -> (UInt32, UInt32) {
         let result = rdmsr(msr)
         return (result.eax, result.edx)
     }
 
-    private static func readMSR(_ msr: UInt32) -> UInt64 {
+    static func readMSR(_ msr: UInt32) -> UInt64 {
         let result = rdmsr(msr)
         return UInt64(msw: result.edx, lsw: result.eax)
     }
 
-    private static func writeMSR(_ msr: UInt32, _ eax: UInt32, _ edx: UInt32) {
+    static func writeMSR(_ msr: UInt32, _ eax: UInt32, _ edx: UInt32) {
         wrmsr(msr, eax, edx)
     }
 
-    private static func writeMSR(_ msr: UInt32, _ value: UInt64) {
+    static func writeMSR(_ msr: UInt32, _ value: UInt64) {
         let (edx, eax) = value.toWords()
         wrmsr(msr, eax, edx)
     }

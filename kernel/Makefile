@@ -23,6 +23,7 @@ SWIFT_SRCS :=	init/startup.swift		\
 		devices/ps2keyboard.swift	\
 		devices/pit8254.swift		\
 		devices/pic8259.swift		\
+		devices/apic.swift		\
 		traps/exceptions.swift		\
 		traps/interrupt.swift		\
 		traps/IDT.swift			\

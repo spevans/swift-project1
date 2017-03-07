@@ -16,16 +16,18 @@ public func startup(bootParams: UInt) {
     BootParams.parse(bootParams)
     setupGDT()
     setupMM()
+
+    // findTables() needs to run after the MM is setup but before the IDT
+    // is configured as the interrupts controllers are disabled in setupIDT()
+    BootParams.findTables()
     setupIDT()
     CPU.getInfo()
     TTY.sharedInstance.setTTY(frameBufferInfo: BootParams.frameBufferInfo)
     printf("kernel: Highest Address: %p kernel phys address: %p\n",
         BootParams.highestMemoryAddress, BootParams.kernelAddress)
-    BootParams.findTables()
+
     printSections()
     initialiseDevices()
-    print("kernel: Hello world")
-
     TTY.sharedInstance.scrollTimingTest()
     _ = addTask(task: mainLoop)
     _ = addTask(task: keyboardInput)

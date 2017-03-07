@@ -23,7 +23,8 @@ protocol InterruptController {
 
 let irqController: InterruptController = {
     print("getting irqController")
-    guard let controller: InterruptController = PIC8259.sharedInstance else {
+    guard let controller: InterruptController = APIC.sharedInstance
+        ?? PIC8259.sharedInstance else {
         fatalError("Cannot initialise IRQ controller")
     }
     print("kernel: Using \(controller.self) as interrupt controller")
