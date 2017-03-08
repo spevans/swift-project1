@@ -31,7 +31,6 @@ class APIC: InterruptController {
         }
     }
 
-    static let sharedInstance = APIC()
     private let IA32_APIC_BASE_MSR: UInt32 = 0x1B
     private let APIC_REGISTER_SPACE_SIZE = 0x400
     private let apicRegistersVaddr: VirtualAddress
@@ -124,7 +123,7 @@ class APIC: InterruptController {
             as: UInt32.self)
     }
 
-    private init?() {
+    init?() {
         guard CPU.capabilities.apic else {
             print("APIC: No APIC installed")
             return nil

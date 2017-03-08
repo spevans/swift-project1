@@ -48,11 +48,10 @@ private func IDTEntry(function: (@escaping @convention(c) () -> Void),
 
 
 func setupIDT() {
-    print("Initialising IDT:")
-    irqController.disableAllIRQs()
+    print("IDT: Initialising..")
 
     func printIDT(_ msg: String, _ idt: dt_info) {
-        print("IDT: ", msg, terminator: "")
+        print("IDT:", msg, terminator: "")
         printf(": Info: %p/%u\n", UInt(bitPattern: idt.base), idt.limit)
     }
 
@@ -119,7 +118,6 @@ func setupIDT() {
     idt.45 = IDTEntry(function: irq13_stub, gateType: .INTR_GATE)
     idt.46 = IDTEntry(function: irq14_stub, gateType: .INTR_GATE)
     idt.47 = IDTEntry(function: irq15_stub, gateType: .INTR_GATE)
-    initIRQs()
 
     // Below is not needed except to validate that the setup worked ok and test some exceptions
     sidt(&currentIdtInfo)

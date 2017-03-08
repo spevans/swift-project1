@@ -11,6 +11,7 @@
         GLOBAL  test_breakpoint
         GLOBAL  read_int_nest_count
         GLOBAL  run_first_task
+        GLOBAL  set_interrupt_manager
         EXTERN  trap_dispatch_table
         EXTERN  irqHandler
         EXTERN  getFirstTask
@@ -113,6 +114,7 @@ _irq_handler:
         cld                     ; ABI requires DF clear and stack 16byte aligned
         ALIGN_STACK
         mov     r12, rsp
+        mov     rsi, qword [interrupt_manager]
         call    irqHandler
 
         mov     rdi, r12
@@ -135,6 +137,10 @@ run_first_task:
         add     rsp, 8  ; skip error code
         iretq
 
+
+set_interrupt_manager:
+        mov qword [interrupt_manager], rdi
+        ret
 
 read_int_nest_count:
         mov eax, [int_nest_count]
@@ -196,4 +202,5 @@ out_irq:        db      `\n*** Exiting IRQ ***\n`, 0
 
         section .data
 
-int_nest_count: dd      0
+interrupt_manager:      dq  0
+int_nest_count:         dd  0

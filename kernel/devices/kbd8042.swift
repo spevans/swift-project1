@@ -19,9 +19,6 @@ protocol PS2Device {
 
 
 class KBD8042 {
-    // singleton
-    static let sharedInstance = KBD8042()
-
     // Constants
     static private let DATA_PORT:        UInt16 = 0x60
     static private let STATUS_REGISTER:  UInt16 = 0x64
@@ -178,7 +175,7 @@ class KBD8042 {
     private var port2device: PS2Device? = nil
 
 
-    init?() {
+    init?(interruptManager: InterruptManager) {
         if BootParams.vendor == "Apple Inc." {
             print("i8042: Skipping on:", BootParams.vendor)
             return nil
@@ -271,10 +268,10 @@ class KBD8042 {
         flushOutput()
         keyboardBuffer.clear()
         port1device = PS2Keyboard(buffer: keyboardBuffer)
-        setIrqHandler(1, handler: kbdInterrupt)
+        interruptManager.setIrqHandler(1, handler: kbdInterrupt)
         if dualChannel {
             port2device = nil
-            setIrqHandler(12, handler: mouseInterrupt)
+            interruptManager.setIrqHandler(12, handler: mouseInterrupt)
         } else {
             port2device = nil
         }

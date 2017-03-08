@@ -96,5 +96,6 @@ void etty_set_cursor_y(text_coord y);
 
 // entry.asm
 unsigned int read_int_nest_count();
+void set_interrupt_manager(const void * _Nonnull im);
 
 #endif  // __KLIBC_H__

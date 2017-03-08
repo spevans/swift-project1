@@ -10,9 +10,6 @@
 
 
 class PIC8259: InterruptController {
-    // Singleton
-    static let sharedInstance = PIC8259()
-
     // IO Port addresses
     private let PIC1_CMD_REG:  UInt16 = 0x20
     private let PIC1_DATA_REG: UInt16 = 0x21
@@ -39,7 +36,7 @@ class PIC8259: InterruptController {
     private let CASCADE_IRQ:     UInt8 = 0x02    // PIC2 is at IRQ2 on PIC1
 
 
-    fileprivate init?() {
+    init?() {
         guard BootParams.acpiTables?.madt?.hasCompatDual8259 == true else {
             print("PIC8259: Not installed")
             return nil

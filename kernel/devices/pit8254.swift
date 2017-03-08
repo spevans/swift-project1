@@ -11,12 +11,9 @@
 
 class PIT8254: CustomStringConvertible {
 
-    // singleton
-    static let sharedInstance = PIT8254()
-
+    private let interruptManager: InterruptManager
     private let oscillator = 1193182         // Base frequency
     private let commandPort: UInt16 = 0x43
-
 
     // Raw Value is the I/O port
     enum TimerChannel: UInt16 {
@@ -116,6 +113,12 @@ class PIT8254: CustomStringConvertible {
     }
 
 
+    init(interruptManager: InterruptManager) {
+        self.interruptManager = interruptManager
+        print("PIC8254: init")
+    }
+
+
     private func toCommandByte(_ channel: ChannelSelect, _ access: AccessMode,
         _ mode: OperatingMode, _ number: NumberMode) -> UInt8 {
             return channel.rawValue | access.rawValue | mode.rawValue | number.rawValue
@@ -141,11 +144,11 @@ class PIT8254: CustomStringConvertible {
 
     func setChannel(_ channel: TimerChannel, mode: OperatingMode,
         hz: Int) {
-        let cmd = toCommandByte(mapChannelToSelect(channel), AccessMode.LO_HI_BYTE,
-            mode, NumberMode.BINARY)
+        let cmd = toCommandByte(mapChannelToSelect(channel),
+            AccessMode.LO_HI_BYTE, mode, NumberMode.BINARY)
         outb(commandPort, cmd)
         setHz(channel, hz)
-        setIrqHandler(0, handler: timerInterrupt)
+        interruptManager.setIrqHandler(0, handler: timerInterrupt)
     }
 
 
@@ -173,17 +176,17 @@ class PIT8254: CustomStringConvertible {
 
         return Int(oscillator / Int(divisor))
     }
-}
 
+    // FIXME: This is unsafe, needs atomic read/write or some locking
+    private var ticks: UInt64 = 0
 
-// FIXME: This is unsafe, needs atomic read/write or some locking
-private var ticks: UInt64 = 0
-func timerInterrupt(irq: Int) {
-    ticks += 1
-    if (ticks % 0x200) == 0 {
-        kprint("\ntimerInterrupt:")
-        kprint_qword(ticks)
-        kprint("\n")
+    private func timerInterrupt(irq: Int) {
+        ticks += 1
+        if (ticks % 0x200) == 0 {
+            kprint("\ntimerInterrupt:")
+            kprint_qword(ticks)
+            kprint("\n")
+        }
+        // Do nothing for now
     }
-    // Do nothing for now
 }
