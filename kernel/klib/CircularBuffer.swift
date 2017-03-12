@@ -16,7 +16,6 @@ class CircularBuffer<T> {
     private var idxIn = 0, idxOut = 0, count = 0
 
     init(item: T, capacity: Int) {
-        print("Initialising buffer of type: \(T.self) size: \(capacity)")
         self.capacity = capacity
         buffer = Array(repeating: item, count: capacity)
     }

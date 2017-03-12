@@ -49,11 +49,11 @@ private func mkGDTEntry(base: UInt = 0, privLevel: UInt, executable: Bool,
 
 private struct theGDT {
     let nullDescriptor: GDTEntry = 0
-    var codeSeg = mkGDTEntry(privLevel: 0, executable: true,
+    let codeSeg = mkGDTEntry(privLevel: 0, executable: true,
         conforming: false, readWrite: true)
-    var dataSeg = mkGDTEntry(privLevel: 0, executable: false,
+    let dataSeg = mkGDTEntry(privLevel: 0, executable: false,
         conforming: false, readWrite: true)
-    var TLSSeg = mkGDTEntry(base: UInt(bitPattern: initial_tls_end_addr),
+    let TLSSeg = mkGDTEntry(base: UInt(bitPattern: initial_tls_end_addr),
         privLevel: 0, executable: false, conforming: false, readWrite: true)
 }
 

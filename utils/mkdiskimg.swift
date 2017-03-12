@@ -24,9 +24,11 @@ import Foundation
 func main() {
     let args = CommandLine.arguments
     guard args.count == 5 else {
-        fatalError("usage: \(args[0]) <bootsector.bin> <loader.bin> <kernel.bin> <output>")
+        fatalError("usage: \(args[0]) <bootsector.bin> <loader.bin> "
+            + "<kernel.bin> <output>")
     }
-    print("Bootsect: \(args[1]) loader: \(args[2]) kernel: \(args[3]) output: \(args[4])")
+    print("Bootsect: \(args[1]) loader: \(args[2]) kernel: \(args[3]) "
+            + "output: \(args[4])")
     var bootsect = openOrQuit(args[1])
     guard bootsect.count == 512 else {
         fatalError("Bootsector should be 512 bytes but is \(bootsect.count)")
@@ -37,7 +39,8 @@ func main() {
     let loaderSectors = UInt16((loader.count + 511) / 512)
     let kernelSectors = UInt16((kernel.count + 511) / 512)
 
-    patchBootSector(&bootsect, loaderSectors, kernelSectors, outputName: outputName)
+    patchBootSector(&bootsect, loaderSectors, kernelSectors,
+        outputName: outputName)
 
     // Extra padding to make valid Bochs HD
     let hdSize = 20 * 16 * 63 * 512
@@ -47,18 +50,22 @@ func main() {
 
 
 // BIOS bootsector
-func patchBootSector(_ bootsect: inout Data, _ loaderSectors: UInt16, _ kernelSectors: UInt16, outputName: String) {
-    // Ensure bootsector + loader == 2048 bytes so that if loaded from cd it fits in one
-    // ISO9660 sector
+func patchBootSector(_ bootsect: inout Data, _ loaderSectors: UInt16,
+    _ kernelSectors: UInt16, outputName: String) {
+    // Ensure bootsector + loader == 2048 bytes so that if loaded
+    // from cd it fits.
+    // in one ISO9660 sector
     let loaderLen: UInt16 = (2048 - 512) / 512
     guard loaderSectors == loaderLen else {
-        fatalError("Loader should be \(loaderLen) sectors but is \(loaderSectors)")
+        fatalError("Loader should be \(loaderLen) sectors but is "
+            + "\(loaderSectors)")
     }
 
     let loaderLBA = getPartitionLBA(outputName) + 1
     let kernelLBA = loaderLBA + UInt64(loaderSectors)
 
-    print("Loader: LBA: \(loaderLBA) sectors:\(loaderSectors)  kernel: LBA:\(kernelLBA) sectors:\(kernelSectors)")
+    print("Loader: LBA: \(loaderLBA) sectors:\(loaderSectors) "
+        + "kernel: LBA:\(kernelLBA) sectors:\(kernelSectors)")
     // Patch in LBA and sector counts
     patchValue(&bootsect, offset: 482, value: loaderSectors.littleEndian)
     patchValue(&bootsect, offset: 488, value: loaderLBA.littleEndian)
@@ -82,7 +89,8 @@ func writeOutImage(to filename: String, _ bootsect: Data, _ loader: Data,
     outputData.append(Data(count: kernelPadding))
     outputData.append(kernel)
 
-    // FIXME: make padding a cmd line arg, this is needed to make a bochs disk image
+    // FIXME: make padding a cmd line arg, this is needed to make
+    // a bochs disk image
     if padding > outputData.count {
         print("Padding output to \(padding) bytes")
         outputData.append(Data(count: padding - outputData.count))

@@ -127,8 +127,6 @@ validate_is_slab(struct slab_header *slab)
 }
 
 
-
-
 static int
 region_is_slab(struct slab_header *region)
 {
@@ -176,13 +174,16 @@ malloc(size_t size)
                 koops("malloc called in interrupt handler");
         }
 
+        if (size > (UINT32_MAX - sizeof(struct malloc_region))) {
+                koops("Trying to allocate %lu bytes!", size);
+        }
         uint64_t flags = local_irq_save();
         if (atomic_fetch_add(&malloc_lock, 1) != 0) {
                 koops("(malloc)malloc_lock != 0");
         }
 
         if (size > MAX_SLAB_SIZE) {
-                size_t pages = (sizeof(uint32_t) + size + PAGE_MASK) / PAGE_SIZE;
+                size_t pages = (sizeof(struct malloc_region) + size + PAGE_MASK) / PAGE_SIZE;
                 struct malloc_region *result = alloc_pages(pages);
                 result->region_size = (pages * PAGE_SIZE) - sizeof(struct malloc_region);
                 debugf("Wanted %lu got %u\n", size, result->region_size);
@@ -282,14 +283,16 @@ free(void *ptr)
 }
 
 
-UNIMPLEMENTED(malloc_default_zone)
-
-// Doesnt currently work if the page being freed came from alloc_pages()
 size_t
-malloc_usable_size(void *ptr)
+malloc_usable_size(const void *ptr)
 {
+        size_t retval = 0;
+
         if (read_int_nest_count() > 0) {
                 koops("malloc called in interrupt handler");
+        }
+        if (ptr == NULL) {
+                return 0;
         }
 
         uint64_t flags = local_irq_save();
@@ -300,19 +303,18 @@ malloc_usable_size(void *ptr)
         debugf("%s(%p)=", __func__, ptr);
         uint64_t p = (uint64_t)ptr;
         struct slab_header *slab = (struct slab_header *)(p & ~PAGE_MASK);
-        size_t retval = slab->slab_size;
-        debugf("%lu\n", retval);
+        if (region_is_slab(slab)) {
+                validate_is_slab(slab);
+                retval = slab->slab_size;
+        } else {
+                struct malloc_region *region = (struct malloc_region *)slab;
+                retval = region->region_size;
+        }
+        debugf("malloc_usable_size(%p) = %lu\n", ptr, retval);
         if (atomic_fetch_sub(&malloc_lock, 1) != 1) {
                 koops("(usable_size)malloc_lock != 1");
         }
 
         load_eflags(flags);
         return retval;
-}
-
-
-size_t
-malloc_size(void *ptr)
-{
-        return malloc_usable_size(ptr);
 }
