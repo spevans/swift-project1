@@ -219,3 +219,14 @@ _ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE9_M_mutateEmmPKcm(
         koops("UNIMPLEMENTED: _M_mutate(%p, %zu, %zu, %s, %zu)\n", this, pos,
               len1, str, len2);
 }
+
+
+//std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::resize(unsigned long, char)
+void
+_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE6resizeEmc(
+        struct basic_string *this,
+        size_t new_size,
+        char ch)
+{
+        koops("UNIMPLEMENTED: %p->resize(%zu, '%c')\n", this, new_size, ch);
+}
