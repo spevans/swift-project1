@@ -181,7 +181,7 @@ class PIT8254: CustomStringConvertible {
     private var ticks: UInt64 = 0
 
     private func timerInterrupt(irq: Int) {
-        ticks += 1
+        ticks = ticks &+ 1
         if (ticks % 0x200) == 0 {
             kprint("\ntimerInterrupt:")
             kprint_qword(ticks)

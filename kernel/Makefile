@@ -1,3 +1,4 @@
+# -*- mode: BSDmakefile; tab-width: 8; -*-
 TOPDIR := ..
 include $(TOPDIR)/Makedefs
 
@@ -24,6 +25,7 @@ SWIFT_SRCS :=	init/startup.swift		\
 		devices/pit8254.swift		\
 		devices/pic8259.swift		\
 		devices/apic.swift		\
+		devices/ioapic.swift		\
 		traps/exceptions.swift		\
 		traps/interrupt.swift		\
 		traps/IDT.swift			\

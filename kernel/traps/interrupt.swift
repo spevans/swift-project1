@@ -12,6 +12,8 @@
 
 typealias IRQHandler = (Int) -> ()
 
+public private(set) var localAPIC: APIC?
+
 protocol InterruptController {
     func enableIRQ(_ irq: Int)
     func disableIRQ(_ irq: Int)
@@ -36,10 +38,15 @@ public class InterruptManager {
 
 
     init() {
+        // Setup IDT as early as possible to help catch CPU exceptions
+        setupIDT()
         irqQueue.clear()
         guard let controller: InterruptController = APIC() ?? PIC8259() else {
             fatalError("Cannot initialise IRQ controller")
         }
+        localAPIC = controller as? APIC
+        print("localAPIC:", localAPIC as Any)
+
         irqController = controller
         print("kernel: Using \(irqController.self) as interrupt controller")
         // In a PIC8259/IOAPIC dual system, need to disable IRQs in both controllers
@@ -47,7 +54,6 @@ public class InterruptManager {
         //    pic.disableAllIRQs()
         //}
         irqController.disableAllIRQs()
-        setupIDT()
     }
 
 

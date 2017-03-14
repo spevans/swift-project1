@@ -65,6 +65,27 @@ extension UInt32 {
         return self & (1 << UInt32(bit)) != 0
     }
 
+    subscript(index: Int) -> Int {
+        get {
+            precondition(index >= 0)
+            precondition(index < 32)
+
+            return (self & UInt32(1 << index) == 0) ? 0 : 1
+        }
+
+        set(newValue) {
+            precondition(index >= 0)
+            precondition(index < 32)
+            precondition(newValue == 0 || newValue == 1)
+
+            let mask = UInt32(1 << index)
+            if (newValue == 1) {
+                self |= mask
+            } else {
+                self &= ~mask
+            }
+        }
+    }
 }
 
 
@@ -97,6 +118,29 @@ extension UInt64 {
 
     func bit(_ bit: UInt64) -> Bool {
         return self & (1 << bit) != 0
+    }
+
+
+    subscript(index: Int) -> Int {
+        get {
+            precondition(index >= 0)
+            precondition(index < 64)
+
+            return (self & UInt64(1 << index) == 0) ? 0 : 1
+        }
+
+        set(newValue) {
+            precondition(index >= 0)
+            precondition(index < 64)
+            precondition(newValue == 0 || newValue == 1)
+
+            let mask = UInt64(1 << index)
+            if (newValue == 1) {
+                self |= mask
+            } else {
+                self &= ~mask
+            }
+        }
     }
 }
 
@@ -154,4 +198,265 @@ extension UnsafeMutableRawPointer {
 /// Convert the given numeric value to a hexadecimal string.
 public func asHex<T : Integer>(_ x: T) -> String {
   return "0x" + String(x.toIntMax(), radix: 16)
+}
+
+
+
+struct BitField8: CustomStringConvertible {
+    private(set) var rawValue: UInt8
+
+    var description: String { return String(rawValue, radix: 2) }
+
+
+    init() {
+        rawValue = 0
+    }
+
+    init(rawValue: Int) {
+        self.rawValue = UInt8(rawValue)
+    }
+
+
+    init(rawValue: UInt8) {
+        self.rawValue = rawValue
+    }
+
+
+    subscript(index: Int) -> Int {
+        get {
+            precondition(index >= 0)
+            precondition(index < 8)
+
+            return (rawValue & UInt8(1 << index) == 0) ? 0 : 1
+        }
+
+        set(newValue) {
+            precondition(index >= 0)
+            precondition(index < 8)
+            precondition(newValue == 0 || newValue == 1)
+
+            let mask = UInt8(1 << index)
+            if (newValue == 1) {
+                rawValue |= mask
+            } else {
+                rawValue &= ~mask
+            }
+        }
+    }
+
+
+    subscript(index: CountableClosedRange<Int>) -> UInt8 {
+        get {
+            var ret: UInt8 = 0
+            var bit: UInt8 = 1
+
+            for i in index {
+                let mask = 1 << UInt8(i)
+                if rawValue & mask != 0 {
+                    ret |= bit
+                }
+                bit <<= 1
+            }
+            return ret
+        }
+        set {
+            var bit: UInt8 = 1
+            for i in index {
+                let mask = 1 << UInt8(i)
+                if (newValue & bit) == 0 {
+                    rawValue &= ~mask
+                } else {
+                    rawValue |= mask
+                }
+                bit <<= 1
+            }
+        }
+    }
+
+
+    func toInt() -> Int {
+        return Int(rawValue)
+    }
+}
+
+
+struct BitField32: CustomStringConvertible {
+    private(set) var rawValue: UInt32
+
+    var description: String { return String(rawValue, radix: 2) }
+
+
+    init() {
+        rawValue = 0
+    }
+
+    init(rawValue: Int) {
+        self.rawValue = UInt32(rawValue)
+    }
+
+    init(rawValue: UInt32) {
+        self.rawValue = rawValue
+    }
+
+    init(rawValue: UInt16) {
+        self.rawValue = UInt32(rawValue)
+    }
+
+    init(rawValue: UInt8) {
+        self.rawValue = UInt32(rawValue)
+    }
+
+
+    subscript(index: Int) -> Int {
+        get {
+            precondition(index >= 0)
+            precondition(index < 32)
+
+            return (rawValue & UInt32(1 << index) == 0) ? 0 : 1
+        }
+
+        set(newValue) {
+            precondition(index >= 0)
+            precondition(index < 32)
+            precondition(newValue == 0 || newValue == 1)
+
+            let mask = UInt32(1 << index)
+            if (newValue == 1) {
+                rawValue |= mask
+            } else {
+                rawValue &= ~mask
+            }
+        }
+    }
+
+
+    subscript(index: CountableClosedRange<Int>) -> UInt32 {
+        get {
+            var ret: UInt32 = 0
+            var bit: UInt32 = 1
+
+            for i in index {
+                let mask = 1 << UInt32(i)
+                if rawValue & mask != 0 {
+                    ret |= bit
+                }
+                bit <<= 1
+            }
+            return ret
+        }
+        set {
+            var bit: UInt32 = 1
+            for i in index {
+                let mask = 1 << UInt32(i)
+                if (newValue & bit) == 0 {
+                    rawValue &= ~mask
+                } else {
+                    rawValue |= mask
+                }
+                bit <<= 1
+            }
+        }
+    }
+
+
+    func toUInt8() -> UInt8 {
+        return UInt8(truncatingBitPattern: rawValue)
+    }
+
+
+    func toUInt32() -> UInt32 {
+        return UInt32(rawValue)
+    }
+
+    func toInt() -> Int {
+        return Int(rawValue)
+    }
+}
+
+
+struct BitField64: CustomStringConvertible {
+    private(set) var rawValue: UInt64
+
+    var description: String { return String(rawValue, radix: 2) }
+
+
+    init() {
+        rawValue = 0
+    }
+
+    init(rawValue: Int) {
+        self.rawValue = UInt64(rawValue)
+    }
+
+    init(_ rawValue: UInt64) {
+        self.rawValue = rawValue
+    }
+
+    init(rawValue: UInt16) {
+        self.rawValue = UInt64(rawValue)
+    }
+
+    init(rawValue: UInt8) {
+        self.rawValue = UInt64(rawValue)
+    }
+
+    subscript(index: Int) -> Int {
+        get {
+            precondition(index >= 0)
+            precondition(index < 64)
+
+            return (rawValue & UInt64(1 << index) == 0) ? 0 : 1
+        }
+
+        set {
+            precondition(index >= 0)
+            precondition(index < 64)
+            precondition(newValue == 0 || newValue == 1)
+
+            if (newValue == 1) {
+                rawValue |= UInt64(1 << index)
+            } else {
+                rawValue &= ~(UInt64(1 << index))
+            }
+        }
+    }
+
+
+    subscript(index: CountableClosedRange<Int>) -> UInt64 {
+        get {
+            var ret: UInt64 = 0
+            var bit: UInt64 = 1
+
+            for i in index {
+                let mask = 1 << UInt64(i)
+                if rawValue & mask != 0 {
+                    ret |= bit
+                }
+                bit <<= 1
+            }
+            return ret
+        }
+        set {
+            var bit: UInt64 = 1
+            for i in index {
+                let mask = 1 << UInt64(i)
+                if (newValue & bit) == 0 {
+                    rawValue &= ~mask
+                } else {
+                    rawValue |= mask
+                }
+                bit <<= 1
+            }
+        }
+    }
+
+
+    func toUInt8() -> UInt8 {
+        return UInt8(truncatingBitPattern: rawValue)
+    }
+
+
+    func toInt() -> Int {
+        return Int(rawValue)
+    }
 }

@@ -80,5 +80,11 @@ void irq12_stub();
 void irq13_stub();
 void irq14_stub();
 void irq15_stub();
-
+void apic_int0_stub();
+void apic_int1_stub();
+void apic_int2_stub();
+void apic_int3_stub();
+void apic_int4_stub();
+void apic_int5_stub();
+void apic_int6_stub();
 #endif  // __KERNEL_H__

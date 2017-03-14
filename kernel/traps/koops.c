@@ -10,9 +10,16 @@ extern void *_kernel_stack;
 void
 stack_trace(uintptr_t rsp, uintptr_t rbp)
 {
-        void **rsp_ptr = (void *)rsp;
+        //void **rsp_ptr = (void *)rsp;
+        uint64_t *rsp_ptr = (uint64_t *)rsp;
         //let rsp_ptr = UnsafePointer<UInt>(bitPattern: UInt(rsp))
-        kprintf("RSP: %lx = %p\n", rsp, *rsp_ptr);
+        kprintf("RSP-24: %lx = %16.16lx\n", rsp-24, *(rsp_ptr-3));
+        kprintf("RSP-16: %lx = %16.16lx\n", rsp-16, *(rsp_ptr-2));
+        kprintf("RSP-08: %lx = %16.16lx\n", rsp-8, *(rsp_ptr-1));
+        kprintf("RSP+00: %lx = %16.16lx\n", rsp, *rsp_ptr);
+        kprintf("RSP+08: %lx = %16.16lx\n", rsp+8, *(rsp_ptr+1));
+        kprintf("RSP+16: %lx = %16.16lx\n", rsp+16, *(rsp_ptr+2));
+        kprintf("RSP+24: %lx = %16.16lx\n", rsp+24, *(rsp_ptr+3));
 
         //uintptr_t rbp_addr = rbp;
         void **rbp_ptr = (void **)rbp;

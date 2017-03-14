@@ -460,7 +460,11 @@ class KBD8042 {
     }
 
     private func mouseInterrupt(irq: Int) {
-        kprint("mouseInterrupt\n")
-        kprint("EOMI\n")
+        //kprint("mouseInterrupt\n")
+        // Empty the buffer
+        while readStatus().outputFull {
+            _ = readData()
+        }
+        //kprint("EOMI\n")
     }
 }

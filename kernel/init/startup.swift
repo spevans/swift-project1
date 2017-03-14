@@ -103,8 +103,21 @@ fileprivate func mainLoop() {
 
 
 fileprivate func keyboardInput() {
+    // Try reading from the keyboard otherwise just pause forever
+    // (used for testing on macbook where there is no PS/2 keyboard)
+    _keyboardInput()
+    print("No keyboard!")
+
+    while true {
+        hlt()
+    }
+}
+
+
+// If a keyboard is present, wait and read from it, looping indefinitely
+fileprivate func _keyboardInput() {
     guard let kbd = system.kbd8042?.keyboardDevice else {
-        koops("No keyboard!")
+        return
     }
 
     let tty = TTY.sharedInstance

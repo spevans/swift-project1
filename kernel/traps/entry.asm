@@ -14,6 +14,7 @@
         GLOBAL  set_interrupt_manager
         EXTERN  trap_dispatch_table
         EXTERN  irqHandler
+        EXTERN  apicIntHandler
         EXTERN  getFirstTask
         EXTERN  getNextTask
 
@@ -57,6 +58,16 @@ irq%1_stub:
 
         %endmacro
 
+        ;; For APIC interrupts - treat as IRQ for now
+
+        %macro  APIC_INT_STUB 1
+        GLOBAL  apic_int%1_stub
+        ALIGN   8
+apic_int%1_stub:
+        push    qword %1        ; set 'error code' as the irq
+        jmp     _apic_int_handler
+
+        %endmacro
 
 
         TRAP_STUB       0, divide_by_zero_stub
@@ -107,6 +118,15 @@ _run_handler:
         IRQ_STUB        14
         IRQ_STUB        15
 
+        APIC_INT_STUB   0
+        APIC_INT_STUB   1
+        APIC_INT_STUB   2
+        APIC_INT_STUB   3
+        APIC_INT_STUB   4
+        APIC_INT_STUB   5
+        APIC_INT_STUB   6
+
+
         ALIGN   8
 _irq_handler:
         lock    inc dword [int_nest_count]
@@ -124,6 +144,25 @@ _irq_handler:
         add     rsp, 8          ; pop irq ('error code')
         lock    dec dword [int_nest_count]
         iretq
+
+
+        ALIGN   8
+_apic_int_handler:
+        lock    inc dword [int_nest_count]
+        SAVE_REGS
+        cld                     ; ABI requires DF clear and stack 16byte aligned
+        ALIGN_STACK
+        ;; mov     r12, rsp
+        ;; mov     rsi, qword [interrupt_manager]
+        call    apicIntHandler
+
+;;;         mov     rsp, r12
+        UNALIGN_STACK
+        RESTORE_REGS
+        add     rsp, 8          ; pop irq ('error code')
+        lock    dec dword [int_nest_count]
+        iretq
+
 
 
 run_first_task:

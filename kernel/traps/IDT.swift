@@ -119,7 +119,16 @@ func setupIDT() {
     idt.46 = IDTEntry(function: irq14_stub, gateType: .INTR_GATE)
     idt.47 = IDTEntry(function: irq15_stub, gateType: .INTR_GATE)
 
-    // Below is not needed except to validate that the setup worked ok and test some exceptions
+    idt.48 = IDTEntry(function: apic_int0_stub, gateType: .INTR_GATE)
+    idt.49 = IDTEntry(function: apic_int1_stub, gateType: .INTR_GATE)
+    idt.50 = IDTEntry(function: apic_int2_stub, gateType: .INTR_GATE)
+    idt.51 = IDTEntry(function: apic_int3_stub, gateType: .INTR_GATE)
+    idt.52 = IDTEntry(function: apic_int4_stub, gateType: .INTR_GATE)
+    idt.53 = IDTEntry(function: apic_int5_stub, gateType: .INTR_GATE)
+    idt.54 = IDTEntry(function: apic_int6_stub, gateType: .INTR_GATE)
+
+    // Below is not needed except to validate that the setup worked ok
+    // and test some exceptions
     sidt(&currentIdtInfo)
     printIDT("New", currentIdtInfo)
     print("IDT: Testing Breakpoint:")
