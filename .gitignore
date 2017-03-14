@@ -7,3 +7,4 @@ kernel.elf
 *.dSYM
 modules
 output
+kernel/init/version.swift

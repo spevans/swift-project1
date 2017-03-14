@@ -47,6 +47,10 @@ class System {
         timer = PIT8254(interruptManager: interruptManager)
         initialiseDevices()
         printSections()
+
+        // gitBuildVersion defined in kernel/init/version.swift, created
+        // by kernel/Makefile
+        print("Version:", gitBuildVersion)
     }
 
 
