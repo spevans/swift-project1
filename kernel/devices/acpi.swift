@@ -33,14 +33,14 @@ struct ACPI_SDT: CustomStringConvertible {
 
 
     init(ptr: UnsafePointer<acpi_sdt_header>) {
-        signature = makeString(ptr, maxLength: 4)
+        signature = String(ptr, maxLength: 4)
         length = ptr.pointee.length
         revision = ptr.pointee.revision
         checksum = ptr.pointee.checksum
-        oemId = makeString(ptr.advanced(by: 10), maxLength: 6)
-        oemTableId = makeString(ptr.advanced(by: 16), maxLength: 8)
+        oemId = String(ptr.advanced(by: 10), maxLength: 6)
+        oemTableId = String(ptr.advanced(by: 16), maxLength: 8)
         oemRev = ptr.pointee.oem_revision
-        creatorId = makeString(ptr.advanced(by: 28), maxLength: 4)
+        creatorId = String(ptr.advanced(by: 28), maxLength: 4)
         creatorRev = ptr.pointee.creator_rev
     }
 }
@@ -61,9 +61,9 @@ struct RSDP1: CustomStringConvertible {
 
 
     init(ptr: UnsafePointer<rsdp1_header>) {
-        signature = makeString(ptr, maxLength: 8)
+        signature = String(ptr, maxLength: 8)
         checksum = ptr.pointee.checksum
-        oemId = makeString(ptr.advanced(by: 9), maxLength: 6)
+        oemId = String(ptr.advanced(by: 9), maxLength: 6)
         revision = ptr.pointee.revision
         rsdtAddr = ptr.pointee.rsdt_addr
     }
@@ -88,34 +88,15 @@ struct RSDP2: CustomStringConvertible {
 
 
     init(ptr: UnsafePointer<rsdp2_header>) {
-        signature = makeString(ptr, maxLength: 8)
+        signature = String(ptr, maxLength: 8)
         checksum = ptr.pointee.rsdp1.checksum
-        oemId = makeString(ptr.advanced(by: 9), maxLength: 6)
+        oemId = String(ptr.advanced(by: 9), maxLength: 6)
         revision = ptr.pointee.rsdp1.revision
         rsdtAddr = ptr.pointee.rsdp1.rsdt_addr
         length = ptr.pointee.length
         xsdtAddr = ptr.pointee.xsdt_addr
         checksum2 = ptr.pointee.checksum
     }
-}
-
-
-// FIXME: curently duplicated in smbios.swift
-private func makeString(_ rawPtr: UnsafeRawPointer, maxLength: Int) -> String {
-    let ptr = rawPtr.bindMemory(to: UInt8.self, capacity: maxLength)
-    let buffer = UnsafeBufferPointer(start: ptr, count: maxLength)
-    var str = ""
-
-    for ch in buffer {
-        if ch != 0 {
-            let us = UnicodeScalar(ch)
-            if us.isASCII {
-                str += String(us)
-            }
-        }
-    }
-
-    return str
 }
 
 

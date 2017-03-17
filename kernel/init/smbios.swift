@@ -72,7 +72,7 @@ struct SMBIOS {
 
     init?(ptr: UnsafePointer<smbios_header>) {
         let header = ptr.pointee
-        let anchor = SMBIOS.makeString(ptr, maxLength: 4)
+        let anchor = String(ptr, maxLength: 4)
         if (anchor != "_SM_") {
             print("SMBIOS: anchor is \(anchor)")
             return nil
@@ -89,7 +89,7 @@ struct SMBIOS {
             return nil
         }
 
-        let dmi = SMBIOS.makeString(ptr.advancedBy(bytes: 16), maxLength: 5)
+        let dmi = String(ptr.advancedBy(bytes: 16), maxLength: 5)
         if dmi != "_DMI_" {
             print("SMBIOS: DMI anchor is", dmi)
             return nil
@@ -201,24 +201,5 @@ struct SMBIOS {
         }
 
         return entries
-    }
-
-
-    // FIXME: This function can probably be merged into something better
-    static func makeString(_ rawPtr: UnsafeRawPointer, maxLength: Int) -> String {
-        let ptr = rawPtr.bindMemory(to: UInt8.self, capacity: maxLength)
-        let buffer = UnsafeBufferPointer(start: ptr, count: maxLength)
-        var str = ""
-
-        for ch in buffer {
-            if ch != 0 {
-                let us = UnicodeScalar(ch)
-                if us.isASCII {
-                    str += String(us)
-                }
-            }
-        }
-
-        return str
     }
 }

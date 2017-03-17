@@ -32,6 +32,25 @@ extension String {
             }
         }
     }
+
+
+    // Convert a fixed length (not null terminated) raw string upto a
+    // maximum length
+    init(_ rawPtr: UnsafeRawPointer, maxLength: Int) {
+        let ptr = rawPtr.bindMemory(to: UInt8.self, capacity: maxLength)
+        let buffer = UnsafeBufferPointer(start: ptr, count: maxLength)
+        var str = ""
+
+        for ch in buffer {
+            if ch != 0 {
+                let us = UnicodeScalar(ch)
+                if us.isASCII {
+                    str += String(us)
+                }
+            }
+        }
+        self = str
+    }
 }
 
 
