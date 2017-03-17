@@ -21,10 +21,9 @@ private var nextPID: UInt = 1
 
 
 @discardableResult
-func addTask(task: @escaping @convention(c)() -> ()) -> UInt {
-    let newTask = Task(entry: task)
-    print("Task:", newTask)
-    printf("Adding task @ %p\n", newTask.state.pointee.rip)
+func addTask(name: String, task: @escaping @convention(c)() -> ()) -> UInt {
+    let newTask = Task(name: name, entry: task)
+    print("Adding task:", newTask)
     tasks.append(newTask)
     return newTask.pid
 }
@@ -68,13 +67,14 @@ public func yield() -> Int {
 
 
 class Task: CustomStringConvertible {
+    let name: String
     let stack: UnsafeMutableRawPointer
     var state: UnsafeMutablePointer<exception_regs>
     let pid: UInt
     var rsp: UnsafeMutablePointer<UInt>
 
     var description: String {
-        var r = "Stack: \(stack) state: \(state)\n"
+        var r = "\(name)\nStack: \(stack) state: \(state)\n"
  /*       r += String.sprintf("RAX: %16.16lx ", state.pointee.rax)
         r += String.sprintf("RBX: %16.16lx ", state.pointee.rbx)
         r += String.sprintf("RCX: %16.16lx\n", state.pointee.rcx)
@@ -99,7 +99,8 @@ class Task: CustomStringConvertible {
         return r
     }
 
-    init(entry: @escaping @convention(c)() -> ()) {
+    init(name: String, entry: @escaping @convention(c)() -> ()) {
+        self.name = name
         pid = nextPID
         nextPID += 1
         let addr = unsafeBitCast(entry, to: UInt64.self)

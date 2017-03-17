@@ -60,14 +60,7 @@ class IOAPIC {
         data.triggerMode = .edge
         data.maskInterrupt = false
         data.destinationField = 0
-
-        printf("enableIRQ: irq=%d register = %2.2x data = %16.16x\n",
-            irq, register, data.rawValue)
-
         writeWideRegister(register, data: data)
-        let newVal = readWideRegister(register)
-        printf("enableIRQ: newVal register = %2.2x data = %16.16x\n",
-            register, newVal.rawValue)
     }
 
 

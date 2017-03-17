@@ -46,17 +46,13 @@ class System {
 
         timer = PIT8254(interruptManager: interruptManager)
         initialiseDevices()
-        printSections()
-
-        // gitBuildVersion defined in kernel/init/version.swift, created
-        // by kernel/Makefile
-        print("Version:", gitBuildVersion)
+        //printSections()
     }
 
 
     fileprivate func runSystem() {
-        _ = addTask(task: mainLoop)
-        _ = addTask(task: keyboardInput)
+        _ = addTask(name: "IRQ Queue runner", task: mainLoop)
+        _ = addTask(name: "KeyboardInput", task: keyboardInput)
         run_first_task()
     }
 
@@ -109,6 +105,11 @@ fileprivate func mainLoop() {
 fileprivate func keyboardInput() {
     // Try reading from the keyboard otherwise just pause forever
     // (used for testing on macbook where there is no PS/2 keyboard)
+
+    // gitBuildVersion defined in kernel/init/version.swift, created
+    // by kernel/Makefile
+    print("Version: \(gitBuildVersion)\n")
+
     _keyboardInput()
     print("No keyboard!")
 
