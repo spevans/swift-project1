@@ -38,8 +38,6 @@ public class InterruptManager {
 
 
     init() {
-        // Setup IDT as early as possible to help catch CPU exceptions
-        setupIDT()
         irqQueue.clear()
         guard let controller: InterruptController = APIC() ?? PIC8259() else {
             fatalError("Cannot initialise IRQ controller")

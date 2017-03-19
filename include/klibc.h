@@ -52,6 +52,7 @@ int serial_printf(const char * _Nonnull fmt, ...) __attribute__ ((format (printf
 // klibc
 void koops(const char * _Nonnull fmt, ...) __attribute__ ((format (printf, 1, 2))) __attribute__((noreturn));
 void dump_registers(struct exception_regs * _Nonnull registers);
+void stack_trace(uintptr_t rsp, uintptr_t rbp);
 int memcmp(const void * _Nonnull s1, const void * _Nonnull s2, size_t count);
 void * _Nonnull memcpy(void * _Nonnull dest, const void * _Nonnull src, size_t count);
 void * _Nonnull memset(void * _Nonnull dest, int c, size_t count);

@@ -11,11 +11,15 @@
  *
  */
 
-let CODE_SEG: UInt16 = 8
+let CODE_SEG: UInt16 = 0x8
+let TSS_SEG: UInt16 = 0x20
 
 typealias GDTEntry = UInt64
 private var gdt = theGDT()
-private var gdtInfo = dt_info(limit: UInt16(MemoryLayout<theGDT>.size - 1), base: &gdt)
+private var gdtInfo = dt_info(
+    limit: UInt16(MemoryLayout<theGDT>.size - 1),
+    base: &gdt
+)
 
 
 // Helper method to construct a GDT entry, base is ignored by the CPU
@@ -47,14 +51,73 @@ private func mkGDTEntry(base: UInt = 0, privLevel: UInt, executable: Bool,
 }
 
 
+private func mkTSS(basex: UnsafeRawPointer, limit: UInt32, privLevel: UInt)
+    -> gdt_system_entry {
+
+    precondition(limit < (1 << 20))
+    precondition(privLevel < 4)
+
+    let base = UInt64(UInt(bitPattern: basex)) //unsafeBitCast(basex, to: UInt64.self)
+    var entry = gdt_system_entry()
+    entry.limit00_15 = UInt16(limit[0...15])
+    entry.limit16_19 = limit[16...19]
+
+    entry.base00_15 = UInt16(base[0...15])
+    entry.base16_23 = UInt32(base[16...23])
+    entry.base24_31 = UInt8(base[24...31])
+    entry.base32_63 = UInt32(base[32...63])
+
+    entry.type = UInt32(GateType.TSS_DESCRIPTOR.rawValue)
+    entry.dpl = UInt32(privLevel)
+    entry.present = 1
+    entry.available = 0
+    entry.granularity = 0 // Bytes
+    entry.zero0 = 0
+    entry.zero1 = 0
+    entry.reserved = 0
+
+    return entry
+}
+
+
+private var taskStateSegment = task_state_segment(
+    reserved0: 0,
+    rsp0: 0,
+    rsp1: 0,
+    rsp2: 0,
+    reserved1: 0,
+    ist1: UInt64(_ist1_stack_top_addr),
+    ist2: 0,
+    ist3: 0,
+    ist4: 0,
+    ist5: 0,
+    ist6: 0,
+    ist7: 0,
+    reserved2: 0,
+    reserved3: 0,
+    io_map_addr: 0
+)
+
+
 private struct theGDT {
+    // 0x0
     let nullDescriptor: GDTEntry = 0
+
+    // 0x8
     let codeSeg = mkGDTEntry(privLevel: 0, executable: true,
         conforming: false, readWrite: true)
+
+    // 0x10
     let dataSeg = mkGDTEntry(privLevel: 0, executable: false,
         conforming: false, readWrite: true)
+
+    // 0x18
     let TLSSeg = mkGDTEntry(base: UInt(bitPattern: initial_tls_end_addr),
         privLevel: 0, executable: false, conforming: false, readWrite: true)
+
+    // 0x20
+    let tssSeg = mkTSS(basex: &taskStateSegment,
+        limit: UInt32(MemoryLayout<task_state_segment>.size - 1), privLevel: 0)
 }
 
 
@@ -73,6 +136,9 @@ func setupGDT() {
     sgdt(&currentGdtInfo)
     printGDT("Current", currentGdtInfo)
     lgdt(&gdtInfo)
+    print("Loading task register")
+    ltr(TSS_SEG)
+    print("TSS loaded")
 
     // Below is not really needed except to validate that the setup worked ok
     sgdt(&currentGdtInfo)

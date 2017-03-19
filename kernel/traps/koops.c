@@ -10,6 +10,10 @@ extern void *_kernel_stack;
 void
 stack_trace(uintptr_t rsp, uintptr_t rbp)
 {
+        kprintf("stack_trace: RSP: %16.16lx RBP: %16.16lx\n", rsp, rbp);
+        if (rsp == 0) {
+                return;
+        }
         //void **rsp_ptr = (void *)rsp;
         uint64_t *rsp_ptr = (uint64_t *)rsp;
         //let rsp_ptr = UnsafePointer<UInt>(bitPattern: UInt(rsp))
@@ -22,6 +26,9 @@ stack_trace(uintptr_t rsp, uintptr_t rbp)
         kprintf("RSP+24: %lx = %16.16lx\n", rsp+24, *(rsp_ptr+3));
 
         //uintptr_t rbp_addr = rbp;
+        if (rbp == 0) {
+                return;
+        }
         void **rbp_ptr = (void **)rbp;
         size_t idx = 0;
 
@@ -65,5 +72,4 @@ dump_registers(struct exception_regs *registers)
         kprintf("CS: %lx DS: %lx ES: %lx FS: %lx GS:%lx SS: %lx\n",
                 registers->cs, registers->ds, registers->es,
                 registers->fs, registers->gs, registers->ss);
-        stack_trace(registers->rsp, registers->rbp);
 }

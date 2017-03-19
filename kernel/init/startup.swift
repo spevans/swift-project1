@@ -33,9 +33,10 @@ class System {
         setupGDT()
         setupMM()
 
-        // findTables() needs to run after the MM is setup but before the
-        // IDT is configured as the interrupts controllers are disabled in
-        //setupIDT()
+        // Setup IDT as early as possible to help catch CPU exceptions
+        setupIDT()
+
+        // findTables() needs to run after the MM is setup
         BootParams.findTables()
         interruptManager = InterruptManager()
         set_interrupt_manager(&interruptManager)

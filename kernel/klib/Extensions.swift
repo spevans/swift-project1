@@ -105,6 +105,34 @@ extension UInt32 {
             }
         }
     }
+
+    subscript(index: CountableClosedRange<Int>) -> UInt32 {
+        get {
+            var ret: UInt32 = 0
+            var bit: UInt32 = 1
+
+            for i in index {
+                let mask = 1 << UInt32(i)
+                if self & mask != 0 {
+                    ret |= bit
+                }
+                bit <<= 1
+            }
+            return ret
+        }
+        set {
+            var bit: UInt32 = 1
+            for i in index {
+                let mask = 1 << UInt32(i)
+                if (newValue & bit) == 0 {
+                    self &= ~mask
+                } else {
+                    self |= mask
+                }
+                bit <<= 1
+            }
+        }
+    }
 }
 
 
@@ -158,6 +186,34 @@ extension UInt64 {
                 self |= mask
             } else {
                 self &= ~mask
+            }
+        }
+    }
+
+     subscript(index: CountableClosedRange<Int>) -> UInt64 {
+        get {
+            var ret: UInt64 = 0
+            var bit: UInt64 = 1
+
+            for i in index {
+                let mask = 1 << UInt64(i)
+                if self & mask != 0 {
+                    ret |= bit
+                }
+                bit <<= 1
+            }
+            return ret
+        }
+        set {
+            var bit: UInt64 = 1
+            for i in index {
+                let mask = 1 << UInt64(i)
+                if (newValue & bit) == 0 {
+                    self &= ~mask
+                } else {
+                    self |= mask
+                }
+                bit <<= 1
             }
         }
     }

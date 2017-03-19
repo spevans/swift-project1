@@ -22,11 +22,53 @@ struct dt_info {
 struct idt_entry {
         uint16_t addr_lo;
         uint16_t selector;
-        uint8_t unused;
-        uint8_t flags;
+        unsigned int ist: 3;
+        unsigned int zero0: 5;
+        unsigned int type: 4;
+        unsigned int zero1: 1;
+        unsigned int dpl: 2;
+        unsigned int present: 1;
         uint16_t addr_mid;
         uint32_t addr_hi;
         uint32_t reserved;
+} __attribute__((packed));
+
+
+// 16byte entry for TSS/LDT etc
+struct gdt_system_entry {
+        uint16_t limit00_15;
+        uint16_t base00_15;
+        unsigned int base16_23: 8;
+        unsigned int type: 4;
+        unsigned int zero0: 1;
+        unsigned int dpl: 2;
+        unsigned int present: 1;
+        unsigned int limit16_19: 4;
+        unsigned int available: 1;
+        unsigned int zero1: 2;
+        unsigned int granularity: 1;
+        uint8_t base24_31;
+        uint32_t base32_63;
+        uint32_t reserved;
+} __attribute__((packed));
+
+
+struct task_state_segment {
+        uint32_t reserved0;
+        uint64_t rsp0;
+        uint64_t rsp1;
+        uint64_t rsp2;
+        uint64_t reserved1;
+        uint64_t ist1;
+        uint64_t ist2;
+        uint64_t ist3;
+        uint64_t ist4;
+        uint64_t ist5;
+        uint64_t ist6;
+        uint64_t ist7;
+        uint64_t reserved2;
+        uint16_t reserved3;
+        uint16_t io_map_addr;
 } __attribute__((packed));
 
 

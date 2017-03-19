@@ -111,6 +111,13 @@ sidt(struct dt_info *gdt)
 
 
 static inline void
+ltr(const uint16_t tss)
+{
+        asm volatile ("ltr %0" : : "r" (tss));
+}
+
+
+static inline void
 outb(uint16_t port, uint8_t data)
 {
         asm volatile ("outb %0, %1" : : "a" (data), "d" (port));

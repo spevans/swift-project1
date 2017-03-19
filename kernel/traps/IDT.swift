@@ -20,9 +20,10 @@ private let idtSize = NR_INTERRUPTS * MemoryLayout<idt_entry>.size
 private var idtInfo = dt_info(limit: UInt16(idtSize - 1), base: &idt)
 
 
-enum GateType: UInt8 {
+enum GateType: UInt32 {
     // Ignore the 16bit types
     case TASK_GATE = 5
+    case TSS_DESCRIPTOR = 9
     case INTR_GATE = 14
     case TRAP_GATE = 15
 }
@@ -30,17 +31,22 @@ enum GateType: UInt8 {
 
 // Helper method to construct an IDT entry
 private func IDTEntry(function: (@escaping @convention(c) () -> Void),
-                      selector: UInt16 = CODE_SEG, gateType: GateType,
-                      dpl: UInt8 = 0) -> idt_entry {
+    selector: UInt16 = CODE_SEG, gateType: GateType,
+    dpl: UInt32 = 0, ist: UInt32 = 0) -> idt_entry {
+
+    precondition(dpl < 4)
+    precondition(ist < 8)
     let address = unsafeBitCast(function, to: UInt64.self)
-    let level = (dpl & 3) << 5
-    let flags: UInt8 = 128 | level | gateType.rawValue  // 128 = Present Bit set
 
     return idt_entry(
         addr_lo: UInt16(truncatingBitPattern: address & 0xffff),
         selector: selector,
-        unused: 0,
-        flags: flags,
+        ist: ist,
+        zero0: 0,
+        type: gateType.rawValue,
+        zero1: 0,
+        dpl: dpl,
+        present: 1,
         addr_mid: UInt16(truncatingBitPattern: (address >> 16) & 0xffff),
         addr_hi: UInt32(truncatingBitPattern: address >> 32),
         reserved: 0);
@@ -67,12 +73,12 @@ func setupIDT() {
     idt.5 = IDTEntry(function: bounds_stub, gateType: .TRAP_GATE)
     idt.6 = IDTEntry(function: invalid_opcode_stub, gateType: .TRAP_GATE)
     idt.7 = IDTEntry(function: unused_stub, gateType: .TRAP_GATE)
-    idt.8 = IDTEntry(function: double_fault_stub, gateType: .TRAP_GATE)
+    idt.8 = IDTEntry(function: double_fault_stub, gateType: .TRAP_GATE, ist: 1)
     idt.9 = IDTEntry(function: unused_stub, gateType: .TRAP_GATE)
     idt.10 = IDTEntry(function: invalid_tss_stub, gateType: .TRAP_GATE)
     idt.11 = IDTEntry(function: seg_not_present_stub, gateType: .TRAP_GATE)
-    idt.12 = IDTEntry(function: stack_fault_stub, gateType: .TRAP_GATE)
-    idt.13 = IDTEntry(function: gpf_stub, gateType: .TRAP_GATE)
+    idt.12 = IDTEntry(function: stack_fault_stub, gateType: .TRAP_GATE, ist: 1)
+    idt.13 = IDTEntry(function: gpf_stub, gateType: .TRAP_GATE, ist: 1)
     idt.14 = IDTEntry(function: page_fault_stub, gateType: .TRAP_GATE)
     idt.15 = IDTEntry(function: unused_stub, gateType: .TRAP_GATE)
     idt.16 = IDTEntry(function: fpu_fault_stub, gateType: .TRAP_GATE)
