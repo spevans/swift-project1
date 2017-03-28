@@ -73,36 +73,6 @@ abort()
 }
 
 
-/* Only works for anonymous mmap (fd == -1), ignore protection settings for now
- * This is used to emulate the large malloc that stdlib does in
- * stdlib/public/runtime/Metadata.cpp (which is remapped to malloc here anyway)
- */
-void
-*mmap(void *addr, size_t len, int prot, int flags, int fd, unsigned long offset)
-{
-        if (fd != -1) {
-                koops("mmap with fd=%d!", fd);
-        }
-
-        void *result = malloc(len);
-        debugf("mmap(addr=%p, len=%lX, prot=%X, flags=%X, fd=%d, offset=%lX)=%p\n",
-                addr, len, prot, flags, fd, offset, result);
-
-        return result;
-}
-
-
-/* This is hopefully only used on the result of the above mmap */
-int
-munmap(void *addr, size_t length)
-{
-        debugf("munmap(addr=%p, len=%lX\n", addr, length);
-        free(addr);
-
-        return 0;
-}
-
-
 long
 sysconf(int name)
 {
