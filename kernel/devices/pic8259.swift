@@ -99,7 +99,7 @@ class PIC8259: InterruptController {
         }
 
         // Check real IRQ occurred
-        let active = readISR().bitSet(UInt16(irq))
+        let active = readISR().bit(irq)
         if !active {
             kprint("PIC8259: Spurious IRQ: ")
             kprint_byte(UInt8(irq))
@@ -152,7 +152,9 @@ class PIC8259: InterruptController {
     private func readIRQReg(_ cmd: UInt8) -> UInt16 {
         outb(PIC1_CMD_REG, cmd)
         outb(PIC2_CMD_REG, cmd)
-        return UInt16(msb: inb(PIC2_CMD_REG), lsb: inb(PIC1_CMD_REG))
+        let msb = inb(PIC2_CMD_REG)
+        let lsb = inb(PIC1_CMD_REG)
+        return UInt16(withBytes: lsb, msb)
     }
 
 

@@ -10,7 +10,7 @@
 
 
 struct LVTEntry: CustomStringConvertible {
-    fileprivate(set) var value: BitField32
+    fileprivate(set) var value: BitArray32
 
     enum DeliveryStatus: Int {
     case Idle = 0
@@ -22,7 +22,7 @@ struct LVTEntry: CustomStringConvertible {
             return UInt8(value[0...7])
         }
         set(newValue) {
-            //let data = BitField32(rawValue: newValue)
+            //let data = BitArray32(rawValue: newValue)
             value[0...7] = UInt32(newValue)
             //value.replaceSubrange(0...7, with: data)
         }
@@ -45,7 +45,7 @@ struct LVTEntry: CustomStringConvertible {
     var rawValue: UInt32 { return value.rawValue }
 
     init(rawValue: UInt32) {
-        value = BitField32(rawValue: rawValue)
+        value = BitArray32(rawValue)
     }
 }
 
@@ -65,7 +65,7 @@ extension TimerEntry {
             return TimerMode(rawValue: rawValue) ?? .oneShot
         }
         set(newValue) {
-            //let data = BitField32(rawValue: newValue.rawValue)
+            //let data = BitArray32(newValue.rawValue)
             value[17...18] = UInt32(newValue.rawValue)
             //value.replaceSubrange(17...18, with: data)
         }
@@ -95,7 +95,7 @@ extension InterruptEntry {
             return mode ?? .Fixed
         }
         set(newValue) {
-            //let data = BitField32(rawValue: newValue.rawValue)
+            //let data = BitArray32(newValue.rawValue)
             //value.replaceSubrange(8...10, with: data)
             value[8...10] = UInt32(newValue.rawValue)
         }
@@ -202,7 +202,7 @@ public class APIC: InterruptController {
         get {
             let lo = atOffset(0x300)
             let hi = atOffset(0x310)
-            return UInt64(msw: hi, lsw: lo)
+            return UInt64(withDWords: lo, hi)
         }
         set(value) {
             let (hi, lo) = value.toWords()
@@ -265,13 +265,13 @@ public class APIC: InterruptController {
         }
         print("APIC: Initialising..")
 
-        var apicStatus: UInt64 = CPU.readMSR(IA32_APIC_BASE_MSR)
+        var apicStatus = BitArray64(CPU.readMSR(IA32_APIC_BASE_MSR))
 
         // Enable the APIC if currently disabled
         if apicStatus[globalEnableBit] != 1 {
             apicStatus[globalEnableBit] = 1
-            CPU.writeMSR(IA32_APIC_BASE_MSR, apicStatus)
-            apicStatus = CPU.readMSR(IA32_APIC_BASE_MSR)
+            CPU.writeMSR(IA32_APIC_BASE_MSR, apicStatus.toUInt64())
+            apicStatus = BitArray64(CPU.readMSR(IA32_APIC_BASE_MSR))
             if apicStatus[globalEnableBit] != 1 {
                 print("APIC: failed to enable")
                 return nil
@@ -283,7 +283,7 @@ public class APIC: InterruptController {
         let lomask = ~((1 << UInt(12)) - 1)
         let himask = (1 << maxPhyAddrBits) - 1
         let mask = lomask & himask
-        let baseAddress = PhysAddress(apicStatus & UInt64(mask))
+        let baseAddress = PhysAddress(apicStatus.toUInt64() & UInt64(mask))
         printf("APIC: base address: 0x%lX\n", baseAddress)
 
         apicRegistersVaddr = mapIORegion(physicalAddr: baseAddress,

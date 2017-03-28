@@ -158,7 +158,7 @@ class PIT8254: CustomStringConvertible {
         let lsb = inb(channel.rawValue)
         let msb = inb(channel.rawValue)
 
-        return UInt16.init(msb: msb, lsb: lsb)
+        return UInt16.init(withBytes: lsb, msb)
     }
 
 

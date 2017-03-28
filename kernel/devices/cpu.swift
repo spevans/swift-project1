@@ -242,7 +242,7 @@ struct CPU {
         // 6: Uncached
         // 7: Uncacheable
 
-        writeMSR(0x277, UInt64(pats.map { $0.rawValue }))
+        writeMSR(0x277, UInt64(withBytes: pats.map { $0.rawValue }))
         let newPat = readMSR(0x277).toBytes().map {
             PATEntry(rawValue: $0)!
         }
@@ -260,7 +260,7 @@ struct CPU {
 
     static func readMSR(_ msr: UInt32) -> UInt64 {
         let result = rdmsr(msr)
-        return UInt64(msw: result.edx, lsw: result.eax)
+        return UInt64(withDWords: result.eax, result.edx)
     }
 
     static func writeMSR(_ msr: UInt32, _ eax: UInt32, _ edx: UInt32) {

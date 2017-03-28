@@ -148,7 +148,7 @@ fileprivate extension IOAPIC {
     }
 }
 
-fileprivate typealias IORedirectionRegister = BitField64
+fileprivate typealias IORedirectionRegister = BitArray64
 fileprivate extension IORedirectionRegister {
     var idtVector: UInt8 {
         get {
@@ -161,18 +161,18 @@ fileprivate extension IORedirectionRegister {
 
     var deliveryMode: IOAPIC.DeliveryMode {
         get {
-            let mode = BitField64(self[8...10]).toInt()
+            let mode = BitArray64(self[8...10]).toInt()
             return IOAPIC.DeliveryMode(rawValue: mode)
                 ?? IOAPIC.DeliveryMode.fixed
         }
         set(newValue) {
-            //self.replaceSubrange([8...10], with: BitField64(newValue.rawValue))
+            //self.replaceSubrange([8...10], with: BitArray64(newValue.rawValue))
         }
     }
 
     var destinationMode: IOAPIC.DestinationMode {
         get {
-            let mode = self.rawValue[11]
+            let mode = self[11]
             return IOAPIC.DestinationMode(rawValue: mode)
             ?? IOAPIC.DestinationMode.physical
         }
@@ -182,13 +182,13 @@ fileprivate extension IORedirectionRegister {
     }
 
     var deliveryStatus: IOAPIC.DeliveryStatus {
-        return IOAPIC.DeliveryStatus(rawValue: self.rawValue[12])
+        return IOAPIC.DeliveryStatus(rawValue: self[12])
         ?? IOAPIC.DeliveryStatus.idle
     }
 
     var inputPinPolarity: IOAPIC.InputPinPolarity {
         get {
-            let mode = self.rawValue[13]
+            let mode = self[13]
             return IOAPIC.InputPinPolarity(rawValue: mode)
             ?? IOAPIC.InputPinPolarity.activeHigh
         }
@@ -205,7 +205,7 @@ fileprivate extension IORedirectionRegister {
 
     var triggerMode: IOAPIC.TriggerMode {
         get {
-            let value = self.rawValue[15]
+            let value = self[15]
             return IOAPIC.TriggerMode(rawValue: value)
             ?? IOAPIC.TriggerMode.edge
         }

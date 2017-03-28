@@ -51,21 +51,22 @@ private func mkGDTEntry(base: UInt = 0, privLevel: UInt, executable: Bool,
 }
 
 
-private func mkTSS(basex: UnsafeRawPointer, limit: UInt32, privLevel: UInt)
+private func mkTSS(base: UnsafeRawPointer, limit: UInt32, privLevel: UInt)
     -> gdt_system_entry {
 
     precondition(limit < (1 << 20))
     precondition(privLevel < 4)
 
-    let base = UInt64(UInt(bitPattern: basex)) //unsafeBitCast(basex, to: UInt64.self)
+    let _base = BitArray64(UInt(bitPattern: base))
+    let _limit = BitArray32(limit)
     var entry = gdt_system_entry()
-    entry.limit00_15 = UInt16(limit[0...15])
-    entry.limit16_19 = limit[16...19]
+    entry.limit00_15 = UInt16(_limit[0...15])
+    entry.limit16_19 = _limit[16...19]
 
-    entry.base00_15 = UInt16(base[0...15])
-    entry.base16_23 = UInt32(base[16...23])
-    entry.base24_31 = UInt8(base[24...31])
-    entry.base32_63 = UInt32(base[32...63])
+    entry.base00_15 = UInt16(_base[0...15])
+    entry.base16_23 = UInt32(_base[16...23])
+    entry.base24_31 = UInt8(_base[24...31])
+    entry.base32_63 = UInt32(_base[32...63])
 
     entry.type = UInt32(GateType.TSS_DESCRIPTOR.rawValue)
     entry.dpl = UInt32(privLevel)
@@ -116,7 +117,7 @@ private struct theGDT {
         privLevel: 0, executable: false, conforming: false, readWrite: true)
 
     // 0x20
-    let tssSeg = mkTSS(basex: &taskStateSegment,
+    let tssSeg = mkTSS(base: &taskStateSegment,
         limit: UInt32(MemoryLayout<task_state_segment>.size - 1), privLevel: 0)
 }
 

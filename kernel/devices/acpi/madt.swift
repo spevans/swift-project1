@@ -36,7 +36,7 @@ protocol MADTEntry {
 
 struct MADT: ACPITable, CustomDebugStringConvertible {
     // Multiple APIC Flags (bit)
-    private let PCAT_COMPAT: UInt32 = 0
+    private let PCAT_COMPAT = 0
 
     let header: ACPI_SDT
     let localIntControllerAddr: UInt32
@@ -126,8 +126,8 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
             processorUID = table[2]
             apicID = table[3]
             // ACPI tables are all little endian
-            localApicFlags = UInt32(byte3: table[7], byte2: table[6],
-                byte1: table[5], byte0: table[4])
+            localApicFlags = UInt32(withBytes: table[4], table[5],
+                                    table[6], table[7]);
         }
     }
 
@@ -152,10 +152,10 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
                 fatalError("Invalid IOApicTable size")
             }
             ioApicID = table[2]
-            ioApicAddress = UInt32(byte3: table[7], byte2: table[6],
-                byte1: table[5], byte0: table[4])
-            globalSystemInterruptBase = UInt32(byte3: table[11],
-                byte2: table[10], byte1: table[9], byte0: table[8])
+            ioApicAddress = UInt32(withBytes: table[4], table[5],
+                table[6], table[7]);
+            globalSystemInterruptBase = UInt32(withBytes: table[8], table[9],
+                table[10], table[11])
         }
     }
 
@@ -184,9 +184,9 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
             }
             bus = table[2]
             sourceIRQ = table[3]
-            globalInterrupt = UInt32(byte3: table[7], byte2: table[6],
-                byte1: table[5], byte0: table[4])
-            flags = UInt16(msb: table[9], lsb: table[8])
+            globalInterrupt = UInt32(withBytes: table[4], table[5],
+                table[6], table[7]);
+            flags = UInt16(withBytes: table[8], table[9])
         }
     }
 
@@ -210,7 +210,7 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
                 fatalError("Invalid LocalApicNmiTable size")
             }
             acpiProcessorUID = table[2]
-            flags = UInt16(msb: table[4], lsb: table[3])
+            flags = UInt16(withBytes: table[3], table[4])
             localApicLint = table[5]
         }
     }

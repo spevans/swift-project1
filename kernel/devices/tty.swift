@@ -253,7 +253,7 @@ private class TextTTY: ScreenDriver {
     // bright green characters on a black background
     private let textColour: CUnsignedChar = 0xA
     // black space on black background
-    private let blankChar = UInt16(msb: 0, lsb: SPACE)
+    private let blankChar = UInt16(withBytes: SPACE, 0)
 
     private var _cursorX: TextCoord = 0
     private var _cursorY: TextCoord = 0
@@ -296,7 +296,7 @@ private class TextTTY: ScreenDriver {
             return
         }
         let offset = Int((y * charsPerLine) + x)
-        screen[offset] = UInt16(msb: textColour, lsb: character)
+        screen[offset] = UInt16(withBytes: character, textColour)
     }
 
 
@@ -330,7 +330,7 @@ private class TextTTY: ScreenDriver {
         let msb = inb(CRT_DATA_REG)
         outb(CRT_IDX_REG, CURSOR_LSB_IDX)
         let lsb = inb(CRT_DATA_REG)
-        let address = UInt16(msb: msb, lsb: lsb)
+        let address = UInt16(withBytes: lsb, msb)
         let x = address % UInt16(charsPerLine)
         let y = address / UInt16(charsPerLine)
         return fixCursor(TextCoord(x), TextCoord(y))
