@@ -15,6 +15,7 @@ SWIFT_SRCS :=	init/startup.swift		\
 		klib/extensions/integer.swift	\
 		klib/extensions/bitarray.swift	\
 		klib/extensions/bytearray.swift \
+		klib/extensions/dwordarray.swift \
 		klib/MemoryBufferReader.swift	\
 		klib/CircularBuffer.swift	\
 		mm/init.swift			\

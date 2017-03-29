@@ -340,7 +340,9 @@ private class TextTTY: ScreenDriver {
     // Set hardware cursor x, y on video card
     private func writeCursor(_ x: TextCoord, _ y: TextCoord) {
         let (x, y) = fixCursor(x, y)
-        let (addressMSB, addressLSB) = UInt16(y * charsPerLine + x).toBytes()
+        let address = ByteArray2(y * charsPerLine + x)
+        let addressLSB = address[0]
+        let addressMSB = address[1]
         outb(CRT_IDX_REG, CURSOR_MSB_IDX)
         outb(CRT_DATA_REG, addressMSB)
         outb(CRT_IDX_REG, CURSOR_MSB_IDX)

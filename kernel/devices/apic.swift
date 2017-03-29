@@ -205,9 +205,9 @@ public class APIC: InterruptController {
             return UInt64(withDWords: lo, hi)
         }
         set(value) {
-            let (hi, lo) = value.toWords()
-            atOffset(0x300, value: lo)
-            atOffset(0x310, value: hi)
+            let v = DWordArray2(value)
+            atOffset(0x300, value: v[0])
+            atOffset(0x310, value: v[1])
         }
     }
     var lvtTimer: TimerEntry {

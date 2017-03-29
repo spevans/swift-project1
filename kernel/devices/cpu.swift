@@ -226,9 +226,7 @@ struct CPU {
             koops("CPU doesnt support PAT")
         }
         // Update PAT to add a WriteCombining and WriteProtected entry
-        var pats = readMSR(0x277).toBytes().map {
-            PATEntry(rawValue: $0)!
-        }
+        var pats = ByteArray8(readMSR(0x277)).map { PATEntry(rawValue: $0)! }
         pats[2] = PATEntry.WriteCombining
         pats[3] = PATEntry.WriteProtected
 
@@ -243,15 +241,12 @@ struct CPU {
         // 7: Uncacheable
 
         writeMSR(0x277, UInt64(withBytes: pats.map { $0.rawValue }))
-        let newPat = readMSR(0x277).toBytes().map {
-            PATEntry(rawValue: $0)!
-        }
+        let newPat = ByteArray8(readMSR(0x277)).map { PATEntry(rawValue: $0)! }
         print("CPU: Page Attribute Table:")
-        for idx in 0..<8 {
-            print("CPU: \(idx): \(newPat[idx])")
+        for (idx, entry) in newPat.enumerated() {
+            print("CPU: \(idx): \(entry)")
         }
     }
-
 
     static func readMSR(_ msr: UInt32) -> (UInt32, UInt32) {
         let result = rdmsr(msr)
@@ -268,8 +263,7 @@ struct CPU {
     }
 
     static func writeMSR(_ msr: UInt32, _ value: UInt64) {
-        let (edx, eax) = value.toWords()
-        wrmsr(msr, eax, edx)
+        let v = DWordArray2(value)
+        wrmsr(msr, v[0], v[1])
     }
-
 }

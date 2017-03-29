@@ -163,9 +163,9 @@ class PIT8254: CustomStringConvertible {
 
 
     private func setDivisor(_ channel: TimerChannel, _ value: UInt16) {
-        let (msb, lsb) = value.toBytes()
-        outb(channel.rawValue, lsb)
-        outb(channel.rawValue, msb)
+        let v = ByteArray2(value)
+        outb(channel.rawValue, v[0])
+        outb(channel.rawValue, v[1])
     }
 
 

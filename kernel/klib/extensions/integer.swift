@@ -40,11 +40,6 @@ extension UInt16 {
         }
     }
 
-    // return (msb, lsb)
-    func toBytes() -> (UInt8, UInt8) {
-        return (UInt8(self >> 8), UInt8(self & 0xff))
-    }
-
     func bit(_ bit: Int) -> Bool {
         return self & (1 << UInt16(bit)) != 0
     }
@@ -117,21 +112,6 @@ extension UInt64 {
             self |= (UInt64(dword) << shift)
             shift += 32
         }
-    }
-
-    func toWords() -> (UInt32, UInt32) {
-        return (UInt32(self >> 32), UInt32(self & 0xffffffff))
-    }
-
-    func toBytes() -> [UInt8] {
-        return [UInt8(truncatingBitPattern: self),
-                UInt8(truncatingBitPattern: self >> 8),
-                UInt8(truncatingBitPattern: self >> 16),
-                UInt8(truncatingBitPattern: self >> 24),
-                UInt8(truncatingBitPattern: self >> 32),
-                UInt8(truncatingBitPattern: self >> 40),
-                UInt8(truncatingBitPattern: self >> 48),
-                UInt8(truncatingBitPattern: self >> 56)]
     }
 
     func bit(_ bit: Int) -> Bool {
