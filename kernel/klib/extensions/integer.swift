@@ -8,113 +8,65 @@
  *
  */
 
-extension UInt8 {
-    func bit(_ bit: Int) -> Bool {
-        return self & (1 << UInt8(bit)) != 0
-    }
-}
+extension UnsignedInteger {
+    typealias Byte = UInt8
+    typealias Word = UInt16
+    typealias DWord = UInt32
 
-
-extension UInt16 {
-    init(withBytes bytes: [UInt8]) {
-        precondition(bytes.count > 0)
-        precondition(bytes.count <= Int(UInt16._sizeInBytes))
-
-        self = 0
-        var shift: UInt16 = 0
-        for byte in bytes {
-            self |= (UInt16(byte) << shift)
-            shift += 8
-        }
-    }
-
-    init(withBytes bytes: UInt8...) {
-        precondition(bytes.count > 0)
-        precondition(bytes.count <= Int(UInt16._sizeInBytes))
-
-        self = 0
-        var shift: UInt16 = 0
-        for byte in bytes {
-            self |= (UInt16(byte) << shift)
-            shift += 8
-        }
-    }
 
     func bit(_ bit: Int) -> Bool {
-        return self & (1 << UInt16(bit)) != 0
+        precondition(bit >= 0 && bit < MemoryLayout<Self>.size * 8,
+            "Bit must be in range 0-\(MemoryLayout<Self>.size * 8 - 1)")
+        return self & Self(1 << UIntMax(bit)) != 0
     }
-}
 
-
-extension UInt32 {
-    init(withBytes bytes: UInt8...) {
-        precondition(bytes.count > 0)
-        precondition(bytes.count <= Int(UInt32._sizeInBytes))
+    init(withBytes bytes: [Byte]) {
+        precondition(bytes.count > 0 && bytes.count <= MemoryLayout<Self>.size,
+            "Array must have from 1-\(MemoryLayout<Self>.size) elements")
 
         self = 0
-        var shift: UInt32 = 0
+        var shift: UIntMax = 0
         for byte in bytes {
-            self |= (UInt32(byte) << shift)
-            shift += 8
+            self |= (Self(UIntMax(byte) << shift))
+            shift += UIntMax(MemoryLayout<Byte>.size * 8)
         }
     }
 
-    init(withBytes bytes: [UInt8]) {
-        precondition(bytes.count > 0)
-        precondition(bytes.count <= Int(UInt32._sizeInBytes))
+    init(withBytes bytes: Byte...) {
+        self.init(withBytes: bytes)
+    }
+
+    init(withWords words: [Word]) {
+        let maxElements = MemoryLayout<Self>.size / MemoryLayout<Word>.size
+        precondition(words.count > 0 && words.count <= maxElements,
+            "Array must have from 1-\(maxElements) elements")
 
         self = 0
-        var shift: UInt32 = 0
-        for byte in bytes {
-            self |= (UInt32(byte) << shift)
-            shift += 8
+        var shift: UIntMax = 0
+        for word in words {
+            self |= (Self(UIntMax(word) << shift))
+            shift += UIntMax(MemoryLayout<Word>.size * 8)
         }
     }
 
-    func bit(_ bit: Int) -> Bool {
-        return self & (1 << UInt32(bit)) != 0
-    }
-}
-
-
-extension UInt64 {
-    init(withBytes bytes: UInt8...) {
-        precondition(bytes.count > 0)
-        precondition(bytes.count <= Int(UInt64._sizeInBytes))
-
-        self = 0
-        var shift: UInt64 = 0
-        for byte in bytes {
-            self |= (UInt64(byte) << shift)
-            shift += 8
-        }
+    init(withWords words: Word...) {
+        self.init(withWords: words)
     }
 
-    init(withBytes bytes: [UInt8]) {
-        precondition(bytes.count > 0)
-        precondition(bytes.count <= Int(UInt64._sizeInBytes))
+    init(withDWords dwords: [DWord]) {
+        let maxElements = MemoryLayout<Self>.size / MemoryLayout<DWord>.size
+        precondition(dwords.count > 0 && dwords.count <= maxElements,
+            "Array must have from 1-\(maxElements) elements")
 
         self = 0
-        var shift: UInt64 = 0
-        for byte in bytes {
-            self |= (UInt64(byte) << shift)
-            shift += 8
-        }
-    }
-
-    init(withDWords dwords: UInt32...) {
-        precondition(dwords.count > 0)
-        precondition(dwords.count <= 2)
-
-        self = 0
-        var shift: UInt64 = 0
+        var shift: UIntMax = 0
         for dword in dwords {
-            self |= (UInt64(dword) << shift)
-            shift += 32
+            self |= (Self(UIntMax(dword) << shift))
+            shift += UIntMax(MemoryLayout<DWord>.size * 8)
         }
     }
 
-    func bit(_ bit: Int) -> Bool {
-        return self & (1 << UInt64(bit)) != 0
+    init(withDWords dwords: DWord...) {
+        self.init(withDWords: dwords)
     }
 }
