@@ -69,5 +69,5 @@ sil: SwiftKernel.sil
 
 clean:
 	rm -f *.bin *.o *.s *.sil
-	rm init/version.swift
+	rm -f init/version.swift
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir clean; done

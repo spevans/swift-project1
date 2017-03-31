@@ -12,7 +12,6 @@ OBJS += std_cxx11_string.o
 all: klibc.o
 
 klibc.o: $(OBJS) ../include/klibc.h ../include/x86funcs.h ../include/x86defs.h ../include/mm.h
-	echo klibc OBJS = $(OBJS)
 	ld -r -no_eh_labels -o $@ $(OBJS)
 
 clean:

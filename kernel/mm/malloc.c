@@ -263,7 +263,7 @@ free(void *ptr)
                 }
                 int bit_idx = (offset-64) / slab->slab_size;
                 uint64_t bitmap_mask = (uint64_t)1 << bit_idx;
-                debugf("  bit_idx = %d mask=%"PRIx64, bit_idx, bitmap_mask);
+                debugf("  bit_idx = %d mask=%"PRIx64"\n", bit_idx, bitmap_mask);
                 if (likely(slab->allocation_bm[0] & bitmap_mask)) {
                         slab->allocation_bm[0] &= ~bitmap_mask;
                         slab->free_cnt++;
@@ -274,7 +274,7 @@ free(void *ptr)
                 }
                 memset(ptr, 0xAA, slab->slab_size);
                 update_checksum(slab);
-                debugf("cs=%"PRIx64 "\n", slab->checksum);
+                debugf("\ncs=%"PRIx64 "\n", slab->checksum);
         }
         if (atomic_fetch_sub(&malloc_lock, 1) != 1) {
                 koops("(free)malloc_lock != 1");
