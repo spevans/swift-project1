@@ -107,9 +107,7 @@ protocol BootParamsData {
     var source: String { get }
     var frameBufferInfo: FrameBufferInfo? { get }
     var kernelPhysAddress: PhysAddress { get }
-    var rsdp: UnsafePointer<rsdp1_header>? { get }
-    var smbios: UnsafePointer<smbios_header>? { get }
-    mutating func findTables()
+    func findTables() -> (ACPI?, SMBIOS?)
 }
 
 
@@ -133,18 +131,21 @@ private func readSignature(_ address: PhysAddress) -> String? {
  */
 
 struct BootParams {
-    private static var params: BootParamsData?
+    static private(set) var params: BootParamsData?
+    static private(set) var acpiTables: ACPI?
+    static private(set) var smbiosTables: SMBIOS?
+    static private(set) var vendor = "generic"
+    static private(set) var product = "generic"
+
     static let memoryRanges = BootParams.getRanges()
-    static var source: String { return params == nil ? "" : params!.source }
-    static var frameBufferInfo: FrameBufferInfo? { return params?.frameBufferInfo }
+    static var source: String { return params?.source ?? "" }
+    static var frameBufferInfo: FrameBufferInfo? {
+        return params?.frameBufferInfo
+    }
     static var highestMemoryAddress: PhysAddress {
         let lastEntry = memoryRanges[memoryRanges.count - 1]
         return lastEntry.start + lastEntry.size - 1
     }
-    static let acpiTables: ACPI? = BootParams.getAcpi()
-    static let smbiosTables: SMBIOS? = BootParams.getSmbios()
-    private(set) static var vendor = "generic"
-    private(set) static var product = "generic"
 
     static var kernelAddress: PhysAddress {
         guard params != nil else {
@@ -155,56 +156,30 @@ struct BootParams {
 
 
     static func findTables() {
-        if BootParams.smbiosTables == nil {
+        if BootParams.acpiTables != nil || params == nil{
+            return
+        }
+
+        let (acpi, smbios) = params!.findTables()
+
+        if smbios == nil {
             print("bootparams: Cant find SMBIOS tables")
         } else {
-            if let v = BootParams.smbiosTables?.dmiBiosVendor {
+            BootParams.smbiosTables = smbios
+            if let v = smbios!.dmiBiosVendor {
                 vendor = v
             }
-            if let p = BootParams.smbiosTables?.dmiProductName {
+            if let p = smbios!.dmiProductName {
                 product = p
             }
         }
 
-        if BootParams.acpiTables == nil {
+        if acpi == nil {
             print("bootparams: Cant find ACPI tables")
         } else {
+            BootParams.acpiTables = acpi
             print("bootparams: Found ACPI tables")
         }
-    }
-
-
-    static func findMemoryRangeContaining(address: PhysAddress) -> MemoryRange? {
-        for range in memoryRanges {
-            if (address >= range.start) && (address < range.start + range.size) {
-                return range
-            }
-        }
-        return nil
-    }
-
-
-    private static func getSmbios() -> SMBIOS? {
-        if params != nil {
-            params!.findTables()
-            if params!.smbios != nil {
-                return SMBIOS(ptr: params!.smbios!)
-            }
-        }
-
-        return nil
-    }
-
-
-    private static func getAcpi() -> ACPI? {
-        if params != nil {
-            params!.findTables()
-            if params!.rsdp != nil {
-                return ACPI(rsdp: params!.rsdp!)
-            }
-        }
-
-        return nil
     }
 
 
@@ -344,8 +319,6 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
     let memoryRanges: [MemoryRange]
     let frameBufferInfo: FrameBufferInfo? = nil
     let kernelPhysAddress: PhysAddress
-    var rsdp: UnsafePointer<rsdp1_header>?
-    var smbios: UnsafePointer<smbios_header>?
 
     var description: String {
         return "bootparams: BiosBootParams has \(memoryRanges.count) ranges"
@@ -382,6 +355,8 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
     }
 
 
+    // This is only called from init() so needs to be static since 'self'
+    // isnt fully initialised.
     // FIXME - still needs to check for overlapping regions
     static private func parseE820Table(_ kernelPhysAddress: UInt,
         _ e820MapAddr: UInt, _ e820Entries: UInt) -> [MemoryRange] {
@@ -439,13 +414,17 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
     }
 
 
-    mutating func findTables() {
-        if rsdp == nil {
-            rsdp = findRSDP()
+    func findTables() -> (ACPI?, SMBIOS?) {
+        var acpi: ACPI?
+        var smbios: SMBIOS?
+
+        if let rsdp = findRSDP() {
+            acpi = ACPI(rsdp: rsdp)
         }
-        if smbios == nil {
-            smbios = findSMBIOS()
+        if let smbiosp = findSMBIOS() {
+            smbios = SMBIOS(ptr: smbiosp)
         }
+        return (acpi, smbios)
     }
 
 
@@ -477,7 +456,7 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
 
     private func getEBDA() -> ScanArea? {
         let ebdaRegion: UnsafeBufferPointer<UInt16> = mapPhysicalRegion(start: 0x40E, size: 1)
-        let ebda = ebdaRegion[0] //UInt16(msb: ebdaRegion[1], lsb: ebdaRegion[0])
+        let ebda = ebdaRegion[0]
         // Convert realmode segment to linear address
         let rsdpAddr = UInt(ebda) * 16
 
@@ -566,28 +545,13 @@ struct EFIBootParams: BootParamsData {
     }
 
 
-    struct EFIConfigTableEntry {
-        let guid: efi_guid_t
-        let table: UnsafeRawPointer
-    }
-
-    private let guidACPI1 = efi_guid_t(data1: 0xeb9d2d30, data2: 0x2d88,
-        data3: 0x11d3, data4: (0x9a, 0x16, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d))
-    private let guidSMBIOS = efi_guid_t(data1: 0xeb9d2d31, data2: 0x2d88,
-        data3: 0x11d3, data4: (0x9a, 0x16, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d))
-    private let guidSMBIOS3 = efi_guid_t(data1: 0xf2fd1544, data2: 0x9794,
-        data3: 0x4a2c, data4: (0x99, 0x2e, 0xe5, 0xbb, 0xcf, 0x20, 0xe3, 0x94))
-
     private let configTableCount: UInt
     private let configTablePtr: UnsafePointer<efi_config_table_t>
-    private var configTables: [EFIConfigTableEntry]? = nil
 
     let source = "EFI"
     let memoryRanges: [MemoryRange]
     let frameBufferInfo: FrameBufferInfo?
     let kernelPhysAddress: PhysAddress
-    var rsdp: UnsafePointer<rsdp1_header>?
-    var smbios: UnsafePointer<smbios_header>?
 
 
     init?(bootParamsAddr: UInt) {
@@ -633,25 +597,8 @@ struct EFIBootParams: BootParamsData {
     }
 
 
-    mutating func findTables() {
-        if configTables == nil {
-            configTables = parseConfigTables()
-
-            // Root System Description Pointer
-            if let ptr = findGUID(guidACPI1) {
-                rsdp = ptr.bindMemory(to: rsdp1_header.self, capacity: 1)
-            }
-
-            // SMBios table
-            if let ptr = findGUID(guidSMBIOS3) {
-                smbios = ptr.bindMemory(to: smbios_header.self, capacity: 1)
-            } else if let ptr = findGUID(guidSMBIOS) {
-                smbios = ptr.bindMemory(to: smbios_header.self, capacity: 1)
-            }
-        }
-    }
-
-
+    // This is only called from init() so needs to be static since 'self'
+    // isnt fully initialised.
     static private func parseMemoryMap(_ memoryMapAddr: VirtualAddress,
         _ memoryMapSize: UInt, _ descriptorSize: UInt) -> [MemoryRange] {
         let descriptorCount = memoryMapSize / descriptorSize
@@ -677,48 +624,100 @@ struct EFIBootParams: BootParamsData {
     }
 
 
-    private func matchGUID(_ guid1: efi_guid_t, _ guid2: efi_guid_t) -> Bool {
-        return (guid1.data1 == guid2.data1) && (guid1.data2 == guid2.data2)
-        && (guid1.data3 == guid2.data3)
-        && guid1.data4.0 == guid2.data4.0 && guid1.data4.1 == guid2.data4.1
-        && guid1.data4.2 == guid2.data4.2 && guid1.data4.3 == guid2.data4.3
-        && guid1.data4.4 == guid2.data4.4 && guid1.data4.5 == guid2.data4.5
-        && guid1.data4.6 == guid2.data4.6 && guid1.data4.7 == guid2.data4.7
+    func findTables() -> (ACPI?, SMBIOS?) {
+        let efiTables = EFITables(configTablePtr, configTableCount)
+        return (efiTables.acpi, efiTables.smbios)
     }
 
 
-    private func printGUID(_ guid: efi_guid_t) {
-        printf("EFI: { %#8.8x, %#8.4x, %#4.4x, { %#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x }}\n",
-            guid.data1, guid.data2, guid.data3, guid.data4.0, guid.data4.1,
-            guid.data4.2, guid.data4.3, guid.data4.4, guid.data4.5,
-            guid.data4.6, guid.data4.7)
-    }
+    // This can only be called after the memory manager has been setup
+    // as it relies on calling mapPhysicalRegion()
+    struct EFITables {
+        struct EFIConfigTableEntry {
+            let guid: efi_guid_t
+            let table: UnsafeRawPointer
+        }
+
+        private let guidACPI1 = efi_guid_t(data1: 0xeb9d2d30, data2: 0x2d88,
+            data3: 0x11d3,
+            data4: (0x9a, 0x16, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d))
+        private let guidSMBIOS = efi_guid_t(data1: 0xeb9d2d31, data2: 0x2d88,
+            data3: 0x11d3,
+            data4: (0x9a, 0x16, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d))
+        private let guidSMBIOS3 = efi_guid_t(data1: 0xf2fd1544, data2: 0x9794,
+            data3: 0x4a2c,
+            data4: (0x99, 0x2e, 0xe5, 0xbb, 0xcf, 0x20, 0xe3, 0x94))
+
+        let acpi: ACPI?
+        let smbios: SMBIOS?
 
 
-    private func findGUID(_ guid: efi_guid_t) -> UnsafeRawPointer? {
-        for entry in configTables! {
-            if matchGUID(entry.guid, guid) {
+        fileprivate init(_ configTablePtr: UnsafePointer<efi_config_table_t>,
+            _ configTableCount: UInt) {
+
+            let tables: UnsafeBufferPointer<efi_config_table_t> =
+            mapPhysicalRegion(start: configTablePtr,
+                size: Int(configTableCount))
+
+            var acpiTmp: ACPI?
+            var smbiosTmp: SMBIOS?
+
+            for table in tables {
+                let entry = EFIConfigTableEntry(guid: table.vendor_guid,
+                    table: table.vendor_table)
+                EFITables.printGUID(entry.guid)
+
+                // Look for Root System Description Pointer and SMBios tables
+                if acpiTmp == nil {
+                    if let ptr = EFITables.pointerFrom(entry: entry,
+                        ifMatches: guidACPI1) {
+                        acpiTmp = ACPI(rsdp: ptr.bindMemory(to: rsdp1_header.self,
+                                capacity: 1))
+                        continue
+                    }
+                }
+                if smbiosTmp == nil {
+                    if let ptr = EFITables.pointerFrom(entry: entry, ifMatches: guidSMBIOS3) {
+                        smbiosTmp = SMBIOS(ptr: ptr.bindMemory(to: smbios_header.self,
+                                capacity: 1))
+                        continue
+                    }
+                    if let ptr = EFITables.pointerFrom(entry: entry,
+                        ifMatches: guidSMBIOS) {
+                        smbiosTmp = SMBIOS(ptr: ptr.bindMemory(to: smbios_header.self,
+                                capacity: 1))
+                    }
+                }
+            }
+            acpi = acpiTmp
+            smbios = smbiosTmp
+        }
+
+        static private func printGUID(_ guid: efi_guid_t) {
+            printf("EFI: { %#8.8x, %#8.4x, %#4.4x, { %#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x }}\n",
+                guid.data1, guid.data2, guid.data3, guid.data4.0, guid.data4.1,
+                guid.data4.2, guid.data4.3, guid.data4.4, guid.data4.5,
+                guid.data4.6, guid.data4.7)
+        }
+
+        static private func pointerFrom(entry: EFIConfigTableEntry,
+            ifMatches guid2: efi_guid_t) -> UnsafeRawPointer? {
+            if matchGUID(entry.guid, guid2) {
                 let paddr = entry.table.address
                 return UnsafeRawPointer(bitPattern: vaddrFromPaddr(paddr))
+            } else {
+                return nil
             }
         }
 
-        return nil
-    }
-
-
-    private func parseConfigTables() -> [EFIConfigTableEntry] {
-        var entries: [EFIConfigTableEntry] = []
-        let tables: UnsafeBufferPointer<efi_config_table_t> =
-        mapPhysicalRegion(start: configTablePtr, size: Int(configTableCount))
-
-        for table in tables {
-            let entry = EFIConfigTableEntry(guid: table.vendor_guid,
-                table: table.vendor_table)
-            printGUID(entry.guid)
-            entries.append(entry)
+        static private func matchGUID(_ guid1: efi_guid_t, _ guid2: efi_guid_t)
+            -> Bool {
+            return (guid1.data1 == guid2.data1) && (guid1.data2 == guid2.data2)
+            && (guid1.data3 == guid2.data3)
+            && guid1.data4.0 == guid2.data4.0 && guid1.data4.1 == guid2.data4.1
+            && guid1.data4.2 == guid2.data4.2 && guid1.data4.3 == guid2.data4.3
+            && guid1.data4.4 == guid2.data4.4 && guid1.data4.5 == guid2.data4.5
+            && guid1.data4.6 == guid2.data4.6 && guid1.data4.7 == guid2.data4.7
         }
-
-        return entries
     }
 }
