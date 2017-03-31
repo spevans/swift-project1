@@ -27,14 +27,14 @@ class System {
 
 
     init(bootParams: UInt) {
-        printf("kernel: bootParams: %p\n", bootParams)
-        // BootParams must come first to get framebuffer and kernel address
-        BootParams.parse(bootParams)
+        // Setup GDT/IDT as early as possible to help catch CPU exceptions
         setupGDT()
+        setupIDT()
+
+        // BootParams must come first to find memory regions for MM
+        BootParams.parse(bootParams)
         setupMM()
 
-        // Setup IDT as early as possible to help catch CPU exceptions
-        setupIDT()
 
         // findTables() needs to run after the MM is setup
         BootParams.findTables()

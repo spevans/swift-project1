@@ -5,6 +5,7 @@
 
 extern void *_kernel_stack;
 
+static const int max_depth = 40;
 // Simple stack backtrace using rbp to walk the stack
 // Needs an update for eh_frame at some point
 void
@@ -27,21 +28,24 @@ stack_trace(uintptr_t rsp, uintptr_t rbp)
 
         //uintptr_t rbp_addr = rbp;
         if (rbp == 0) {
+                kprintf("Frame pointer is NULL\n");
                 return;
         }
         void **rbp_ptr = (void **)rbp;
         size_t idx = 0;
 
-        while ((uintptr_t)rbp_ptr < (uintptr_t)_kernel_stack) {
+        kprintf("rbp_ptr = %p _kernel_stack = %p\n", rbp_ptr, &_kernel_stack);
+        while ((uintptr_t)rbp_ptr < (uintptr_t)&_kernel_stack) {
                 if (rbp_ptr == NULL) {
+                        kprintf("Frame pointer is NULL\n");
                         return;
                 }
                 kprintf("[%p]: %p ret=%p\n", rbp_ptr, *rbp_ptr, *(rbp_ptr+1));
                 rbp_ptr = *rbp_ptr;
                 idx += 1;
-                if (idx > 10) {
+                if (idx >= max_depth) {
                         // temporary safety check
-                        kprintf("Exceeded depth of 10");
+                        kprintf("Exceeded depth of %d\n", max_depth);
                         return;
                 }
         }

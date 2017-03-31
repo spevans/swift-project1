@@ -140,6 +140,7 @@ func pageFault(registers: ExceptionRegisters) {
     kprint("\n")
     dump_registers(registers)
     stackTrace(registers)
+    kprint("\nSTOP\n")
     stop()
 }
 
