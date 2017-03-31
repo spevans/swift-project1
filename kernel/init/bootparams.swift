@@ -252,9 +252,6 @@ struct BootParams {
         }
 
         for m in ranges {
-            if (m.type == .BootServicesCode || m.type == .BootServicesData) {
-                continue
-            }
             print("bootparams: \(params!.source): \(m)")
         }
 
@@ -341,15 +338,12 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
     }
 
 
-    private let e820MapAddr: UInt
-    private let e820Entries: UInt
     private let RSDP_SIG: StaticString = "RSD PTR "
 
-
     let source = "E820"
-    var memoryRanges: [MemoryRange] { return parseE820Table() }
-    var frameBufferInfo: FrameBufferInfo? = nil
-    var kernelPhysAddress: PhysAddress = 0
+    let memoryRanges: [MemoryRange]
+    let frameBufferInfo: FrameBufferInfo? = nil
+    let kernelPhysAddress: PhysAddress
     var rsdp: UnsafePointer<rsdp1_header>?
     var smbios: UnsafePointer<smbios_header>?
 
@@ -378,8 +372,10 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
             printf("bootParamsSize = %ld kernelPhysAddress: %p\n",
                 bootParamsSize, kernelPhysAddress)
 
-            e820MapAddr = try membuf.read()
-            e820Entries = try membuf.read()
+            let e820MapAddr: UInt = try membuf.read()
+            let e820Entries: UInt = try membuf.read()
+            memoryRanges = BiosBootParams.parseE820Table(kernelPhysAddress,
+                e820MapAddr, e820Entries)
         } catch {
             koops("bootparams: Cant read BIOS boot params")
         }
@@ -387,7 +383,8 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
 
 
     // FIXME - still needs to check for overlapping regions
-    private func parseE820Table() -> [MemoryRange] {
+    static private func parseE820Table(_ kernelPhysAddress: UInt,
+        _ e820MapAddr: UInt, _ e820Entries: UInt) -> [MemoryRange] {
         guard e820Entries > 0 && e820MapAddr > 0 else {
             koops("E820: map is empty")
         }
@@ -395,11 +392,37 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
         ranges.reserveCapacity(Int(e820Entries))
         let buf = MemoryBufferReader(e820MapAddr,
             size: MemoryLayout<E820MemoryRange>.stride * Int(e820Entries))
+
+        let kernelSize = UInt(_kernel_end_addr - _kernel_start_addr)
+        let kernelPhysEnd = kernelPhysAddress + kernelSize
+        printf("E820: Kernel size: %lx\n", kernelSize)
+
         for _ in 0..<e820Entries {
             if let entry: E820MemoryRange = try? buf.read() {
                 print("E820: ", entry)
                 if let memEntry = entry.toMemoryRange() {
-                    ranges.append(memEntry)
+                    // Find the entry that covers the memory where the kernel
+                    // is loaded and adjust it then add another range for the
+                    // kernel
+                    if memEntry.start <= kernelPhysAddress
+                    && kernelPhysEnd <= memEntry.start + memEntry.size {
+                        let range1size = kernelPhysAddress - memEntry.start
+                        if range1size > 0 {
+                            ranges.append(MemoryRange(type: memEntry.type,
+                                    start: memEntry.start, size: range1size))
+                        }
+
+                        ranges.append(MemoryRange(type: .Kernel,
+                                start: kernelPhysAddress, size: kernelSize))
+                        let range2end = memEntry.start + memEntry.size
+                        let range2size = range2end - kernelPhysEnd
+                        if range2size > 0 {
+                            ranges.append(MemoryRange(type: memEntry.type,
+                                    start: kernelPhysEnd, size: range2size))
+                        }
+                    } else {
+                        ranges.append(memEntry)
+                    }
                 }
             }
         }
@@ -408,10 +431,9 @@ struct BiosBootParams: BootParamsData, CustomStringConvertible {
             koops("E820: Cant find any memory in the e820 map")
         }
 
-        let size = UInt(_kernel_end_addr - _kernel_start_addr)
-        printf("E820: Kernel size: %lx\n", size)
-        ranges.append(MemoryRange(type: .Kernel, start: kernelPhysAddress,
-                size: size))
+        guard ranges.contains(where: { $0.type == .Kernel }) else {
+            koops("E820: Could not find Kernel entry")
+        }
 
         return ranges
     }
@@ -558,15 +580,12 @@ struct EFIBootParams: BootParamsData {
 
     private let configTableCount: UInt
     private let configTablePtr: UnsafePointer<efi_config_table_t>
-    private let memoryMapAddr: VirtualAddress
-    private let memoryMapSize: UInt
-    private let descriptorSize: UInt
     private var configTables: [EFIConfigTableEntry]? = nil
 
     let source = "EFI"
-    var memoryRanges: [MemoryRange] { return parseMemoryMap() }
-    var frameBufferInfo: FrameBufferInfo?
-    var kernelPhysAddress: PhysAddress = 0
+    let memoryRanges: [MemoryRange]
+    let frameBufferInfo: FrameBufferInfo?
+    let kernelPhysAddress: PhysAddress
     var rsdp: UnsafePointer<rsdp1_header>?
     var smbios: UnsafePointer<smbios_header>?
 
@@ -591,9 +610,13 @@ struct EFIBootParams: BootParamsData {
             printf("bootparams: bootParamsSize = %ld kernelPhysAddress: %p\n",
                 bootParamsSize, kernelPhysAddress)
 
-            memoryMapAddr = try membuf.read()
-            memoryMapSize = try membuf.read()
-            descriptorSize = try membuf.read()
+            let memoryMapAddr: VirtualAddress = try membuf.read()
+            let memoryMapSize: UInt = try membuf.read()
+            let descriptorSize: UInt = try membuf.read()
+
+            memoryRanges = EFIBootParams.parseMemoryMap(memoryMapAddr,
+                memoryMapSize, descriptorSize)
+
             print("bootparams: reading frameBufferInfo")
             frameBufferInfo = FrameBufferInfo(fb: try membuf.read())
             if let fb = frameBufferInfo {
@@ -629,7 +652,8 @@ struct EFIBootParams: BootParamsData {
     }
 
 
-    private func parseMemoryMap() -> [MemoryRange] {
+    static private func parseMemoryMap(_ memoryMapAddr: VirtualAddress,
+        _ memoryMapSize: UInt, _ descriptorSize: UInt) -> [MemoryRange] {
         let descriptorCount = memoryMapSize / descriptorSize
 
         var ranges: [MemoryRange] = []
@@ -643,7 +667,6 @@ struct EFIBootParams: BootParamsData {
                 print("bootparams: Failed to read descriptor")
                 continue
             }
-            //descriptors.append(descriptor)
             let entry = MemoryRange(type: descriptor.type,
                 start: descriptor.physicalStart,
                 size: UInt(descriptor.numberOfPages) * PAGE_SIZE)
@@ -684,7 +707,7 @@ struct EFIBootParams: BootParamsData {
     }
 
 
-    private mutating func parseConfigTables() -> [EFIConfigTableEntry] {
+    private func parseConfigTables() -> [EFIConfigTableEntry] {
         var entries: [EFIConfigTableEntry] = []
         let tables: UnsafeBufferPointer<efi_config_table_t> =
         mapPhysicalRegion(start: configTablePtr, size: Int(configTableCount))
