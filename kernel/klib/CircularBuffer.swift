@@ -10,7 +10,7 @@
 
 // TODO: Add sleep/wask of consumer.
 
-class CircularBuffer<T> {
+final class CircularBuffer<T> {
     private var buffer: Array<T>
     private let capacity: Int
     private var idxIn = 0, idxOut = 0, count = 0

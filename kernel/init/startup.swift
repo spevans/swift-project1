@@ -19,7 +19,7 @@ public func startup(bootParams: UInt) {
 }
 
 
-class System {
+final class System {
 
     private(set) var interruptManager: InterruptManager
     private(set) var timer: PIT8254

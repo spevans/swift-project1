@@ -14,7 +14,7 @@ enum ReadError: Error {
 }
 
 
-class MemoryBufferReader {
+final class MemoryBufferReader {
     let ptr: UnsafeRawPointer
     let buffer: UnsafeBufferPointer<UInt8>
     var offset: Int = 0

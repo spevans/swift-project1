@@ -9,7 +9,7 @@
  */
 
 
-class PIT8254: CustomStringConvertible {
+final class PIT8254: CustomStringConvertible {
 
     private let interruptManager: InterruptManager
     private let oscillator = 1193182         // Base frequency

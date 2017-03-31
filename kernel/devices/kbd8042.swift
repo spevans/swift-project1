@@ -18,7 +18,7 @@ protocol PS2Device {
 }
 
 
-class KBD8042 {
+final class KBD8042 {
     // Constants
     static private let DATA_PORT:        UInt16 = 0x60
     static private let STATUS_REGISTER:  UInt16 = 0x64

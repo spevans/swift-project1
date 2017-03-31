@@ -9,7 +9,7 @@
  */
 
 
-class IOAPIC {
+final class IOAPIC {
 
     fileprivate let registerSelect: UnsafeMutablePointer<UInt32>
     fileprivate let registerData: UnsafeMutablePointer<UInt32>

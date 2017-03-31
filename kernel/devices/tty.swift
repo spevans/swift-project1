@@ -45,7 +45,7 @@ protocol ScreenDriver {
 }
 
 
-class TTY {
+final class TTY {
 
     // singleton
     static let sharedInstance = TTY()
@@ -195,7 +195,7 @@ class TTY {
 }
 
 
-private class EarlyTTY: ScreenDriver {
+private final class EarlyTTY: ScreenDriver {
 
     var charsPerLine: TextCoord { return etty_chars_per_line() }
     var totalLines:   TextCoord { return etty_total_lines() }
@@ -235,7 +235,7 @@ private class EarlyTTY: ScreenDriver {
 }
 
 
-private class TextTTY: ScreenDriver {
+private final class TextTTY: ScreenDriver {
     // VGA Text Mode Hardware constants
     private let SCREEN_BASE_ADDRESS: UInt = 0xB8000
     // Motorola 6845 CRT Controller registers
@@ -357,7 +357,7 @@ private class TextTTY: ScreenDriver {
 }
 
 
-private class FrameBufferTTY: ScreenDriver {
+private final class FrameBufferTTY: ScreenDriver {
     struct Font: CustomStringConvertible {
         let width:  UInt32
         let height: UInt32

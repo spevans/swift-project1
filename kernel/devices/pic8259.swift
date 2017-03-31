@@ -9,7 +9,7 @@
  */
 
 
-class PIC8259: InterruptController {
+final class PIC8259: InterruptController {
     // IO Port addresses
     private let PIC1_CMD_REG:  UInt16 = 0x20
     private let PIC1_DATA_REG: UInt16 = 0x21

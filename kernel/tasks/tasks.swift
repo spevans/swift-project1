@@ -66,7 +66,7 @@ public func yield() -> Int {
 }
 
 
-class Task: CustomStringConvertible {
+final class Task: CustomStringConvertible {
     let name: String
     let stack: UnsafeMutableRawPointer
     var state: UnsafeMutablePointer<exception_regs>
