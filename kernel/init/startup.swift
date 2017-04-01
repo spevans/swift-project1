@@ -12,42 +12,40 @@
 fileprivate(set) var system: System!
 
 @_silgen_name("startup")
-public func startup(bootParams: UInt) {
-    system = System(bootParams: bootParams)
+public func startup(bootParamsAddr: UInt) {
+    system = System(bootParamsAddr: bootParamsAddr)
     system.runSystem()
     koops("kernel: Shouldnt get here")
 }
 
 
 final class System {
-
     private(set) var interruptManager: InterruptManager
     private(set) var timer: PIT8254
     private(set) var kbd8042: KBD8042?
+    private let bootParams: BootParams
+    private let systemTables: SystemTables
 
 
-    init(bootParams: UInt) {
+    init(bootParamsAddr: UInt) {
         // Setup GDT/IDT as early as possible to help catch CPU exceptions
         setupGDT()
         setupIDT()
 
         // BootParams must come first to find memory regions for MM
-        BootParams.parse(bootParams)
-        setupMM()
+        bootParams = parse(bootParamsAddr: bootParamsAddr)
+        setupMM(bootParams: bootParams)
 
+        // SystemTables() needs the MM setup so that the memory can be mapped
+        systemTables = SystemTables(bootParams: bootParams)
 
-        // findTables() needs to run after the MM is setup
-        BootParams.findTables()
-        interruptManager = InterruptManager()
+        interruptManager = InterruptManager(acpiTables: systemTables.acpiTables)
         set_interrupt_manager(&interruptManager)
         CPU.getInfo()
-        TTY.sharedInstance.setTTY(frameBufferInfo: BootParams.frameBufferInfo)
-        printf("kernel: Highest Address: %p kernel phys address: %p\n",
-            BootParams.highestMemoryAddress, BootParams.kernelAddress)
+        TTY.sharedInstance.setTTY(frameBufferInfo: bootParams.frameBufferInfo)
 
         timer = PIT8254(interruptManager: interruptManager)
         initialiseDevices()
-        //printSections()
     }
 
 
@@ -59,27 +57,16 @@ final class System {
 
 
     private func initialiseDevices() {
+        PCI.scan(mcfgTable: systemTables.acpiTables.mcfg)
         // Set the timer interrupt for 200Hz
         timer.setChannel(.CHANNEL_0, mode: .MODE_3, hz: 20)
         print(timer)
-        PCI.scan()
-        kbd8042 = KBD8042(interruptManager: interruptManager)
+        if systemTables.vendor == "Apple Inc." {
+            print("i8042: Skipping on:", systemTables.vendor)
+        } else {
+            kbd8042 = KBD8042(interruptManager: interruptManager)
+        }
         TTY.sharedInstance.scrollTimingTest()
-    }
-
-
-    private func printSections() {
-        print("kernel: _text_start:   ", asHex(_text_start_addr))
-        print("kernel: _text_end:     ", asHex(_text_end_addr))
-        print("kernel: _data_start:   ", asHex(_data_start_addr))
-        print("kernel: _data_end:     ", asHex(_data_end_addr))
-        print("kernel: _bss_start:    ", asHex(_bss_start_addr))
-        print("kernel: _bss_end:      ", asHex(_bss_end_addr))
-        print("kernel: _kernel_start: ", asHex(_kernel_start_addr))
-        print("kernel: _kernel_end:   ", asHex(_kernel_end_addr))
-        print("kernel: _guard_page:   ", asHex(_guard_page_addr))
-        print("kernel: _stack_start:  ", asHex(_stack_start_addr))
-        print("kernel: initial_pml4:  ", asHex(initial_pml4_addr))
     }
 }
 

@@ -9,11 +9,6 @@
  *
  */
 
-let kb: UInt = 1024
-let mb: UInt = 1048576
-typealias ScanArea = UnsafeBufferPointer<UInt8>
-
-
 // These memory types are just the EFI ones, the BIOS ones are
 // actually a subset so these definitions cover both cases
 enum MemoryType: UInt32 {
@@ -40,6 +35,9 @@ enum MemoryType: UInt32 {
     case E820Reserved = 0x80000005  // Ranges marked in E820 map as reserved
 }
 
+
+let kb: UInt = 1024
+let mb: UInt = 1048576
 
 struct MemoryRange: CustomStringConvertible {
     let type: MemoryType
@@ -72,6 +70,15 @@ struct FrameBufferInfo: CustomStringConvertible {
     let blueShift:     UInt8
     let blueMask:      UInt8
 
+    var description: String {
+        var str = String.sprintf("Framebuffer: %dx%d bpp: %d px per line: %d addr:%p size: %lx\n",
+            width, height, depth, pxPerScanline, address,  size);
+        str += String.sprintf("Red shift:   %2d Red mask:   %x\n", redShift, redMask);
+        str += String.sprintf("Green shift: %2d Green mask: %x\n", greenShift, greenMask);
+        str += String.sprintf("Blue shift:  %2d Blue mask:  %x\n", blueShift, blueMask);
+
+        return str
+    }
 
     init(fb: frame_buffer) {
         address = UInt(bitPattern: fb.address)
@@ -86,40 +93,18 @@ struct FrameBufferInfo: CustomStringConvertible {
         greenMask = fb.green_mask
         blueShift = fb.blue_shift
         blueMask = fb.blue_mask
-
-    }
-
-
-    var description: String {
-        var str = String.sprintf("Framebuffer: %dx%d bpp: %d px per line: %d addr:%p size: %lx\n",
-            width, height, depth, pxPerScanline, address,  size);
-        str += String.sprintf("Red shift:   %2d Red mask:   %x\n", redShift, redMask);
-        str += String.sprintf("Green shift: %2d Green mask: %x\n", greenShift, greenMask);
-        str += String.sprintf("Blue shift:  %2d Blue mask:  %x\n", blueShift, blueMask);
-
-        return str
     }
 }
 
 
-protocol BootParamsData {
-    var memoryRanges: [MemoryRange] { get }
+protocol BootParams {
+    var memoryRanges: [MemoryRange]  { get }
     var source: String { get }
     var frameBufferInfo: FrameBufferInfo? { get }
     var kernelPhysAddress: PhysAddress { get }
-    func findTables() -> (ACPI?, SMBIOS?)
+    func findTables() -> (UnsafePointer<rsdp1_header>?,
+        UnsafePointer<smbios_header>?)
 }
-
-
-private func readSignature(_ address: PhysAddress) -> String? {
-    let signatureSize = 8
-    let membuf = MemoryBufferReader(address, size: signatureSize)
-    guard let sig = try? membuf.readASCIIZString(maxSize: signatureSize) else {
-        return nil
-    }
-    return sig
-}
-
 
 /*
  * The boot parameters are parsed in two stages:
@@ -129,595 +114,69 @@ private func readSignature(_ address: PhysAddress) -> String? {
  * This is required because step 2 requires some pages to be mapped in
  * setupMM(), but setupMM() requires some of the data from step1.
  */
-
-struct BootParams {
-    static private(set) var params: BootParamsData?
-    static private(set) var acpiTables: ACPI?
-    static private(set) var smbiosTables: SMBIOS?
-    static private(set) var vendor = "generic"
-    static private(set) var product = "generic"
-
-    static let memoryRanges = BootParams.getRanges()
-    static var source: String { return params?.source ?? "" }
-    static var frameBufferInfo: FrameBufferInfo? {
-        return params?.frameBufferInfo
+func parse(bootParamsAddr: UInt) -> BootParams {
+    printf("bootparams: parsing bootParams @ 0x%lx\n", bootParamsAddr)
+    if (bootParamsAddr == 0) {
+        koops("bootParamsAddr is null")
     }
-    static var highestMemoryAddress: PhysAddress {
-        let lastEntry = memoryRanges[memoryRanges.count - 1]
-        return lastEntry.start + lastEntry.size - 1
+    guard let signature = readSignature(bootParamsAddr) else {
+        koops("bootparams: Cant find boot params signature")
     }
+    print("bootparams: signature: \(signature)");
 
-    static var kernelAddress: PhysAddress {
-        guard params != nil else {
-            koops("Cant find kernel physical address in BootParams memory ranges")
+    if (signature == "BIOS") {
+        print("bootparams: Found BIOS boot params")
+        if let params = BiosBootParams(bootParamsAddr: bootParamsAddr) {
+            return params
         }
-        return params!.kernelPhysAddress
+    } else if (signature == "EFI") {
+        print("bootparams: Found EFI boot params")
+        if let params = EFIBootParams(bootParamsAddr: bootParamsAddr) {
+            return params
+        }
+    } else {
+        print("bootparams: Found unknown boot params: \(signature)")
+        stop()
     }
+    koops("bootparams: BiosBootParams returned null")
+}
 
 
-    static func findTables() {
-        if BootParams.acpiTables != nil || params == nil{
-            return
+struct SystemTables {
+    let acpiTables: ACPI
+    // vendor and product is the only information needed from the SMBIOS
+    let vendor: String
+    let product: String
+
+    init(bootParams: BootParams) {
+        let (acpiPtr, smbiosPtr) = bootParams.findTables()
+
+        var tmpVendor: String?
+        var tmpProduct: String?
+        if let ptr = smbiosPtr {
+            let smbios = SMBIOS(ptr: ptr)
+            tmpVendor = smbios?.dmiBiosVendor
+            tmpProduct = smbios?.dmiProductName
         }
 
-        let (acpi, smbios) = params!.findTables()
-
-        if smbios == nil {
-            print("bootparams: Cant find SMBIOS tables")
-        } else {
-            BootParams.smbiosTables = smbios
-            if let v = smbios!.dmiBiosVendor {
-                vendor = v
+        vendor = tmpVendor ?? "generic"
+        product = tmpProduct ?? "generic"
+        if let ptr = acpiPtr {
+            if let acpi = ACPI(rsdp: ptr, vendor: vendor, product: product) {
+                acpiTables = acpi
+                return
             }
-            if let p = smbios!.dmiProductName {
-                product = p
-            }
         }
-
-        if acpi == nil {
-            print("bootparams: Cant find ACPI tables")
-        } else {
-            BootParams.acpiTables = acpi
-            print("bootparams: Found ACPI tables")
-        }
-    }
-
-
-    static func parse(_ bootParamsAddr: UInt) {
-        printf("bootparams: parsing bootParams @ 0x%lx\n", bootParamsAddr)
-        if (bootParamsAddr == 0) {
-            koops("bootParamsAddr is null")
-        }
-        guard let signature = readSignature(bootParamsAddr) else {
-            koops("bootparams: Cant find boot params signature")
-        }
-        print("bootparams: signature: \(signature)");
-
-        if (signature == "BIOS") {
-            print("bootparams: Found BIOS boot params")
-            params = BiosBootParams(bootParamsAddr: bootParamsAddr)
-        } else if (signature == "EFI") {
-            print("bootparams: Found EFI boot params")
-            params = EFIBootParams(bootParamsAddr: bootParamsAddr)
-        } else {
-            print("bootparams: Found unknown boot params: \(signature)")
-            stop()
-        }
-        guard params != nil else {
-            koops("bootparams: BiosBootParams returned null")
-        }
-    }
-
-
-    private static func getRanges() -> [MemoryRange] {
-        var ranges = params!.memoryRanges
-
-        findHoles(&ranges)
-        guard ranges.count > 0 else {
-            koops("bootparams: No memory found")
-        }
-
-        // Find the last range. If it doesnt cover the frame buffer
-        // then add that in as an extra range at the end
-        let lastEntry = ranges[ranges.count-1]
-        let address = lastEntry.start + lastEntry.size - 1
-        if (frameBufferInfo != nil && address < frameBufferInfo!.address) {
-            ranges.append(MemoryRange(type: .FrameBuffer, start: frameBufferInfo!.address,
-                    size: frameBufferInfo!.size))
-        }
-
-        for m in ranges {
-            print("bootparams: \(params!.source): \(m)")
-        }
-
-        return ranges
-    }
-
-
-    // Find any holes in the memory ranges and add a fake range. This
-    // allows finding gaps later on for MMIO space etc
-    private static func findHoles(_ ranges: inout [MemoryRange]) {
-        var addr: UInt = 0
-        sortRanges(&ranges)
-        for entry in ranges {
-            if addr < entry.start {
-                let size = entry.start - addr
-                ranges.append(MemoryRange(type: MemoryType.Hole, start: addr,
-                        size: size))
-            }
-            addr = entry.start + entry.size
-        }
-        sortRanges(&ranges)
-    }
-
-
-    private static func sortRanges(_ ranges: inout [MemoryRange]) {
-        ranges.sort(by: { $0.start < $1.start })
+        koops("Cant find ACPI tables")
     }
 }
 
 
-// BIOS data from boot/memory.asm
-struct BiosBootParams: BootParamsData, CustomStringConvertible {
-    enum E820Type: UInt32 {
-    case RAM      = 1
-    case RESERVED = 2
-    case ACPI     = 3
-    case NVS      = 4
-    case UNUSABLE = 5
-    }
-
-
-    struct E820MemoryRange: CustomStringConvertible {
-        let baseAddr: UInt64
-        let length: UInt64
-        let type: UInt32
-
-        var description: String {
-            var desc = String.sprintf("%12X - %12X %4.4X", baseAddr,
-                baseAddr + length - 1, type)
-            let size = UInt(length)
-            if (size >= mb) {
-                desc += String.sprintf(" %6uMB  ", size / mb)
-            } else {
-                desc += String.sprintf(" %6uKB  ", size / kb)
-            }
-            if let x = E820Type(rawValue: type) {
-                desc += String(describing: x)
-            } else {
-                desc += "type: \(type) is invalid"
-            }
-
-            return desc
-        }
-
-
-        fileprivate func toMemoryRange() -> MemoryRange? {
-            guard let e820type = E820Type(rawValue: self.type) else {
-                print("bootparams: Invalid memory type: \(self.type)")
-                return nil
-            }
-            var mtype: MemoryType
-
-            switch (e820type) {
-            case .RAM:      mtype = MemoryType.Conventional
-            case .RESERVED: mtype = MemoryType.E820Reserved
-            case .ACPI:     mtype = MemoryType.ACPIReclaimable
-            case .NVS:      mtype = MemoryType.ACPINonVolatile
-            case .UNUSABLE: mtype = MemoryType.Unusable
-            }
-
-            return MemoryRange(type: mtype, start: PhysAddress(self.baseAddr),
-                size: UInt(self.length))
-        }
-    }
-
-
-    private let RSDP_SIG: StaticString = "RSD PTR "
-
-    let source = "E820"
-    let memoryRanges: [MemoryRange]
-    let frameBufferInfo: FrameBufferInfo? = nil
-    let kernelPhysAddress: PhysAddress
-
-    var description: String {
-        return "bootparams: BiosBootParams has \(memoryRanges.count) ranges"
-    }
-
-
-    init?(bootParamsAddr: UInt) {
-        let sig = readSignature(bootParamsAddr)
-        if sig == nil || sig! != "BIOS" {
-            print("bootparams: boot_params are not BIOS")
-            return nil
-        }
-        let membuf = MemoryBufferReader(bootParamsAddr,
-            size: MemoryLayout<bios_boot_params>.stride)
-        membuf.offset = 8       // skip signature
-        do {
-            // FIXME: use bootParamsSize to size a buffer limit
-            let bootParamsSize: UInt = try membuf.read()
-            guard bootParamsSize > 0 else {
-                print("bootparams: bootParamsSize = 0")
-                return nil
-            }
-            kernelPhysAddress = try membuf.read()
-            printf("bootParamsSize = %ld kernelPhysAddress: %p\n",
-                bootParamsSize, kernelPhysAddress)
-
-            let e820MapAddr: UInt = try membuf.read()
-            let e820Entries: UInt = try membuf.read()
-            memoryRanges = BiosBootParams.parseE820Table(kernelPhysAddress,
-                e820MapAddr, e820Entries)
-        } catch {
-            koops("bootparams: Cant read BIOS boot params")
-        }
-    }
-
-
-    // This is only called from init() so needs to be static since 'self'
-    // isnt fully initialised.
-    // FIXME - still needs to check for overlapping regions
-    static private func parseE820Table(_ kernelPhysAddress: UInt,
-        _ e820MapAddr: UInt, _ e820Entries: UInt) -> [MemoryRange] {
-        guard e820Entries > 0 && e820MapAddr > 0 else {
-            koops("E820: map is empty")
-        }
-        var ranges: [MemoryRange] = []
-        ranges.reserveCapacity(Int(e820Entries))
-        let buf = MemoryBufferReader(e820MapAddr,
-            size: MemoryLayout<E820MemoryRange>.stride * Int(e820Entries))
-
-        let kernelSize = UInt(_kernel_end_addr - _kernel_start_addr)
-        let kernelPhysEnd = kernelPhysAddress + kernelSize
-        printf("E820: Kernel size: %lx\n", kernelSize)
-
-        for _ in 0..<e820Entries {
-            if let entry: E820MemoryRange = try? buf.read() {
-                print("E820: ", entry)
-                if let memEntry = entry.toMemoryRange() {
-                    // Find the entry that covers the memory where the kernel
-                    // is loaded and adjust it then add another range for the
-                    // kernel
-                    if memEntry.start <= kernelPhysAddress
-                    && kernelPhysEnd <= memEntry.start + memEntry.size {
-                        let range1size = kernelPhysAddress - memEntry.start
-                        if range1size > 0 {
-                            ranges.append(MemoryRange(type: memEntry.type,
-                                    start: memEntry.start, size: range1size))
-                        }
-
-                        ranges.append(MemoryRange(type: .Kernel,
-                                start: kernelPhysAddress, size: kernelSize))
-                        let range2end = memEntry.start + memEntry.size
-                        let range2size = range2end - kernelPhysEnd
-                        if range2size > 0 {
-                            ranges.append(MemoryRange(type: memEntry.type,
-                                    start: kernelPhysEnd, size: range2size))
-                        }
-                    } else {
-                        ranges.append(memEntry)
-                    }
-                }
-            }
-        }
-
-        guard ranges.count > 0 else {
-            koops("E820: Cant find any memory in the e820 map")
-        }
-
-        guard ranges.contains(where: { $0.type == .Kernel }) else {
-            koops("E820: Could not find Kernel entry")
-        }
-
-        return ranges
-    }
-
-
-    func findTables() -> (ACPI?, SMBIOS?) {
-        var acpi: ACPI?
-        var smbios: SMBIOS?
-
-        if let rsdp = findRSDP() {
-            acpi = ACPI(rsdp: rsdp)
-        }
-        if let smbiosp = findSMBIOS() {
-            smbios = SMBIOS(ptr: smbiosp)
-        }
-        return (acpi, smbios)
-    }
-
-
-    // Root System Description Pointer
-    private func findRSDP() -> UnsafePointer<rsdp1_header>? {
-        if let ebda = getEBDA() {
-            printf("ACPI: EBDA: %#8.8lx len: %#4.4lx\n", ebda.baseAddress!,
-                ebda.count)
-            if let rsdp = scanForRSDP(ebda) {
-                return rsdp
-            }
-        }
-        let upper = getUpperMemoryArea()
-        printf("ACPI: Upper: %#8.8lx len: %#4.4lx\n", upper.baseAddress!, upper.count)
-        return scanForRSDP(upper)
-    }
-
-
-    // SMBios table
-    private func findSMBIOS() -> UnsafePointer<smbios_header>? {
-        let region: ScanArea = mapPhysicalRegion(start: 0xf0000, size: 0x10000)
-        if let ptr = scanForSignature(region, SMBIOS.SMBIOS_SIG) {
-            return ptr.bindMemory(to: smbios_header.self, capacity: 1)
-        } else {
-            return nil
-        }
-    }
-
-
-    private func getEBDA() -> ScanArea? {
-        let ebdaRegion: UnsafeBufferPointer<UInt16> = mapPhysicalRegion(start: 0x40E, size: 1)
-        let ebda = ebdaRegion[0]
-        // Convert realmode segment to linear address
-        let rsdpAddr = UInt(ebda) * 16
-
-        if rsdpAddr > 0x400 {
-            let region: ScanArea = mapPhysicalRegion(start: rsdpAddr,
-                size: 1024)
-            return region
-        } else {
-            return nil
-        }
-    }
-
-
-    private func getUpperMemoryArea() -> ScanArea {
-        let region: ScanArea = mapPhysicalRegion(start: 0xE0000, size: 0x20000)
-        return region
-    }
-
-
-    private func scanForRSDP(_ area: ScanArea) -> UnsafePointer<rsdp1_header>? {
-        if let ptr = scanForSignature(area, RSDP_SIG) {
-            return ptr.bindMemory(to: rsdp1_header.self, capacity: 1)
-        } else {
-            return nil
-        }
-    }
-
-
-    private func scanForSignature(_ area: ScanArea, _ signature: StaticString)
-        -> UnsafeRawPointer? {
-        assert(signature.utf8CodeUnitCount != 0)
-        assert(signature.isASCII)
-
-        let end = area.count - MemoryLayout<rsdp1_header>.stride
-        for idx in stride(from: 0, to: end, by: 16) {
-            if memcmp(signature.utf8Start, area.baseAddress! + idx,
-                signature.utf8CodeUnitCount) == 0 {
-                return UnsafeRawPointer(area.regionPointer(offset: idx))
-            }
-        }
-
+func readSignature(_ address: PhysAddress) -> String? {
+    let signatureSize = 8
+    let membuf = MemoryBufferReader(address, size: signatureSize)
+    guard let sig = try? membuf.readASCIIZString(maxSize: signatureSize) else {
         return nil
     }
-}
-
-
-struct EFIBootParams: BootParamsData {
-    typealias EFIPhysicalAddress = UInt
-    typealias EFIVirtualAddress = UInt
-
-    // Physical layout in memory
-    struct EFIMemoryDescriptor: CustomStringConvertible {
-        let type: MemoryType
-        let padding: UInt32
-        let physicalStart: EFIPhysicalAddress
-        let virtualStart: EFIVirtualAddress
-        let numberOfPages: UInt64
-        let attribute: UInt64
-
-        var description: String {
-            let size = UInt(numberOfPages) * PAGE_SIZE
-            let endAddr = physicalStart + size - 1
-            return String.sprintf("%12X - %12X %8.8X ", physicalStart,
-                endAddr, size) + "\(type)"
-        }
-
-
-        init?(descriptor: MemoryBufferReader) {
-            let offset = descriptor.offset
-            do {
-                guard let dt = MemoryType(rawValue: try descriptor.read()) else {
-                    throw ReadError.InvalidData
-                }
-                type = dt
-                padding = try descriptor.read()
-                physicalStart = try descriptor.read()
-                virtualStart = try descriptor.read()
-                numberOfPages = try descriptor.read()
-                attribute = try descriptor.read()
-            } catch {
-                printf("EFI: Cant read descriptor at offset: %d\n", offset)
-                return nil
-            }
-        }
-
-    }
-
-
-    private let configTableCount: UInt
-    private let configTablePtr: UnsafePointer<efi_config_table_t>
-
-    let source = "EFI"
-    let memoryRanges: [MemoryRange]
-    let frameBufferInfo: FrameBufferInfo?
-    let kernelPhysAddress: PhysAddress
-
-
-    init?(bootParamsAddr: UInt) {
-        let sig = readSignature(bootParamsAddr)
-        if sig == nil || sig! != "EFI" {
-            print("bootparams: boot_params are not EFI")
-            return nil
-        }
-        let membuf = MemoryBufferReader(bootParamsAddr,
-            size: MemoryLayout<efi_boot_params>.stride)
-        membuf.offset = 8       // skip signature
-        do {
-            let bootParamsSize: UInt = try membuf.read()
-            guard bootParamsSize > 0 else {
-                print("bootparams: bootParamsSize = 0")
-                return nil
-            }
-            kernelPhysAddress = try membuf.read()
-
-            printf("bootparams: bootParamsSize = %ld kernelPhysAddress: %p\n",
-                bootParamsSize, kernelPhysAddress)
-
-            let memoryMapAddr: VirtualAddress = try membuf.read()
-            let memoryMapSize: UInt = try membuf.read()
-            let descriptorSize: UInt = try membuf.read()
-
-            memoryRanges = EFIBootParams.parseMemoryMap(memoryMapAddr,
-                memoryMapSize, descriptorSize)
-
-            print("bootparams: reading frameBufferInfo")
-            frameBufferInfo = FrameBufferInfo(fb: try membuf.read())
-            if let fb = frameBufferInfo {
-                print(fb)
-            }
-            configTableCount = try membuf.read()
-            print("bootparams: reading ctp")
-            configTablePtr = try membuf.read()
-            printf("bootparams: configTableCount: %ld configTablePtr: %p\n",
-                configTableCount, configTablePtr)
-        } catch {
-            koops("bootparams: Cant read memory map settings")
-        }
-    }
-
-
-    // This is only called from init() so needs to be static since 'self'
-    // isnt fully initialised.
-    static private func parseMemoryMap(_ memoryMapAddr: VirtualAddress,
-        _ memoryMapSize: UInt, _ descriptorSize: UInt) -> [MemoryRange] {
-        let descriptorCount = memoryMapSize / descriptorSize
-
-        var ranges: [MemoryRange] = []
-        ranges.reserveCapacity(Int(descriptorCount))
-        let descriptorBuf = MemoryBufferReader(memoryMapAddr,
-            size: Int(memoryMapSize))
-
-        for i in 0..<descriptorCount {
-            descriptorBuf.offset = Int(descriptorSize * i)
-            guard let descriptor = EFIMemoryDescriptor(descriptor: descriptorBuf) else {
-                print("bootparams: Failed to read descriptor")
-                continue
-            }
-            let entry = MemoryRange(type: descriptor.type,
-                start: descriptor.physicalStart,
-                size: UInt(descriptor.numberOfPages) * PAGE_SIZE)
-            ranges.append(entry)
-        }
-
-        return ranges
-    }
-
-
-    func findTables() -> (ACPI?, SMBIOS?) {
-        let efiTables = EFITables(configTablePtr, configTableCount)
-        return (efiTables.acpi, efiTables.smbios)
-    }
-
-
-    // This can only be called after the memory manager has been setup
-    // as it relies on calling mapPhysicalRegion()
-    struct EFITables {
-        struct EFIConfigTableEntry {
-            let guid: efi_guid_t
-            let table: UnsafeRawPointer
-        }
-
-        private let guidACPI1 = efi_guid_t(data1: 0xeb9d2d30, data2: 0x2d88,
-            data3: 0x11d3,
-            data4: (0x9a, 0x16, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d))
-        private let guidSMBIOS = efi_guid_t(data1: 0xeb9d2d31, data2: 0x2d88,
-            data3: 0x11d3,
-            data4: (0x9a, 0x16, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d))
-        private let guidSMBIOS3 = efi_guid_t(data1: 0xf2fd1544, data2: 0x9794,
-            data3: 0x4a2c,
-            data4: (0x99, 0x2e, 0xe5, 0xbb, 0xcf, 0x20, 0xe3, 0x94))
-
-        let acpi: ACPI?
-        let smbios: SMBIOS?
-
-
-        fileprivate init(_ configTablePtr: UnsafePointer<efi_config_table_t>,
-            _ configTableCount: UInt) {
-
-            let tables: UnsafeBufferPointer<efi_config_table_t> =
-            mapPhysicalRegion(start: configTablePtr,
-                size: Int(configTableCount))
-
-            var acpiTmp: ACPI?
-            var smbiosTmp: SMBIOS?
-
-            for table in tables {
-                let entry = EFIConfigTableEntry(guid: table.vendor_guid,
-                    table: table.vendor_table)
-                EFITables.printGUID(entry.guid)
-
-                // Look for Root System Description Pointer and SMBios tables
-                if acpiTmp == nil {
-                    if let ptr = EFITables.pointerFrom(entry: entry,
-                        ifMatches: guidACPI1) {
-                        acpiTmp = ACPI(rsdp: ptr.bindMemory(to: rsdp1_header.self,
-                                capacity: 1))
-                        continue
-                    }
-                }
-                if smbiosTmp == nil {
-                    if let ptr = EFITables.pointerFrom(entry: entry, ifMatches: guidSMBIOS3) {
-                        smbiosTmp = SMBIOS(ptr: ptr.bindMemory(to: smbios_header.self,
-                                capacity: 1))
-                        continue
-                    }
-                    if let ptr = EFITables.pointerFrom(entry: entry,
-                        ifMatches: guidSMBIOS) {
-                        smbiosTmp = SMBIOS(ptr: ptr.bindMemory(to: smbios_header.self,
-                                capacity: 1))
-                    }
-                }
-            }
-            acpi = acpiTmp
-            smbios = smbiosTmp
-        }
-
-        static private func printGUID(_ guid: efi_guid_t) {
-            printf("EFI: { %#8.8x, %#8.4x, %#4.4x, { %#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x }}\n",
-                guid.data1, guid.data2, guid.data3, guid.data4.0, guid.data4.1,
-                guid.data4.2, guid.data4.3, guid.data4.4, guid.data4.5,
-                guid.data4.6, guid.data4.7)
-        }
-
-        static private func pointerFrom(entry: EFIConfigTableEntry,
-            ifMatches guid2: efi_guid_t) -> UnsafeRawPointer? {
-            if matchGUID(entry.guid, guid2) {
-                let paddr = entry.table.address
-                return UnsafeRawPointer(bitPattern: vaddrFromPaddr(paddr))
-            } else {
-                return nil
-            }
-        }
-
-        static private func matchGUID(_ guid1: efi_guid_t, _ guid2: efi_guid_t)
-            -> Bool {
-            return (guid1.data1 == guid2.data1) && (guid1.data2 == guid2.data2)
-            && (guid1.data3 == guid2.data3)
-            && guid1.data4.0 == guid2.data4.0 && guid1.data4.1 == guid2.data4.1
-            && guid1.data4.2 == guid2.data4.2 && guid1.data4.3 == guid2.data4.3
-            && guid1.data4.4 == guid2.data4.4 && guid1.data4.5 == guid2.data4.5
-            && guid1.data4.6 == guid2.data4.6 && guid1.data4.7 == guid2.data4.7
-        }
-    }
+    return sig
 }

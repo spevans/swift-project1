@@ -105,7 +105,7 @@ struct ACPI {
     private(set) var facp: FACP?
     private(set) var madt: MADT?
 
-    init?(rsdp: UnsafeRawPointer) {
+    init?(rsdp: UnsafeRawPointer, vendor: String, product: String) {
         let rsdtPtr = findRSDT(rsdp)
         guard let entries = sdtEntries32(rsdtPtr) else {
             print("ACPI: Cant find any entries")
@@ -114,36 +114,56 @@ struct ACPI {
 
         for entry in entries {
             let rawSDTPtr = mkSDTPtr(UInt(entry))
-            let ptr = rawSDTPtr.bindMemory(to: acpi_sdt_header.self,
-                capacity: 1)
-            let header = ACPI_SDT(ptr: ptr)
-            guard checksum(ptr, size: Int(ptr.pointee.length)) == 0 else {
-                printf("ACPI: Entry @ %p has bad chksum\n", ptr)
-                continue
-            }
+            parseEntry(rawSDTPtr: rawSDTPtr, vendor: vendor, product: product)
+        }
+    }
 
-            switch header.signature {
 
-            case "MCFG":
-                mcfg = MCFG(acpiHeader: header, ptr: ptr)
-                print("ACPI: found MCFG")
+    init() {
+    }
 
-            case "FACP":
-                let ptr = rawSDTPtr.bindMemory(to: acpi_facp_table.self,
-                    capacity: 1)
-                facp = FACP(acpiHeader: header, ptr: ptr)
-                print("ACPI: found FACP")
 
-            case "APIC":
-                let ptr = rawSDTPtr.bindMemory(to: acpi_madt_table.self,
-                    capacity: 1)
-                madt = MADT(acpiHeader: header, ptr: ptr)
-                print("ACPI: found MADT")
-                print("ACPI:", madt!)
+    mutating func parseEntry(rawSDTPtr: UnsafeRawPointer, vendor: String,
+        product: String) {
+        let headerLength = MemoryLayout<acpi_sdt_header>.size
+        let ptr = rawSDTPtr.bindMemory(to: acpi_sdt_header.self,
+                                       capacity: 1)
+        let header = ACPI_SDT(ptr: ptr)
+        let totalLength = Int(header.length)
 
-            default:
-                print("ACPI: Unknown table type: \(header.signature)")
-            }
+        guard totalLength > headerLength else {
+            print("ACPI: Entry @ %p has total length of %u\n",
+                totalLength)
+            return
+        }
+        guard checksum(ptr, size: Int(ptr.pointee.length)) == 0 else {
+            //printf("ACPI: Entry @ %p has bad chksum\n", ptr)
+            return
+        }
+
+        print("ACPI: Signature:", header.signature)
+        switch header.signature {
+
+        case "MCFG":
+            mcfg = MCFG(acpiHeader: header, ptr: ptr, vendor: vendor,
+                product: product)
+            print("ACPI: found MCFG")
+
+        case "FACP":
+            let ptr = rawSDTPtr.bindMemory(to: acpi_facp_table.self,
+                                           capacity: 1)
+            facp = FACP(acpiHeader: header, ptr: ptr)
+            print("ACPI: found FACP")
+
+        case "APIC":
+            let ptr = rawSDTPtr.bindMemory(to: acpi_madt_table.self,
+                                           capacity: 1)
+            madt = MADT(acpiHeader: header, ptr: ptr)
+            print("ACPI: found MADT")
+            //print("ACPI:", madt!)
+
+        default:
+            print("ACPI: Unknown table type: \(header.signature)")
         }
     }
 

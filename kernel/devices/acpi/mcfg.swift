@@ -32,7 +32,8 @@ struct MCFG: ACPITable {
     let allocations: [ConfigBaseAddress]
 
 
-    init(acpiHeader: ACPI_SDT, ptr: UnsafePointer<acpi_sdt_header>) {
+    init(acpiHeader: ACPI_SDT, ptr: UnsafePointer<acpi_sdt_header>,
+        vendor: String, product: String) {
         header = acpiHeader
         // 8 is for reserved bytes
         let headerSize = MemoryLayout<acpi_sdt_header>.size + 8
@@ -46,7 +47,7 @@ struct MCFG: ACPITable {
             items.append(dataBuffer[idx])
             print("ACPI: MCFG: \(dataBuffer[idx])")
         }
-        if (BootParams.vendor == "Apple Inc.") && (BootParams.product == "MacBook3,1") {
+        if (vendor == "Apple Inc.") && (product == "MacBook3,1") {
             if items[0].endBus == 0xff {
                 items[0] = ConfigBaseAddress(
                     baseAddress: items[0].baseAddress,
@@ -54,7 +55,7 @@ struct MCFG: ACPITable {
                     startBus: items[0].startBus, endBus: 0x3f,
                     reserved: items[0].reserved)
                 print("ACPI: MCFG: Overrode endBus from 0xff to 0x3f for",
-                    BootParams.vendor, BootParams.product)
+                    vendor, product)
             }
         }
 

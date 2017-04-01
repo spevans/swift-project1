@@ -258,7 +258,7 @@ public class APIC: InterruptController {
 
     private let ioapics: [IOAPIC]
 
-    init?() {
+    init?(madtEntries: [MADTEntry]) {
         guard CPU.capabilities.apic else {
             print("APIC: No APIC installed")
             return nil
@@ -293,19 +293,27 @@ public class APIC: InterruptController {
             count: APIC_REGISTER_SPACE_SIZE)
         print("APIC: boot \(bootProcessor) maxPhyAddrBits: \(maxPhyAddrBits)")
 
-        guard let entries = BootParams.acpiTables?.madt?.madtEntries.filter({
-                $0.tableType == IntControllerTableType.ioApic
-            }) else {
+        var ioapicEntries: [MADT.IOApicTable] = []
+        var overrideEntries: [MADT.InterruptSourceOverrideTable] = []
+
+        madtEntries.forEach {
+            if let entry = $0 as? MADT.IOApicTable {
+                ioapicEntries.append(entry)
+            } else if let entry = $0 as? MADT.InterruptSourceOverrideTable {
+                overrideEntries.append(entry)
+            }
+        }
+
+        guard ioapicEntries.count > 0 else {
             fatalError("Cant find any IO-APICs in the ACPI:MADT tables")
             return nil
         }
         var _ioapics: [IOAPIC] = []
-        for entry in entries {
-            if let entry = entry as? MADT.IOApicTable {
-                if let ioapic = IOAPIC(apic: entry) {
-                    print("ioapic: ", ioapic)
-                    _ioapics.append(ioapic)
-                }
+        for entry in ioapicEntries {
+            if let ioapic = IOAPIC(apic: entry,
+                intSourceOverrides: overrideEntries) {
+                print("ioapic: ", ioapic)
+                _ioapics.append(ioapic)
             }
         }
         ioapics = _ioapics

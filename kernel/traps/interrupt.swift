@@ -25,7 +25,7 @@ protocol InterruptController {
 
 public class InterruptManager {
 
-    fileprivate var irqController: InterruptController!
+    fileprivate let irqController: InterruptController
 
     fileprivate var irqHandlers: [IRQHandler] =
         Array(repeating: InterruptManager.unexpectedInterrupt, count: NR_IRQS)
@@ -37,15 +37,33 @@ public class InterruptManager {
     fileprivate var irqQueue = CircularBuffer<Int>(item: 0, capacity: 128)
 
 
-    init() {
+    init(acpiTables: ACPI) {
         irqQueue.clear()
-        guard let controller: InterruptController = APIC() ?? PIC8259() else {
+
+        func initAPIC() -> InterruptController? {
+            if let madtEntries = acpiTables.madt?.madtEntries {
+                return APIC(madtEntries: madtEntries)
+            } else {
+                return nil
+            }
+        }
+
+        func initPIC() -> InterruptController? {
+            if acpiTables.madt?.hasCompatDual8259 == false {
+                return nil
+            } else {
+                return PIC8259()
+            }
+        }
+
+        guard let controller = initAPIC() ?? initPIC() else {
             fatalError("Cannot initialise IRQ controller")
         }
+        irqController = controller
+
         localAPIC = controller as? APIC
         print("localAPIC:", localAPIC as Any)
 
-        irqController = controller
         print("kernel: Using \(irqController.self) as interrupt controller")
         // In a PIC8259/IOAPIC dual system, need to disable IRQs in both controllers
         //if let pic = PIC8259() {

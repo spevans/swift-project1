@@ -183,7 +183,11 @@ private let pciDevices = PCI.scanAllBuses()
 
 struct PCI {
 
-    static func scan() {
+    static var mcfgTable: MCFG?
+
+    static func scan(mcfgTable: MCFG?) {
+        PCI.mcfgTable = mcfgTable
+
         print("PCI: Scanning bus")
         for device in pciDevices {
             print("PCI: \(device)")
@@ -217,7 +221,7 @@ struct PCI {
 
     // See if the bus can be accessed using MMCONFIG or PIO
     private static func findPciBus(_ bus: UInt8) -> PCIBus? {
-        if let address = BootParams.acpiTables?.mcfg?.baseAddressForBus(bus) {
+        if let address = mcfgTable?.baseAddressForBus(bus) {
             return PCIBusMMIO(mmiobase: address, bus: bus)
         } else {
             return PCIBusPIO(bus: bus)

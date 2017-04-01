@@ -19,7 +19,8 @@ final class IOAPIC {
     private let overrideTable: [MADT.InterruptSourceOverrideTable]
     
 
-    init?(apic: MADT.IOApicTable) {
+    init?(apic: MADT.IOApicTable,
+        intSourceOverrides: [MADT.InterruptSourceOverrideTable]) {
         self.apic = apic
         print("IOAPIC: ID: \(apic.ioApicID) ",
             "Address: \(asHex(apic.ioApicAddress)) ",
@@ -31,15 +32,7 @@ final class IOAPIC {
         registerSelect = UnsafeMutablePointer<UInt32>(bitPattern: registerBase)!
         registerData = UnsafeMutablePointer<UInt32>(bitPattern: registerBase + 0x10)!
 
-        var _overrides: [MADT.InterruptSourceOverrideTable] = []
-        if let entries = BootParams.acpiTables?.madt?.madtEntries {
-            for entry in entries {
-                if let entry = entry as? MADT.InterruptSourceOverrideTable {
-                    _overrides.append(entry)
-                }
-            }
-        }
-        overrideTable = _overrides
+        overrideTable = intSourceOverrides
     }
 
 

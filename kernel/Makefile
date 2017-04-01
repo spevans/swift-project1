@@ -8,6 +8,8 @@ SWIFT_MODULE := SwiftKernel
 SWIFT_OBJS := SwiftKernel.o
 SWIFT_SRCS :=	init/startup.swift		\
 		init/bootparams.swift		\
+		init/biosboot.swift		\
+		init/efiboot.swift		\
 		init/smbios.swift		\
 		init/GDT.swift			\
 		init/version.swift		\

@@ -8,7 +8,8 @@
  *
  */
 
-private let kernelPhysBase: PhysAddress = BootParams.kernelAddress
+private var kernelPhysBase: PhysAddress!
+private(set) var highestMemoryAddress: PhysAddress!
 private let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_addr)
 
 /* The page table setup by the BIOS boot loader setup 3 mappings of the
@@ -41,8 +42,19 @@ private let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_addr)
  * the various page table entries
  */
 
-func setupMM() {
+func setupMM(bootParams: BootParams) {
     // Setup initial page tables and map kernel
+
+    // Show the current memory ranges
+    for range in bootParams.memoryRanges {
+        print("MM:", bootParams.source, ":", range)
+    }
+    kernelPhysBase = bootParams.kernelPhysAddress
+    let lastEntry = bootParams.memoryRanges[bootParams.memoryRanges.count - 1]
+    highestMemoryAddress = lastEntry.start + lastEntry.size - 1
+
+    printf("kernel: Highest Address: %p kernel phys address: %p\n",
+        highestMemoryAddress, kernelPhysBase)
 
     let textEnd: VirtualAddress = _text_end_addr
     let rodataStart: VirtualAddress = _rodata_start_addr
@@ -96,7 +108,7 @@ func setupMM() {
         kernelPhysAddress(kernelBase + textSize + rodataSize + dataSize
                 + PAGE_SIZE))
 
-    mapPhysicalMemory(BootParams.highestMemoryAddress)
+    mapPhysicalMemory(highestMemoryAddress)
     let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_addr))
     printf("MM: Updating CR3 to %p\n", pml4paddr)
     setCR3(pml4paddr)
@@ -270,4 +282,19 @@ private func add1GBMapping(_ addr: VirtualAddress, physAddress: PhysAddress) {
     } else {
         koops("MM: 1GB mapping cant be added, already present")
     }
+}
+
+// for debugging
+private func printSections() {
+    print("kernel: _text_start:   ", asHex(_text_start_addr))
+    print("kernel: _text_end:     ", asHex(_text_end_addr))
+    print("kernel: _data_start:   ", asHex(_data_start_addr))
+    print("kernel: _data_end:     ", asHex(_data_end_addr))
+    print("kernel: _bss_start:    ", asHex(_bss_start_addr))
+    print("kernel: _bss_end:      ", asHex(_bss_end_addr))
+    print("kernel: _kernel_start: ", asHex(_kernel_start_addr))
+    print("kernel: _kernel_end:   ", asHex(_kernel_end_addr))
+    print("kernel: _guard_page:   ", asHex(_guard_page_addr))
+    print("kernel: _stack_start:  ", asHex(_stack_start_addr))
+    print("kernel: initial_pml4:  ", asHex(initial_pml4_addr))
 }

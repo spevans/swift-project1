@@ -176,11 +176,6 @@ final class KBD8042 {
 
 
     init?(interruptManager: InterruptManager) {
-        if BootParams.vendor == "Apple Inc." {
-            print("i8042: Skipping on:", BootParams.vendor)
-            return nil
-        }
-
         // 1. Flush output buffer
         if flushOutput() == false { // No device
             print("i8042: Cant find i8042")
