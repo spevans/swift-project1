@@ -3,7 +3,7 @@ include $(TOPDIR)/Makedefs
 
 KERNEL_OBJS := kernel/kernel.o klibc/klibc.o
 SUBDIRS := boot kernel klibc utils
-EXTRA_LIBS := /usr/lib/gcc/x86_64-linux-gnu/5/libatomic.a
+EXTRA_LIBS := $(SWIFTDIR)/usr/lib/swift/clang/lib/linux/libclang_rt.builtins-x86_64.a
 
 .PHONY: clean kernel
 
