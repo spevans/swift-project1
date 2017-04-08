@@ -108,6 +108,12 @@ func setupMM(bootParams: BootParams) {
         kernelPhysAddress(kernelBase + textSize + rodataSize + dataSize
                 + PAGE_SIZE))
 
+    // Map the TLS which resides before 4GB mark and has the same virtual
+    // and physical address
+    let tls_addr: UInt = UInt(bitPattern: initial_tls_end_addr) & ~PAGE_MASK
+    addMapping(start: tls_addr, size: PAGE_SIZE, physStart: tls_addr,
+        readWrite: true, noExec: true)
+
     mapPhysicalMemory(highestMemoryAddress)
     let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_addr))
     printf("MM: Updating CR3 to %p\n", pml4paddr)

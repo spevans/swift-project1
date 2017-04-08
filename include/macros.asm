@@ -3,13 +3,13 @@
         %endmacro
 
 
-        KERNEL_VIRTUAL_BASE     EQU     0x40100000     ; 1GB
+        KERNEL_VIRTUAL_BASE     EQU     0xffffffff80100000     ; 1GB
         PHYSICAL_MEM_BASE       EQU     0x2000000000   ; 128GB
 
         CODE_SEG                EQU     0x8
         DATA_SEG                EQU     0x10
         TLS_SEG                 EQU     0x18
-        KERNEL_ENTRY            EQU     0x40100000
+        KERNEL_ENTRY            EQU     0xffffffff80100000
 
 
 ;;; This layout matches include/x86defs.h

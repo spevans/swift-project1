@@ -71,9 +71,18 @@
         mov     esi, 0x30000    ; bootparams converted to kernel's vaddr space
         xor     ecx, ecx        ; ECX:EDX => Framebuffer address (null for text mode)
         xor     edx, edx
+        mov     ebx, 0x70FF8    ; TLS end address
         ;; jump to the kernel loading the code selector
-        jmp     dword CODE_SEG:KERNEL_ENTRY
+    
+        jmp     dword CODE_SEG:0x90000 + here
 
+        BITS    64
+    
+here:
+        mov rax, KERNEL_ENTRY
+        jmp rax
+
+        BITS  16
         ;; Disable all interrupts including NMI and IRQs
 MASTER_PIC      EQU     0x21
 SLAVE_PIC       EQU     0xA1

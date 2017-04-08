@@ -27,7 +27,9 @@
         ;; so 64bit pointers are in 32bit pairs
         ;; EDI:ESI boot params / memory tables
         ;; ECX:EDX framebuffer info (EFI only)
+        ;; EBX => initial_tls_end_addr
 main:
+        mov     [initial_tls_end_addr], rbx
         ;; convert EDI:ESI => R12, ECX:RDX => R13
         mov     r12, rdi
         shl     r12, 32
@@ -58,7 +60,6 @@ main:
         sgdt    [tempgdt]
         mov     ebx, [tempgdt.base]
         add     ebx, 0x18
-        xor     rdx, rdx
         mov     eax, [initial_tls_end_addr]
         mov     edx, eax
         mov     [eax], eax

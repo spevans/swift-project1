@@ -7,8 +7,8 @@ STACK_SIZE = 3 * PAGE_SIZE;
 
 SECTIONS
 {
-  /* 1G + 1MB */
-  .text.start (0x40100000) : {
+  /* 256TB - 512GB + 1MB */
+  .text.start (0xffffffff80100000) : {
     _kernel_start = .;
     _text_start = .;
     *(.text .text.*)

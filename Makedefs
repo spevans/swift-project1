@@ -9,18 +9,18 @@ SWIFT3DIR := $(shell readlink -f ~/swift)
 SWIFT3C := $(SWIFT3DIR)/usr/bin/swiftc
 
 # The path to the kernel-lib swift compiler
-SWIFTDIR := $(shell readlink -f ~/swift-kernel-20170404)
+SWIFTDIR := $(shell readlink -f ~/swift-kernel-20170407)
 SWIFT := $(SWIFTDIR)/usr/bin/swift
 SWIFTC := $(SWIFTDIR)/usr/bin/swiftc
 SWIFTLIBDIR := $(SWIFTDIR)/usr/lib/swift_static/linux
 SWIFTLIBS := $(SWIFTLIBDIR)/libswiftCore.a $(SWIFTLIBDIR)/libswiftImageInspectionStatic.a
 SWIFTC_FLAGS := -gnone -Xfrontend -disable-red-zone -Xcc -mno-red-zone -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -std=gnu11 -Xfrontend -warn-long-function-bodies=60000
 
-CFLAGS := -Wall -std=gnu11 -Wextra -Werror -fno-builtin -fno-stack-protector -fno-common -mno-red-zone -I$(TOPDIR)/include
+CFLAGS := -Wall -std=gnu11 -Wextra -Werror -fno-builtin -fno-stack-protector -fno-common -mno-red-zone -mcmodel=kernel -I$(TOPDIR)/include
 
 ifndef USE_FP
 	CFLAGS := $(CFLAGS) -mno-mmx -mno-sse -mno-sse2 -ffreestanding
-	SWIFTC_FLAGS := $(SWIFTC_FLAGS) -Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2 -Xcc -ffreestanding
+	SWIFTC_FLAGS := $(SWIFTC_FLAGS) -Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2 -Xcc -ffreestanding -Xcc -mcmodel=kernel
 endif
 
 
