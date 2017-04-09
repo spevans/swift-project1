@@ -20,6 +20,7 @@ private var nextTask = 0
 private var nextPID: UInt = 1
 
 
+// FIXME, tasks currently must not exit
 @discardableResult
 func addTask(name: String, task: @escaping @convention(c)() -> ()) -> UInt {
     let newTask = Task(name: name, entry: task)

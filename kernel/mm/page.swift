@@ -55,11 +55,6 @@ func vaddrFromPaddr(_ ptr: PhysAddress) -> VirtualAddress {
 }
 
 
-func copyPhysicalRegion<T>(_ start: PhysAddress) -> T {
-    let region = UnsafePointer<T>(bitPattern: PHYSICAL_MEM_BASE + start)
-    return region!.pointee
-}
-
 
 func pageTableBuffer(virtualAddress address: VirtualAddress) -> PageTableDirectory {
     return PageTableDirectory(start: UnsafeMutablePointer<PageTableEntry>(bitPattern: address),

@@ -23,7 +23,7 @@ output/kernel.elf: kernel
 output/kernel.bin: output/kernel.elf
 	objcopy -O binary $^ $@
 	#utils/foverride $@ output/kernel.map _swift_stdlib_putchar_unlocked putchar
-	objdump -d output/kernel.elf -Mintel | $(SWIFT)-demangle > output/kernel.dmp
+	(objdump -d output/kernel.elf -Mintel | $(SWIFT)-demangle > output/kernel.dmp) &
 
 
 output/kernel.efi: output/kernel.bin boot/efi_entry.asm boot/efi_main.c klibc/kprintf.c

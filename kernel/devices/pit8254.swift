@@ -115,7 +115,7 @@ final class PIT8254: CustomStringConvertible {
 
     init(interruptManager: InterruptManager) {
         self.interruptManager = interruptManager
-        print("PIC8254: init")
+        print("PIT8254: init")
     }
 
 
