@@ -184,14 +184,14 @@ entry_stub:
 
         ;; Make RDI -> Virtual address of framebuffer info in the kernel's
         ;; virtual address space
+        mov     r8, KERNEL_VIRTUAL_BASE
         lea     rdi, [framebuffer]
         mov     rsi, [pointer_table.kernel_addr]
         sub     rdi, rsi
-        add     rdi, 0x40100000 ; Convert address to kernel's virtual mapping
+        add     rdi, r8         ; Convert address to kernel's virtual mapping
         mov     edx, edi
         shr     rdi, 32
         mov     ecx, edi        ; ECX:EDX => framebuffer info
-        mov     r8, KERNEL_VIRTUAL_BASE
         lea     rsi, [pointer_table.efi_boot_params]
         sub     rsi, [pointer_table.kernel_addr] ; RSI => efi_boot_params
         add     rsi, r8

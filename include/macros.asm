@@ -9,8 +9,8 @@
         CODE_SEG                EQU     0x8
         DATA_SEG                EQU     0x10
         TLS_SEG                 EQU     0x18
-        KERNEL_ENTRY            EQU     0xffffffff80100000
-
+        KERNEL_ENTRY            EQU     0xffffffff80101000
+        TLS_END_ADDR            EQU     0x1FF8
 
 ;;; This layout matches include/x86defs.h
         %macro SAVE_REGS  0

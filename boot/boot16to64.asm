@@ -59,25 +59,16 @@
         or      eax, 0x80000001  ; Enable paging and protected mode,
         mov     cr0, eax         ; activating longmode
 
-        ;; Unmap the identity mapping of the first 16MB to catch
-        ;; null ptr accesses
-        mov     eax, cr3
-        and     eax, ~(4096-1)
-        mov     ebx, [eax]
-        mov     dword [ebx], 0
-        mov     dword [ebx+4], 0
-        invlpg  [ebx]
         mov     edi, PHYSICAL_MEM_BASE >> 32
         mov     esi, 0x30000    ; bootparams converted to kernel's vaddr space
         xor     ecx, ecx        ; ECX:EDX => Framebuffer address (null for text mode)
         xor     edx, edx
-        mov     ebx, 0x70FF8    ; TLS end address
         ;; jump to the kernel loading the code selector
-    
+
         jmp     dword CODE_SEG:0x90000 + here
 
         BITS    64
-    
+
 here:
         mov rax, KERNEL_ENTRY
         jmp rax

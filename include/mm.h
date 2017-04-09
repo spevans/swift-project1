@@ -21,6 +21,7 @@
 #define PAGE_SIZE 4096UL
 #define PAGE_MASK 4095UL
 #define PAGE_SHIFT 12UL
+#define TLS_END_ADDR            0x1FF8UL
 
 
 // Structure for boot information passed from BIOS loader to kernel

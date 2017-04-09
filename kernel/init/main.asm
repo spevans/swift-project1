@@ -19,7 +19,6 @@
         extern _bss_start
         extern _bss_end
         extern _kernel_stack
-        extern initial_tls_end_addr
 
         global main
 
@@ -27,9 +26,24 @@
         ;; so 64bit pointers are in 32bit pairs
         ;; EDI:ESI boot params / memory tables
         ;; ECX:EDX framebuffer info (EFI only)
-        ;; EBX => initial_tls_end_addr
+
+;;; This first page is mapped at both 0x1000 and 0xffffffff80100000 and
+;;; holds the TLS so that the TLS can exist in the first 4GB since the
+;;; TLS entry in the GDT only allows a 32bit base address.
+_config_page:
+
+        OFFSET  0x0FD0          ; 5x 64bit values for TLS bss
+tls_bss:
+
+        OFFSET  0x0FF8
+tls_end_addr:   dq  0x1FF8
+
+        OFFSET  4096            ; defined as KERNEL_ENTRY in include/macros.asm
 main:
-        mov     [initial_tls_end_addr], rbx
+        mov     ax, 0x10
+        mov     ds, ax
+        mov     es, ax
+
         ;; convert EDI:ESI => R12, ECX:RDX => R13
         mov     r12, rdi
         shl     r12, 32
@@ -56,13 +70,12 @@ main:
         call    enable_sse
 %endif
         ;; Setup TLS - Update the GDT entry for select 0x18 to have the address
-        ;; of initial_tls_end which is allocated in the bss for the 1st TLS
+        ;; of tls_end which is allocated in the config area above.
         sgdt    [tempgdt]
         mov     ebx, [tempgdt.base]
         add     ebx, 0x18
-        mov     eax, [initial_tls_end_addr]
+        mov     eax, [tls_end_addr]
         mov     edx, eax
-        mov     [eax], eax
         mov     ecx, eax
         shl     ecx, 16         ; ecx hold low 32bit of descriptor (limit  = 0)
         mov     [ebx], ecx
@@ -73,11 +86,9 @@ main:
         and     eax, 0xff000000
         or      eax, ecx
         mov     [ebx+4], eax
-
-        mov     ax,0x18
-        mov     fs,ax
-
-        mov     [fs:0], rdx
+        ;; Load the newly created TLS entry into FS
+        mov     ax, 0x18
+        mov     fs, ax
 
         mov     rdi, r13        ; framebuffer info
         call    init_early_tty

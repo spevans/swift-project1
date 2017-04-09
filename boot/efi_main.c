@@ -44,6 +44,7 @@ void *kernel_bin_end();
 uint64_t bss_size();
 static int uprintf(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 efi_status_t add_mapping(void *vaddr, void *paddr, size_t page_cnt);
+void dump_mapping(void *vaddr);
 
 static efi_system_table_t *sys_table;
 static void *image_handle;
@@ -754,6 +755,7 @@ relocate_kernel()
         ptr_table->last_page = region.base + (region.pages - 1) * PAGE_SIZE;
         uprint_string("Kernel copied into place\n");
         print_memory_region(&region);
+
         return EFI_SUCCESS;
 }
 
@@ -914,6 +916,11 @@ setup_page_tables()
         struct frame_buffer *fb = &ptr_table->boot_params.fb;
         add_mapping((void *)(PHYSICAL_MEM_BASE + fb->address), fb->address,
                     (fb->size + PAGE_MASK) / PAGE_SIZE);
+
+        // Map the first 4K of the kernel @ 0x1000, this is the config area
+        // including the TLS which needs to be in the first 4GB.
+        add_mapping((void *)(TLS_END_ADDR & ~PAGE_MASK), bp->kernel_phys_addr,
+                    1);
 
         return EFI_SUCCESS;
 }

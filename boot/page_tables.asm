@@ -30,81 +30,57 @@ setup_pagetables:
         rep     stosd
         mov     edi, cr3
 
-        ;; Page Map Level 4 (PML4)
+        ;; Page Map Level 4 (PML4) @ 0x3000
         mov     eax, 0x4000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di], eax
-        mov     eax, 0x6000 | PAGE_PRESENT | PAGE_WRITEABLE
+        mov     eax, 0x7000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di + 0x0FF8], eax ; 256T - 512GB
 
-        ;; Page Directory Pointer (PDP)
+        ;; Page Directory Pointer (PDP) @ 0x4000
         ;; Each entry maps 1GB so add 2 entries mapping the
-        ;; first 16MB from 0GB and the first 16MB from 1GB
+        ;; first 16MB from 0GB and the first 16MB from 128GB
         mov     eax, 0x5000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di + 0x1000], eax
+        mov     eax, 0x8000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di + 0x1400], eax   ; 128GB
 
 
-        ;; Page Directory (PD), 8 entries
-        mov     eax, 0x0000 | PAGE_PRESENT | PAGE_WRITEABLE | PAGE_LARGEPAGE
-        mov     cx, 8
-pde_loop:
+        ;; Page Directory (PD), @ 0x5000
+        mov     eax, 0x6000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di + 0x2000], eax
-        add     eax, 0x200000           ; 2MB
+
+        ;; Page Table Entries (PTEs) @ 0x6000 512 entries maps 2MB
+        mov     di, 0x6008
+        mov     eax, 0x100000 | PAGE_PRESENT | PAGE_WRITEABLE
+        mov     [es:di], eax
+        add     di, 16
+        mov     cx, 509
+        mov     eax, 0x3000 | PAGE_PRESENT | PAGE_WRITEABLE
+pte_loop:
+        mov     [es:di], eax
+        add     eax, 0x1000           ; 4KB
+        add     di, 8
+        dec     cx
+        jnz     pte_loop
+
+
+        ;; 2nd Page Directory (PDP), 1 entry 1GB @ 256T - 2GB
+        mov     di, 0x7000
+        mov     eax, 0x8000 | PAGE_PRESENT | PAGE_WRITEABLE
+        mov     [es:di + 0x0FF0], eax
+
+        ;;;  PD 8 entries of 2MB 16MB @ 0 phys
+        mov     cx, 8
+        mov     di, 0x8000
+        mov     eax, 0x0000 | PAGE_PRESENT | PAGE_WRITEABLE | PAGE_LARGEPAGE
+pde_loop:
+        mov     [es:di], eax
+        add     eax, 0x200000
         add     di, 8
         dec     cx
         jnz     pde_loop
 
 
-        ;; 2nd Page Directory (PDP), 8 entries @ 256T - 2GB
-        mov     di, 0x6000
-        mov     eax, 0x5000 | PAGE_PRESENT | PAGE_WRITEABLE
-        mov     [es:di + 0x0FF0], eax
-;;         mov     cx, 8
-;; pde2_loop:
-       
-;;         add     eax, 0x200000           ; 2MB
-;;         add     di, 8
-;;         dec     cx
-;;         jnz     pde2_loop
-
-
-    
-;;         ;; Page Table Entries (PTEs), 4096 entries of 4KB pages
-;;         ;; maps linear 0-16MB to physical 0-16MB
-
-;;         mov     eax, PAGE_PRESENT | PAGE_WRITEABLE ; EAX -> physical addr 0
-;;         xor     ebx, ebx
-;;         mov     di, 0x600
-;;         mov     cx, 2048         ; entry count /2 will add 2 PTEs per loop
-
-;; pte_loop:
-;;         mov     es, di
-;;         mov     [es:0], eax
-;;         mov     [es:4], ebx
-;;         add     eax, 0x1000
-;;         mov     [es:8], eax
-;;         mov     [es:12], ebx
-;;         add     eax, 0x1000
-;;         inc     di
-;;         dec     cx
-;;         jnz     pte_loop
-;;         xor     eax, eax
-;;         mov     di, 0x600
-;;         mov     es, di
-;;         mov     [es:0x0000], eax        ; Unmap page 0 to catch null ptr
-
-;;         mov     di, 0x3000
-;;         mov     cl, 16
-;;         call    HexDump
-;;         mov     di, 0x4000
-;;         mov     cl, 16
-;;         call    HexDump
-;;         mov     di, 0x6000
-;;         mov     cl, 32
-;;         call    HexDump
-;;         mov     di, 0x6480
-;;         mov     cl, 32
-;;         call    HexDump
         pop     di
         pop     es
         ret

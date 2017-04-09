@@ -110,8 +110,8 @@ func setupMM(bootParams: BootParams) {
 
     // Map the TLS which resides before 4GB mark and has the same virtual
     // and physical address
-    let tls_addr: UInt = UInt(bitPattern: initial_tls_end_addr) & ~PAGE_MASK
-    addMapping(start: tls_addr, size: PAGE_SIZE, physStart: tls_addr,
+    let tlsPage = TLS_END_ADDR & ~PAGE_MASK
+    addMapping(start: tlsPage, size: PAGE_SIZE, physStart: kernelPhysBase,
         readWrite: true, noExec: true)
 
     mapPhysicalMemory(highestMemoryAddress)
