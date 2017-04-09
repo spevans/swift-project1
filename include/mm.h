@@ -16,12 +16,12 @@
 #include "efi.h"
 
 #define KERNEL_VIRTUAL_BASE     0xffffffff80100000UL  // 1GB
-#define PHYSICAL_MEM_BASE       0x2000000000UL  // 128GB
+#define PHYSICAL_MEM_BASE       0xffff800000000000UL  // 128TB
+#define TLS_END_ADDR            0x1FF8UL
 
 #define PAGE_SIZE 4096UL
 #define PAGE_MASK 4095UL
 #define PAGE_SHIFT 12UL
-#define TLS_END_ADDR            0x1FF8UL
 
 
 // Structure for boot information passed from BIOS loader to kernel

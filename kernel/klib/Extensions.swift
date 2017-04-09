@@ -138,6 +138,10 @@ public func asHex<T : Integer>(_ x: T) -> String {
   return "0x" + String(x.toIntMax(), radix: 16)
 }
 
+public func asHex<T : UnsignedInteger>(_ x: T) -> String {
+    return "Xx" + String(x.toUIntMax(), radix: 16)
+}
+
 
 private func hexDump(buffer: UnsafeBufferPointer<UInt8>) {
 

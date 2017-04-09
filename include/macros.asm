@@ -4,7 +4,7 @@
 
 
         KERNEL_VIRTUAL_BASE     EQU     0xffffffff80100000     ; 1GB
-        PHYSICAL_MEM_BASE       EQU     0x2000000000   ; 128GB
+        PHYSICAL_MEM_BASE       EQU     0xffff800000000000     ; 128TB
 
         CODE_SEG                EQU     0x8
         DATA_SEG                EQU     0x10

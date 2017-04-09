@@ -33,6 +33,10 @@ setup_pagetables:
         ;; Page Map Level 4 (PML4) @ 0x3000
         mov     eax, 0x4000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di], eax
+
+        mov     eax, 0x9000 | PAGE_PRESENT | PAGE_WRITEABLE
+        mov     [es:di + 0x0800], eax ; 128TB
+
         mov     eax, 0x7000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di + 0x0FF8], eax ; 256T - 512GB
 
@@ -41,9 +45,6 @@ setup_pagetables:
         ;; first 16MB from 0GB and the first 16MB from 128GB
         mov     eax, 0x5000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di + 0x1000], eax
-        mov     eax, 0x8000 | PAGE_PRESENT | PAGE_WRITEABLE
-        mov     [es:di + 0x1400], eax   ; 128GB
-
 
         ;; Page Directory (PD), @ 0x5000
         mov     eax, 0x6000 | PAGE_PRESENT | PAGE_WRITEABLE
@@ -68,6 +69,11 @@ pte_loop:
         mov     di, 0x7000
         mov     eax, 0x8000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di + 0x0FF0], eax
+
+        ;; 3rd PDP @ 0x9000
+        mov     di, 0x9000
+        mov     eax, 0x8000 | PAGE_PRESENT | PAGE_WRITEABLE
+        mov     [es:di], eax
 
         ;;;  PD 8 entries of 2MB 16MB @ 0 phys
         mov     cx, 8

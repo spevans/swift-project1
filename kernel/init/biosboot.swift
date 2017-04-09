@@ -111,10 +111,11 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
     // isnt fully initialised.
     // FIXME - still needs to check for overlapping regions
     static private func parseE820Table(_ kernelPhysAddress: UInt,
-        _ e820MapAddr: UInt, _ e820Entries: UInt) -> [MemoryRange] {
-        guard e820Entries > 0 && e820MapAddr > 0 else {
+        _ e820MapPhysAddr: UInt, _ e820Entries: UInt) -> [MemoryRange] {
+        guard e820Entries > 0 && e820MapPhysAddr > 0 else {
             koops("E820: map is empty")
         }
+        let e820MapAddr = vaddrFromPaddr(e820MapPhysAddr)
         var ranges: [MemoryRange] = []
         ranges.reserveCapacity(Int(e820Entries))
         let buf = MemoryBufferReader(e820MapAddr,
