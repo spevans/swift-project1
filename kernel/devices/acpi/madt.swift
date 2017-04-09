@@ -4,7 +4,7 @@
  * Created by Simon Evans on 26/07/2016.
  * Copyright © 2016 Simon Evans. All rights reserved.
  *
- * Parsing of Multiple APIC Description Table (MADT)
+ * Parsing of Multiple APIC Description Table (MADT).
  */
 
 enum IntControllerTableType: UInt8 {
@@ -38,11 +38,12 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
     // Multiple APIC Flags (bit)
     private let PCAT_COMPAT = 0
 
-    let header: ACPI_SDT
     let localIntControllerAddr: UInt32
     let multipleApicFlags: UInt32
-    fileprivate(set) var madtEntries: [MADTEntry] = []
+    private(set) var madtEntries: [MADTEntry] = []
+
     var hasCompatDual8259: Bool { return multipleApicFlags.bit(PCAT_COMPAT) }
+
     var debugDescription: String {
         return "MADT: LocalControllerAddr: " + asHex(localIntControllerAddr)
             + " multipleApicFlags: " + asHex(multipleApicFlags)
@@ -50,25 +51,24 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
     }
 
 
-    init(acpiHeader: ACPI_SDT, ptr: UnsafePointer<acpi_madt_table>) {
-        header = acpiHeader
-        localIntControllerAddr = ptr.pointee.local_int_controller_addr
-        multipleApicFlags = ptr.pointee.multiple_apic_flags
+    init(_ ptr: UnsafeRawPointer) {
+        let tablePtr = ptr.bindMemory(to: acpi_madt_table.self, capacity: 1)
+        localIntControllerAddr = tablePtr.pointee.local_int_controller_addr
+        multipleApicFlags = tablePtr.pointee.multiple_apic_flags
 
-        let length = UInt32(MemoryLayout<acpi_madt_table>.size)
-        let dataLength = Int(acpiHeader.length) - Int(length)
+        let tableSize = MemoryLayout<acpi_madt_table>.size
+        let dataLength = Int(tablePtr.pointee.header.length) - tableSize
         guard dataLength >= 2 else {
             // needs at least a type/len pair
             fatalError("ACPI: MADT dataLength is less than 2")
         }
 
         // loop through controller structures
-        madtEntries = decodeEntries(ptr: ptr + 1, dataLength: dataLength)
-        madtEntries.forEach { print("ACPI: MADT:", $0) }
+        madtEntries = decodeEntries(ptr: tablePtr + 1, dataLength: dataLength)
     }
 
 
-    fileprivate func decodeEntries(ptr: UnsafePointer<acpi_madt_table>,
+    private func decodeEntries(ptr: UnsafePointer<acpi_madt_table>,
         dataLength: Int) -> [MADTEntry] {
         return ptr.withMemoryRebound(to: UInt8.self,
             capacity: dataLength) {
@@ -216,9 +216,9 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
     }
 
 
-    fileprivate func decodeTable(table: UnsafeBufferPointer<UInt8>) -> MADTEntry {
+    private func decodeTable(table: UnsafeBufferPointer<UInt8>) -> MADTEntry {
         guard let type = IntControllerTableType(rawValue: table[0]) else {
-            fatalError("Unknown MADT enrtry: \(asHex(table[0]))")
+            fatalError("Unknown MADT entry: \(asHex(table[0]))")
         }
         switch type {
         case .processorLocalApic:

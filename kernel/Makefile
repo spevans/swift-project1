@@ -25,10 +25,17 @@ SWIFT_SRCS :=	init/startup.swift		\
 		mm/address.swift		\
 		mm/page.swift			\
 		mm/alloc.swift			\
-		devices/acpi.swift		\
+		devices/acpi/acpi.swift		\
+		devices/acpi/boot.swift		\
+		devices/acpi/ecdt.swift		\
 		devices/acpi/facp.swift		\
-		devices/acpi/mcfg.swift		\
+		devices/acpi/facs.swift		\
+		devices/acpi/hpet.swift		\
 		devices/acpi/madt.swift		\
+		devices/acpi/mcfg.swift		\
+		devices/acpi/sbst.swift		\
+		devices/acpi/srat.swift		\
+		devices/acpi/waet.swift		\
 		devices/cpu.swift		\
 		devices/PCI.swift		\
 		devices/tty.swift		\

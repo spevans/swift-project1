@@ -222,7 +222,7 @@ struct PCI {
 
     // See if the bus can be accessed using MMCONFIG or PIO
     private static func findPciBus(_ bus: UInt8) -> PCIBus? {
-        if let address = mcfgTable?.baseAddressForBus(bus) {
+        if let address = mcfgTable?.baseAddressFor(bus: bus) {
             return PCIBusMMIO(mmiobase: address, bus: bus)
         } else {
             return PCIBusPIO(bus: bus)

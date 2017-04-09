@@ -1,5 +1,5 @@
 /*
- * kernel/devices/acpi.swift
+ * kernel/devices/acpi/acpi.swift
  *
  * Created by Simon Evans on 24/01/2016.
  * Copyright © 2016 Simon Evans. All rights reserved.
@@ -12,7 +12,18 @@ typealias SDTPtr = UnsafePointer<acpi_sdt_header>
 
 
 protocol ACPITable {
-    var header: ACPI_SDT { get }
+}
+
+extension ACPITable {
+    func physicalAddress(xAddr: UInt64, addr: UInt32) -> PhysAddress? {
+        if xAddr != 0 {
+            return PhysAddress(RawAddress(xAddr))
+        } else if addr != 0 {
+            return PhysAddress(RawAddress(addr))
+        } else {
+            return nil
+        }
+    }
 }
 
 
@@ -79,7 +90,9 @@ struct RSDP2: CustomStringConvertible {
     let length:    UInt32
     let xsdtAddr:  UInt64
     let checksum2: UInt8
-    var rsdt:      UInt { return (xsdtAddr != 0) ? UInt(xsdtAddr) : UInt(rsdtAddr) }
+    var rsdt:      UInt {
+        return (xsdtAddr != 0) ? UInt(xsdtAddr) : UInt(rsdtAddr)
+    }
 
     var description: String {
         return "ACPI: \(signature): \(oemId): rev: \(revision) "
@@ -104,6 +117,8 @@ struct ACPI {
     private(set) var mcfg: MCFG?
     private(set) var facp: FACP?
     private(set) var madt: MADT?
+    private(set) var tables: [ACPITable] = []
+
 
     init?(rsdp: UnsafeRawPointer, vendor: String, product: String) {
         let rsdtPtr = findRSDT(rsdp)
@@ -119,12 +134,83 @@ struct ACPI {
     }
 
 
+    // Used for testing
     init() {
     }
 
 
     mutating func parseEntry(rawSDTPtr: UnsafeRawPointer, vendor: String,
         product: String) {
+
+        let signature = tableSignature(ptr: rawSDTPtr)
+        if signature == "FACS" {
+            let facs = FACS(rawSDTPtr)
+            tables.append(facs)
+            return
+        }
+
+
+        guard let header = validateHeader(rawSDTPtr: rawSDTPtr) else {
+            return
+        }
+
+        print("ACPI: Found: \(signature)")
+        switch signature {
+        case "MCFG":
+            mcfg = MCFG(rawSDTPtr, vendor: vendor, product: product)
+            tables.append(mcfg!)
+
+        case "FACP":
+            facp = FACP(rawSDTPtr)
+            tables.append(facp!)
+
+        case "APIC":
+            madt = MADT(rawSDTPtr)
+            tables.append(madt!)
+
+        case "HPET":
+            let table = HPET(rawSDTPtr)
+            tables.append(table)
+
+        case "ECDT":
+            let table = ECDT(rawSDTPtr)
+            tables.append(table)
+
+        case "SBST":
+            let table = SBST(rawSDTPtr)
+            tables.append(table)
+
+        case "SRAT":
+            let table = SRAT(rawSDTPtr)
+            tables.append(table)
+
+        case "WAET":
+            let table = WAET(rawSDTPtr)
+            tables.append(table)
+
+        case "BOOT":
+            let table = BOOT(rawSDTPtr)
+            tables.append(table)
+
+        default:
+            print("ACPI: Unknown table: \(header.signature)")
+        }
+    }
+
+
+    private func tableSignature(ptr: UnsafeRawPointer) -> String {
+        let table = ptr.bindMemory(to: UInt8.self, capacity: 4)
+        var signature = ""
+        for idx in 0...3 {
+            let byte: UInt8 = table.advancedBy(bytes: idx).pointee
+            let ch = UnicodeScalar(byte)
+            ch.write(to: &signature)
+        }
+        return signature
+    }
+
+
+    private func validateHeader(rawSDTPtr: UnsafeRawPointer) -> ACPI_SDT? {
         let headerLength = MemoryLayout<acpi_sdt_header>.size
         let ptr = rawSDTPtr.bindMemory(to: acpi_sdt_header.self,
                                        capacity: 1)
@@ -132,43 +218,19 @@ struct ACPI {
         let totalLength = Int(header.length)
 
         guard totalLength > headerLength else {
-            print("ACPI: Entry @ %p has total length of %u\n",
+            printf("ACPI: Entry @ %p has total length of %u", rawSDTPtr.address,
                 totalLength)
-            return
+            return nil
         }
         guard checksum(ptr, size: Int(ptr.pointee.length)) == 0 else {
-            //printf("ACPI: Entry @ %p has bad chksum\n", ptr)
-            return
+            print("ACPI: \(header.signature) has bad chksum")
+            return nil
         }
-
-        print("ACPI: Signature:", header.signature)
-        switch header.signature {
-
-        case "MCFG":
-            mcfg = MCFG(acpiHeader: header, ptr: ptr, vendor: vendor,
-                product: product)
-            print("ACPI: found MCFG")
-
-        case "FACP":
-            let ptr = rawSDTPtr.bindMemory(to: acpi_facp_table.self,
-                                           capacity: 1)
-            facp = FACP(acpiHeader: header, ptr: ptr)
-            print("ACPI: found FACP")
-
-        case "APIC":
-            let ptr = rawSDTPtr.bindMemory(to: acpi_madt_table.self,
-                                           capacity: 1)
-            madt = MADT(acpiHeader: header, ptr: ptr)
-            print("ACPI: found MADT")
-            //print("ACPI:", madt!)
-
-        default:
-            print("ACPI: Unknown table type: \(header.signature)")
-        }
+        return header
     }
 
 
-    func checksum(_ rawPtr: UnsafeRawPointer, size: Int) -> UInt8 {
+    private func checksum(_ rawPtr: UnsafeRawPointer, size: Int) -> UInt8 {
         let ptr = rawPtr.bindMemory(to: UInt8.self, capacity: size)
         let region = UnsafeBufferPointer(start: ptr, count: size)
         var csum: UInt8 = 0
@@ -185,9 +247,12 @@ struct ACPI {
     }
 
 
-    private func sdtEntries32(_ rawPtr: UnsafeRawPointer) -> UnsafeBufferPointer<UInt32>? {
+    private func sdtEntries32(_ rawPtr: UnsafeRawPointer)
+        -> UnsafeBufferPointer<UInt32>? {
         let ptr = rawPtr.bindMemory(to: acpi_sdt_header.self, capacity: 1)
-        let entryCount = (Int(ptr.pointee.length) - MemoryLayout<acpi_sdt_header>.stride) / MemoryLayout<UInt32>.size
+        let tableSz = MemoryLayout<acpi_sdt_header>.stride
+        let entrySz = MemoryLayout<UInt32>.size
+        let entryCount = (Int(ptr.pointee.length) - tableSz) / entrySz
 
         if entryCount > 0 {
             let entryPtr: UnsafePointer<UInt32> =
