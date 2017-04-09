@@ -1,22 +1,23 @@
 ;;; boot/page_tables.asm
 ;;;
-;;; Copyright © 2015 Simon Evans. All rights reserved.
+;;; Copyright © 2015 - 2017 Simon Evans. All rights reserved.
 ;;;
-;;; Setup 4 level page tables with the PGD at 0x3000
-;;; Identity maps the first 16MB so only needs 1 entry
-;;; in the PML4/PDP 8 in the PD and 4096 PTEs in the PT
-;;; Also maps the first 16MB at the 1GB mark and at the
-;;; 128GB mark for a view of physical memory
-;;; (extended to cover all memory when tables are setup
-;;; in swift)
+;;; Setup pagetables in a 28KB region @ 0000:3000
+;;; PML4 @ 0000:3000 - Maps 0, 128TB, 256TB-512GB
+;;; PDP  @ 0000:4000 - Maps 1GB @ 0
+;;; PDP  @ 0000:7000 - Maps 1GB @ 256TB-512GB
+;;; PDP  @ 0000:9000 - Maps 1GB @ 128TB
+;;; PD   @ 0000:5000 - Maps 2MB @ 0
+;;; PD   @ 0000:8000 - Maps 16MB using 2MB pages @ 128TB and 256TB-512GB
+;;; (extended to cover all memory when tables are setup in swift)
+;;; PT   @ 0000:6000 - Maps 4K @0x1000 -> 0x100000, 2MB-12K @ 0x3000 -> 0x3000
+;;; Zero page is left unmapped to capture NULL pointer dereference.
+;;; 0x1000 is mapped to 0x10000 (first page of the kernel) for the TLS
 
 PAGE_PRESENT    EQU     1
 PAGE_WRITEABLE  EQU     2
 PAGE_LARGEPAGE  EQU     128
 
-
-;;; Setup pagetables a 48KB region @ 0000:3000
-;;; PML4 @ 0000:3000, PDP @ 0000:4000, PD @ 0000:5000 PT @ 0000:6000 - 0000:E000
 
 setup_pagetables:
         push    es
@@ -32,13 +33,13 @@ setup_pagetables:
 
         ;; Page Map Level 4 (PML4) @ 0x3000
         mov     eax, 0x4000 | PAGE_PRESENT | PAGE_WRITEABLE
-        mov     [es:di], eax
+        mov     [es:di], eax            ; 0KB
 
         mov     eax, 0x9000 | PAGE_PRESENT | PAGE_WRITEABLE
-        mov     [es:di + 0x0800], eax ; 128TB
+        mov     [es:di + 0x0800], eax   ; 128TB - for Physical Ram map
 
         mov     eax, 0x7000 | PAGE_PRESENT | PAGE_WRITEABLE
-        mov     [es:di + 0x0FF8], eax ; 256T - 512GB
+        mov     [es:di + 0x0FF8], eax   ; 256T - 512GB for kernel
 
         ;; Page Directory Pointer (PDP) @ 0x4000
         ;; Each entry maps 1GB so add 2 entries mapping the
@@ -51,6 +52,8 @@ setup_pagetables:
         mov     [es:di + 0x2000], eax
 
         ;; Page Table Entries (PTEs) @ 0x6000 512 entries maps 2MB
+        ;; using 4KB pages. first page @ 0 is unmapped, 2nd page
+        ;; maps 0x1000 to 0x100000, rest is identity mapped.
         mov     di, 0x6008
         mov     eax, 0x100000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di], eax
@@ -65,17 +68,20 @@ pte_loop:
         jnz     pte_loop
 
 
-        ;; 2nd Page Directory (PDP), 1 entry 1GB @ 256T - 2GB
+        ;; 2nd Page Directory (PDP) @ 0x7000, 1 entry 1GB @ 256T - 2GB
         mov     di, 0x7000
         mov     eax, 0x8000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di + 0x0FF0], eax
 
-        ;; 3rd PDP @ 0x9000
+        ;; 3rd PDP @ 0x9000 - 1 entry for 128TB - for Physical RAM map
         mov     di, 0x9000
         mov     eax, 0x8000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di], eax
 
-        ;;;  PD 8 entries of 2MB 16MB @ 0 phys
+        ;; PD @ 0x8000 8 entries of 2MB 16MB @ 0 phys
+        ;; This maps the first 16MB of physical memory at 2 locations:
+        ;; @ 128TB (bottom of the kernel space) for kernel access to all ram
+        ;; @ 256T-512GB to map the kernel to its running address
         mov     cx, 8
         mov     di, 0x8000
         mov     eax, 0x0000 | PAGE_PRESENT | PAGE_WRITEABLE | PAGE_LARGEPAGE
@@ -85,7 +91,6 @@ pde_loop:
         add     di, 8
         dec     cx
         jnz     pde_loop
-
 
         pop     di
         pop     es

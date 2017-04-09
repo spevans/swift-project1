@@ -2,7 +2,7 @@
  * kernel/mm/init.swift
  *
  * Created by Simon Evans on 18/01/2016.
- * Copyright © 2016 Simon Evans. All rights reserved.
+ * Copyright © 2016 - 2017 Simon Evans. All rights reserved.
  *
  * Initial setup for memory management
  *
@@ -14,37 +14,58 @@ private let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_addr)
 
 /* The page table setup by the BIOS boot loader setup 3 mappings of the
  * first 16MB of memory
- * @0                  as an identity mapping used to load the kernel
- * @0x40000000   (1GB) as the kernel is compiled to start at linear 1G
- * @0x2000000000 (128GB) used as a mapping of physical memory accesible
- * from the kernel address space. It is setup at boot so that the tty
- * drivers can access the video memory without having to readjust after
- * the mapping is changed
- * The identity mapping is removed just before entry to the kernel
+ * @0 (Zero Page) is unmapped to catch NULL pointer errors.
  *
- * The EFI boot loader setups 2 mappings:
- * @0x40000000   (1GB) sizeof(kernel text+data+bss)
- * @0x2000000000+base address of the framebuffer for screen access
+ * 4K  @ 0x1000 -> 0x100000(1MB)
+ *       To allow the TLS address to be put in a GDT entry. This needs to be
+ *       below 4GB. This is the first 4KB of the kernel which has data.
  *
+ * 2MB @ 0x3000 -> 0x200000(2MB)
+ *       An identity mapping used to load the kernel and execute code after
+ *       paging is enabled.
+ *
+ * 1GB @ 0xffff800000000000 (128TB) -> 0x000
+ *       Used as a mapping of physical memory accesible from the kernel
+ *       address space. It is setup at boot so that the tty drivers can
+ *       access the video memory without having to readjust after the
+ *       mapping is changed. Defined as PHYSICAL_MEM_BASE.
+ *
+ * 1GB @ 0xffffffff80000000 (256TB-512GB) -> 0x100000 (1MB)
+ *       The kernel's virtual address that it executes at.
+ *       Maps to where the kernel is physically loaded.
+ *       Defined as KERNEL_VIRTUAL_BASE
+ *
+ *
+ * The EFI Loader sets up the following mappings:
+ *
+ * 4K @ 0x1000 -> Physical address where kernel is loaded. Used as above.
+ *
+ * sizeof(Framebuffer) @ 0xffff800000000000+base address of the framebuffer
+ *       For screen access.
+ *
+ * sizeof(kernel text+data+bss) @ 0xffffffff80000000 -> Physical address
+ * where kernel is loaded covering the loaded kernel
  *
  * setupMM() creates new page tables with the following:
- * @0x40000000   (1GB)   a mapping just to cover the physical memory
- *                       used by the kernel incl data and bss (same as EFI)
- * @0x2000000000 (128GB) a mapping of physical memory from 0 to highest
- *                       physical address found. If there are any holes in
- * the physical memory these are covered by the mapping as well.
+ *
+ * 4K @ 0x1000 -> Physical address where kernel is loaded. Used as above.
+ *
+ * sizeof(RAM) @ 0xffff800000000000 -> 0x0000 To cover all physical RAM
+ *
  * This also maps the framebuffer at the same address at the boot code so
- * that the TTY driver continues to work
+ * that the TTY driver continues to work.
+ *
+ * sizeof(kernel text+data+bss) @ 0xffffffff80000000 -> Physical address
+ * where kernel is loaded covering the loaded kernel.
  *
  * The initial page tables setup here are using pages from the kernel BSS
  * as there is not allocPage() at this stage so kernelVirtualAddress() is
  * used to convert virtual addresses in the space to physical addresses for
- * the various page table entries
+ * the various page table entries.
  */
 
+// Setup initial page tables and map kernel
 func setupMM(bootParams: BootParams) {
-    // Setup initial page tables and map kernel
-
     // Show the current memory ranges
     for range in bootParams.memoryRanges {
         print("MM:", bootParams.source, ":", range)
