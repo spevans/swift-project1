@@ -1,0 +1,43 @@
+tidy up current parsing,
+use nextSymbol more
+make error messaging better
+merge parses
+
+rename amlopcodes to amltypes
+remove default in switch
+
+subParser
+
+in amlparser extend each type with an init method that reads from the byte stream
+
+* Dont use recursion
+
+AML parser
+
+- Heavy use of types to get compiler to validate everything
+
+- Avoid default case in switch as reduces validation of any new cases added
+
+- switch/case for tables as created at compile time with extra checking and optimistion
+
+- protocol just used to mark types for now
+
+- avoid as many runtime checks that could be done as compile checks
+
+
+- NotOp needs to take a second opcode as a param
+
+- Need to deal with generic TermArg since its used for specifci types (=> Integer)
+
+
+AML interpreter/bytecode
+
+
+
+-- Sections
+
+- Modeling AML Types
+
+- extensions for Custom string, outputing model
+
+- parsing#3

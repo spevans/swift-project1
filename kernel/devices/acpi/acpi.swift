@@ -117,7 +117,10 @@ struct ACPI {
     private(set) var mcfg: MCFG?
     private(set) var facp: FACP?
     private(set) var madt: MADT?
+    private(set) var globalObjects: ACPIGlobalObjects!
     private(set) var tables: [ACPITable] = []
+    private var dsdt: AMLByteBuffer?
+    private var ssdts: [AMLByteBuffer] = []
 
 
     init?(rsdp: UnsafeRawPointer, vendor: String, product: String) {
@@ -131,11 +134,43 @@ struct ACPI {
             let rawSDTPtr = mkSDTPtr(PhysAddress(RawAddress(entry)))
             parseEntry(rawSDTPtr: rawSDTPtr, vendor: vendor, product: product)
         }
+
+        print("Parsing AML")
+        if dsdt == nil, let dsdtAddr = facp?.dsdtAddress {
+            print("Found DSDT address in FACP: 0x\(asHex(dsdtAddr.value))")
+            parseEntry(rawSDTPtr: mkSDTPtr(dsdtAddr),
+                       vendor: vendor, product: product)
+        }
+        globalObjects = parseAMLTables()
     }
 
 
     // Used for testing
     init() {
+    }
+
+
+    mutating func parseAMLTables() -> ACPIGlobalObjects? {
+        guard let ptr = dsdt else {
+            fatalError("ACPI: No valid DSDT found")
+        }
+        ssdts.insert(ptr, at: 0) // Put the DSDT first
+
+        let parser = AMLParser()
+        do {
+            for buffer in ssdts {
+                try parser.parse(amlCode: buffer)
+            }
+        } catch {
+            fatalError("parseerror: \(error)")
+        }
+
+        dsdt = nil
+        ssdts.removeAll()
+        //parser.parseMethods()
+        globalObjects = parser.acpiGlobalObjects
+        print("End of AML code")
+        return parser.acpiGlobalObjects
     }
 
 
@@ -154,7 +189,7 @@ struct ACPI {
             return
         }
 
-        print("ACPI: Found: \(signature)")
+        print("Found: \(signature)")
         switch signature {
         case "MCFG":
             mcfg = MCFG(rawSDTPtr, vendor: vendor, product: product)
@@ -192,6 +227,21 @@ struct ACPI {
             let table = BOOT(rawSDTPtr)
             tables.append(table)
 
+
+        case "DSDT", "SSDT":
+            let headerLength = MemoryLayout<acpi_sdt_header>.size
+            let totalLength = Int(header.length)
+            let amlCodeLength = totalLength - headerLength
+            let amlCodePtr = rawSDTPtr.advanced(by: headerLength)
+                .bindMemory(to: UInt8.self, capacity: amlCodeLength)
+            let amlByteBuffer = AMLByteBuffer(start: amlCodePtr,
+                                              count: amlCodeLength)
+            if header.signature == "DSDT" {
+                dsdt = amlByteBuffer
+            } else {
+                ssdts.append(amlByteBuffer)
+            }
+
         default:
             print("ACPI: Unknown table: \(header.signature)")
         }
@@ -218,8 +268,7 @@ struct ACPI {
         let totalLength = Int(header.length)
 
         guard totalLength > headerLength else {
-            printf("ACPI: Entry @ %p has total length of %u", rawSDTPtr.address,
-                totalLength)
+            print("ACPI: Entry @ 0x\(asHex(rawSDTPtr.address)) has total length of\(totalLength)")
             return nil
         }
         guard checksum(ptr, size: Int(ptr.pointee.length)) == 0 else {
@@ -247,12 +296,9 @@ struct ACPI {
     }
 
 
-    private func sdtEntries32(_ rawPtr: UnsafeRawPointer)
-        -> UnsafeBufferPointer<UInt32>? {
+    private func sdtEntries32(_ rawPtr: UnsafeRawPointer) -> UnsafeBufferPointer<UInt32>? {
         let ptr = rawPtr.bindMemory(to: acpi_sdt_header.self, capacity: 1)
-        let tableSz = MemoryLayout<acpi_sdt_header>.stride
-        let entrySz = MemoryLayout<UInt32>.size
-        let entryCount = (Int(ptr.pointee.length) - tableSz) / entrySz
+        let entryCount = (Int(ptr.pointee.length) - MemoryLayout<acpi_sdt_header>.stride) / MemoryLayout<UInt32>.size
 
         if entryCount > 0 {
             let entryPtr: UnsafePointer<UInt32> =
