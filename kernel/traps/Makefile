@@ -4,7 +4,7 @@ include $(TOPDIR)/Makedefs
 SWIFT_MODULE := Traps
 SWIFT_OBJS := IDT.o exceptions.o
 SWIFT_SRCS := $(patsubst %.o,%.swift,$(SWIFT_OBJS))
-OBJS := entry.o koops.o
+OBJS := entry.o
 
 
 all: traps.o

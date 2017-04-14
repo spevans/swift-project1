@@ -22,18 +22,21 @@ SFLAGS := -g -parse-as-library -import-objc-header ../include/kernel.h -whole-mo
 CFLAGS := -ggdb  -I../include -Xlinker -rpath=$(SOLIBDIR) $(EXTRALIBS)
 CFILES := testrunner.c ../klibc/kprintf.c
 
-tests: tests.swift ../kernel/klib/Extensions.swift 
+tests: tests.swift ../kernel/klib/Extensions.swift ../kernel/klib/extensions/*.swift
 	$(SWIFT3C) $(SFLAGS) -o $@.o $^
 	$(CC) $(CFLAGS) $(CFILES) -o $@ $@.o	
+
+mm_test: mm_test.c ../klibc/malloc.c ../klibc/pages.c
+	$(CC) -ggdb -Wall -Wextra -Werror -fno-builtin -fno-stack-protector -I$(TOPDIR)/include -o $@ $^
 
 acpitest: acpitest.swift ../kernel/devices/acpi.swift  ../kernel/devices/acpi/*.swift ../kernel/klib/Extensions.swift
 	$(SWIFT3C) $(SFLAGS) -o $@.o $^
 	$(CC) $(CFLAGS) $(CFILES) -o $@ $@.o
 
 
-runtests: tests acpitest
+runtests: tests
 	./tests
-	./acpitest acpi_tables/*.acpi
+
 
 clean:
-	rm -f *.o tests acpitest
+	rm -f *.o tests acpitest mm_test

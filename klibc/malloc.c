@@ -1,5 +1,5 @@
 /*
- * kernel/mm/malloc.c
+ * klibc/malloc.c
  *
  * Copyright © 2015 - 2017 Simon Evans. All rights reserved.
  *

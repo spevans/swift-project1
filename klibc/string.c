@@ -13,17 +13,6 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 
-void
-koops(const char *fmt, ...)
-{
-        va_list args;
-        va_start(args, fmt);
-        kvprintf(fmt, args);
-        va_end(args);
-        stop();
-}
-
-
 void *
 memset(void *dest, int c, size_t count)
 {

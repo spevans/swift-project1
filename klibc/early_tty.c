@@ -1,11 +1,11 @@
 /*
- * kernel/init/early_tty.c
+ * klibc/early_tty.c
  *
  * Created by Simon Evans on 26/12/2015.
- * Copyright © 2015, 2016 Simon Evans. All rights reserved.
+ * Copyright © 2015 - 2017 Simon Evans. All rights reserved.
  *
  * Simple functions to print characters and strings until the
- * Swift TTY driver is initialised
+ * Swift TTY driver is initialised.
  *
  */
 

@@ -10,7 +10,7 @@
 import XCTest
 
 
-func printf(_ format: String, _ arguments: CVarArg...) {
+func printf(_ format: StaticString, _ arguments: CVarArg...) {
     print(String.sprintf(format, arguments))
 }
 
@@ -19,7 +19,7 @@ class Tests: XCTestCase {
     static var allTests : [(String, (Tests) -> () throws -> Void)] {
         return [
             ("testSprintf", testSprintf),
-            ("testUInt16", testUInt16)
+            ("testByteArray2", testByteArray2)
         ]
     }
 
@@ -38,11 +38,11 @@ class Tests: XCTestCase {
         XCTAssertEqual("RAX: 0xAAAAAAAAAAAAAAAA", output4, "`#16.16lx' 64bit number hight bit set")
     }
 
-    func testUInt16() {
-        let x = UInt16(msb: 1, lsb: 2)
-        XCTAssertEqual(0x102, x, "UInt16(msb, lsb)")
-        XCTAssertEqual(1, x.toBytes().0, "UInt16.toBytes() msb")
-        XCTAssertEqual(2, x.toBytes().1, "UInt16.toBytes() lsb")
+    func testByteArray2() {
+        let x = ByteArray2([2, 1])
+        XCTAssertEqual(0x102, x.toInt(), "ByteArray2.toInt")
+        XCTAssertEqual(2, x[0], "ByteArray2[0]")
+        XCTAssertEqual(1, x[1], "ByteArray2[1]")
     }
 }
 

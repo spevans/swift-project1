@@ -1,11 +1,11 @@
 /*
- * kernel/mm/pages.c
+ * klibc/pages.c
  *
  * Created by Simon Evans on 25/12/2015.
- * Copyright © 2015, 2016 Simon Evans. All rights reserved.
+ * Copyright © 2015 - 2017 Simon Evans. All rights reserved.
  *
- * Simple memory management for now just enough alloc_pages() and
- * free_pages() (provided from the BSS)
+ * Simple memory management for now, just enough for alloc_pages() and
+ * free_pages() (provided from the BSS) to work.
  *
  */
 

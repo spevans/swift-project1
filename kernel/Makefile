@@ -40,7 +40,7 @@ SWIFT_SRCS :=	init/startup.swift		\
 		traps/IDT.swift			\
 		tasks/tasks.swift
 
-KERNEL_OBJS := init/init.o mm/mm.o traps/traps.o SwiftKernel.o
+KERNEL_OBJS := init/init.o traps/traps.o SwiftKernel.o
 
 SUBDIRS := devices mm traps init
 HEADERS = $(TOPDIR)/include/*.h

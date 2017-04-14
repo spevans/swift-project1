@@ -1,11 +1,33 @@
+/*
+ * klibc/koops.c
+ *
+ * Created by Simon Evans on 15/01/2016.
+ * Copyright © 2016 - 2017 Simon Evans. All rights reserved.
+ *
+ * koops() and related stack dumping functions for kernel panics.
+ *
+ */
+
 #include <stdint.h>
 #include "klibc.h"
 #include "x86defs.h"
 
 
 extern void *_kernel_stack;
-
 static const int max_depth = 40;
+
+
+void
+koops(const char *fmt, ...)
+{
+        va_list args;
+        va_start(args, fmt);
+        kvprintf(fmt, args);
+        va_end(args);
+        stop();
+}
+
+
 // Simple stack backtrace using rbp to walk the stack
 // Needs an update for eh_frame at some point
 void

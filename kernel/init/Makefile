@@ -5,7 +5,7 @@ SWIFT_MODULE := Init
 SWIFT_OBJS := startup.o GDT.o
 SWIFT_SRCS := $(patsubst %.o,%.swift,$(SWIFT_OBJS))
 # Note main.o needs to be first so that the entry point is at the correct address
-OBJS := main.o early_tty.o bss.o
+OBJS := main.o bss.o
 
 all: init.o
 
