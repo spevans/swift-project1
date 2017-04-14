@@ -16,7 +16,6 @@
 
 extern const void * const _heap_start;
 extern const void * const _heap_end;
-const unsigned long vm_page_mask = PAGE_MASK;
 static void *next_free_page = (void *)&_heap_start;
 
 

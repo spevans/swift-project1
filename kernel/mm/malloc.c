@@ -1,7 +1,7 @@
 /*
  * kernel/mm/malloc.c
  *
- * Copyright © 2015 Simon Evans. All rights reserved.
+ * Copyright © 2015 - 2017 Simon Evans. All rights reserved.
  *
  * Simple memory management for now just enough to provide a simple malloc()
  *
@@ -10,18 +10,18 @@
  * the case of slabs of size 32 as only half the page is used.
  *
  * The sizes were chosen as they are all aligned to 16bytes and they
- * exactly fill a 4096K page with a 64byte header - expect the 32byte one
+ * exactly fill a 4096K page with a 64byte header - except the 32byte one
  * although there is enough space in the header to have a second allocation
  * bitmap for that case.
  *
  * Any allocations over 4032 bytes just get rounded up to a page size and
  * allocated from the free pages.
  *
- * realloc() isnt currently implemented as it is now needed at the moment.
+ * realloc() isnt currently implemented as it is not needed at the moment.
  * No stats have been gathered to optimise this allocator in anyway its just
  * bare minimum to get everything else working. Anyway, the C++ string
- * libraries that use it do there own realloc routing (malloc/free/computing
- * best next size
+ * libraries that use it do their own realloc routing (malloc/free/computing
+ * best next size)
  *
  */
 
@@ -29,44 +29,81 @@
 #include "klibc.h"
 #include "mm.h"
 
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 
 struct slab_block_info {
-        uint32_t slab_size;
-        uint32_t slab_count;
+        uint16_t slab_size;
+        uint16_t slab_count;
 };
 
 
-struct slab_block_info slab_info[] = { {32, 64}, {64, 63}, {192, 21}, {448, 9},
-                                       {1008, 4}, {2016, 2}, {4032, 1} };
-
 // Should be 64 bytes
 struct slab_header {
-        uint32_t slab_size;
-        uint32_t lock;
+        uint64_t slab_size;
+        uint64_t allocation_bm[2];
         struct slab_header *next;
+
+        /* debug */
         uint64_t malloc_cnt;
         uint64_t free_cnt;
-        uint64_t allocation_bm[2];
+#ifdef MALLOC_DEBUG
         char signature[8];
         uint64_t checksum;
+#else
+        char padding[16];
+#endif
         char data[4032];                // upto a page
 } __attribute__((aligned(4096),packed));
 
 
 struct malloc_region {
-        uint32_t region_size;
-        char padding[12];
+        uint64_t region_size;
+        uint64_t padding;
         char data[0];
 };
 
 
+// These block sizes are all mutiples of 16 bytes and fit into 4032,
+// the space left after the header. Currently only using 1 of the
+// 2 allocation bitmaps, hence no 32byte block. Some of these sizes
+// waste a few bytes at the end of the block. All blocks returned are
+// aligned to 16bytes.
+static const struct slab_block_info slab_info[] = {
+        { 48, 64 },
+        { 64, 63 },
+        { 80, 50 },
+        { 96, 42 },
+        { 112, 36 },
+        { 128, 31 },
+        { 144, 28 },
+        { 160, 25 },
+        { 176, 22 },
+        { 192, 21 },
+        { 208, 19 },
+        { 224, 18 },
+        { 288, 14 },
+        { 304, 13 },
+        { 336, 12 },
+        { 400, 10 },
+        { 448, 9 },
+        { 576, 7 },
+        { 672, 6 },
+        { 800, 5 },
+        { 1008, 4 },
+        { 1344, 3 },
+        { 2016, 2 },
+        { 4032, 1 },
+};
+
 static atomic_int malloc_lock;
 // List of pages that have free slabs on them, 1 list per slab size
-#define SLAB_SIZES 7
+#define SLAB_SIZES (sizeof(slab_info) / sizeof(struct slab_block_info))
 static struct slab_header *slabs[SLAB_SIZES];
 static const int MAX_SLAB_SIZE = 4032;        // Anything over this gets pages
 
 
+#ifdef MALLOC_DEBUG
 static uint64_t
 compute_checksum(struct slab_header *slab)
 {
@@ -77,12 +114,15 @@ compute_checksum(struct slab_header *slab)
         }
         return checksum;
 }
+#endif
 
 
 static void
 update_checksum(struct slab_header *slab)
 {
+#ifdef MALLOC_DEBUG
         slab->checksum = compute_checksum(slab);
+#endif
 }
 
 
@@ -92,12 +132,13 @@ add_new_slab(int slab_idx)
 {
         struct slab_header *slab = alloc_pages(1);
         slab->slab_size = slab_info[slab_idx].slab_size;
-        slab->lock = 0;
         slab->allocation_bm[0] = 0;
         slab->allocation_bm[1] = 0;
-        strcpy(slab->signature, "MALLOC");      // for debugging
         slab->next = slabs[slab_idx];
+#ifdef MALLOC_DEBUG
+        strcpy(slab->signature, "MALLOC");      // for debugging
         update_checksum(slab);
+#endif
         slabs[slab_idx] = slab;
 
         return slab;
@@ -108,9 +149,6 @@ void
 init_mm()
 {
         atomic_init(&malloc_lock, 0);
-        for (size_t i = 0; i < SLAB_SIZES; i++) {
-                add_new_slab(i);
-        }
 }
 
 
@@ -118,12 +156,14 @@ init_mm()
 static void
 validate_is_slab(struct slab_header *slab)
 {
+#ifdef MALLOC_DEBUG
         if (strcmp(slab->signature, "MALLOC")) {
                 koops("slab @ %p is not a slab!", slab);
         }
         if (compute_checksum(slab) != slab->checksum) {
                 koops("slab @ %p has invalid checksum!", slab);
         }
+#endif
 }
 
 
@@ -137,14 +177,11 @@ region_is_slab(struct slab_header *region)
 static inline int
 map_size_to_idx(size_t size)
 {
-        // Could convert to map the highest bit set in the size
-        if (size <= 32)   return 0;
-        if (size <= 64)   return 1;
-        if (size <= 192)  return 2;
-        if (size <= 448)  return 3;
-        if (size <= 1008) return 4;
-        if (size <= 2016) return 5;
-        if (size <= 4032) return 6;
+        for (size_t i = 0; i < SLAB_SIZES; i++) {
+                if (size <= slab_info[i].slab_size) {
+                        return i;
+                }
+        }
         koops("map_size_to_idx: bad size %lu\n", size);
 }
 
@@ -153,9 +190,11 @@ map_size_to_idx(size_t size)
 static inline uint64_t
 bitmap_mask(int slab_idx)
 {
-        if (slab_idx == 0) return 0xffffffffffffffff;
-        uint64_t mask = (uint64_t)1;
         uint64_t count = (uint64_t)slab_info[slab_idx].slab_count;
+        if (count == 64) {
+                return UINT64_MAX;
+        }
+        uint64_t mask = 1;
         uint64_t result = (mask << count) - 1;
 
         return result;
@@ -191,23 +230,22 @@ malloc(size_t size)
         } else {
                 int slab_idx = map_size_to_idx(size);
                 struct slab_header *slab = slabs[slab_idx];
-                validate_is_slab(slab);
-
-                uint64_t allocation_mask = bitmap_mask(slab_idx);
-                uint64_t free_bits = slab->allocation_bm[0] ^ allocation_mask;
-                int freebit = __builtin_ffsl(free_bits);
-
-                if (unlikely(freebit == 0)) {
+                int freebit;
+                if (!slab) {
                         slab = add_new_slab(slab_idx);
-                        debugf(" got new slab @ %p ", slab);
-                        free_bits = slab->allocation_bm[0] ^ allocation_mask;
+                        freebit = 0;
+                } else {
+                        validate_is_slab(slab);
+                        uint64_t allocation_mask = bitmap_mask(slab_idx);
+                        uint64_t free_bits = slab->allocation_bm[0] ^ allocation_mask;
                         freebit = __builtin_ffsl(free_bits);
-                        if(unlikely(freebit == 0)) {
-                                koops("new slab for idx:%d has filled up [%"PRIu64 "/%"PRIu64" /%"PRIX64 "]!", slab_idx,
-                                      slab->malloc_cnt, slab->free_cnt, slab->allocation_bm[0]);
+
+                        if (unlikely(freebit == 0)) {
+                                slab = add_new_slab(slab_idx);
+                        } else {
+                                freebit--;
                         }
                 }
-                freebit--;
                 size_t offset = freebit * slab_info[slab_idx].slab_size;
                 retval = &slab->data[offset];
 
@@ -258,7 +296,7 @@ free(void *ptr)
                         koops("free(%p) offset = %lu", ptr, offset);
                 }
                 if (unlikely((offset - 64) % slab->slab_size)) {
-                        koops("free(%p) is not on a valid boundary for slab size of %u (%lx)",
+                        koops("free(%p) is not on a valid boundary for slab size of %lu (%lx)",
                               ptr, slab->slab_size, offset - 64);
                 }
                 int bit_idx = (offset-64) / slab->slab_size;
@@ -267,12 +305,15 @@ free(void *ptr)
                 if (likely(slab->allocation_bm[0] & bitmap_mask)) {
                         slab->allocation_bm[0] &= ~bitmap_mask;
                         slab->free_cnt++;
-                        debugf(" alloc_bm = %"PRIx64 " freecnt=%"PRIu64 " ", slab->allocation_bm[0], slab->free_cnt);
+                        debugf(" alloc_bm = %"PRIx64 " freecnt=%"PRIu64 " ",
+                               slab->allocation_bm[0], slab->free_cnt);
                 } else {
                         koops("%p is not allocated, alloc=%"PRIx64 " mask = %"PRIx64,
                               ptr, slab->allocation_bm[0], bitmap_mask);
                 }
+#ifdef MALLOC_DEBUG
                 memset(ptr, 0xAA, slab->slab_size);
+#endif
                 update_checksum(slab);
                 debugf("\ncs=%"PRIx64 "\n", slab->checksum);
         }

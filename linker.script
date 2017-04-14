@@ -111,7 +111,7 @@ SECTIONS
     . += PAGE_SIZE;
     _ist1_stack_top = .;
     _heap_start = .;
-    . = ALIGN(0x900000);
+    . += PAGE_SIZE * 64;
     _heap_end = .;
 
     _bss_end = .;

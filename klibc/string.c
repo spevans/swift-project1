@@ -16,12 +16,11 @@
 void
 koops(const char *fmt, ...)
 {
-    va_list args;
-    va_start(args, fmt);
-    kprintf("%p, OOPS: ", __builtin_return_address(1));
-    kvprintf(fmt, args);
-    va_end(args);
-    stop();
+        va_list args;
+        va_start(args, fmt);
+        kvprintf(fmt, args);
+        va_end(args);
+        stop();
 }
 
 
