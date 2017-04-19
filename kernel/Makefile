@@ -22,6 +22,7 @@ SWIFT_SRCS :=	init/startup.swift		\
 		klib/CircularBuffer.swift	\
 		mm/init.swift			\
 		mm/page.swift			\
+		mm/alloc.swift			\
 		devices/acpi.swift		\
 		devices/acpi/facp.swift		\
 		devices/acpi/mcfg.swift		\

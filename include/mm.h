@@ -52,8 +52,8 @@ struct efi_boot_params {
 }  __attribute__((packed));
 
 
-extern void * _Nonnull (* _Nonnull alloc_pages)(size_t count);
-extern void (* _Nonnull free_pages)(void * _Nullable pages, size_t count);
+void * _Nullable alloc_pages(size_t count);
+void free_pages(void * _Nonnull pages, size_t count);
 void * _Nullable malloc(size_t size);
 void free(void * _Nullable ptr);
 

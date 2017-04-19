@@ -211,7 +211,7 @@ private func getPageAtIndex(_ dirPage: PageTableDirectory, _ idx: Int)
     -> PageTableDirectory {
     if !pagePresent(dirPage[idx]) {
         // FIXME: should call a swift func for alloc_pages()
-        let newPage = alloc_pages(1)
+        let newPage = alloc(pages: 1)
         let paddr = kernelPhysAddress(newPage.address)
         let entry = makePDE(address: paddr, readWrite: true, userAccess: false,
             writeThrough: true, cacheDisable: false, noExec: false)

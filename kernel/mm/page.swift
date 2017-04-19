@@ -8,7 +8,7 @@
  *
  */
 
-typealias VirtualAddress = UInt
+public typealias VirtualAddress = UInt
 typealias PhysAddress = UInt
 typealias PageTableDirectory = UnsafeMutableBufferPointer<PageTableEntry>
 typealias PageTableEntry = UInt
