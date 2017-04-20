@@ -922,6 +922,15 @@ setup_page_tables()
         add_mapping((void *)(TLS_END_ADDR & ~PAGE_MASK), bp->kernel_phys_addr,
                     1);
 
+
+        // Map the first 4GB of RAM into the 128GB mapping. 4GB should
+        // cover all of the memory used in loading the kernel and also
+        // any page maps setup in this EFI loader so they can be read
+        // by page.swift:virtualToPhys(address:base:)
+        // TODO: Convert to using 2MB pages and stop double mapping with
+        // the framebuffer above.
+        add_mapping((void *)PHYSICAL_MEM_BASE, (void *)0, 1048576);
+
         return EFI_SUCCESS;
 }
 

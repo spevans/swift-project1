@@ -35,7 +35,6 @@ struct PhysAddress: CVarArg {
     }
 
     func distance(to n: PhysAddress) -> UInt {
-        printf("distance n.value = %p value = %p\n", n.value, value)
         return n.value - value
     }
 
