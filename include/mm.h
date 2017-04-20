@@ -15,8 +15,9 @@
 #include "fbcon.h"
 #include "efi.h"
 
-#define KERNEL_VIRTUAL_BASE     0xffffffff80100000UL  // 1GB
-#define PHYSICAL_MEM_BASE       0xffff800000000000UL  // 128TB
+#define KERNEL_VIRTUAL_BASE     0xffffffff80100000UL    // 1GB
+#define PHYSICAL_MEM_BASE       0xffff800000000000UL    // 128TB
+#define MAX_PHYSICAL_MEMORY     0x1000000000UL          // 64GB Physical RAM
 #define TLS_END_ADDR            0x1FF8UL
 
 #define PAGE_SIZE 4096UL

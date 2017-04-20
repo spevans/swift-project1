@@ -48,8 +48,8 @@ struct MemoryRange: CustomStringConvertible {
         let str = (size >= mb) ? String.sprintf(" %6uMB  ", size / mb) :
                 String.sprintf(" %6uKB  ", size / kb)
 
-        return String.sprintf("%12X - %12X ", start, start + size - 1)
-            + "\(str) \(type)"
+        return String.sprintf("%12X - %12X ", start,
+            start.advanced(by: size - 1))  + "\(str) \(type)"
     }
 }
 
@@ -57,7 +57,7 @@ struct MemoryRange: CustomStringConvertible {
 // The boot parameters also contain information about the framebuffer if present
 // so that the TTY driver can be initialised before PCI scanning has taken place
 struct FrameBufferInfo: CustomStringConvertible {
-    let address:       UInt
+    let address:       PhysAddress
     let size:          UInt
     let width:         UInt32
     let height:        UInt32
@@ -81,7 +81,7 @@ struct FrameBufferInfo: CustomStringConvertible {
     }
 
     init(fb: frame_buffer) {
-        address = UInt(bitPattern: fb.address)
+        address = PhysAddress(fb.address.address)
         size = UInt(fb.size)
         width = fb.width
         height = fb.height
@@ -114,7 +114,7 @@ protocol BootParams {
  * This is required because step 2 requires some pages to be mapped in
  * setupMM(), but setupMM() requires some of the data from step1.
  */
-func parse(bootParamsAddr: UInt) -> BootParams {
+func parse(bootParamsAddr: VirtualAddress) -> BootParams {
     printf("bootparams: parsing bootParams @ 0x%lx\n", bootParamsAddr)
     if (bootParamsAddr == 0) {
         koops("bootParamsAddr is null")
@@ -172,7 +172,7 @@ struct SystemTables {
 }
 
 
-func readSignature(_ address: PhysAddress) -> String? {
+func readSignature(_ address: VirtualAddress) -> String? {
     let signatureSize = 8
     let membuf = MemoryBufferReader(address, size: signatureSize)
     guard let sig = try? membuf.readASCIIZString(maxSize: signatureSize) else {

@@ -113,7 +113,7 @@ struct ACPI {
         }
 
         for entry in entries {
-            let rawSDTPtr = mkSDTPtr(UInt(entry))
+            let rawSDTPtr = mkSDTPtr(PhysAddress(RawAddress(entry)))
             parseEntry(rawSDTPtr: rawSDTPtr, vendor: vendor, product: product)
         }
     }
@@ -180,8 +180,8 @@ struct ACPI {
     }
 
 
-    private func mkSDTPtr(_ address: UInt) -> UnsafeRawPointer {
-        return UnsafeRawPointer(bitPattern: vaddrFromPaddr(address))!
+    private func mkSDTPtr(_ address: PhysAddress) -> UnsafeRawPointer {
+        return UnsafeRawPointer(bitPattern: address.vaddr)!
     }
 
 
@@ -200,23 +200,23 @@ struct ACPI {
 
 
     private func findRSDT(_ rawPtr: UnsafeRawPointer) -> UnsafeRawPointer {
-        var rsdtAddr: UInt = 0
+        var rsdtAddr = RawAddress(0)
 
         let rsdpPtr = rawPtr.bindMemory(to: rsdp1_header.self, capacity: 1)
 
         if rsdpPtr.pointee.revision == 1 {
             let rsdp2Ptr = rawPtr.bindMemory(to: rsdp2_header.self, capacity: 1)
-            rsdtAddr = UInt(rsdp2Ptr.pointee.xsdt_addr)
+            rsdtAddr = RawAddress(rsdp2Ptr.pointee.xsdt_addr)
             if rsdtAddr == 0 {
-                rsdtAddr = UInt(rsdp2Ptr.pointee.rsdp1.rsdt_addr)
+                rsdtAddr = RawAddress(rsdp2Ptr.pointee.rsdp1.rsdt_addr)
             }
             //let csum = checksum(UnsafePointer<UInt8>(rsdp2Ptr),
             // size: strideof(RSDP2))
         } else {
-            rsdtAddr = UInt(rsdpPtr.pointee.rsdt_addr)
+            rsdtAddr = RawAddress(rsdpPtr.pointee.rsdt_addr)
             //let csum = checksum(UnsafePointer<UInt8>(rsdpPtr),
             //size: strideof(RSDP1))
         }
-        return mkSDTPtr(rsdtAddr)
+        return mkSDTPtr(PhysAddress(rsdtAddr))
     }
 }

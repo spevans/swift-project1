@@ -23,17 +23,16 @@ final class System {
     private(set) var interruptManager: InterruptManager
     private(set) var timer: PIT8254
     private(set) var kbd8042: KBD8042?
-    private let bootParams: BootParams
     private let systemTables: SystemTables
 
 
-    init(bootParamsAddr: UInt) {
+    init(bootParamsAddr: RawAddress) {
         // Setup GDT/IDT as early as possible to help catch CPU exceptions
         setupGDT()
         setupIDT()
 
         // BootParams must come first to find memory regions for MM
-        bootParams = parse(bootParamsAddr: bootParamsAddr)
+        let bootParams = parse(bootParamsAddr: VirtualAddress(bootParamsAddr))
         setupMM(bootParams: bootParams)
 
         // SystemTables() needs the MM setup so that the memory can be mapped

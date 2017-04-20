@@ -14,15 +14,15 @@
 struct MCFG: ACPITable {
 
     struct ConfigBaseAddress: CustomStringConvertible {
-        let baseAddress: PhysAddress
+        let baseAddress: RawAddress
         let segmentGroup: UInt16
         let startBus: UInt8
         let endBus: UInt8
         let reserved: UInt32
 
         var description: String {
-            return String.sprintf("base:%p segment: %u start:%u end: %u", baseAddress, segmentGroup,
-                startBus, endBus)
+            return String.sprintf("base:%p segment: %u start:%u end: %u",
+                baseAddress, segmentGroup, startBus, endBus)
         }
     }
 
@@ -63,10 +63,10 @@ struct MCFG: ACPITable {
     }
 
 
-    func baseAddressForBus(_ bus: UInt8) -> UInt? {
+    func baseAddressForBus(_ bus: UInt8) -> PhysAddress? {
         for entry in allocations {
             if bus >= entry.startBus && bus <= entry.endBus {
-                return entry.baseAddress
+                return PhysAddress(entry.baseAddress)
             }
         }
 

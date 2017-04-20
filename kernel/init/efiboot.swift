@@ -59,7 +59,7 @@ struct EFIBootParams: BootParams {
     let kernelPhysAddress: PhysAddress
 
 
-    init?(bootParamsAddr: UInt) {
+    init?(bootParamsAddr: VirtualAddress) {
         let sig = readSignature(bootParamsAddr)
         if sig == nil || sig! != "EFI" {
             print("bootparams: boot_params are not EFI")
@@ -120,7 +120,7 @@ struct EFIBootParams: BootParams {
                 continue
             }
             let entry = MemoryRange(type: descriptor.type,
-                start: descriptor.physicalStart,
+                start: PhysAddress(descriptor.physicalStart),
                 size: UInt(descriptor.numberOfPages) * PAGE_SIZE)
             ranges.append(entry)
         }
@@ -131,7 +131,7 @@ struct EFIBootParams: BootParams {
         // come from ACPI or PCI etc.
         if let fbAddr = frameBufferInfo?.address {
             let lastEntry = ranges[ranges.count-1]
-            let address = lastEntry.start + lastEntry.size - 1
+            let address = lastEntry.start.advanced(by: lastEntry.size - 1)
             if address < fbAddr {
                 ranges.append(MemoryRange(type: .FrameBuffer,
                         start: frameBufferInfo!.address,
@@ -224,8 +224,8 @@ struct EFIBootParams: BootParams {
         static private func pointerFrom(entry: EFIConfigTableEntry,
             ifMatches guid2: efi_guid_t) -> UnsafeRawPointer? {
             if matchGUID(entry.guid, guid2) {
-                let paddr = entry.table.address
-                return UnsafeRawPointer(bitPattern: vaddrFromPaddr(paddr))
+                let paddr = PhysAddress(entry.table.address)
+                return UnsafeRawPointer(bitPattern: paddr.vaddr)
             } else {
                 return nil
             }

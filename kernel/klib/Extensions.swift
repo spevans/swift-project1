@@ -139,7 +139,7 @@ public func asHex<T : Integer>(_ x: T) -> String {
 }
 
 public func asHex<T : UnsignedInteger>(_ x: T) -> String {
-    return "Xx" + String(x.toUIntMax(), radix: 16)
+    return "0x" + String(x.toUIntMax(), radix: 16)
 }
 
 

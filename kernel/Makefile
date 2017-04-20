@@ -21,6 +21,7 @@ SWIFT_SRCS :=	init/startup.swift		\
 		klib/MemoryBufferReader.swift	\
 		klib/CircularBuffer.swift	\
 		mm/init.swift			\
+		mm/address.swift		\
 		mm/page.swift			\
 		mm/alloc.swift			\
 		devices/acpi.swift		\

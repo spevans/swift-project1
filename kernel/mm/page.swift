@@ -1,15 +1,13 @@
 /*
- * kernel/mm/init.swift
+ * kernel/mm/page.swift
  *
  * Created by Simon Evans on 22/01/2016.
- * Copyright © 2016 Simon Evans. All rights reserved.
+ * Copyright © 2016 - 2017 Simon Evans. All rights reserved.
  *
  * Page handling routines
  *
  */
 
-public typealias VirtualAddress = UInt
-typealias PhysAddress = UInt
 typealias PageTableDirectory = UnsafeMutableBufferPointer<PageTableEntry>
 typealias PageTableEntry = UInt
 
@@ -32,13 +30,10 @@ private let largePagePATFlag:   UInt = 0b1000000000000
 private let globalFlag:         UInt = 0b0000100000000
 private let executeDisableFlag: UInt = 1 << 63
 
-private let physicalMemPtr = UnsafeMutablePointer<UInt>(bitPattern: PHYSICAL_MEM_BASE)
-private let physicalMemory = UnsafeMutableBufferPointer(start: physicalMemPtr,
-    count: Int(highestMemoryAddress / UInt(MemoryLayout<UInt>.size)) + 1)
 
 
 func mapPhysicalRegion<T>(start: PhysAddress, size: Int) -> UnsafeBufferPointer<T> {
-    let region = UnsafePointer<T>(bitPattern: PHYSICAL_MEM_BASE + start)
+    let region = UnsafePointer<T>(bitPattern: start.vaddr)
     return UnsafeBufferPointer<T>(start: region, count: size)
 }
 
@@ -49,13 +44,6 @@ func mapPhysicalRegion<T>(start: UnsafePointer<T>, size: Int) -> UnsafeBufferPoi
 }
 
 
-// Map a physical address to a kernel virtual address
-func vaddrFromPaddr(_ ptr: PhysAddress) -> VirtualAddress {
-    return PHYSICAL_MEM_BASE + ptr;
-}
-
-
-
 func pageTableBuffer(virtualAddress address: VirtualAddress) -> PageTableDirectory {
     return PageTableDirectory(start: UnsafeMutablePointer<PageTableEntry>(bitPattern: address),
         count: Int(entriesPerPage))
@@ -63,23 +51,44 @@ func pageTableBuffer(virtualAddress address: VirtualAddress) -> PageTableDirecto
 
 
 // Needs to have address shifted to new mapping of physical pages
-func pageTableBuffer(physAddress address: PhysAddress) -> PageTableDirectory {
-    return PageTableDirectory(start: UnsafeMutablePointer<PageTableEntry>(bitPattern: address),
-        count: Int(entriesPerPage))
+func pageTableDirectoryAt(address: PhysAddress) -> PageTableDirectory {
+    let vaddr = address.vaddr
+    let ptr = UnsafeMutablePointer<PageTableEntry>(bitPattern: vaddr)
+    return PageTableDirectory(start: ptr, count: Int(entriesPerPage))
 }
 
 
 func virtualToPhys(address: VirtualAddress, base: UInt64 = getCR3()) -> PhysAddress {
+    let pml4 = UInt(base)
     let idx0 = pml4Index(address)
     let idx1 = pdpIndex(address)
-    let idx2 = pdIndex(address)
-    let idx3 = ptIndex(address)
 
-    let pdp = (physicalMemory[Int(base >> 3) + idx0] & physAddressMask)
-    let pd = (physicalMemory[Int(pdp >> 3) + idx1] & physAddressMask)
-    let pt = (physicalMemory[Int(pd >> 3) + idx2] & physAddressMask)
-    let physAddress = (physicalMemory[Int(pt >> 3) + idx3] & physAddressMask) + (address & 0b111111111111)
-    return physAddress
+    let pageDirectory = pageTableDirectoryAt(address: PhysAddress(pml4 & physAddressMask))
+    let pml4e = pageDirectory[idx0]
+
+    let pdpDirectory = pageTableDirectoryAt(address: PhysAddress(pml4e & physAddressMask))
+    let pdpe = pdpDirectory[idx1]
+    if largePageFlagSet(pdpe) { // 1GB Pages
+        var physAddress = (pdpe & 0x0000_fffC_0000_0000)
+        physAddress |= (address & 0x3_ffff_ffff)
+        return PhysAddress(physAddress)
+    }
+
+    let idx2 = pdIndex(address)
+    let pdDirectory = pageTableDirectoryAt(address: PhysAddress(pdpe & physAddressMask))
+    let pde = pdDirectory[idx2]
+    if largePageFlagSet(pde) { // 2MB Pages
+        var physAddress = pde & 0x0000_ffff_ffe0_0000
+        physAddress |= (address & 0x1f_ffff)
+        return PhysAddress(physAddress)
+    }
+
+    let idx3 = ptIndex(address)
+    let ptDirectory = pageTableDirectoryAt(address: PhysAddress(pde & physAddressMask))
+    let pte = ptDirectory[idx3]
+    var physAddress = pte & 0x0000_ffff_ffff_f000
+    physAddress |= (address & 0x0fff)
+    return PhysAddress(physAddress)
 }
 
 
@@ -108,7 +117,7 @@ func makePTE(address: PhysAddress, readWrite: Bool, userAccess: Bool,
     writeThrough: Bool, cacheDisable: Bool, global: Bool, noExec: Bool,
     largePage: Bool, PAT: Bool) -> PageTableEntry {
 
-        var entry: UInt = address & physAddressMask
+        var entry: PageTableEntry = address.value & physAddressMask
         entry |= pagePresent
         entry |= readWrite ? readWriteFlag : 0
         entry |= userAccess ? userAccessFlag : 0
@@ -130,7 +139,7 @@ func makePTE(address: PhysAddress, readWrite: Bool, userAccess: Bool,
 // Entry in Page Directory, Page Directory Pointer or Page Map Level 4 tables
 func makePDE(address: PhysAddress, readWrite: Bool, userAccess: Bool,
     writeThrough: Bool, cacheDisable: Bool, noExec: Bool) -> PageTableEntry {
-        var entry: UInt = address & physAddressMask
+        var entry: PageTableEntry = address.value & physAddressMask
         entry |= pagePresent
         entry |= readWrite ? readWriteFlag : 0
         entry |= userAccess ? userAccessFlag : 0
@@ -142,10 +151,15 @@ func makePDE(address: PhysAddress, readWrite: Bool, userAccess: Bool,
 
 
 func ptePhysicalAddress(_ entry: PageTableEntry) -> PhysAddress {
-    return entry & physAddressMask
+    return PhysAddress(entry & physAddressMask)
 }
 
 
 func pagePresent(_ entry: PageTableEntry) -> Bool {
     return (entry & pagePresent) == pagePresent
+}
+
+
+func largePageFlagSet(_ entry: PageTableEntry) -> Bool {
+    return (entry & largePageFlag) == largePageFlag
 }

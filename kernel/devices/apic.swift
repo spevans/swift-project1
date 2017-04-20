@@ -283,7 +283,8 @@ public class APIC: InterruptController {
         let lomask = ~((1 << UInt(12)) - 1)
         let himask = (1 << maxPhyAddrBits) - 1
         let mask = lomask & himask
-        let baseAddress = PhysAddress(apicStatus.toUInt64() & UInt64(mask))
+        let address = RawAddress(apicStatus.toUInt64() & UInt64(mask))
+        let baseAddress = PhysAddress(address)
         printf("APIC: base address: 0x%lX\n", baseAddress)
 
         apicRegistersVaddr = mapIORegion(physicalAddr: baseAddress,

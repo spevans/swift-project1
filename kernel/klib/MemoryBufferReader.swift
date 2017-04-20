@@ -21,7 +21,7 @@ final class MemoryBufferReader {
     var bytesRemaining: Int { return (buffer.count - offset) }
 
 
-    init(_ baseAddr: UInt, size: Int) {
+    init(_ baseAddr: VirtualAddress, size: Int) {
         ptr = UnsafeRawPointer(bitPattern: baseAddr)!
         let bufferPtr = ptr.bindMemory(to: UInt8.self, capacity: size)
         buffer = UnsafeBufferPointer(start: bufferPtr, count: size)

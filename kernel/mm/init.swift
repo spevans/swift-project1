@@ -72,7 +72,7 @@ func setupMM(bootParams: BootParams) {
     }
     kernelPhysBase = bootParams.kernelPhysAddress
     let lastEntry = bootParams.memoryRanges[bootParams.memoryRanges.count - 1]
-    highestMemoryAddress = lastEntry.start + lastEntry.size - 1
+    highestMemoryAddress = lastEntry.start.advanced(by: lastEntry.size - 1)
 
     printf("kernel: Highest Address: %p kernel phys address: %p\n",
         highestMemoryAddress, kernelPhysBase)
@@ -136,7 +136,7 @@ func setupMM(bootParams: BootParams) {
         readWrite: true, noExec: true)
 
     mapPhysicalMemory(highestMemoryAddress)
-    let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_addr))
+    let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_addr).value)
     printf("MM: Updating CR3 to %p\n", pml4paddr)
     setCR3(pml4paddr)
     CPU.enableWP(true)
@@ -151,22 +151,23 @@ private func kernelPhysAddress(_ address: VirtualAddress) -> PhysAddress {
         printf("kernelPhysAddress: invalid address: %p", address)
         stop()
     }
-    return kernelPhysBase + (address - _kernel_start_addr)
+    return kernelPhysBase.advanced(by: address - _kernel_start_addr)
 }
 
 
 // Convert a physical kernel address in a page directory/table entry into a
-// virtual address
+// virtual address. This is used for setting up page maps but should only
+// be used until the mapping of all physical memory is setup
 private func kernelVirtualAddress(_ paddress: PhysAddress) -> VirtualAddress {
     let physAddressMask:UInt = 0x0000fffffffff000
-    let address = paddress & physAddressMask
+    let address = paddress.value & physAddressMask
     let kernelSize = _kernel_end_addr - _kernel_start_addr
-    guard address >= kernelPhysBase
-        && address <= kernelPhysBase + kernelSize else {
+    guard address >= kernelPhysBase.value
+        && address <= kernelPhysBase.value + kernelSize else {
         printf("MM: kernelVirtualAddress: invalid address: %p", address)
         stop()
     }
-    return _kernel_start_addr + (address - kernelPhysBase)
+    return VirtualAddress(_kernel_start_addr + (address - kernelPhysBase.value))
 }
 
 
@@ -188,15 +189,15 @@ private func mapPhysicalMemory(_ maxAddress: PhysAddress) {
         printf("MM: Using 2MB mappings: ")
     }
 
-    let pages = (UInt(maxAddress) + (inc - 1)) / inc
+    let pages = (maxAddress.value + (inc - 1)) / inc
     printf("MM: Mapping %u pages of size %#lx\n", pages, inc)
-    var vaddr = UInt(PHYSICAL_MEM_BASE)
-    var paddr: PhysAddress = 0
+    var vaddr = VirtualAddress(PHYSICAL_MEM_BASE)
+    var paddr = PhysAddress(0)
 
     for _ in 1...pages {
         mapper(vaddr, paddr)
         vaddr += inc
-        paddr += inc
+        paddr = paddr.advanced(by: inc)
     }
     printf("MM: Added mappings upto: %p [%p]\n", vaddr, paddr)
 }
@@ -210,7 +211,6 @@ private func roundToPage(_ size: UInt) -> UInt {
 private func getPageAtIndex(_ dirPage: PageTableDirectory, _ idx: Int)
     -> PageTableDirectory {
     if !pagePresent(dirPage[idx]) {
-        // FIXME: should call a swift func for alloc_pages()
         let newPage = alloc(pages: 1)
         let paddr = kernelPhysAddress(newPage.address)
         let entry = makePDE(address: paddr, readWrite: true, userAccess: false,
@@ -218,7 +218,7 @@ private func getPageAtIndex(_ dirPage: PageTableDirectory, _ idx: Int)
         dirPage[idx] = entry
     }
 
-    return pageTableBuffer(virtualAddress: kernelVirtualAddress(dirPage[idx]))
+    return pageTableBuffer(virtualAddress: kernelVirtualAddress(PhysAddress(dirPage[idx])))
 }
 
 
@@ -270,10 +270,10 @@ func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
         }
 
         addr += PAGE_SIZE
-        physAddress += PAGE_SIZE
+        physAddress = physAddress.advanced(by: PAGE_SIZE)
     }
     printf("MM: Added kernel mapping from %p-%p [%p-%p]\n", start, endAddress,
-        physStart, physAddress - 1)
+        physStart, physAddress.value - 1)
 }
 
 

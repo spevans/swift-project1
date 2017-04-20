@@ -75,8 +75,8 @@ struct PCIBusMMIO: PCIBus, CustomStringConvertible {
 
     init?(mmiobase: PhysAddress, bus: UInt8) {
         self.bus = bus
-        let address = mmiobase + (UInt(bus) << 20)
-        baseAddress = vaddrFromPaddr(address)
+        let address = mmiobase.advanced(by: UInt(bus) << 20)
+        baseAddress = address.vaddr
         description = String.sprintf("PCIBusMMIO @ %p", address)
     }
 

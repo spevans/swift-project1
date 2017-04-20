@@ -26,7 +26,7 @@ final class IOAPIC {
             "Address: \(asHex(apic.ioApicAddress)) ",
             " interrupt base: \(apic.globalSystemInterruptBase)")
 
-        let baseAddress = PhysAddress(apic.ioApicAddress)
+        let baseAddress = PhysAddress(RawAddress(apic.ioApicAddress))
         registerBase = mapIORegion(physicalAddr: baseAddress,
             size: 0x20, cacheType: 7)
         registerSelect = UnsafeMutablePointer<UInt32>(bitPattern: registerBase)!

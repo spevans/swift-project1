@@ -59,7 +59,8 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
             case .UNUSABLE: mtype = MemoryType.Unusable
             }
 
-            return MemoryRange(type: mtype, start: PhysAddress(self.baseAddr),
+            return MemoryRange(type: mtype,
+                start: PhysAddress(RawAddress(self.baseAddr)),
                 size: UInt(self.length))
         }
     }
@@ -77,7 +78,7 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
     }
 
 
-    init?(bootParamsAddr: UInt) {
+    init?(bootParamsAddr: VirtualAddress) {
         let sig = readSignature(bootParamsAddr)
         if sig == nil || sig! != "BIOS" {
             print("bootparams: boot_params are not BIOS")
@@ -93,11 +94,11 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
                 print("bootparams: bootParamsSize = 0")
                 return nil
             }
-            kernelPhysAddress = try membuf.read()
+            kernelPhysAddress = PhysAddress(try membuf.read())
             printf("bootParamsSize = %ld kernelPhysAddress: %p\n",
                 bootParamsSize, kernelPhysAddress)
 
-            let e820MapAddr: UInt = try membuf.read()
+            let e820MapAddr = PhysAddress(try membuf.read())
             let e820Entries: UInt = try membuf.read()
             memoryRanges = BiosBootParams.parseE820Table(kernelPhysAddress,
                 e820MapAddr, e820Entries)
@@ -110,31 +111,29 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
     // This is only called from init() so needs to be static since 'self'
     // isnt fully initialised.
     // FIXME - still needs to check for overlapping regions
-    static private func parseE820Table(_ kernelPhysAddress: UInt,
-        _ e820MapPhysAddr: UInt, _ e820Entries: UInt) -> [MemoryRange] {
-        guard e820Entries > 0 && e820MapPhysAddr > 0 else {
+    static private func parseE820Table(_ kernelPhysAddress: PhysAddress,
+        _ e820MapPhysAddr: PhysAddress, _ e820Entries: UInt) -> [MemoryRange] {
+        guard e820Entries > 0 && e820MapPhysAddr.value > 0 else {
             koops("E820: map is empty")
         }
-        let e820MapAddr = vaddrFromPaddr(e820MapPhysAddr)
+        let e820MapAddr = e820MapPhysAddr.vaddr
         var ranges: [MemoryRange] = []
         ranges.reserveCapacity(Int(e820Entries))
         let buf = MemoryBufferReader(e820MapAddr,
             size: MemoryLayout<E820MemoryRange>.stride * Int(e820Entries))
-
         let kernelSize = UInt(_kernel_end_addr - _kernel_start_addr)
-        let kernelPhysEnd = kernelPhysAddress + kernelSize
+        let kernelPhysEnd = kernelPhysAddress.advanced(by: kernelSize)
         printf("E820: Kernel size: %lx\n", kernelSize)
 
         for _ in 0..<e820Entries {
             if let entry: E820MemoryRange = try? buf.read() {
-                //print("E820: ", entry)
                 if let memEntry = entry.toMemoryRange() {
                     // Find the entry that covers the memory where the kernel
                     // is loaded and adjust it then add another range for the
                     // kernel
                     if memEntry.start <= kernelPhysAddress
                     && kernelPhysEnd <= memEntry.start + memEntry.size {
-                        let range1size = kernelPhysAddress - memEntry.start
+                        let range1size = memEntry.start.distance(to: kernelPhysAddress)
                         if range1size > 0 {
                             ranges.append(MemoryRange(type: memEntry.type,
                                     start: memEntry.start, size: range1size))
@@ -142,8 +141,8 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
 
                         ranges.append(MemoryRange(type: .Kernel,
                                 start: kernelPhysAddress, size: kernelSize))
-                        let range2end = memEntry.start + memEntry.size
-                        let range2size = range2end - kernelPhysEnd
+                        let range2end = memEntry.start.advanced(by: memEntry.size)
+                        let range2size = kernelPhysEnd.distance(to: range2end)
                         if range2size > 0 {
                             ranges.append(MemoryRange(type: memEntry.type,
                                     start: kernelPhysEnd, size: range2size))
@@ -158,15 +157,15 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
         // Find any holes in the memory ranges and add a fake range. This
         // allows finding gaps later on for MMIO space etc
         func findHoles(_ ranges: inout [MemoryRange]) {
-            var addr: UInt = 0
+            var addr = PhysAddress(0)
             sortRanges(&ranges)
             for entry in ranges {
                 if addr < entry.start {
-                    let size = entry.start - addr
+                    let size = addr.distance(to: entry.start)
                     ranges.append(MemoryRange(type: MemoryType.Hole, start: addr,
                             size: size))
                 }
-                addr = entry.start + entry.size
+                addr = entry.start.advanced(by: entry.size)
             }
             sortRanges(&ranges)
         }
@@ -214,7 +213,8 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
 
     // SMBios table
     private func findSMBIOS() -> UnsafePointer<smbios_header>? {
-        let region: ScanArea = mapPhysicalRegion(start: 0xf0000, size: 0x10000)
+        let region: ScanArea = mapPhysicalRegion(start: PhysAddress(0xf0000),
+            size: 0x10000)
         if let ptr = scanForSignature(region, SMBIOS.SMBIOS_SIG) {
             return ptr.bindMemory(to: smbios_header.self, capacity: 1)
         } else {
@@ -224,13 +224,14 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
 
 
     private func getEBDA() -> ScanArea? {
-        let ebdaRegion: UnsafeBufferPointer<UInt16> = mapPhysicalRegion(start: 0x40E, size: 1)
+        let ebdaRegion: UnsafeBufferPointer<UInt16> = mapPhysicalRegion(start: PhysAddress(0x40E),
+            size: 1)
         let ebda = ebdaRegion[0]
         // Convert realmode segment to linear address
         let rsdpAddr = UInt(ebda) * 16
 
         if rsdpAddr > 0x400 {
-            let region: ScanArea = mapPhysicalRegion(start: rsdpAddr,
+            let region: ScanArea = mapPhysicalRegion(start: PhysAddress(rsdpAddr),
                 size: 1024)
             return region
         } else {
@@ -240,7 +241,7 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
 
 
     private func getUpperMemoryArea() -> ScanArea {
-        let region: ScanArea = mapPhysicalRegion(start: 0xE0000, size: 0x20000)
+        let region: ScanArea = mapPhysicalRegion(start: PhysAddress(0xE0000), size: 0x20000)
         return region
     }
 

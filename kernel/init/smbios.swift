@@ -95,7 +95,7 @@ struct SMBIOS {
             return nil
         }
         tableLength = Int(header.table_length)
-        tableAddress = vaddrFromPaddr(UInt(header.table_address))
+        tableAddress = PhysAddress(RawAddress(header.table_address)).vaddr
         entryCount = Int(header.entry_count)
         if header.bcd_revision != 0 {
             major = header.bcd_revision >> 4
