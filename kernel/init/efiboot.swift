@@ -77,7 +77,7 @@ struct EFIBootParams: BootParams {
             kernelPhysAddress = try membuf.read()
 
             printf("bootparams: bootParamsSize = %ld kernelPhysAddress: %p\n",
-                bootParamsSize, kernelPhysAddress)
+                bootParamsSize, kernelPhysAddress.value)
 
             let memoryMapAddr: VirtualAddress = try membuf.read()
             let memoryMapSize: UInt = try membuf.read()
@@ -92,8 +92,8 @@ struct EFIBootParams: BootParams {
             configTableCount = try membuf.read()
             print("bootparams: reading ctp")
             configTablePtr = try membuf.read()
-            printf("bootparams: configTableCount: %ld configTablePtr: %p\n",
-                configTableCount, configTablePtr)
+            printf("bootparams: configTableCount: %ld configTablePtr: %#x\n",
+                configTableCount, configTablePtr.address)
         } catch {
             koops("bootparams: Cant read memory map settings")
         }

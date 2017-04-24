@@ -17,13 +17,6 @@ private let SPACE: CUnsignedChar = 0x20
 typealias TextCoord = text_coord
 
 
-// printf via the Swift TTY driver (print() is also routed to here)
-@inline(never)
-func printf(_ format: StaticString, _ arguments: CVarArg...) {
-    TTY.sharedInstance.printString(String.sprintf(format, arguments))
-}
-
-
 // kprint via the C early_tty.c driver
 func kprint(_ string: StaticString) {
     string.utf8Start.withMemoryRebound(to: CChar.self,
@@ -358,7 +351,7 @@ private final class TextTTY: ScreenDriver {
 
 
 private final class FrameBufferTTY: ScreenDriver {
-    struct Font: CustomStringConvertible {
+    private struct Font: CustomStringConvertible {
         let width:  UInt32
         let height: UInt32
         let data: UnsafePointer<UInt8>
@@ -431,7 +424,6 @@ private final class FrameBufferTTY: ScreenDriver {
          }
     }
 
-
     var description: String {
         return frameBufferInfo.description + font.description
     }
@@ -459,11 +451,10 @@ private final class FrameBufferTTY: ScreenDriver {
     }
 
 
-    func printChar(_ ch: CUnsignedChar, x: TextCoord, y: TextCoord) {
+    fileprivate func printChar(_ ch: CUnsignedChar, x: TextCoord, y: TextCoord) {
         guard x < charsPerLine && y < totalLines else {
             return
         }
-
         let colourMask = computeColourMask()
         let data = font.characterData(ch)
         var pixel = Int(UInt32(y) * font.height * frameBufferInfo.pxPerScanline)
@@ -471,25 +462,26 @@ private final class FrameBufferTTY: ScreenDriver {
         pixel *= depthInBytes
 
         for line in 0..<font.height {
-            var i = 0;
             let offset = Int(line * font.bytesPerFontLine)
-            for px in convertFontLine(data, colourMask, offset) {
-                screen[pixel + i] = px
-                i += 1
-            }
+            let screenByte = screen.baseAddress!.advanced(by: pixel)
+            let screenLine = UnsafeMutableBufferPointer(start: screenByte,
+                count: 8 * depthInBytes)
+
+            writeFontLine(data: data, mask: colourMask, offset: offset,
+                screenLine: screenLine)
             pixel += Int(frameBufferInfo.pxPerScanline) * depthInBytes
         }
     }
 
 
-    func clearScreen() {
+    fileprivate func clearScreen() {
         for i in 0..<screen.count {
             screen[i] = 0
         }
     }
 
 
-    func scrollUp() {
+    fileprivate func scrollUp() {
         screenBase.assign(from: screenBase.advancedBy(bytes: bytesPerTextLine),
             count: lastLineScrollArea)
 
@@ -509,24 +501,24 @@ private final class FrameBufferTTY: ScreenDriver {
     }
 
 
-    private func convertFontLine(_ data: UnsafeBufferPointer<UInt8>, _ mask: UInt32,
-        _ offset: Int) -> Array<UInt8> {
-        var array: [UInt8] = []
+    private func writeFontLine(data: UnsafeBufferPointer<UInt8>, mask: UInt32,
+        offset: Int, screenLine: UnsafeMutableBufferPointer<UInt8>) {
 
+        var screenByte = 0
         for i in stride(from: 7, through: 0, by: -1) {
             let m = UInt8(1 << i)
             let bit = (data[offset] & m) != 0
             for x in 0..<depthInBytes {
                 let shift = UInt32(x * 8)
                 if (bit) {
-                    array.append(UInt8(truncatingBitPattern: (mask >> shift)))
+                    let pixel = UInt8(truncatingBitPattern: (mask >> shift))
+                    screenLine[screenByte] = pixel
                 } else {
-                    array.append(0)
+                    screenLine[screenByte] = 0
                 }
+                screenByte += 1
             }
         }
-
-        return array
     }
 }
 

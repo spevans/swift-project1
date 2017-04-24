@@ -86,8 +86,8 @@ func setupMM(bootParams: BootParams) {
     let lastEntry = bootParams.memoryRanges[bootParams.memoryRanges.count - 1]
     let highestMemoryAddress = lastEntry.start.advanced(by: lastEntry.size - 1)
 
-    printf("kernel: Highest Address: %p kernel phys address: %p\n",
-        highestMemoryAddress, kernelPhysBase)
+    printf("kernel: Highest Address: %#x kernel phys address: %lx\n",
+        highestMemoryAddress.value, kernelPhysBase.value)
 
     let textEnd: VirtualAddress = _text_end_addr
     let rodataStart: VirtualAddress = _rodata_start_addr
@@ -110,7 +110,7 @@ func setupMM(bootParams: BootParams) {
     // BSS and stack that isnt mapped.
     // FIXME: Dont waste the physical page that is not mapped under
     // the guard page
-    printf("MM: _text: %p - %p\nMM: _rodata: %p - %p\nMM: _data: %p - %p\n",
+    printf("MM: _text:   %p - %p\nMM: _rodata: %p - %p\nMM: _data:   %p - %p\n",
         _kernel_start_addr, _kernel_start_addr + textSize - 1,
         _rodata_start_addr, _rodata_start_addr + rodataSize - 1,
         _data_start_addr, _data_start_addr + dataSize - 1)
@@ -129,17 +129,18 @@ func setupMM(bootParams: BootParams) {
         physStart: kernelPhysBase + textSize + rodataSize + dataSize
             + PAGE_SIZE, readWrite: true, noExec: true)
 
-    printf("MM: Physical address of kernelBase (%p): (%p)\n", kernelBase,
-        kernelPhysAddress(kernelBase))
-    printf("MM: Physical address of rodata (%p):     (%p)\n",
-        kernelBase + textSize, kernelPhysAddress(kernelBase + textSize))
-    printf("MM: Physical address of data (%p):       (%p)\n",
+    printf("MM: Physical address of kernelBase     (%p): (%p)\n",
+        kernelBase, kernelPhysAddress(kernelBase).value)
+    printf("MM: Physical address of rodata         (%p): (%p)\n",
+        kernelBase + textSize,
+        kernelPhysAddress(kernelBase + textSize).value)
+    printf("MM: Physical address of data           (%p): (%p)\n",
         kernelBase + textSize + rodataSize,
-        kernelPhysAddress(kernelBase + textSize + rodataSize))
+        kernelPhysAddress(kernelBase + textSize + rodataSize).value)
     printf("MM: Physical address of stack and heap (%p): (%p)\n",
         kernelBase + textSize + rodataSize + dataSize + PAGE_SIZE,
         kernelPhysAddress(kernelBase + textSize + rodataSize + dataSize
-                + PAGE_SIZE))
+            + PAGE_SIZE).value)
 
     // Map the TLS which resides before 4GB mark and has the same virtual
     // and physical address
@@ -162,16 +163,16 @@ private func mapPhysicalMemory(_ maxAddress: PhysAddress) {
     var inc: UInt = 0
     var mapper: (UInt, PhysAddress) -> ()
 
-    printf("MM: Mapping physical memory from 0 - %p\n", maxAddress)
+    printf("MM: Mapping physical memory from 0 - %p\n", maxAddress.value)
     // Map physical memory using 1GB pages if available else 2MB pages
     if CPU.capabilities.pages1G {
         inc = 0x40000000    // 1GB
-        printf("MM: Using 1GB mappings: ")
+        print("MM: Using 1GB mappings: ")
         mapper = add1GBMapping
     } else {
         inc = 0x200000      // 2MB
         mapper = add2MBMapping
-        printf("MM: Using 2MB mappings: ")
+        print("MM: Using 2MB mappings: ")
     }
 
     let pages = (maxAddress.value + (inc - 1)) / inc
@@ -184,7 +185,7 @@ private func mapPhysicalMemory(_ maxAddress: PhysAddress) {
         vaddr += inc
         paddr = paddr.advanced(by: inc)
     }
-    printf("MM: Added mappings upto: %p [%p]\n", vaddr, paddr)
+    printf("MM: Added mappings upto: %p [%p]\n", vaddr, paddr.value)
 }
 
 
@@ -260,7 +261,7 @@ func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
         physAddress = physAddress.advanced(by: PAGE_SIZE)
     }
     printf("MM: Added kernel mapping from %p-%p [%p-%p]\n", start, endAddress,
-        physStart, physAddress.value - 1)
+        physStart.value, physAddress.value - 1)
 }
 
 

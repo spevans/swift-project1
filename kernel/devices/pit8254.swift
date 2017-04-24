@@ -183,9 +183,7 @@ final class PIT8254: CustomStringConvertible {
     private func timerInterrupt(irq: Int) {
         ticks = ticks &+ 1
         if (ticks % 0x200) == 0 {
-            kprint("\ntimerInterrupt:")
-            kprint_qword(ticks)
-            kprint("\n")
+            printf("\ntimerInterrupt: %#016X\n", ticks)
         }
         // Do nothing for now
     }

@@ -77,7 +77,7 @@ struct PCIBusMMIO: PCIBus, CustomStringConvertible {
         self.bus = bus
         let address = mmiobase.advanced(by: UInt(bus) << 20)
         baseAddress = address.vaddr
-        description = String.sprintf("PCIBusMMIO @ %p", address)
+        description = String.sprintf("PCIBusMMIO @ %p", address.value)
     }
 
 
@@ -127,9 +127,10 @@ struct PCIDeviceFunction: CustomStringConvertible {
     var headerType:   UInt8 { return readConfigBytes(0xc).2 }
 
     var description: String {
-        let fmt: StaticString = "%2.2X:%2.2X/%d: %4.4X:%4.4X [%2.2X%2.2X] HT: %2.2X "
+        let fmt: StaticString =
+            "%2.2X:%2.2X/%u: %4.4X:%4.4X [%2.2X%2.2X] HT: %2.2X %@"
         return String.sprintf(fmt, bus.bus, device, function, vendor, deviceId,
-            classCode, subClassCode, headerType) + "\(bus)"
+            classCode, subClassCode, headerType, bus)
     }
 
 

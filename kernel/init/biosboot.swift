@@ -95,8 +95,8 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
                 return nil
             }
             kernelPhysAddress = PhysAddress(try membuf.read())
-            printf("bootParamsSize = %ld kernelPhysAddress: %p\n",
-                bootParamsSize, kernelPhysAddress)
+            printf("bootParamsSize = %ld kernelPhysAddress: %#x\n",
+                bootParamsSize, kernelPhysAddress.value)
 
             let e820MapAddr = PhysAddress(try membuf.read())
             let e820Entries: UInt = try membuf.read()

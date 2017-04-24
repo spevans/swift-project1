@@ -20,6 +20,7 @@ SWIFT_SRCS :=	init/startup.swift		\
 		klib/extensions/dwordarray.swift \
 		klib/MemoryBufferReader.swift	\
 		klib/CircularBuffer.swift	\
+		klib/printf.swift		\
 		mm/init.swift			\
 		mm/address.swift		\
 		mm/page.swift			\

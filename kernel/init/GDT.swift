@@ -127,7 +127,7 @@ func setupGDT() {
 
     func printGDT(_ msg: String, _ gdt: dt_info) {
         print("GDT:", msg, terminator: "")
-        printf(": Info: %p/%u\n", UInt(bitPattern: gdt.base), gdt.limit)
+        printf(": Info: %#x/%u\n", UInt(bitPattern: gdt.base), gdt.limit)
     }
 
     var currentGdtInfo = dt_info(limit: 0, base: nil)

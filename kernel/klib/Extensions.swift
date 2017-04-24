@@ -10,29 +10,6 @@
 
 
 extension String {
-    static func sprintf(_ format: StaticString, _ arguments: CVarArg...)
-        -> String {
-        return sprintf(format, arguments)
-    }
-
-    static func sprintf(_ format: StaticString, _ arguments: [CVarArg])
-        -> String {
-        return withVaList(arguments) {
-            let args = $0
-            return format.utf8Start.withMemoryRebound(to: CChar.self,
-                capacity: format.utf8CodeUnitCount) {
-                let bufferLen = 1024
-                let output = UnsafeMutablePointer<CChar>.allocate(capacity: bufferLen)
-                defer {
-                    output.deallocate(capacity: bufferLen)
-                }
-
-                kvsnprintf(output, bufferLen, $0, args)
-                return String(cString: output)
-            }
-        }
-    }
-
 
     // Convert a fixed length (not null terminated) raw string upto a
     // maximum length

@@ -245,7 +245,7 @@ final class KBD8042 {
             if let resp = getResponse() {
                 printf("kbd: Reset 1st port: %2x\n", resp)
             } else {
-                printf("kbd: Reset 1st port: failed\n");
+                print("kbd: Reset 1st port: failed");
             }
         }
 

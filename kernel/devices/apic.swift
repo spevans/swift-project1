@@ -396,9 +396,7 @@ public func apicIntHandler(registers: ExceptionRegisters) {
         stop()
     }
 
-    kprint("APIC INT Handler, int: ")
-    kprint_byte(UInt8(apicInt))
-    kprint("\n")
+    printf("APIC INT Handler: %d\n", apicInt)
     if let apic = localAPIC {
         apic.EOI = 1
     }
