@@ -22,11 +22,6 @@ void early_print_string_len(const char *text, size_t len);
 void framebuffer_test(struct frame_buffer *fb);
 static void set_text_colour(uint32_t colour);
 
-// Initialise the function pointers, later updated to point to TTY.swift
-void (*print_char)(const char) = early_print_char;
-void (*print_string)(const char *) = early_print_string;
-void (*print_string_len)(const char *, size_t) = early_print_string_len;
-
 void (*etty_print_char)(text_coord x, text_coord y, const unsigned char ch);
 void (*etty_clear_screen)();
 void (*etty_scroll_up)();
@@ -406,19 +401,6 @@ early_print_string(const char *text)
         while(*text) {
                 early_print_char(*text++);
         }
-}
-
-
-/*
- * Point the print functions to the swift ones in TTY.swift -
- * Called by TTY.initTTY() once swift has initialised
- */
-void
-set_print_functions_to_swift()
-{
-        print_char = tty_print_char;
-        print_string = tty_print_cstring;
-        print_string_len = tty_print_cstring_len;
 }
 
 

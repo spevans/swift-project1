@@ -127,52 +127,49 @@ private struct ArgIterator: IteratorProtocol {
     }
 }
 
-// Returns the number of characters written.
-typealias PrintfWriter = (UnicodeScalar) -> Int
 
 // This is used to allow the output to go straight to the display as each
 // character is generated without using any allocated String buffers.
 // In future it may be replaced with a TextOutputStreable type instead.
 // Useing a function allows the underlying printf engine to be used for
 // sprintf() as well.
-private let writer: PrintfWriter = { (char: UnicodeScalar) in
-    if let ch = Int32(exactly: char.value) {
-#if TEST
-        putchar(ch)
-#else
-        TTY.sharedInstance.printChar(CChar(ch))
-#endif
-        return 1
+protocol UnicodeOutputStream : TextOutputStream {
+    mutating func write(_ unicodeScalar: UnicodeScalar)
+}
+
+
+extension String: UnicodeOutputStream {
+     mutating func write(_ unicodeScalar: UnicodeScalar) {
+        self += String(unicodeScalar)
     }
-    return 0
 }
 
 
 @inline(never)
-@discardableResult
-func printf(_ format: StaticString, _ arg1: Any) -> Int {
+func printf(_ format: StaticString, _ arg1: Any) {
+    var output = _tty()
     var iterator = ArgIterator(count: 1, arg1: arg1, arg2: 0, arg3: 0)
-    return _printf(output: writer, format: format, itemsIterator: &iterator)
+    _printf(to: &output, format: format, itemsIterator: &iterator)
 }
 
 @inline(never)
-@discardableResult
-func printf(_ format: StaticString, _ arg1: Any, _ arg2: Any) -> Int {
+func printf(_ format: StaticString, _ arg1: Any, _ arg2: Any) {
+    var output = _tty()
     var iterator = ArgIterator(count: 2, arg1: arg1, arg2: arg2, arg3: 0)
-    return _printf(output: writer, format: format, itemsIterator: &iterator)
+    _printf(to: &output, format: format, itemsIterator: &iterator)
 }
 
 @inline(never)
-@discardableResult
-func printf(_ format: StaticString, _ arg1: Any, _ arg2: Any, _ arg3: Any) -> Int {
+func printf(_ format: StaticString, _ arg1: Any, _ arg2: Any, _ arg3: Any) {
+    var output = _tty()
     var iterator = ArgIterator(count: 3, arg1: arg1, arg2: arg2, arg3: arg3)
-    return _printf(output: writer, format: format, itemsIterator: &iterator)
+    _printf(to: &output, format: format, itemsIterator: &iterator)
 }
 
-@discardableResult
-func printf(_ format: StaticString, _ items: Any...) -> Int {
+func printf(_ format: StaticString, _ items: Any...) {
+    var output = _tty()
     var iterator = ArgIterator(args: items)
-    return _printf(output: writer, format: format, itemsIterator: &iterator)
+    _printf(to: &output, format: format, itemsIterator: &iterator)
 }
 
 
@@ -187,15 +184,10 @@ func printf(_ format: StaticString) -> Int {
 
 
 extension String {
-
     static func sprintf(_ format: StaticString, _ items: Any...) -> String {
         var result = ""
-        let writer: PrintfWriter = { (char: UnicodeScalar) in
-            result.append(Character(char))
-            return 1
-        }
         var iterator = ArgIterator(args: items)
-        _ = _printf(output: writer, format: format, itemsIterator: &iterator)
+        _printf(to: &result, format: format, itemsIterator: &iterator)
         return result
     }
 }
@@ -240,13 +232,12 @@ private enum FormatChar: UInt8 {
 
 
 @inline(never)
-private func _printf(output: @escaping PrintfWriter,
+@_semantics("optimize.sil.specialize.generic.never")
+private func _printf<Target: UnicodeOutputStream>(to output: inout Target,
     format: StaticString,
-    itemsIterator: inout ArgIterator) -> Int {
-    precondition(format.hasPointerRepresentation)
+    itemsIterator: inout ArgIterator) {
     precondition(format.isASCII)
 
-    var charCount = 0
     let buffer = UnsafeBufferPointer(start: format.utf8Start,
         count: format.utf8CodeUnitCount)
 
@@ -257,7 +248,7 @@ private func _printf(output: @escaping PrintfWriter,
             if fc == .startOfFormat {
                 if let char = formatIterator.next() {
                     if let fc = FormatChar(rawValue: char) {
-                        charCount += dispatchPrint(to: output, formatChar: fc,
+                        dispatchPrint(to: &output, formatChar: fc,
                             itemsIterator: &itemsIterator,
                             formatIterator: &formatIterator)
                         continue
@@ -267,9 +258,8 @@ private func _printf(output: @escaping PrintfWriter,
                 fatalError("Ran out of format chars")
             }
         }
-        charCount += output(UnicodeScalar(char))
+        output.write(UnicodeScalar(char))
     }
-    return charCount
 }
 
 
@@ -282,9 +272,9 @@ private func _printf(output: @escaping PrintfWriter,
 // on the heap. Moving this function outide and passing the argumnts prevents
 // this allocation.
 @inline(__always)
-private func _printUnsigned(digits: StaticString, radix: UInt, data: Any?,
-    to output: @escaping PrintfWriter, width: Int, leftAligned: Bool,
-    leadingZero: Bool) -> Int {
+private func _printUnsigned<Target: UnicodeOutputStream>(to output: inout Target,
+    digits: StaticString, radix: UInt, data: Any?, width: Int, leftAligned: Bool,
+    leadingZero: Bool) {
     var number: UInt = 0
 
     if data is Int {
@@ -300,21 +290,18 @@ private func _printUnsigned(digits: StaticString, radix: UInt, data: Any?,
     } else if data is UInt {
         number = data as! UInt
     } else {
-        return 0
+        return
     }
 
-    return printUnsigned(number: number, to: output, radix: radix,
-        digits: digits, width: width, leftAligned: leftAligned,
-        leadingZero: leadingZero)
+    printUnsigned(to: &output, number: number, radix: radix, digits: digits,
+        width: width, leftAligned: leftAligned, leadingZero: leadingZero)
 }
 
 
 @inline(never)
-private func dispatchPrint(to output: @escaping PrintfWriter,
-    formatChar: FormatChar,
-    itemsIterator: inout ArgIterator,
-    formatIterator: inout UnsafeBufferPointerIterator<UInt8>)
-    -> Int {
+private func dispatchPrint<Target: UnicodeOutputStream>(to output: inout Target,
+    formatChar: FormatChar, itemsIterator: inout ArgIterator,
+    formatIterator: inout UnsafeBufferPointerIterator<UInt8>) {
 
     let digits: StaticString = "0123456789abcdef"
     //var longModifier = false
@@ -337,92 +324,85 @@ private func dispatchPrint(to output: @escaping PrintfWriter,
         case .character:
             if let data = itemsIterator.next() as? Int {
                 if let ch = UnicodeScalar(data), ch.isASCII {
-                    return output(ch)
+                    output.write(ch)
                 }
             }
+            return
 
         case .signedDecimal, .signedInteger:
             if let data = itemsIterator.next() as? Int {
-                return printSigned(number: data, to: output, width: width,
-                                   digits: digits,
-                                   leftAligned: leftAligned,
-                                   leadingZero: leadingZero,
-                                   leadingPlus: leadingPlus,
-                                   leadingSpace: leadingSpace)
-            } else {
-                return 0
+                printSigned(to: &output, number: data, width: width,
+                    digits: digits, leftAligned: leftAligned,
+                    leadingZero: leadingZero,
+                    leadingPlus: leadingPlus,
+                    leadingSpace: leadingSpace)
             }
+            return
 
         case .binary:
-            return _printUnsigned(digits: digits, radix: 2,
-                data: itemsIterator.next(), to: output, width: width,
+            _printUnsigned(to: &output, digits: digits, radix: 2,
+                data: itemsIterator.next(), width: width,
                 leftAligned: leftAligned, leadingZero: leadingZero)
+            return
 
         case .octal:
-            return _printUnsigned(digits: digits, radix: 8,
-                data: itemsIterator.next(), to: output, width: width,
+            _printUnsigned(to: &output, digits: digits, radix: 8,
+                data: itemsIterator.next(), width: width,
                 leftAligned: leftAligned, leadingZero: leadingZero)
+            return
 
         case .pointer:
-            var charCount = output(FormatChar.zeroDigit.char)
-            charCount += output(FormatChar.lowerCaseHex.char)
+            output.write(FormatChar.zeroDigit.char)
+            output.write(FormatChar.lowerCaseHex.char)
             let data = itemsIterator.next()
             if data is UnsignedInteger {
-                charCount += _printUnsigned(digits: digits, radix: 16,
-                    data: data, to: output, width: width,
+                _printUnsigned(to: &output, digits: digits, radix: 16,
+                    data: data, width: width,
                     leftAligned: leftAligned, leadingZero: leadingZero)
             } else {
-                let s = String(describing: data)
-                for us in s.unicodeScalars {
-                    charCount += output(us)
-                }
+                output.write(String(describing: data))
             }
-            return charCount
+            return
 
         case .lowerCaseHex:
-            var charCount = 0
             if alternateForm {
-                charCount += output(FormatChar.zeroDigit.char)
-                charCount += output(FormatChar.lowerCaseHex.char)
+                output.write(FormatChar.zeroDigit.char)
+                output.write(FormatChar.lowerCaseHex.char)
             }
-            charCount += _printUnsigned(digits: digits, radix: 16,
-                data: itemsIterator.next(), to: output, width: width,
+            _printUnsigned(to: &output, digits: digits, radix: 16,
+                data: itemsIterator.next(), width: width,
                 leftAligned: leftAligned, leadingZero: leadingZero)
-            return charCount
+            return
 
         case .upperCaseHex:
-            var charCount = 0
             if alternateForm {
-                charCount += output(FormatChar.zeroDigit.char)
-                charCount += output(FormatChar.upperCaseHex.char)
+                output.write(FormatChar.zeroDigit.char)
+                output.write(FormatChar.upperCaseHex.char)
             }
-            charCount += _printUnsigned(digits: "0123456789ABCDEF", radix: 16,
-                data: itemsIterator.next(), to: output, width: width,
+            _printUnsigned(to: &output, digits: "0123456789ABCDEF", radix: 16,
+                data: itemsIterator.next(), width: width,
                 leftAligned: leftAligned, leadingZero: leadingZero)
-            return charCount
+            return
 
         case .unsignedDecimal:
-            return _printUnsigned(digits: digits, radix: 10,
-                data: itemsIterator.next(), to: output, width: width,
+            _printUnsigned(to: &output, digits: digits, radix: 10,
+                data: itemsIterator.next(), width: width,
                 leftAligned: leftAligned, leadingZero: leadingZero)
+            return
 
         case .object:
             // This allocates on the heap
-            var charCount = 0
             if let data = itemsIterator.next() {
-                let s = String(describing: data)
-                for us in s.unicodeScalars {
-                    charCount += output(us)
-                }
+                output.write(String(describing: data))
             }
-            return charCount
+            return
 
         case .longModifier: precision += 0 //longModifier = true
         case .shortModifier: precision += 0  //shortModifier = true
         case .sizeTModifier: precision += 0  //sizeTModifier = true
 
         case .startOfFormat:
-            return output(UnicodeScalar("%"))
+            return output.write(FormatChar.startOfFormat.char)
 
         case .minusSign: leftAligned = true
         case .plusSign:  leadingPlus = true
@@ -451,8 +431,8 @@ private func dispatchPrint(to output: @escaping PrintfWriter,
             } else {
                 precision = (precision * 10) + d
             }
-
         }
+
         guard let char = formatIterator.next() else {
             fatalError("Ran out of format characters")
         }
@@ -469,12 +449,11 @@ private func dispatchPrint(to output: @escaping PrintfWriter,
 // doesnt use a leading '-' or '+'. Signed numbers are always base-10 and
 // optionally have '+' etc.
 @inline(never)
-private func printUnsigned(number: UInt, to output: PrintfWriter, radix: UInt,
-                           digits: StaticString, width: Int = 0,
-                           leftAligned: Bool, leadingZero: Bool) -> Int {
+private func printUnsigned<Target: UnicodeOutputStream>(to output: inout Target,
+    number: UInt, radix: UInt, digits: StaticString, width: Int = 0,
+    leftAligned: Bool, leadingZero: Bool) {
 
     precondition(digits.isASCII)
-    precondition(digits.hasPointerRepresentation)
     precondition(digits.utf8CodeUnitCount >= Int(radix))
     precondition(width >= 0)
     precondition(width < 100)  // Safety value
@@ -510,33 +489,29 @@ private func printUnsigned(number: UInt, to output: PrintfWriter, radix: UInt,
     }
 
 
-    let padChar = leadingZero ? UnicodeScalar(0x30)! : UnicodeScalar(0x20)!
-    var charCount = 0
+    let padChar = leadingZero ? FormatChar.zeroDigit.char : FormatChar.space.char
     let fieldWidth = _countDigits()
 
     if !leftAligned {
         for _ in stride(from: fieldWidth, to: width, by: 1) {
-            charCount += output(padChar)
-
+            output.write(padChar)
         }
     }
 
     for x in stride(from: fieldWidth - 1, through: 0, by: -1) {
-        charCount += output(digit(at: x))
+        output.write(digit(at: x))
     }
-    return charCount
 }
 
 
 // Prints a base-10 number with a sign if needed
 @inline(never)
-private func printSigned(number: Int, to output: PrintfWriter, width: Int = 0,
-                         digits: StaticString, leftAligned: Bool,
-                         leadingZero: Bool, leadingPlus: Bool,
-                         leadingSpace: Bool) -> Int {
+private func printSigned<Target: UnicodeOutputStream>(to output: inout Target,
+    number: Int, width: Int = 0, digits: StaticString, leftAligned: Bool,
+    leadingZero: Bool, leadingPlus: Bool,
+    leadingSpace: Bool) {
     let radix = 10
     precondition(digits.isASCII)
-    precondition(digits.hasPointerRepresentation)
     precondition(digits.utf8CodeUnitCount >= radix)
     precondition(width >= 0)
     precondition(width < 100)
@@ -574,9 +549,7 @@ private func printSigned(number: Int, to output: PrintfWriter, width: Int = 0,
     }
 
 
-    let padChar = leadingZero ? FormatChar.zeroDigit.char
-        : FormatChar.space.char
-    var charCount = 0
+    let padChar = leadingZero ? FormatChar.zeroDigit.char : FormatChar.space.char
     var fieldWidth = _countDigits()
 
     if number < 0 || leadingPlus || leadingSpace {
@@ -587,25 +560,24 @@ private func printSigned(number: Int, to output: PrintfWriter, width: Int = 0,
         fieldWidth = width
     } else {
         for _ in stride(from: fieldWidth, to: width, by: 1) {
-            charCount += output(padChar)
+            output.write(padChar)
         }
     }
 
     if number < 0 {
-        charCount += output(FormatChar.minusSign.char)
+        output.write(FormatChar.minusSign.char)
         fieldWidth -= 1
     } else {
         if leadingPlus {
-            charCount += output(FormatChar.plusSign.char)
+            output.write(FormatChar.plusSign.char)
             fieldWidth -= 1
         } else if leadingSpace {
-            charCount += output(FormatChar.space.char)
+            output.write(FormatChar.space.char)
             fieldWidth -= 1
         }
     }
 
     for x in stride(from: fieldWidth - 1, through: 0, by: -1) {
-        charCount += output(digit(at: x))
+        output.write(digit(at: x))
     }
-    return charCount
 }

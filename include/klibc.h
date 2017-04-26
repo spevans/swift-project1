@@ -66,13 +66,7 @@ size_t strlen(const char * _Nonnull s);
 // early_tty.c
 typedef uint16_t text_coord;
 
-extern void (* _Nonnull print_char)(const char ch);
-extern void (* _Nonnull print_string)(const char * _Nonnull str);
-extern void (* _Nonnull print_string_len)(const char * _Nonnull str,
-                                          size_t len);
-
 void serial_print_char(const char ch);
-void set_print_functions_to_swift();
 void early_print_char(const char c);
 void early_print_string(const char * _Nonnull text);
 void early_print_string_len(const char * _Nonnull text, size_t len);

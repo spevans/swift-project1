@@ -26,6 +26,46 @@ func kprint(_ string: StaticString) {
 }
 
 
+@inline(never)
+public func print(_ items: Any..., separator: String = " ",
+    terminator: String = "\n") {
+
+    var output = _tty()
+    var prefix = ""
+    for item in items {
+        // Print the items one at a time as varargs will be passed as an array
+        output.write(prefix)
+        print(item, separator: "", terminator: "", to: &output)
+        prefix = separator
+    }
+    output.write(terminator)
+}
+
+
+internal struct _tty : UnicodeOutputStream {
+    mutating func write(_ string: String) {
+        if string.isEmpty { return }
+
+        if let asciiBuffer = string._core.asciiBuffer {
+            //defer { _fixLifetime(string) }
+            for c in asciiBuffer {
+                TTY.sharedInstance.printChar(CChar(c))
+            }
+        } else {
+            for c in string.utf8 {
+                TTY.sharedInstance.printChar(CChar(c))
+            }
+        }
+    }
+
+    mutating func write(_ unicodeScalar: UnicodeScalar) {
+        if let ch = Int32(exactly: unicodeScalar.value) {
+            TTY.sharedInstance.printChar(CChar(ch))
+        }
+    }
+}
+
+
 protocol ScreenDriver {
     var charsPerLine: TextCoord { get }
     var totalLines:   TextCoord { get }
@@ -73,14 +113,13 @@ final class TTY {
 
 
     func setTTY(frameBufferInfo: FrameBufferInfo?) {
+        clearScreen()
+        print("tty: Switching to Swift TTY driver")
         if (frameBufferInfo != nil) {
             driver = FrameBufferTTY(frameBufferInfo: frameBufferInfo!)
         } else {
             driver = TextTTY()
         }
-        clearScreen()
-        print("tty: Switching to Swift TTY driver")
-        set_print_functions_to_swift()
         print("tty: Swift TTY driver initialised: \(driver.charsPerLine)x\(driver.totalLines)")
     }
 
@@ -94,45 +133,6 @@ final class TTY {
 
     func scrollUp() {
         driver.scrollUp()
-    }
-
-
-    @inline(never)
-    func printString(_ string: String) {
-        for ch in string.utf8 {
-            printChar(CChar(ch))
-        }
-    }
-
-
-    @inline(never)
-    public func printString(_ string: StaticString) {
-        string.withUTF8Buffer({
-            $0.forEach({
-                printChar(CChar($0))
-            })
-        })
-    }
-
-
-    func printCStringLen(string: UnsafePointer<CChar>, length: Int) {
-        let buffer = UnsafeBufferPointer(start: string, count: length)
-        for ch in buffer {
-            printChar(ch)
-        }
-    }
-
-
-    func printCString(string: UnsafePointer<CChar>) {
-        let maxLength = 2000; // hard limit
-        let buffer = UnsafeBufferPointer(start: string, count: maxLength)
-        for idx in 0..<maxLength {
-            let ch = buffer[idx]
-            if (ch == 0) {
-                break
-            }
-            printChar(ch)
-        }
     }
 
 
@@ -206,14 +206,6 @@ private final class EarlyTTY: ScreenDriver {
 
     func printChar(_ character: CUnsignedChar, x: TextCoord, y: TextCoord) {
         etty_print_char(x, y, character)
-    }
-
-
-    func printString(_ string: StaticString) {
-        string.utf8Start.withMemoryRebound(to: CChar.self,
-            capacity: string.utf8CodeUnitCount) {
-            early_print_string_len($0, string.utf8CodeUnitCount)
-        }
     }
 
 
@@ -520,23 +512,4 @@ private final class FrameBufferTTY: ScreenDriver {
             }
         }
     }
-}
-
-
-// These are used by early_tty.c:set_print_functions_to_swift()
-@_silgen_name("tty_print_cstring_len")
-public func tty_print_cstring_len(string: UnsafePointer<CChar>, length: Int) {
-    TTY.sharedInstance.printCStringLen(string: string, length: length)
-}
-
-
-@_silgen_name("tty_print_cstring")
-public func printCString(string: UnsafePointer<CChar>) {
-    TTY.sharedInstance.printCString(string: string)
-}
-
-
-@_silgen_name("tty_print_char")
-public func printChar(_ character: CChar) {
-    TTY.sharedInstance.printChar(character)
 }

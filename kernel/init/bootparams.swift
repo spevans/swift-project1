@@ -48,8 +48,8 @@ struct MemoryRange: CustomStringConvertible {
         let str = (size >= mb) ? String.sprintf(" %6uMB  ", size / mb) :
                 String.sprintf(" %6uKB  ", size / kb)
 
-        return String.sprintf("%12X - %12X ", start,
-            start.advanced(by: size - 1))  + "\(str) \(type)"
+        return String.sprintf("%12X - %12X %@ %@", start.value,
+            start.advanced(by: size - 1).value, str, type)
     }
 }
 

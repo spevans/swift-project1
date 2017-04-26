@@ -24,25 +24,6 @@ void *stdout = (void *)0xF1;
  */
 
 int
-fputc(int ch, void *stream)
-{
-        debugf("putc('%c', %p)\n", ch, stream);
-        if (stream != stderr && stream != stdout) {
-                koops("putc stream = %p", stream);
-        }
-        print_char(ch);
-        return ch;
-}
-
-
-int
-putc(int ch, void *stream)
-{
-        return fputc(ch, stream);
-}
-
-
-int
 fprintf(void *stream, const char *format, ...)
 {
         if (stream != stderr && stream != stdout) {
@@ -57,49 +38,13 @@ fprintf(void *stream, const char *format, ...)
 }
 
 
-void
-flockfile(void *stream)
-{
-        debugf("flockfile(%p)\n", stream);
-        if (stream != stderr && stream != stdout) {
-                koops("flockfile stream = %p", stream);
-        }
-
-}
-
-
-void
-funlockfile(void *stream)
-{
-        if (stream != stderr && stream != stdout) {
-                koops("funlockfile stream = %p", stream);
-        }
-}
-
-size_t
-fwrite(const void *ptr, size_t size, size_t nmemb, void *stream)
-{
-        debugf("fwrite(\"%s\", %lu, %lu, %p)", ptr, size, nmemb, stream);
-        if (stream != stderr && stream != stdout) {
-                koops("fwrite stream = %p", stream);
-        }
-        size_t len;
-        if (__builtin_umull_overflow(size, nmemb, &len)) {
-                koops("fwrite size too large (%lu,%lu)", size, nmemb);
-        }
-        print_string_len(ptr, len);
-
-        return len;
-}
-
-
 ssize_t
 write(int fd, const void *buf, size_t nbyte)
 {
         debugf("write(fd=%d, buf=%p nbyte=%lu)\n", fd, buf, nbyte);
 
         if (fd == 1 || fd == 2) {
-                print_string_len(buf, nbyte);
+                early_print_string_len(buf, nbyte);
         } else {
                 koops("write() with fd = %d\n", fd);
         }
