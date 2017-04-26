@@ -442,7 +442,6 @@ final class KBD8042 {
 
 
     private func kbdInterrupt(irq: Int) {
-        //kprint("kbdInterrupt\n")
         sendCommand(.Disable1stPort)
         while readStatus().outputFull {
             let scanCode = readData()
@@ -451,15 +450,12 @@ final class KBD8042 {
             }
         }
         sendCommand(.Enable1stPort)
-        //kprint("EOKI\n")
     }
 
     private func mouseInterrupt(irq: Int) {
-        //kprint("mouseInterrupt\n")
         // Empty the buffer
         while readStatus().outputFull {
             _ = readData()
         }
-        //kprint("EOMI\n")
     }
 }

@@ -104,29 +104,17 @@ public class InterruptManager {
     }
 
 
-    /* The following functions all run inside an IRQ so cannot call
-    * malloc() etc and so cant use [CVarArgs] so no printf() functions.
-    * irqHandler does everything except save/restore the registers and
-    * the IRET. The IRQ number is passed on the stack in the ExceptionRegisters
-    * (include/x86defs.h:excpetion_regs) as the error_code.
-    * This interrupt handler currently suffers from overrun as it is too slow.
-    * because the code is currently compiled without optimisation due to SR-1318.
-    * The kprint_* functions are used because they do not take var args and print
-    * to the screen using the early_tty.c print routines.
-    */
-
-
+    // The following functions all run inside an IRQ so cannot call malloc().
+    // The irqHandler does everything except save/restore the registers and
+    // the IRET. The IRQ number is passed on the stack in the ExceptionRegisters
+    // (include/x86defs.h:excpetion_regs) as the error_code.
     static private func unexpectedInterrupt(irq: Int) {
-        kprint("unexpected interrupt: ")
-        kprint_byte(UInt8(truncatingBitPattern: irq))
-        kprint("\n")
+        printf("unexpected interrupt: %d\n")
     }
 
-
     private func queueIrq(irq: Int) {
-        kprint_word(UInt16(irq))
         if irqQueue.add(irq) == false {
-            kprint("Irq queue full\n")
+            kprint("Irq queue full")
         }
     }
 }
@@ -138,17 +126,13 @@ public func irqHandler(registers: ExceptionRegisters,
     interruptManager: inout InterruptManager) {
 
     let irq = Int(registers.pointee.error_code)
-    guard irq < NR_IRQS else {
-        kprint("\nInvalid interrupt: ")
-        kprint_word(UInt16(irq))
-        kprint("\n")
+    guard irq >= 0 && irq < NR_IRQS else {
+        printf("\nInvalid interrupt: %x\n", UInt(irq))
         return
     }
     let c = read_int_nest_count()
     if c > 1 {
-        kprint("int_nest_count: ")
-        kprint_dword(c)
-        kprint("\n")
+        printf("\nint_nest_count: %d\n", c)
     }
     interruptManager.irqHandlers[irq](irq)
     // EOI

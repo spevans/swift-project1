@@ -390,9 +390,7 @@ public class APIC: InterruptController {
 public func apicIntHandler(registers: ExceptionRegisters) {
     let apicInt = Int(registers.pointee.error_code)
     guard apicInt >= 0 && apicInt < 7 else {
-        kprint("OOPS: Invalid APIC interrupt: ")
-        kprint_qword(UInt64(apicInt))
-        kprint("\n")
+        printf("OOPS: Invalid APIC interrupt: %#x\n", apicInt)
         stop()
     }
 

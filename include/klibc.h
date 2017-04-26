@@ -70,12 +70,6 @@ void serial_print_char(const char ch);
 void early_print_char(const char c);
 void early_print_string(const char * _Nonnull text);
 void early_print_string_len(const char * _Nonnull text, size_t len);
-void kprint_string(const char * _Nonnull text);
-void kprint_byte(uint8_t value);
-void kprint_word(uint16_t value);
-void kprint_dword(uint32_t value);
-void kprint_qword(uint64_t value);
-void kprint_pointer(const void * _Nullable ptr);
 
 // early_tty interface for TTY.EarlyTTY driver
 extern void (* _Nonnull etty_print_char)(text_coord x, text_coord y, const unsigned char ch);

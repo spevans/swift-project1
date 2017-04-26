@@ -21,11 +21,10 @@ public func alloc_pages(pages: Int) -> UInt {
 }
 
 public func alloc(pages: Int) -> UnsafeMutableRawPointer {
+    precondition(pages > 0)
     let tmp = nextFreePage.advanced(by: pages * Int(PAGE_SIZE))
     if tmp.address > _heap_end_addr {
-        kprint("No more free pages for allocation of: ")
-        kprint_qword(UInt64(pages))
-        kprint("\n")
+        printf("No more free pages for allocation of: %d pages\n", pages)
         hlt()
     }
 

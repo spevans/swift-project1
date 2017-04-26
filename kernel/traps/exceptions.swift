@@ -81,12 +81,8 @@ func doubleFault(registers: ExceptionRegisters) {
     let rsp = UInt(registers.pointee.rsp)
     let rbp = UInt(registers.pointee.rbp)
     if rsp <= _stack_start_addr || rbp <= _stack_start_addr {
-        kprint("Possible kernel stack overflow RSP: ")
-        kprint_qword(registers.pointee.rsp)
-        kprint(" RBP: ")
-        kprint_qword(registers.pointee.rbp)
-        kprint(" stack lowest address: ")
-        kprint_qword(UInt64(_stack_start_addr))
+        printf("Possible kernel stack overflow RSP: %016x RBP: %016x stack lowest address: %016x\n",
+            registers.pointee.rsp, registers.pointee.rbp, UInt64(_stack_start_addr))
     } else {
         stackTrace(registers)
     }
@@ -124,9 +120,7 @@ func stackFault(registers: ExceptionRegisters) {
 
 func generalProtectionFault(registers: ExceptionRegisters) {
     let errorCode = UInt32(registers.pointee.error_code)
-    kprint("GP Fault code: ")
-    kprint_dword(errorCode)
-    kprint("\n")
+    printf("GP Fault code: %#x\n", errorCode)
     dump_registers(registers)
     stackTrace(registers)
     stop()
@@ -135,9 +129,7 @@ func generalProtectionFault(registers: ExceptionRegisters) {
 
 func pageFault(registers: ExceptionRegisters) {
     let errorCode = UInt32(registers.pointee.error_code)
-    kprint("Page Fault: ")
-    kprint_dword(errorCode)
-    kprint("\n")
+    printf("Page Fault: %#x\n", errorCode)
     dump_registers(registers)
     stackTrace(registers)
     kprint("\nSTOP\n")

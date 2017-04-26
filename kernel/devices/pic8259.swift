@@ -88,18 +88,14 @@ final class PIC8259: InterruptController {
 
     func ackIRQ(_ irq: Int) {
         guard irq < 16 else {
-            kprint("PIC8259: EOI invalid IRQ: ")
-            kprint_byte(UInt8(truncatingBitPattern: irq))
-            kprint("\n")
+            printf("PIC8259: EOI invalid IRQ: %d\n", irq)
             return
         }
 
         // Check real IRQ occurred
         let active = readISR().bit(irq)
         if !active {
-            kprint("PIC8259: Spurious IRQ: ")
-            kprint_byte(UInt8(irq))
-            kprint("\n")
+            printf("PIC8259: Spurious IRQ: %d\n", irq)
         }
 
         if (irq > 7) {
@@ -114,11 +110,7 @@ final class PIC8259: InterruptController {
     // This isnt a var returning a String to avoid a malloc() as its called
     // inside an interrupt handler
     func printStatus() {
-        kprint("PIC8259:: IRR: ")
-        kprint_word(readIRR())
-        kprint(" ISR: ")
-        kprint_word(readISR())
-        kprint("\n")
+        printf("PIC8259: IRR: %04x ISR: %04x\n", readIRR(), readISR())
     }
 
 

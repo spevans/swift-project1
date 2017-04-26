@@ -19,15 +19,15 @@ typealias TextCoord = text_coord
 
 // kprint via the C early_tty.c driver
 func kprint(_ string: StaticString) {
-    string.utf8Start.withMemoryRebound(to: CChar.self,
-        capacity: string.utf8CodeUnitCount) { text in
-        kprint_string(text)
-    }
+    precondition(string.isASCII)
+    string.withUTF8Buffer({
+            $0.forEach({ TTY.sharedInstance.printChar(CChar($0)) })
+        })
 }
 
 
 @inline(never)
-public func print(_ items: Any..., separator: String = " ",
+func print(_ items: Any..., separator: String = " ",
     terminator: String = "\n") {
 
     var output = _tty()
