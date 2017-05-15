@@ -44,7 +44,7 @@ struct BitArray8: CustomStringConvertible {
             precondition(index < 8)
             precondition(newValue == 0 || newValue == 1)
 
-            let mask = UInt8(1 << index)
+            let mask: UInt8 = 1 << index
             if (newValue == 1) {
                 rawValue |= mask
             } else {
@@ -60,7 +60,7 @@ struct BitArray8: CustomStringConvertible {
             var bit: UInt8 = 1
 
             for i in index {
-                let mask = 1 << UInt8(i)
+                let mask: UInt8 = 1 << i
                 if rawValue & mask != 0 {
                     ret |= bit
                 }
@@ -71,7 +71,7 @@ struct BitArray8: CustomStringConvertible {
         set {
             var bit: UInt8 = 1
             for i in index {
-                let mask = 1 << UInt8(i)
+                let mask: UInt8 = 1 << i
                 if (newValue & bit) == 0 {
                     rawValue &= ~mask
                 } else {
@@ -129,7 +129,7 @@ struct BitArray16: CustomStringConvertible {
             precondition(index < 16)
             precondition(newValue == 0 || newValue == 1)
 
-            let mask = UInt16(1 << index)
+            let mask: UInt16 = 1 << index
             if (newValue == 1) {
                 rawValue |= mask
             } else {
@@ -145,7 +145,7 @@ struct BitArray16: CustomStringConvertible {
             var bit: UInt16 = 1
 
             for i in index {
-                let mask = 1 << UInt16(i)
+                let mask: UInt16 = 1 << i
                 if rawValue & mask != 0 {
                     ret |= bit
                 }
@@ -156,7 +156,7 @@ struct BitArray16: CustomStringConvertible {
         set {
             var bit: UInt16 = 1
             for i in index {
-                let mask = 1 << UInt16(i)
+                let mask: UInt16 = 1 << i
                 if (newValue & bit) == 0 {
                     rawValue &= ~mask
                 } else {
@@ -168,7 +168,7 @@ struct BitArray16: CustomStringConvertible {
     }
 
     func toUInt8() -> UInt8 {
-        return UInt8(truncatingBitPattern: rawValue)
+        return UInt8(extendingOrTruncating: rawValue)
     }
 
     func toInt() -> Int {
@@ -220,7 +220,7 @@ struct BitArray32: CustomStringConvertible {
             precondition(index < 32)
             precondition(newValue == 0 || newValue == 1)
 
-            let mask = UInt32(1 << index)
+            let mask: UInt32 = 1 << index
             if (newValue == 1) {
                 rawValue |= mask
             } else {
@@ -235,7 +235,7 @@ struct BitArray32: CustomStringConvertible {
             var bit: UInt32 = 1
 
             for i in index {
-                let mask = 1 << UInt32(i)
+                let mask: UInt32 = 1 << i
                 if rawValue & mask != 0 {
                     ret |= bit
                 }
@@ -246,7 +246,7 @@ struct BitArray32: CustomStringConvertible {
         set {
             var bit: UInt32 = 1
             for i in index {
-                let mask = 1 << UInt32(i)
+                let mask: UInt32 = 1 << i
                 if (newValue & bit) == 0 {
                     rawValue &= ~mask
                 } else {
@@ -258,11 +258,11 @@ struct BitArray32: CustomStringConvertible {
     }
 
     func toUInt8() -> UInt8 {
-        return UInt8(truncatingBitPattern: rawValue)
+        return UInt8(extendingOrTruncating: rawValue)
     }
 
     func toUInt16() -> UInt16 {
-        return UInt16(truncatingBitPattern: rawValue)
+        return UInt16(extendingOrTruncating: rawValue)
     }
 
     func toUInt32() -> UInt32 {
@@ -333,7 +333,7 @@ struct BitArray64: CustomStringConvertible {
             var bit: UInt64 = 1
 
             for i in index {
-                let mask = 1 << UInt64(i)
+                let mask: UInt64 = 1 << i
                 if rawValue & mask != 0 {
                     ret |= bit
                 }
@@ -344,7 +344,7 @@ struct BitArray64: CustomStringConvertible {
         set {
             var bit: UInt64 = 1
             for i in index {
-                let mask = 1 << UInt64(i)
+                let mask: UInt64 = 1 << i
                 if (newValue & bit) == 0 {
                     rawValue &= ~mask
                 } else {
@@ -356,15 +356,15 @@ struct BitArray64: CustomStringConvertible {
     }
 
     func toUInt8() -> UInt8 {
-        return UInt8(truncatingBitPattern: rawValue)
+        return UInt8(extendingOrTruncating: rawValue)
     }
 
     func toUInt16() -> UInt16 {
-        return UInt16(truncatingBitPattern: rawValue)
+        return UInt16(extendingOrTruncating: rawValue)
     }
 
     func toUInt32() -> UInt32 {
-        return UInt32(rawValue)
+        return UInt32(extendingOrTruncating: rawValue)
     }
 
     func toUInt64() -> UInt64 {

@@ -39,7 +39,7 @@ private func IDTEntry(function: (@escaping @convention(c) () -> Void),
     let address = unsafeBitCast(function, to: UInt64.self)
 
     return idt_entry(
-        addr_lo: UInt16(truncatingBitPattern: address & 0xffff),
+        addr_lo: UInt16(extendingOrTruncating: address & 0xffff),
         selector: selector,
         ist: ist,
         zero0: 0,
@@ -47,8 +47,8 @@ private func IDTEntry(function: (@escaping @convention(c) () -> Void),
         zero1: 0,
         dpl: dpl,
         present: 1,
-        addr_mid: UInt16(truncatingBitPattern: (address >> 16) & 0xffff),
-        addr_hi: UInt32(truncatingBitPattern: address >> 32),
+        addr_mid: UInt16(extendingOrTruncating: (address >> 16) & 0xffff),
+        addr_hi: UInt32(extendingOrTruncating: address >> 32),
         reserved: 0);
 }
 

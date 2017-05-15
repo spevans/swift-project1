@@ -46,8 +46,8 @@ struct PCIBusPIO: PCIBus, CustomStringConvertible {
         -> (UInt16, UInt16) {
 
         let data = readConfigLong(device: device, function: function, offset: offset)
-        let word1 = UInt16(truncatingBitPattern: data)
-        let word2 = UInt16(truncatingBitPattern: (data >> 16))
+        let word1 = UInt16(extendingOrTruncating: data)
+        let word2 = UInt16(extendingOrTruncating: (data >> 16))
 
         return (word1, word2)
     }
@@ -57,10 +57,10 @@ struct PCIBusPIO: PCIBus, CustomStringConvertible {
         -> (UInt8, UInt8, UInt8, UInt8) {
 
         let data = readConfigLong(device: device, function: function, offset: offset)
-        let byte1 = UInt8(truncatingBitPattern: data)
-        let byte2 = UInt8(truncatingBitPattern: (data >> 8))
-        let byte3 = UInt8(truncatingBitPattern: (data >> 16))
-        let byte4 = UInt8(truncatingBitPattern: (data >> 24))
+        let byte1 = UInt8(extendingOrTruncating: data)
+        let byte2 = UInt8(extendingOrTruncating: (data >> 8))
+        let byte3 = UInt8(extendingOrTruncating: (data >> 16))
+        let byte4 = UInt8(extendingOrTruncating: (data >> 24))
 
         return (byte1, byte2, byte3, byte4)
     }
@@ -93,8 +93,8 @@ struct PCIBusMMIO: PCIBus, CustomStringConvertible {
         -> (UInt16, UInt16) {
 
         let data = readConfigLong(device: device, function: function, offset: offset)
-        let word1 = UInt16(truncatingBitPattern: data)
-        let word2 = UInt16(truncatingBitPattern: (data >> 16))
+        let word1 = UInt16(extendingOrTruncating: data)
+        let word2 = UInt16(extendingOrTruncating: (data >> 16))
 
         return (word1, word2)
     }
@@ -104,10 +104,10 @@ struct PCIBusMMIO: PCIBus, CustomStringConvertible {
         -> (UInt8, UInt8, UInt8, UInt8) {
 
         let data = readConfigLong(device: device, function: function, offset: offset)
-        let byte1 = UInt8(truncatingBitPattern: data)
-        let byte2 = UInt8(truncatingBitPattern: (data >> 8))
-        let byte3 = UInt8(truncatingBitPattern: (data >> 16))
-        let byte4 = UInt8(truncatingBitPattern: (data >> 24))
+        let byte1 = UInt8(extendingOrTruncating: data)
+        let byte2 = UInt8(extendingOrTruncating: (data >> 8))
+        let byte3 = UInt8(extendingOrTruncating: (data >> 16))
+        let byte4 = UInt8(extendingOrTruncating: (data >> 24))
 
         return (byte1, byte2, byte3, byte4)
     }

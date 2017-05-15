@@ -280,7 +280,7 @@ public class APIC: InterruptController {
 
         let bootProcessor = apicStatus[bootProcessorBit] == 1
         let maxPhyAddrBits = CPU.capabilities.maxPhyAddrBits
-        let lomask = ~((1 << UInt(12)) - 1)
+        let lomask = ~(UInt(1 << 12) - 1)
         let himask = (1 << maxPhyAddrBits) - 1
         let mask = lomask & himask
         let address = RawAddress(apicStatus.toUInt64() & UInt64(mask))

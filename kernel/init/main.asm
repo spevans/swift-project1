@@ -32,7 +32,7 @@
 ;;; TLS entry in the GDT only allows a 32bit base address.
 _config_page:
 
-        OFFSET  0x0FD0          ; 5x 64bit values for TLS bss
+        OFFSET  0x0F00          ; 248 bytes for TLS bss
 tls_bss:
 
         OFFSET  0x0FF8

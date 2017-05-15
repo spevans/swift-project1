@@ -111,12 +111,12 @@ extension UnsafeMutableRawPointer {
 
 
 /// Convert the given numeric value to a hexadecimal string.
-public func asHex<T : Integer>(_ x: T) -> String {
-  return "0x" + String(x.toIntMax(), radix: 16)
+public func asHex<T : SignedInteger>(_ x: T) -> String {
+  return "0x" + String(Int(x), radix: 16)
 }
 
 public func asHex<T : UnsignedInteger>(_ x: T) -> String {
-    return "0x" + String(x.toUIntMax(), radix: 16)
+    return "0x" + String(UInt(x), radix: 16)
 }
 
 

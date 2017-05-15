@@ -17,7 +17,7 @@ extension UnsignedInteger {
     func bit(_ bit: Int) -> Bool {
         precondition(bit >= 0 && bit < MemoryLayout<Self>.size * 8,
             "Bit must be in range 0-\(MemoryLayout<Self>.size * 8 - 1)")
-        return self & Self(1 << UIntMax(bit)) != 0
+        return self & Self(1 << UInt(bit)) != 0
     }
 
     init(withBytes bytes: [Byte]) {
@@ -25,10 +25,10 @@ extension UnsignedInteger {
             "Array must have from 1-\(MemoryLayout<Self>.size) elements")
 
         self = 0
-        var shift: UIntMax = 0
+        var shift: UInt = 0
         for byte in bytes {
-            self |= (Self(UIntMax(byte) << shift))
-            shift += UIntMax(MemoryLayout<Byte>.size * 8)
+            self |= (Self(UInt(byte) << shift))
+            shift += UInt(MemoryLayout<Byte>.size * 8)
         }
     }
 
@@ -42,10 +42,10 @@ extension UnsignedInteger {
             "Array must have from 1-\(maxElements) elements")
 
         self = 0
-        var shift: UIntMax = 0
+        var shift: UInt = 0
         for word in words {
-            self |= (Self(UIntMax(word) << shift))
-            shift += UIntMax(MemoryLayout<Word>.size * 8)
+            self |= (Self(UInt(word) << shift))
+            shift += UInt(MemoryLayout<Word>.size * 8)
         }
     }
 
@@ -59,10 +59,10 @@ extension UnsignedInteger {
             "Array must have from 1-\(maxElements) elements")
 
         self = 0
-        var shift: UIntMax = 0
+        var shift: UInt = 0
         for dword in dwords {
-            self |= (Self(UIntMax(dword) << shift))
-            shift += UIntMax(MemoryLayout<DWord>.size * 8)
+            self |= (Self(UInt(dword) << shift))
+            shift += UInt(MemoryLayout<DWord>.size * 8)
         }
     }
 

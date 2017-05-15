@@ -38,6 +38,23 @@ fprintf(void *stream, const char *format, ...)
 }
 
 
+size_t
+fwrite(const void *ptr, size_t size, size_t nmemb, void *stream)
+{
+        debugf("fwrite(%p, %lu, %lu, %p)", ptr, size, nmemb, stream);
+        if (stream != stderr && stream != stdout) {
+                koops("fwrite stream = %p", stream);
+        }
+        size_t len;
+        if (__builtin_umull_overflow(size, nmemb, &len)) {
+                koops("fwrite size too large (%lu,%lu)", size, nmemb);
+        }
+        early_print_string_len(ptr, len);
+
+        return len;
+}
+
+
 ssize_t
 write(int fd, const void *buf, size_t nbyte)
 {

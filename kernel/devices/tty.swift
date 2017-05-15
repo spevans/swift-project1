@@ -503,7 +503,7 @@ private final class FrameBufferTTY: ScreenDriver {
             for x in 0..<depthInBytes {
                 let shift = UInt32(x * 8)
                 if (bit) {
-                    let pixel = UInt8(truncatingBitPattern: (mask >> shift))
+                    let pixel = UInt8(extendingOrTruncating: (mask >> shift))
                     screenLine[screenByte] = pixel
                 } else {
                     screenLine[screenByte] = 0
