@@ -24,6 +24,11 @@
 #define PAGE_MASK 4095UL
 #define PAGE_SHIFT 12UL
 
+#define CODE_SELECTOR 0x08
+#define DATA_SELECTOR 0x10
+#define TLS_SELECTOR  0x18
+#define TSS_SELECTOR  0x20
+
 
 // Structure for boot information passed from BIOS loader to kernel
 // Changes must also update boot/memory.asm

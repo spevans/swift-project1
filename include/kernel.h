@@ -44,6 +44,7 @@ EXPORTED_SYMBOL_AS_UINTPTR(initial_pml4);
 EXPORTED_SYMBOL_AS_UINTPTR(fontdata_8x16);
 
 extern void * _Nonnull const initial_tls_end_addr;
+extern struct task_state_segment task_state_segment;
 
 // kernel/traps/entry.asm
 void run_first_task();

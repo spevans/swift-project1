@@ -119,7 +119,7 @@ final class Task: CustomStringConvertible {
         state.pointee.rdx = 0xdddddddddddddddd
         state.pointee.fs = 0x18
         state.pointee.rip = UInt64(addr)
-        state.pointee.cs = UInt64(CODE_SEG)
+        state.pointee.cs = UInt64(CODE_SELECTOR)
         state.pointee.eflags = 512 + 2  // Default flags has interrupts enabled
 
         // Alignment hack. See ALIGN_STACK / UNALIGN_STACK in entry.asm

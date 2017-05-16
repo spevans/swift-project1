@@ -4,23 +4,12 @@
  * Created by Simon Evans on 31/12/2015.
  * Copyright © 2015 Simon Evans. All rights reserved.
  *
- * Setup a new GDT in the BSS as the GDT used for booting was
- * in low memory. Long mode doesnt really care about the GDT
- * so the entries are just the bare minimum for code and data
- * and an extra one for the Thread Local Storage stored in FS
- *
+ * Routines to add entries into the GDT. The table space is declared in
+ * main.asm. Currently only a TSS is added so that an interrupt stack
+ * can be set.
  */
 
-let CODE_SEG: UInt16 = 0x8
-let TSS_SEG: UInt16 = 0x20
-
 typealias GDTEntry = UInt64
-private var gdt = theGDT()
-private var gdtInfo = dt_info(
-    limit: UInt16(MemoryLayout<theGDT>.size - 1),
-    base: &gdt
-)
-
 
 // Helper method to construct a GDT entry, base is ignored by the CPU
 // for most selectors so default it
@@ -81,65 +70,33 @@ private func mkTSS(base: UnsafeRawPointer, limit: UInt32, privLevel: UInt)
 }
 
 
-private var taskStateSegment = task_state_segment(
-    reserved0: 0,
-    rsp0: 0,
-    rsp1: 0,
-    rsp2: 0,
-    reserved1: 0,
-    ist1: UInt64(_ist1_stack_top_addr),
-    ist2: 0,
-    ist3: 0,
-    ist4: 0,
-    ist5: 0,
-    ist6: 0,
-    ist7: 0,
-    reserved2: 0,
-    reserved3: 0,
-    io_map_addr: 0
-)
-
-
-private struct theGDT {
-    // 0x0
-    let nullDescriptor: GDTEntry = 0
-
-    // 0x8
-    let codeSeg = mkGDTEntry(privLevel: 0, executable: true,
-        conforming: false, readWrite: true)
-
-    // 0x10
-    let dataSeg = mkGDTEntry(privLevel: 0, executable: false,
-        conforming: false, readWrite: true)
-
-    // 0x18
-    let TLSSeg = mkGDTEntry(base: TLS_END_ADDR, privLevel: 0,
-        executable: false, conforming: false, readWrite: true)
-
-    // 0x20
-    let tssSeg = mkTSS(base: &taskStateSegment,
-        limit: UInt32(MemoryLayout<task_state_segment>.size - 1), privLevel: 0)
-}
-
 
 func setupGDT() {
-    print("GDT: Initialising..")
-
     func printGDT(_ msg: String, _ gdt: dt_info) {
         print("GDT:", msg, terminator: "")
         printf(": Info: %#x/%u\n", UInt(bitPattern: gdt.base), gdt.limit)
     }
 
+    func asRawPointer(_ x: UnsafeRawPointer) -> UnsafeRawPointer {
+        return x
+    }
+
     var currentGdtInfo = dt_info(limit: 0, base: nil)
     sgdt(&currentGdtInfo)
     printGDT("Current", currentGdtInfo)
-    lgdt(&gdtInfo)
-    print("Loading task register")
-    ltr(TSS_SEG)
-    print("TSS loaded")
 
-    // Below is not really needed except to validate that the setup worked ok
-    sgdt(&currentGdtInfo)
-    printGDT("New", currentGdtInfo)
-    reload_segments()
+    // Set IST1 in the TSS
+    let tssPtr = UnsafeMutableRawPointer(mutating: asRawPointer(&task_state_segment))
+    let tss = tssPtr.bindMemory(to: task_state_segment.self, capacity: 1)
+    tss.pointee.ist1 = UInt64(_ist1_stack_top_addr)
+
+    let gdtPtr = UnsafeMutableRawPointer(currentGdtInfo.base)!
+    let tssSeg = gdtPtr.advanced(by: Int(TSS_SELECTOR))
+        .bindMemory(to: gdt_system_entry.self, capacity: 1)
+    tssSeg.pointee = mkTSS(base: &task_state_segment,    // defined in main.asm
+        limit: UInt32(MemoryLayout<task_state_segment>.size - 1), privLevel: 0)
+
+    print("Loading task register")
+    ltr(UInt16(TSS_SELECTOR))
+    print("TSS loaded")
 }

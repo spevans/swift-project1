@@ -31,7 +31,7 @@ enum GateType: UInt32 {
 
 // Helper method to construct an IDT entry
 private func IDTEntry(function: (@escaping @convention(c) () -> Void),
-    selector: UInt16 = CODE_SEG, gateType: GateType,
+    selector: UInt16 = UInt16(CODE_SELECTOR), gateType: GateType,
     dpl: UInt32 = 0, ist: UInt32 = 0) -> idt_entry {
 
     precondition(dpl < 4)
