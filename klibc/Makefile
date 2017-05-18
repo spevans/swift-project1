@@ -1,7 +1,7 @@
 TOPDIR := ..
 include $(TOPDIR)/Makedefs
 
-OBJS := misc.o string.o math.o io.o kprintf.o printf.o pthread.o \
+OBJS := misc.o string.o io.o kprintf.o printf.o pthread.o \
 		libcpp.o x86_string.o x86_misc.o koops.o early_tty.o malloc.o
 
 OBJS += std_cxx11_string.o

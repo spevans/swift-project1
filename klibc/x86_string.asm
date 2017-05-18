@@ -10,7 +10,6 @@
         global  memcpy
         global  memmove
         global  memsetw
-        global  stpcpy
         global  strchr
 
 
@@ -89,20 +88,6 @@ memsetw:
         mov     rcx, rdx
         rep     stosw
         mov     rax, r8
-        ret
-
-
-;;; char *stpcpy(char *dest, const char *src)
-;;; RDI: dest, RSI: src returns dest+strlen(src)
-stpcpy:
-        cld
-.loop:
-        lodsb
-        stosb
-        test    al, al
-        jne     .loop
-        dec     rdi
-        mov     rax, rdi
         ret
 
 

@@ -57,7 +57,6 @@ int memcmp(const void * _Nonnull s1, const void * _Nonnull s2, size_t count);
 void * _Nonnull memcpy(void * _Nonnull dest, const void * _Nonnull src, size_t count);
 void * _Nonnull memset(void * _Nonnull dest, int c, size_t count);
 void * _Nonnull memsetw(void * _Nonnull dest, uint16_t w, size_t count);
-char * _Nonnull stpcpy(char * _Nonnull dest, const char * _Nonnull src);
 int strcmp(const char * _Nonnull s1, const char * _Nonnull s2);
 char * _Nonnull strcpy(char * _Nonnull dest, const char * _Nonnull src);
 size_t strlen(const char * _Nonnull s);
