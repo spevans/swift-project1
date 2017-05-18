@@ -270,7 +270,7 @@ rdtsc()
 }
 
 // kernel/klib/x86.asm functions
-void reload_segments();
-void test_breakpoint();
+void reload_segments(void);
+void test_breakpoint(void);
 
 #endif  // __X86_FUNCS_H__

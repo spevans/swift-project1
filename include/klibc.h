@@ -72,18 +72,19 @@ void early_print_string_len(const char * _Nonnull text, size_t len);
 
 // early_tty interface for TTY.EarlyTTY driver
 extern void (* _Nonnull etty_print_char)(text_coord x, text_coord y, const unsigned char ch);
-extern void (* _Nonnull etty_clear_screen)();
-extern void (* _Nonnull etty_scroll_up)();
-text_coord etty_chars_per_line();
-text_coord etty_total_lines();
-text_coord etty_get_cursor_x();
-text_coord etty_get_cursor_y();
+extern void (* _Nonnull etty_clear_screen)(void);
+extern void (* _Nonnull etty_scroll_up)(void);
+text_coord etty_chars_per_line(void);
+text_coord etty_total_lines(void);
+text_coord etty_get_cursor_x(void);
+text_coord etty_get_cursor_y(void);
 void etty_set_cursor_x(text_coord x);
 void etty_set_cursor_y(text_coord y);
 
 
-// entry.asm
-unsigned int read_int_nest_count();
+// kernel/traps/entry.asm
+unsigned int read_int_nest_count(void);
+void run_first_task(void);
 void set_interrupt_manager(const void * _Nonnull im);
 
 #endif  // __KLIBC_H__
