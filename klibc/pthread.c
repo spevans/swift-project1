@@ -201,27 +201,49 @@ pthread_once(pthread_once_t *once_control, void (*init_routine)(void))
 }
 
 
+// Used as a weak symbol to detect libpthread
 int
-__pthread_key_create (pthread_key_t *key,
-                          void (*destructor) (void *))
+__pthread_key_create (pthread_key_t *key,  void (*destructor) (void *))
 {
         debugf("pthread_key_create(%p,%p)\n", key, destructor);
         koops("unimplemented");
 }
 
+int
+pthread_key_create (pthread_key_t *key, void (*destructor) (void *))
+{
+        return __pthread_key_create(key, destructor);
+}
+
 
 pthread_t
-pthread_self()
+pthread_self(void)
 {
         debugf("pthread_self()\n");
         return 1;
 }
 
 
-void __once_proxy()
+void
+__once_proxy(void)
 {
         debugf("__once_proxy_func() __once_call=%p\n", _ZSt11__once_call);
         if (_ZSt11__once_call) {
                 _ZSt11__once_call();
         }
+}
+
+
+void *
+pthread_getspecific (pthread_key_t __key)
+{
+        koops("unimplemented: pthread_getspecific");
+}
+
+
+/* Store POINTER in the thread-specific data slot identified by KEY. */
+int
+pthread_setspecific (pthread_key_t __key, const void *__pointer)
+{
+        koops("unimplemented: pthread_setspecific");
 }

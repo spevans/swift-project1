@@ -81,7 +81,7 @@ _ZSt17__throw_bad_allocv()
 void
 _ZSt20__throw_system_errori(int error)
 {
-        koops("System error: %d", error);
+        koops("klibc/libcpp.c: System error: %d", error);
 }
 
 

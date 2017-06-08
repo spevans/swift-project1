@@ -77,14 +77,17 @@ struct SRAT: ACPITable, CustomStringConvertible {
         }
     }
 
-    // Treat the entries as a read only RandomAccessCollection
-    struct SRATEntries: RandomAccessCollection {
+    // Treat the entries as a read only Collection
+    struct SRATEntries: Collection, Sequence {
+        typealias Index = Int
+        typealias Element = SRATAffinityEntry
 
         // Offsets into the main table of each entry
         private let entryOffsets: [Int];
         private let rawTablePtr: UnsafeRawPointer
 
         // Collection interface for the SRAT Affinity entries
+        var count: Int { return entryOffsets.count }
         var startIndex: Int { return entryOffsets.startIndex }
         var endIndex: Int { return entryOffsets.endIndex }
 
@@ -111,6 +114,30 @@ struct SRAT: ACPITable, CustomStringConvertible {
             case 3: return SRATGiccAffinityEntry(ptr)
             default: fatalError("ACPI: Invalid SRAT type: \(type)")
             }
+        }
+
+
+        struct Iterator: IteratorProtocol {
+            let entries: SRATEntries
+            var index = 0
+
+
+            init(_ value: SRATEntries) {
+                entries = value
+            }
+
+            mutating func next() -> Element? {
+                if index < entries.count {
+                    defer { index += 1 }
+                    return entries[index]
+                } else {
+                    return nil
+                }
+            }
+        }
+
+        func makeIterator() -> Iterator {
+            return Iterator(self)
         }
     }
 
