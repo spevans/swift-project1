@@ -9,9 +9,9 @@
  */
 
 import Foundation
+import PatchUtils
 
 
-@_silgen_name("main")
 func main() {
     let args = CommandLine.arguments
     guard args.count == 5 else {
@@ -96,4 +96,4 @@ func writeOutImage(_ filename: String, _ bootsect: Data, _ loader: Data,
     }
 }
 
-
+main()

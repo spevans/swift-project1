@@ -11,10 +11,9 @@
 import Foundation
 
 
-let sectorSize = 512
+public let sectorSize = 512
 
-
-func openOrQuit(_ filename: String) -> Data {
+public func openOrQuit(_ filename: String) -> Data {
     let url = URL(fileURLWithPath: filename)
     guard let file = try? Data(contentsOf: url) else {
         fatalError("Cant open \(filename)")
@@ -24,7 +23,7 @@ func openOrQuit(_ filename: String) -> Data {
 
 
 // Allows arbitary offsets not necessarily aligned to the width of T
-func patchValue<T>(_ data: inout Data, offset: Int, value: T) {
+public func patchValue<T>(_ data: inout Data, offset: Int, value: T) {
     guard offset >= 0 else {
         fatalError("offset < 0: \(offset)")
     }
@@ -50,7 +49,7 @@ func patchValue<T>(_ data: inout Data, offset: Int, value: T) {
 }
 
 
-func readValue<T>(_ data: Data, offset: Int) -> T {
+public func readValue<T>(_ data: Data, offset: Int) -> T {
     let range: Range<Int> = offset..<(offset + MemoryLayout<T>.size)
     let value = data.subdata(in: range)
     return value.withUnsafeBytes { $0.pointee }
@@ -58,28 +57,28 @@ func readValue<T>(_ data: Data, offset: Int) -> T {
 
 
 extension Int32 {
-    func asHex() -> String {
+    public func asHex() -> String {
         return String(format:"%x", self)
     }
 }
 
 
 extension UInt32 {
-    func asHex() -> String {
+    public func asHex() -> String {
         return String(format:"%x", self)
     }
 }
 
 
 extension UInt {
-    func asHex() -> String {
+    public func asHex() -> String {
         return String(format:"%x", self)
     }
 }
 
 
-func parseHex(_ number: String) -> UInt? {
-     if (number.hasPrefix("0x")) {
+public func parseHex(_ number: String) -> UInt? {
+    if (number.hasPrefix("0x")) {
         return UInt(number.replacingOccurrences(of: "0x", with: ""),
             radix: 16)
     } else {
@@ -88,7 +87,7 @@ func parseHex(_ number: String) -> UInt? {
 }
 
 
-func parseMap(_ filename: String) -> Dictionary<String, UInt> {
+public func parseMap(_ filename: String) -> Dictionary<String, UInt> {
     guard let kernelMap = try? String(contentsOfFile: filename,
         encoding: String.Encoding.ascii) else {
         fatalError("Cant open \(filename)")

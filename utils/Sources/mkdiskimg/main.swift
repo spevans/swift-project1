@@ -18,9 +18,9 @@
  */
 
 import Foundation
+import PatchUtils
 
 
-@_silgen_name("main")
 func main() {
     let args = CommandLine.arguments
     guard args.count == 5 else {
@@ -121,7 +121,13 @@ func driveAndPartition(_ device: String) -> (String, Int?) {
 
 
 func getPartitionLBA(_ device: String) -> UInt64 {
-    var stat_buf = stat_info()
+    return 0
+}
+
+
+
+/*
+    var stat_buf = stat()
 
     let err = stat(device, &stat_buf)
     guard err == 0 else {
@@ -156,3 +162,6 @@ func getPartitionLBA(_ device: String) -> UInt64 {
     }
     return UInt64(partitionInfo.LBA_start)
 }
+*/
+
+main()

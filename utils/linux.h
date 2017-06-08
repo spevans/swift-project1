@@ -1,12 +1,5 @@
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <stdint.h>
-#include <fcntl.h>
-extern ssize_t read (int __fd, void *__buf, size_t __nbytes) __wur;
 
-typedef struct stat stat_info ;
-int stat(const char *pathname, struct stat *buf);
 
 struct hd_partition {
   uint8_t active_flag;

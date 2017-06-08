@@ -30,11 +30,11 @@ output/kernel.efi: output/kernel.bin boot/efi_entry.asm boot/efi_main.c klibc/kp
 	make -C boot
 	objcopy	-I binary -O elf64-x86-64 -B i386:x86-64 output/kernel.bin output/kernel.bin.obj
 	ld --no-demangle -static -Tboot/efi_linker.script -Map=output/efi_body.map -o output/efi_body.bin boot/efi_entry.o boot/efi_main.o boot/kprintf.o
-	utils/efi_patch boot/efi_header.bin output/efi_body.bin output/kernel.map output/kernel.efi
+	utils/.build/release/efi_patch boot/efi_header.bin output/efi_body.bin output/kernel.map output/kernel.efi
 
 
 output/boot-hd.img: boot output/kernel.bin
-	utils/mkdiskimg boot/bootsector.bin boot/boot16to64.bin output/kernel.bin output/boot-hd.img
+	utils/.build/release/mkdiskimg boot/bootsector.bin boot/boot16to64.bin output/kernel.bin output/boot-hd.img
 
 test:
 	make -C kernel/klib
