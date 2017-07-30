@@ -917,10 +917,12 @@ setup_page_tables()
         add_mapping((void *)(PHYSICAL_MEM_BASE + fb->address), fb->address,
                     (fb->size + PAGE_MASK) / PAGE_SIZE);
 
+#ifdef ENABLE_TLS
         // Map the first 4K of the kernel @ 0x1000, this is the config area
         // including the TLS which needs to be in the first 4GB.
         add_mapping((void *)(TLS_END_ADDR & ~PAGE_MASK), bp->kernel_phys_addr,
                     1);
+#endif
 
 
         // Map the first 4GB of RAM into the 128GB mapping. 4GB should

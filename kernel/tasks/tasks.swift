@@ -110,14 +110,14 @@ final class Task: CustomStringConvertible {
         rsp = stack.advanced(by: stateOffset - MemoryLayout<UInt>.size).bindMemory(to: UInt.self, capacity: 1)
         state = stack.advanced(by: stateOffset).bindMemory(to: exception_regs.self, capacity: 1)
         state.initialize(to: exception_regs())
-        state.pointee.es = 0x10
-        state.pointee.ds = 0x10
-        state.pointee.ss = 0x10
+        state.pointee.es = UInt64(DATA_SELECTOR)
+        state.pointee.ds = UInt64(DATA_SELECTOR)
+        state.pointee.ss = UInt64(DATA_SELECTOR)
         state.pointee.rax = 0xaaaaaaaaaaaaaaaa
         state.pointee.rbx = 0xbbbbbbbbbbbbbbbb
         state.pointee.rcx = 0xcccccccccccccccc
         state.pointee.rdx = 0xdddddddddddddddd
-        state.pointee.fs = 0x18
+        state.pointee.fs = 0
         state.pointee.rip = UInt64(addr)
         state.pointee.cs = UInt64(CODE_SELECTOR)
         state.pointee.eflags = 512 + 2  // Default flags has interrupts enabled

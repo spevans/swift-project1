@@ -142,11 +142,13 @@ func setupMM(bootParams: BootParams) {
         kernelPhysAddress(kernelBase + textSize + rodataSize + dataSize
             + PAGE_SIZE).value)
 
+#if ENABLE_TLS
     // Map the TLS which resides before 4GB mark and has the same virtual
     // and physical address
     let tlsPage = TLS_END_ADDR & ~PAGE_MASK
     addMapping(start: tlsPage, size: PAGE_SIZE, physStart: kernelPhysBase,
         readWrite: true, noExec: true)
+#endif
 
     mapPhysicalMemory(highestMemoryAddress)
     let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_addr).value)

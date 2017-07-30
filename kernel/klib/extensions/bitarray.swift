@@ -168,7 +168,7 @@ struct BitArray16: CustomStringConvertible {
     }
 
     func toUInt8() -> UInt8 {
-        return UInt8(extendingOrTruncating: rawValue)
+        return UInt8(truncatingIfNeeded: rawValue)
     }
 
     func toInt() -> Int {
@@ -258,11 +258,11 @@ struct BitArray32: CustomStringConvertible {
     }
 
     func toUInt8() -> UInt8 {
-        return UInt8(extendingOrTruncating: rawValue)
+        return UInt8(truncatingIfNeeded: rawValue)
     }
 
     func toUInt16() -> UInt16 {
-        return UInt16(extendingOrTruncating: rawValue)
+        return UInt16(truncatingIfNeeded: rawValue)
     }
 
     func toUInt32() -> UInt32 {
@@ -356,15 +356,15 @@ struct BitArray64: CustomStringConvertible {
     }
 
     func toUInt8() -> UInt8 {
-        return UInt8(extendingOrTruncating: rawValue)
+        return UInt8(truncatingIfNeeded: rawValue)
     }
 
     func toUInt16() -> UInt16 {
-        return UInt16(extendingOrTruncating: rawValue)
+        return UInt16(truncatingIfNeeded: rawValue)
     }
 
     func toUInt32() -> UInt32 {
-        return UInt32(extendingOrTruncating: rawValue)
+        return UInt32(truncatingIfNeeded: rawValue)
     }
 
     func toUInt64() -> UInt64 {

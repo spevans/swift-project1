@@ -118,7 +118,7 @@ fileprivate func _keyboardInput() {
     while true {
         while let char = kbd.readKeyboard() {
             if char.isASCII {
-                tty.printChar(CChar(extendingOrTruncating: char.value))
+                tty.printChar(CChar(truncatingIfNeeded: char.value))
             } else {
                 print("\(char) is not ASCII\n")
             }
