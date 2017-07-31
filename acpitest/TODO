@@ -1,0 +1,5 @@
+Expand names re Scope
+Max subparser recursion depth
+TermArg return type Integer, String etc
+Simplify parseArgs etc and merge with Var args
+Scope modifiers dont need to store the objectList

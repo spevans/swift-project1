@@ -5,7 +5,7 @@
 //  Created by Simon Evans on 21/07/2016.
 //  Copyright © 2016 Simon Evans. All rights reserved.
 //
-
+/*
 import Foundation
 
 
@@ -49,4 +49,4 @@ extension AMLArgObj: CustomStringConvertible {
 
 extension AMLLocalObj: CustomStringConvertible {
     var description: String { return "Local\(arg)" }
-}
+}*/

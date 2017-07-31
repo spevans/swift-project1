@@ -87,12 +87,13 @@ extension UnsafeBufferPointer {
         return UnsafePointer<T>(bitPattern: region)!
     }
 
-
+#if os(Linux)
     func dumpBytes(count: Int) {
         self.baseAddress!.withMemoryRebound(to: UInt8.self, capacity: count, {
                 hexDump(buffer: UnsafeBufferPointer<UInt8>(start: $0, count: count))
             })
     }
+#endif
 }
 
 
@@ -120,6 +121,7 @@ public func asHex<T : UnsignedInteger>(_ x: T) -> String {
 }
 
 
+#if os(Linux)
 private func hexDump(buffer: UnsafeBufferPointer<UInt8>) {
 
     func byteAsChar(value: UInt8) -> Character {
@@ -148,3 +150,4 @@ private func hexDump(buffer: UnsafeBufferPointer<UInt8>) {
     }
     print(chars)
 }
+#endif
