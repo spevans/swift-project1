@@ -144,7 +144,7 @@ extension String: UnicodeOutputStream {
     }
 }
 
-
+#if KERNEL
 @inline(never)
 func printf(_ format: StaticString, _ arg1: Any) {
     var output = _tty()
@@ -171,6 +171,7 @@ func printf(_ format: StaticString, _ items: Any...) {
     var iterator = ArgIterator(args: items)
     _printf(to: &output, format: format, itemsIterator: &iterator)
 }
+#endif
 
 
 // Calling printf with just a format string and no arguments is inefficient,
@@ -355,13 +356,9 @@ private func dispatchPrint<Target: UnicodeOutputStream>(to output: inout Target,
             output.write(FormatChar.zeroDigit.char)
             output.write(FormatChar.lowerCaseHex.char)
             let data = itemsIterator.next()
-            if data is UnsignedInteger {
-                _printUnsigned(to: &output, digits: digits, radix: 16,
-                    data: data, width: width,
-                    leftAligned: leftAligned, leadingZero: leadingZero)
-            } else {
-                output.write(String(describing: data))
-            }
+            _printUnsigned(to: &output, digits: digits, radix: 16,
+                data: data, width: width,
+                leftAligned: leftAligned, leadingZero: leadingZero)
             return
 
         case .lowerCaseHex:
@@ -430,6 +427,7 @@ private func dispatchPrint<Target: UnicodeOutputStream>(to output: inout Target,
                 width = (width * 10) + d
             } else {
                 precision = (precision * 10) + d
+                leadingZero = true
             }
         }
 

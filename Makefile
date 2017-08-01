@@ -36,10 +36,6 @@ output/kernel.efi: output/kernel.bin boot/efi_entry.asm boot/efi_main.c klibc/kp
 output/boot-hd.img: boot output/kernel.bin
 	utils/.build/release/mkdiskimg boot/bootsector.bin boot/boot16to64.bin output/kernel.bin output/boot-hd.img
 
-test:
-	make -C kernel/klib
-	make -C tests
-
 iso: output/boot-cd.iso
 
 output/boot-cd.iso: output/boot-hd.img output/kernel.efi
@@ -62,4 +58,3 @@ output/boot-cd.iso: output/boot-hd.img output/kernel.efi
 clean:
 	rm -rf output/*
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir clean; done
-	make -C tests clean

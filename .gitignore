@@ -23,6 +23,7 @@ project.xcworkspace
 .ninja_log
 
 Build
+DerivedData
 .build
 .configuration
 

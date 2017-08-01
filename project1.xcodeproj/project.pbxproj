@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B93092BF1F31B06900870D1F /* StringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B93092BE1F31B06900870D1F /* StringTests.swift */; };
+		B93092C01F31B0FF00870D1F /* printf.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7331F2F49C700FE6846 /* printf.swift */; };
 		B933A6F01F2F492F00FE6846 /* waet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A6DD1F2F492F00FE6846 /* waet.swift */; };
 		B933A6F11F2F492F00FE6846 /* facp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A6DE1F2F492F00FE6846 /* facp.swift */; };
 		B933A6F21F2F492F00FE6846 /* hpet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A6E01F2F492F00FE6846 /* hpet.swift */; };
@@ -53,6 +55,7 @@
 		B933A7921F2F8F2100FE6846 /* MemoryBufferReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7321F2F49C700FE6846 /* MemoryBufferReader.swift */; };
 		B933A7941F2F90C900FE6846 /* acpitest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7761F2F8D6A00FE6846 /* acpitest.swift */; };
 		B933A7951F2FBA8700FE6846 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7311F2F49C700FE6846 /* Extensions.swift */; };
+		B9A2C1BC1F30EF95003D4D92 /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = B9A2C1BA1F30EF94003D4D92 /* Makefile */; };
 		B9EE704D1D3D536B006B6AB7 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EE704C1D3D536B006B6AB7 /* main.swift */; };
 		B9F8B9D81EC68BE40030BAE8 /* tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9F8B9D71EC68BE40030BAE8 /* tests.swift */; };
 /* End PBXBuildFile section */
@@ -70,9 +73,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B93092BE1F31B06900870D1F /* StringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringTests.swift; sourceTree = "<group>"; };
 		B933A6DD1F2F492F00FE6846 /* waet.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = waet.swift; sourceTree = "<group>"; };
 		B933A6DE1F2F492F00FE6846 /* facp.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = facp.swift; sourceTree = "<group>"; };
-		B933A6DF1F2F492F00FE6846 /* untitled 6 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "untitled 6"; sourceTree = "<group>"; };
 		B933A6E01F2F492F00FE6846 /* hpet.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = hpet.swift; sourceTree = "<group>"; };
 		B933A6E11F2F492F00FE6846 /* amlmethod.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = amlmethod.swift; sourceTree = "<group>"; };
 		B933A6E21F2F492F00FE6846 /* facs.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = facs.swift; sourceTree = "<group>"; };
@@ -131,7 +134,16 @@
 		B933A7741F2F8D6A00FE6846 /* acpitest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = acpitest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B933A7761F2F8D6A00FE6846 /* acpitest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = acpitest.swift; sourceTree = "<group>"; };
 		B933A7781F2F8D6A00FE6846 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		B95C5D811D6E244C0040FC46 /* TODO */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = TODO; sourceTree = "<group>"; };
+		B9A2C1B01F30ECF9003D4D92 /* TODO */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = TODO; sourceTree = "<group>"; };
+		B9A2C1B11F30ECF9003D4D92 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		B9A2C1B31F30EEC7003D4D92 /* boot */ = {isa = PBXFileReference; lastKnownFileType = folder; path = boot; sourceTree = "<group>"; };
+		B9A2C1B41F30EEDE003D4D92 /* doc */ = {isa = PBXFileReference; lastKnownFileType = folder; path = doc; sourceTree = "<group>"; };
+		B9A2C1B51F30EEEA003D4D92 /* include */ = {isa = PBXFileReference; lastKnownFileType = folder; path = include; sourceTree = "<group>"; };
+		B9A2C1B61F30EEF4003D4D92 /* klibc */ = {isa = PBXFileReference; lastKnownFileType = folder; path = klibc; sourceTree = "<group>"; };
+		B9A2C1B81F30EF79003D4D92 /* utils */ = {isa = PBXFileReference; lastKnownFileType = folder; path = utils; sourceTree = "<group>"; };
+		B9A2C1B91F30EF94003D4D92 /* linker.script */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = linker.script; sourceTree = "<group>"; };
+		B9A2C1BA1F30EF94003D4D92 /* Makefile */ = {isa = PBXFileReference; explicitFileType = sourcecode.make; fileEncoding = 4; path = Makefile; sourceTree = "<group>"; };
+		B9A2C1BB1F30EF94003D4D92 /* Makedefs */ = {isa = PBXFileReference; explicitFileType = sourcecode.make; fileEncoding = 4; path = Makedefs; sourceTree = "<group>"; };
 		B9E3A9241D40FA210099F826 /* amlsource.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = amlsource.swift; sourceTree = "<group>"; };
 		B9EE70491D3D536B006B6AB7 /* acpi */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = acpi; sourceTree = BUILT_PRODUCTS_DIR; };
 		B9EE704C1D3D536B006B6AB7 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
@@ -251,6 +263,7 @@
 		B933A6DB1F2F491C00FE6846 /* acpi */ = {
 			isa = PBXGroup;
 			children = (
+				B933A6EE1F2F492F00FE6846 /* TODO */,
 				B933A6E61F2F492F00FE6846 /* acpi.swift */,
 				B933A6E81F2F492F00FE6846 /* ACPIGlobalObjects.swift */,
 				B933A6E11F2F492F00FE6846 /* amlmethod.swift */,
@@ -266,8 +279,6 @@
 				B933A6E71F2F492F00FE6846 /* mcfg.swift */,
 				B933A6ED1F2F492F00FE6846 /* sbst.swift */,
 				B933A6E91F2F492F00FE6846 /* srat.swift */,
-				B933A6EE1F2F492F00FE6846 /* TODO */,
-				B933A6DF1F2F492F00FE6846 /* untitled 6 */,
 				B933A6DD1F2F492F00FE6846 /* waet.swift */,
 			);
 			path = acpi;
@@ -284,19 +295,21 @@
 			path = extensions;
 			sourceTree = "<group>";
 		};
-		B933A7751F2F8D6A00FE6846 /* acpitest */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = acpitest;
-			sourceTree = "<group>";
-		};
 		B9EE70401D3D536B006B6AB7 = {
 			isa = PBXGroup;
 			children = (
+				B9A2C1B11F30ECF9003D4D92 /* README.md */,
+				B9A2C1B01F30ECF9003D4D92 /* TODO */,
+				B9A2C1BB1F30EF94003D4D92 /* Makedefs */,
+				B9A2C1BA1F30EF94003D4D92 /* Makefile */,
+				B9A2C1B91F30EF94003D4D92 /* linker.script */,
 				B933A6B81F2F469900FE6846 /* kernel */,
 				B9EE704B1D3D536B006B6AB7 /* acpitest */,
-				B933A7751F2F8D6A00FE6846 /* acpitest */,
+				B9A2C1B61F30EEF4003D4D92 /* klibc */,
+				B9A2C1B51F30EEEA003D4D92 /* include */,
+				B9A2C1B31F30EEC7003D4D92 /* boot */,
+				B9A2C1B81F30EF79003D4D92 /* utils */,
+				B9A2C1B41F30EEDE003D4D92 /* doc */,
 				B9EE704A1D3D536B006B6AB7 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -313,12 +326,12 @@
 		B9EE704B1D3D536B006B6AB7 /* acpitest */ = {
 			isa = PBXGroup;
 			children = (
+				B93092BE1F31B06900870D1F /* StringTests.swift */,
 				B933A7781F2F8D6A00FE6846 /* Info.plist */,
 				B933A7761F2F8D6A00FE6846 /* acpitest.swift */,
 				B9EE704C1D3D536B006B6AB7 /* main.swift */,
 				B9F8B9D71EC68BE40030BAE8 /* tests.swift */,
 				B9E3A9241D40FA210099F826 /* amlsource.swift */,
-				B95C5D811D6E244C0040FC46 /* TODO */,
 				B933A7501F2F511100FE6846 /* acpi_test.h */,
 			);
 			path = acpitest;
@@ -420,6 +433,7 @@
 				B933A77F1F2F8F1100FE6846 /* amlmethod.swift in Sources */,
 				B933A7801F2F8F1100FE6846 /* amlparser.swift in Sources */,
 				B933A7811F2F8F1100FE6846 /* amltypes.swift in Sources */,
+				B93092BF1F31B06900870D1F /* StringTests.swift in Sources */,
 				B933A7821F2F8F1100FE6846 /* amlutils.swift in Sources */,
 				B933A7831F2F8F1100FE6846 /* boot.swift in Sources */,
 				B933A7841F2F8F1100FE6846 /* ecdt.swift in Sources */,
@@ -433,6 +447,7 @@
 				B933A78C1F2F8F1100FE6846 /* waet.swift in Sources */,
 				B933A7951F2FBA8700FE6846 /* Extensions.swift in Sources */,
 				B933A7921F2F8F2100FE6846 /* MemoryBufferReader.swift in Sources */,
+				B93092C01F31B0FF00870D1F /* printf.swift in Sources */,
 				B933A78D1F2F8F2100FE6846 /* bitarray.swift in Sources */,
 				B933A78E1F2F8F2100FE6846 /* bytearray.swift in Sources */,
 				B933A78F1F2F8F2100FE6846 /* dwordarray.swift in Sources */,
@@ -460,6 +475,7 @@
 				B933A6F21F2F492F00FE6846 /* hpet.swift in Sources */,
 				B933A6FC1F2F492F00FE6846 /* madt.swift in Sources */,
 				B933A6F91F2F492F00FE6846 /* mcfg.swift in Sources */,
+				B9A2C1BC1F30EF95003D4D92 /* Makefile in Sources */,
 				B933A6FF1F2F492F00FE6846 /* sbst.swift in Sources */,
 				B933A6FB1F2F492F00FE6846 /* srat.swift in Sources */,
 				B933A6F01F2F492F00FE6846 /* waet.swift in Sources */,

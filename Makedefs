@@ -14,7 +14,7 @@ SWIFT := $(SWIFTDIR)/usr/bin/swift
 SWIFTC := $(SWIFTDIR)/usr/bin/swiftc
 SWIFTLIBDIR := $(SWIFTDIR)/usr/lib/swift_static/linux
 SWIFTLIBS := $(SWIFTLIBDIR)/libswiftCore.a $(SWIFTLIBDIR)/libswiftImageInspectionStatic.a
-SWIFTC_FLAGS := -gnone -Xfrontend -disable-red-zone -Xcc -mno-red-zone -Xfrontend -mcode-model=kernel -Xcc -mcmodel=kernel -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -std=gnu11 -Xfrontend -warn-long-function-bodies=60000
+SWIFTC_FLAGS := -gnone -Xfrontend -disable-red-zone -Xcc -mno-red-zone -Xfrontend -mcode-model=kernel -Xcc -mcmodel=kernel -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -std=gnu11 -Xfrontend -warn-long-function-bodies=60000 -DKERNEL
 
 CFLAGS := -Wall -std=gnu11 -Wextra -Werror -fno-builtin -fno-stack-protector -fno-common -mno-red-zone -mcmodel=kernel -I$(TOPDIR)/include
 
