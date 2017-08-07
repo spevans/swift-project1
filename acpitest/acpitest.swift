@@ -17,30 +17,30 @@ class acpitest: XCTestCase {
 
 
     private let files = [
-        ["vmware/FACP.aml", "vmware/APIC.aml", "vmware/HPET.aml",
-         "vmware/SRAT.aml", "vmware/BOOT.aml", "vmware/FACS1.aml",
-         "vmware/MCFG.aml", "vmware/WAET.aml", "vmware/DSDT.aml",
-         "vmware/FACS2.aml"],
-        ["macbook31/APIC.aml",
-         "macbook31/FACP.aml",
-         "macbook31/MCFG.aml",
-         "macbook31/ASF!.aml",
-         "macbook31/FACS1.aml",
-         "macbook31/SBST.aml",
-         "macbook31/HPET.aml",
-         "macbook31/FACS2.aml",
-         "macbook31/ECDT.aml",
-         "macbook31/DSDT.aml",
-         "macbook31/SSDT1.aml",
-         "macbook31/SSDT2.aml",
-         "macbook31/SSDT3.aml",
-         "macbook31/SSDT4.aml",
-         "macbook31/SSDT5.aml",
-         "macbook31/SSDT6.aml",
-         "macbook31/SSDT7.aml",
-         "macbook31/SSDT8.aml"
+        ["vmware-FACP.aml", "vmware-APIC.aml", "vmware-HPET.aml",
+         "vmware-SRAT.aml", "vmware-BOOT.aml", "vmware-FACS1.aml",
+         "vmware-MCFG.aml", "vmware-WAET.aml", "vmware-DSDT.aml",
+         "vmware-FACS2.aml"],
+        ["macbook31-APIC.aml",
+         "macbook31-FACP.aml",
+         "macbook31-MCFG.aml",
+         "macbook31-ASF!.aml",
+         "macbook31-FACS1.aml",
+         "macbook31-SBST.aml",
+         "macbook31-HPET.aml",
+         "macbook31-FACS2.aml",
+         "macbook31-ECDT.aml",
+         "macbook31-DSDT.aml",
+         "macbook31-SSDT1.aml",
+         "macbook31-SSDT2.aml",
+         "macbook31-SSDT3.aml",
+         "macbook31-SSDT4.aml",
+         "macbook31-SSDT5.aml",
+         "macbook31-SSDT6.aml",
+         "macbook31-SSDT7.aml",
+         "macbook31-SSDT8.aml"
         ],
-        [ "qemu/QEMU-DSDT.aml"]
+        [ "qemu-QEMU-DSDT.aml"]
     ]
 
 
@@ -66,7 +66,9 @@ class acpitest: XCTestCase {
         super.setUp()
         if acpi == nil {
             acpi = ACPI()
-            let testDir = "/Users/spse/Files/src/acpi/acpi/test_files"
+            guard let testDir = Bundle.allBundles.first?.resourcePath else {
+                fatalError("Cant fet resourcePath")
+            }
             for file in files[1] {
                 let data = openOrQuit(filename: testDir + "/" + file)
                 data.withUnsafeBytes({
