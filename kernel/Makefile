@@ -73,13 +73,13 @@ kernel.o: SwiftKernel.o
 	ld -r -no_eh_labels -o $@ $(KERNEL_OBJS)
 
 $(SWIFT_OBJS): $(SWIFT_SRCS) $(HEADERS) init/version.swift
-	$(SWIFTC) $(SWIFTC_FLAGS) -whole-module-optimization -module-name $(SWIFT_MODULE) -emit-object -o $@ $(SWIFT_SRCS)
+	$(KSWIFTC) $(KSWIFTC_FLAGS) -whole-module-optimization -module-name $(SWIFT_MODULE) -emit-object -o $@ $(SWIFT_SRCS)
 
 SwiftKernel.sil: $(SWIFT_SRCS) $(HEADERS)
-	$(SWIFTC) $(SWIFTC_FLAGS) -whole-module-optimization -module-name $(SWIFT_MODULE) -emit-sil -o $@ $(SWIFT_SRCS)
+	$(KSWIFTC) $(KSWIFTC_FLAGS) -whole-module-optimization -module-name $(SWIFT_MODULE) -emit-sil -o $@ $(SWIFT_SRCS)
 
 SwiftKernel.silgen: $(SWIFT_SRCS) $(HEADERS)
-	$(SWIFTC) $(SWIFTC_FLAGS) -whole-module-optimization -module-name $(SWIFT_MODULE) -emit-silgen -o $@ $(SWIFT_SRCS)
+	$(KSWIFTC) $(KSWIFTC_FLAGS) -whole-module-optimization -module-name $(SWIFT_MODULE) -emit-silgen -o $@ $(SWIFT_SRCS)
 
 
 sil: SwiftKernel.sil

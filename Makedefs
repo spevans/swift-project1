@@ -5,30 +5,30 @@ NASM_FLAGS := -Werror -p$(TOPDIR)/include/macros.asm
 MODULE_DIR := $(TOPDIR)/modules
 
 # The normal swift compiler
-SWIFT3DIR := $(shell readlink -f ~/swift)
-SWIFT3 := $(SWIFT3DIR)/usr/bin/swift
+SWIFTDIR := $(shell readlink -f ~/swift)
+SWIFT := $(SWIFTDIR)/usr/bin/swift
 
 # The path to the kernel-lib swift compiler
-SWIFTDIR := $(shell readlink -f ~/swift-kernel-20170730)
-SWIFT := $(SWIFTDIR)/usr/bin/swift
-SWIFTC := $(SWIFTDIR)/usr/bin/swiftc
-SWIFTLIBDIR := $(SWIFTDIR)/usr/lib/swift_static/linux
-SWIFTLIBS := $(SWIFTLIBDIR)/libswiftCore.a $(SWIFTLIBDIR)/libswiftImageInspectionStatic.a
-SWIFTC_FLAGS := -gnone -Xfrontend -disable-red-zone -Xcc -mno-red-zone -Xfrontend -mcode-model=kernel -Xcc -mcmodel=kernel -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -std=gnu11 -Xfrontend -warn-long-function-bodies=60000 -DKERNEL
+KSWIFTDIR := $(shell readlink -f ~/swift-kernel-20170730)
+KSWIFT := $(KSWIFTDIR)/usr/bin/swift
+KSWIFTC := $(KSWIFTDIR)/usr/bin/swiftc
+KSWIFTLIBDIR := $(KSWIFTDIR)/usr/lib/swift_static/linux
+KSWIFTLIBS := $(KSWIFTLIBDIR)/libswiftCore.a $(KSWIFTLIBDIR)/libswiftImageInspectionStatic.a
+KSWIFTC_FLAGS := -gnone -Xfrontend -disable-red-zone -Xcc -mno-red-zone -Xfrontend -mcode-model=kernel -Xcc -mcmodel=kernel -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -std=gnu11 -Xfrontend -warn-long-function-bodies=60000 -DKERNEL
 
 CFLAGS := -Wall -std=gnu11 -Wextra -Werror -fno-builtin -fno-stack-protector -fno-common -mno-red-zone -mcmodel=kernel -I$(TOPDIR)/include
 
 ifndef USE_FP
 	CFLAGS := $(CFLAGS) -mno-mmx -mno-sse -mno-sse2 -ffreestanding
-	SWIFTC_FLAGS := $(SWIFTC_FLAGS) -Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2 -Xcc -ffreestanding -Xcc -mcmodel=kernel
+	KSWIFTC_FLAGS := $(KSWIFTC_FLAGS) -Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2 -Xcc -ffreestanding -Xcc -mcmodel=kernel
 endif
 
 
 ifdef BUILD_ONONE
-	SWIFTC_FLAGS += -Onone
-	SWIFTLIBS += $(SWIFTLIBDIR)/libswiftSwiftOnoneSupport.a
+	KSWIFTC_FLAGS += -Onone
+	KSWIFTLIBS += $(KSWIFTLIBDIR)/libswiftSwiftOnoneSupport.a
 else
-	SWIFTC_FLAGS +=-O -Xcc -O3
+	KSWIFTC_FLAGS +=-O -Xcc -O3
 	CFLAGS += -O3
 endif
 
