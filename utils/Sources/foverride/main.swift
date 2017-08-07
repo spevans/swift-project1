@@ -51,10 +51,10 @@ func main() {
     let ptr = rawPtr.bindMemory(to: UInt8.self, capacity: 5)
     let buf = UnsafeMutableBufferPointer(start: ptr, count: 5)
     buf[0] = 0xe9   // jmp with 32bit realative offset
-    buf[1] = UInt8(extendingOrTruncating: offset >> 0)
-    buf[2] = UInt8(extendingOrTruncating: offset >> 8)
-    buf[3] = UInt8(extendingOrTruncating: offset >> 16)
-    buf[4] = UInt8(extendingOrTruncating: offset >> 24)
+    buf[1] = UInt8(truncatingIfNeeded: offset >> 0)
+    buf[2] = UInt8(truncatingIfNeeded: offset >> 8)
+    buf[3] = UInt8(truncatingIfNeeded: offset >> 16)
+    buf[4] = UInt8(truncatingIfNeeded: offset >> 24)
 
     guard bin.write(toFile: binFile, atomically: true) else {
         fatalError("Cant write output")
