@@ -2,39 +2,42 @@
 
 ## What is it?
 
-A project to write a kernel in Swift with that can boot on a Mac or PC.
+A project to write a kernel in Swift that can boot on a Mac or PC.
 The main aim is to get a simple kernel booting up with a CLI with full
 concurrency/thread support.
 
 There is a short writeup about it [here](http://si.org/projects/project1).
 
-## What does it do?
+## Current status
 
-- Boots up Under QEMU/Bochs or on a Macbook as a EFI image (via GRUB) or .iso
-  on a usbkey
-- Scans ACPI/SMBIOS tables
+- Boots up under QEMU, Bochs and VMWare. Also boots on Macbook 3,1 (13inch Late 2007)
 - Installs interrupts and exception/fault handlers
 - Sets up paging
-- Scans PCI bus
-- Initialises the APIC and IO/APIC (or PIC), PIT and PS/2 keyboard controller
-- Setups an APIC timer and PIT timer and shows a test message with interrupt
-  counts.
+- Scans ACPI/SMBIOS tables
+- Parses ACPI tables
+- Initialises the APIC and IO/APIC (or PIC)
+- Scans PCI bus (MMIO or PIO) to show vendor/device IDs
+- Initialises the PIT and PS/2 keyboard controller
+- Sets up an APIC and PIT timers and shows a test message with interrupt counts.
 - Runs a simple task reading keyboard scan codes from a circular buffer and
-  translates them to ASCII codes to show on the screen. The Macbook doesnt
+  translates them to ASCII codes to show on the screen. The Macbook doesn't
   have an i8042 PS/2 keyboard controller so the keyboard will not work.
+
+Currently working on an ACPI AML parser and bytecode interpreter to allow more
+devices to be setup correctly including the Realtime Clock and PCI interrupts.
 
 The next major tasks are:
 
 - ACPI parser and bytecode interpreter to find the full device tree
 - USB controller and USB keyboard driver
-- Bring all processor cores online
-- Run a task on each core to show up concurrency issues
-- Implement locking and mutexs etc to try and solve the concurrency issues
 
 
 ## How to build it
 
-Currently it only builds on linux. It requires:
+_The Xcode project is only used to build unit tests for some of the libraries and the ACPI
+TDD. It cannot build the kernel._
+
+Currently it only builds on Linux. It requires:
 
 * clang
 * nasm (known to work with 2.11.09rc1 but earlier should be ok)
@@ -44,25 +47,25 @@ To build a .iso for a usbkey also requires:
 * mtools
 
 
-A special version of the Swift compiler and stdlib is required to disable the
-red zone and also remove floating point functions from the stdlib library.
-See [here](doc/development.md#red-zone) to build this version. A snapshot can
-be downloaded from (https://github.com/spevans/swift-kstdlib/releases). Normally
-the latest one with the highest date is required. The version required is listed
-in the `Makedefs` file in the `SWIFTDIR` variable eg:
+A special version of the Swift compiler is required with options to disable red zone and
+set the x86_64 memory model to *kernel*. A Swift stdlib compiled with these options is also
+required. A suitable compiler/library can be obtained
+[here](https://github.com/spevans/swift-kstdlib/). A snapshot can be downloaded from
+(https://github.com/spevans/swift-kstdlib/releases). Normally the latest one with the highest
+date is required.
+
+The version required is listed in the `Makedefs` file in the `KSWIFTDIR` variable eg:
 ```
-SWIFTDIR := $(shell readlink -f ~/swift-kernel-20170314)
+KSWIFTDIR := $(shell readlink -f ~/swift-kernel-20170730)
 ```
 
-A normal Swift 3.0 [snapshot](https://swift.org/download/#snapshots) is required
-to build some build tools that patch the image for booting.
+A normal Swift [snapshot](https://swift.org/download/#snapshots) is required to build the
+utilities that patch the image for booting.
 
 You should now have 2 compilers installed, one in `~/swift-kernel-<YYYYMMDD>`
-and the other where ever you installed the snapshot (I install it and symlink
-`~/swift-3` to it).
+and the other wherever you installed the snapshot (I install it and symlink `~/swift` to it).
 
-Edit the `Makedefs` file and alter the `SWIFT3DIR` and `SWIFTDIR` as appropriate.
-
+Edit the `Makedefs` file and alter the `SWIFTDIR` and `KSWIFTDIR` variables as appropriate.
 
 then:
 ```
@@ -72,7 +75,7 @@ $ make
 To run under qemu with a copy of the console output being sent to a virtual
 serial port use:
 ```
-$ qemu-system-x86_64 -hda output/boot-hd.img -serial stdio -D log -d int,cpu_reset,guest_errors,unimp -no-reboot
+$ qemu-system-x86_64 -hda output/boot-hd.img -serial stdio -D log -d cpu_reset,guest_errors,unimp -no-reboot
 ```
 
 There is a bochsrc to specify the HD image so it can be run with:
