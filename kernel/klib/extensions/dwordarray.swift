@@ -14,7 +14,7 @@ struct DWordArray2: Collection, Sequence, CustomStringConvertible {
 
     private(set) var rawValue: UInt64
 
-    var count: DWordArray2.IndexDistance { return 2 }
+    var count: Int { return 2 }
     var isEmpty: Bool { return false }
     var startIndex: Index { return 0 }
     var endIndex: Index { return 2 }

@@ -747,7 +747,7 @@ final class AMLParser {
 
     func addGlobalObject(name: AMLNameString, object: AMLNamedObj) throws {
         let nameStr = name._value
-        guard let ch = nameStr.characters.first,
+        guard let ch = nameStr.first,
             ch == AMLNameString.rootChar else {
             throw AMLError.invalidData(reason: "\(nameStr) is not an absolute name")
         }
@@ -1429,7 +1429,7 @@ final class AMLParser {
                 }
             }
             name.append(ch.character)
-            let nameLen = name.characters.count
+            let nameLen = name.count
             for _ in nameLen...3 {
                 if let currentChar = try nextCharOrEOS() {
                     let ch = try parseNameChar(ch: currentChar)
@@ -1437,7 +1437,7 @@ final class AMLParser {
                 }
             }
             // Strip trailing '_' padding characters
-            while let e = name.characters.last, e == "_" {
+            while let e = name.last, e == "_" {
                 name.remove(at: name.index(before: name.endIndex))
             }
         }

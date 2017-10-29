@@ -158,7 +158,7 @@ struct AMLNameString: AMLSimpleName, AMLTermArg {
         self.value = AMLString(value)
     }
 
-    var isNameSeg: Bool { return (_value.characters.count <= 4) }
+    var isNameSeg: Bool { return (_value.count <= 4) }
 
     static func ==(lhs: AMLNameString, rhs: AMLNameString) -> Bool {
         return lhs._value == rhs._value

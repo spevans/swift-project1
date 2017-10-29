@@ -71,7 +71,7 @@ final class ACPIGlobalObjects {
 
     // Remove leading '\\'
     private func removeRootChar(name: String) -> String {
-        if let f = name.characters.first, f == "\\" {
+        if let f = name.first, f == "\\" {
             var name2 = name
             name2.remove(at: name2.startIndex)
             return name2
@@ -154,7 +154,7 @@ final class ACPIGlobalObjects {
     func getGlobalObject(currentScope: AMLNameString, name: AMLNameString)
         throws -> ACPIObjectNode? {
             let nameStr = name._value
-            guard nameStr.characters.first != nil else {
+            guard nameStr.first != nil else {
                 throw AMLError.invalidData(reason: "string is empty")
             }
 

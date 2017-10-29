@@ -44,7 +44,7 @@ func decodeHID(obj: AMLDataRefObject) -> AMLDataRefObject {
 
 
 func resolveNameTo(scope: AMLNameString, path: AMLNameString) -> AMLNameString {
-    if let x = path._value.characters.first {
+    if let x = path._value.first {
         if x == AMLNameString.rootChar {
             return path
         }
@@ -53,7 +53,7 @@ func resolveNameTo(scope: AMLNameString, path: AMLNameString) -> AMLNameString {
         if x == AMLNameString.parentPrefixChar {
             newPath = ""
             var parts = scope._value.components(separatedBy: AMLNameString.pathSeparatorChar)
-            for ch in path._value.characters {
+            for ch in path._value {
                 if ch == AMLNameString.parentPrefixChar {
                     _ = parts.popLast()
                 } else {

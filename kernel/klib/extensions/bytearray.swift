@@ -13,7 +13,8 @@ struct ByteArray2: Collection, Sequence, CustomStringConvertible {
     typealias Element = UInt8
 
     private(set) var rawValue: UInt16
-    var count: ByteArray4.IndexDistance { return 2 }
+
+    var count: Int { return 2 }
     var isEmpty: Bool { return false }
     var startIndex: Index { return 0 }
     var endIndex: Index { return 2 }
@@ -115,7 +116,8 @@ struct ByteArray4: Collection, Sequence, CustomStringConvertible {
     typealias Element = UInt8
 
     private(set) var rawValue: UInt32
-    var count: ByteArray4.IndexDistance { return 4 }
+
+    var count: Int { return 4 }
     var isEmpty: Bool { return false }
     var startIndex: Index { return 0 }
     var endIndex: Index { return 4 }
@@ -217,7 +219,8 @@ struct ByteArray8: Collection, Sequence, CustomStringConvertible {
     typealias Element = UInt8
 
     private(set) var rawValue: UInt64
-    var count: ByteArray8.IndexDistance { return 8 }
+
+    var count: Int { return 8 }
     var isEmpty: Bool { return false }
     var startIndex: Index { return 0 }
     var endIndex: Index { return 8 }

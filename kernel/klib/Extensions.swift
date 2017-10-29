@@ -35,7 +35,7 @@ extension String {
     func components(separatedBy: Character) -> [String] {
         var result: [String] = []
         var element = ""
-        for ch in self.characters {
+        for ch in self {
             if ch == separatedBy {
                 result.append(element)
                 element = ""
@@ -144,7 +144,7 @@ private func hexDump(buffer: UnsafeBufferPointer<UInt8>) {
         printf("%2.2x ", buffer[idx])
         chars.append(byteAsChar(value: buffer[idx]))
     }
-    let padding = 3 * (16 - chars.characters.count)
+    let padding = 3 * (16 - chars.count)
     if padding > 0 {
         print(String(repeating: " ", count: padding), terminator: "")
     }
