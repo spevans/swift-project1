@@ -17,15 +17,9 @@ extension AMLNameString {
 }
 
 
-func debugPrint(function: String = #function, _ args: Any...) {
-#if false
-    print("DEBUG: ", terminator: "")
-    for x in args {
-        print(x, " ", terminator: "")
-    }
-    print("")
+#if !TEST
+    func debugPrint(function: String = #function, _ args: Any...) {}
 #endif
-}
 
 
 enum AMLError: Error {
