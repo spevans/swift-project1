@@ -11,30 +11,30 @@ import Swift
 
 
 private let files = [
-    ["vmware/FACP.aml", "vmware/APIC.aml", "vmware/HPET.aml",
-     "vmware/SRAT.aml", "vmware/BOOT.aml", "vmware/FACS1.aml",
-     "vmware/MCFG.aml", "vmware/WAET.aml", "vmware/DSDT.aml",
-     "vmware/FACS2.aml"],
-    ["macbook31/APIC.aml",
-     "macbook31/FACP.aml",
-     "macbook31/MCFG.aml",
-     "macbook31/ASF!.aml",
-     "macbook31/FACS1.aml",
-     "macbook31/SBST.aml",
-     "macbook31/HPET.aml",
-     "macbook31/FACS2.aml",
-     "macbook31/ECDT.aml",
-     "macbook31/DSDT.aml",
-     "macbook31/SSDT1.aml",
-     "macbook31/SSDT2.aml",
-     "macbook31/SSDT3.aml",
-     "macbook31/SSDT4.aml",
-     "macbook31/SSDT5.aml",
-     "macbook31/SSDT6.aml",
-     "macbook31/SSDT7.aml",
-     "macbook31/SSDT8.aml"
+    ["vmware-FACP.aml", "vmware-APIC.aml", "vmware-HPET.aml",
+     "vmware-SRAT.aml", "vmware-BOOT.aml", "vmware-FACS1.aml",
+     "vmware-MCFG.aml", "vmware-WAET.aml", "vmware-DSDT.aml",
+     "vmware-FACS2.aml"],
+    ["macbook31-APIC.aml",
+     "macbook31-FACP.aml",
+     "macbook31-MCFG.aml",
+     "macbook31-ASF!.aml",
+     "macbook31-FACS1.aml",
+     "macbook31-SBST.aml",
+     "macbook31-HPET.aml",
+     "macbook31-FACS2.aml",
+     "macbook31-ECDT.aml",
+     "macbook31-DSDT.aml",
+     "macbook31-SSDT1.aml",
+     "macbook31-SSDT2.aml",
+     "macbook31-SSDT3.aml",
+     "macbook31-SSDT4.aml",
+     "macbook31-SSDT5.aml",
+     "macbook31-SSDT6.aml",
+     "macbook31-SSDT7.aml",
+     "macbook31-SSDT8.aml"
     ],
-    [ "qemu/QEMU-DSDT.aml"]
+    [ "QEMU-DSDT.aml"]
 ]
 
 
@@ -55,10 +55,9 @@ func main() {
 
 
 func loadData(_ fileSet: Int) -> ACPI {
-    var testFileDir = Bundle.main.bundlePath.components(separatedBy: "/").dropLast(2)
-    testFileDir.append("acpitest")
-    testFileDir.append("test_files")
-    let testDir = testFileDir.joined(separator: "/")
+
+    var testDir = Bundle.main.resourcePath!
+    testDir.append("/acpitest.xctest/Contents/Resources/")
 
     var acpi = ACPI()
     for file in files[fileSet] {
@@ -71,7 +70,6 @@ func loadData(_ fileSet: Int) -> ACPI {
     _ = acpi.parseAMLTables()
     return acpi
 }
-
 
 
 // Mock functions and types
@@ -89,7 +87,5 @@ extension String {
 func vaddrFromPaddr(_ addr: UInt) -> UInt {
     return addr
 }
-
-
 
 main()

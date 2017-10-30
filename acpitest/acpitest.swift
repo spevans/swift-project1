@@ -61,13 +61,22 @@ class acpitest: XCTestCase {
         return addr
     }
 
+    private func testBundle() -> Bundle {
+        for bundle in Bundle.allBundles {
+            if let bundleId = bundle.bundleIdentifier, bundleId == "org.si.acpi-tests" {
+                return bundle
+            }
+        }
+        fatalError("Cant find test bundle")
+    }
+
 
     override func setUp() {
         super.setUp()
         if acpi == nil {
             acpi = ACPI()
-            guard let testDir = Bundle.allBundles.first?.resourcePath else {
-                fatalError("Cant fet resourcePath")
+            guard let testDir = testBundle().resourcePath else {
+                fatalError("Cant get resourcePath")
             }
             for file in files[1] {
                 let data = openOrQuit(filename: testDir + "/" + file)
@@ -152,14 +161,5 @@ class acpitest: XCTestCase {
             return
         }
     }
-
-
-    func testPerformanceExample() {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
-        }
-    }
-
 }
 
