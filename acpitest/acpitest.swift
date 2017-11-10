@@ -88,7 +88,6 @@ class acpitest: XCTestCase {
             XCTAssertNotNil(acpi.globalObjects)
             globalObjects = acpi.globalObjects
         }
-        // Put setup code here. This method is called before the invocation of each test method in the class.
     }
 
     override func tearDown() {
@@ -107,42 +106,40 @@ class acpitest: XCTestCase {
         }
         XCTAssertNotNil(package)
         XCTAssertEqual(package.elements.count, 3)
-        let data = package.elements.flatMap { $0.asInteger }
+        let data = package.elements.flatMap { ($0 as? AMLIntegerData)?.value }
         XCTAssertEqual(data, [7, 7, 0])
     }
 
 
     func testMethod_PIC() {
-        guard let gpic = globalObjects.getDataRefObject("\\GPIC") else {
+        guard let gpic = globalObjects.getDataRefObject("\\GPIC") as? AMLIntegerData else {
             XCTFail("Cant find object \\_PIC")
             return
         }
-        XCTAssertNotNil(gpic.asInteger)
-        XCTAssertEqual(gpic.asInteger!, 0)
+        XCTAssertNotNil(gpic)
+        XCTAssertEqual(gpic.value, 0)
         let invocation = try? AMLMethodInvocation(method: AMLNameString(value: "\\_PIC"),
                                                   AMLByteConst(1)) // APIC
         XCTAssertNotNil(invocation)
         _ = try? acpi.invokeMethod(invocation: invocation!)
 
-        guard let gpic2 = globalObjects.getDataRefObject("\\GPIC") else {
+        guard let gpic2 = globalObjects.getDataRefObject("\\GPIC") as? AMLIntegerData else {
             XCTFail("Cant find object \\_PIC")
             return
         }
-        XCTAssertNotNil(gpic2.asInteger)
-        XCTAssertEqual(gpic2.asInteger!, 1)
+        XCTAssertEqual(gpic2.value, 1)
     }
 
 
     func testMethod_OSI() {
         do {
-            let result = try acpi.invokeMethod(name: "\\_OSI", "Linux")
-            XCTAssertNotNil(result?.resultAsInteger)
-            XCTAssertEqual(result!.resultAsInteger!, 0)
+            let result = try acpi.invokeMethod(name: "\\_OSI", "Linux") as? AMLIntegerData
+            XCTAssertNotNil(result)
+            XCTAssertEqual(result!.value, 0)
 
-            let result2 = try acpi.invokeMethod(name: "\\_OSI", "Windows")
+            let result2 = try acpi.invokeMethod(name: "\\_OSI", "Darwin") as? AMLIntegerData
             XCTAssertNotNil(result2)
-            XCTAssertTrue(result2 is AMLIntegerData)
-            XCTAssertEqual(result2!.resultAsInteger!, 0xffffffff)
+            XCTAssertEqual(result2!.value, 0xffffffff)
         } catch {
             XCTFail(String(describing: error))
             return
@@ -156,6 +153,21 @@ class acpitest: XCTestCase {
                 return
             }
             _ = try acpi.invokeMethod(invocation: m)
+            guard let osys = globalObjects.getDataRefObject("\\OSYS") else {
+                XCTFail("Cant find object \\OSYS")
+                return
+            }
+
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(value: "\\"),
+                                                   args: [],
+                                                   globalObjects: globalObjects)
+            let x = osys.evaluate(context: &context) as? AMLIntegerData
+            XCTAssertNotNil(x)
+            XCTAssertEqual(x!.value, 10000)
+
+            let ret = try acpi.invokeMethod(name: "\\OSDW") as? AMLIntegerData
+            XCTAssertNotNil(ret)
+            XCTAssertEqual(ret!.value, 1)
         } catch {
             XCTFail(String(describing: error))
             return

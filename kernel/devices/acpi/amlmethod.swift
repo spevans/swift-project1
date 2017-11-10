@@ -25,6 +25,7 @@ extension ACPI {
                 _returnValue = newValue
             }
         }
+        var localObjects: [AMLTermArg?] = Array(repeatElement(nil, count: 8))
 
 
         init(scope: AMLNameString, args: AMLTermArgList,
@@ -34,19 +35,27 @@ extension ACPI {
             self.globalObjects = globalObjects
         }
 
+        func withNewScope(_ newScope: AMLNameString) -> AMLExecutionContext {
+            return AMLExecutionContext(scope: newScope, args: [], globalObjects: globalObjects)
+        }
 
         mutating func execute(termList: AMLTermList) throws {
             for termObj in termList {
-                print("Executing:", termObj)
+                print("Executing:", type(of: termObj))
                 if let op = termObj as? AMLType2Opcode {
+                    // FIXME, should something be done with the result or maybe it should
+                    // only be returned in the context
                     _ = try op.execute(context: &self)
                 } else if let op = termObj as? AMLType1Opcode {
+                    _ = try op.execute(context: &self)
+                } else if let op = termObj as? AMLNamedObj {
+                    _ = try op.execute(context: &self)
+                } else if let op = termObj as? AMLNameSpaceModifierObj {
                     try op.execute(context: &self)
                 } else {
                     fatalError("Unknown op: \(type(of: termObj))")
                 }
                 if endOfMethod {
-                    endOfMethod = false
                     return
                 }
             }
@@ -58,7 +67,7 @@ extension ACPI {
         var methodArgs: AMLTermArgList = []
         for arg in args {
             if let arg = arg as? String {
-                methodArgs.append(AMLNameString(value: arg))
+                methodArgs.append(AMLString(arg))
             } else if let arg = arg as? AMLInteger {
                 methodArgs.append(AMLIntegerData(value: AMLInteger(arg)))
             } else {
@@ -85,8 +94,7 @@ extension ACPI {
         guard let method = obj.object as? AMLMethod else {
             throw AMLError.invalidMethod(reason: "Cant find method: \(name)")
         }
-        let termList = try method.parser.parseTermList()
-        print(termList)
+        let termList = try method.termList()
         var context = AMLExecutionContext(scope: scope,
                                           args: invocation.args,
                                           globalObjects: globalObjects)
@@ -100,10 +108,10 @@ extension ACPI {
         guard args.count == 1 else {
             throw AMLError.invalidData(reason: "_OSI: Should only be 1 arg")
         }
-        guard let arg = args[0].resultAsString else {
+        guard let arg = (args[0] as? AMLString)?.resultAsString else {
             throw AMLError.invalidData(reason: "_OSI: is not a string")
         }
-        if arg.value == "Windows" {
+        if arg.value == "Darwin" {
             return AMLIntegerData(value: 0xffffffff)
         } else {
             return AMLIntegerData(value: 0)

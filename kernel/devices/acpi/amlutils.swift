@@ -35,8 +35,8 @@ private func decodeEISAId(_ id: UInt32) -> AMLDataRefObject {
 
 
 func decodeHID(obj: AMLDataRefObject) -> AMLDataRefObject {
-    if let value = obj.asInteger {
-        return decodeEISAId(UInt32(value))
+    if let value = obj as? AMLIntegerData {
+        return decodeEISAId(UInt32(value.value))
     } else {
         return obj
     }
@@ -45,7 +45,7 @@ func decodeHID(obj: AMLDataRefObject) -> AMLDataRefObject {
 
 func resolveNameTo(scope: AMLNameString, path: AMLNameString) -> AMLNameString {
     if let x = path._value.first {
-        if x == AMLNameString.rootChar {
+        if path.isFullPath {
             return path
         }
         var newScope = scope._value

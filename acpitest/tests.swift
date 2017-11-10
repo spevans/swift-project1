@@ -16,10 +16,13 @@ func checkObjects(_ acpi: ACPI) {
         if let method = object as? AMLMethod, method.flags.argCount == 0 {
             print(name, ":\t", type(of: object), "args: \(method.flags.argCount)")
             do {
+                if name == "\\_SB.PCI0._CRS" {
+                    return
+                }
                 print("Invoking:", name)
                 _ = try acpi.invokeMethod(name: name)
             } catch {
-                print("Cant invoke:", error)
+                fatalError("Cant invoke '\(name)': \(error)")
             }
         }
     }

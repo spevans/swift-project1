@@ -10,13 +10,11 @@
 final class ACPIGlobalObjects {
 
     final class ACPIObjectNode {
-        let name: String //AMLNamedObj
-        //var namedObjects: [AMLNamedObj]
+        let name: String
         var object: AMLNamedObj? = nil
-        var childNodes: [ACPIObjectNode]
+        fileprivate(set) var childNodes: [ACPIObjectNode]    // FIXME: Should be a dictionary of [name: ACPIObjectNode]
 
-        init(name: String, object: AMLNamedObj?,
-             childNodes: [ACPIObjectNode]) {
+        init(name: String, object: AMLNamedObj?, childNodes: [ACPIObjectNode]) {
             self.name = name
             self.object = object
             self.childNodes = childNodes
@@ -37,11 +35,10 @@ final class ACPIGlobalObjects {
     // Predefined objects
     private var globalObjects = ACPIObjectNode(
         name: "\\",
-        //namedObjects: [],
         object: nil,
         childNodes: [
             ACPIObjectNode(name: "_OSI",
-                           object: nil,
+                           object: AMLMethod(flags: AMLMethodFlags(flags: 1), parser: nil),
                            childNodes: []),
 
             ACPIObjectNode(name: "_GL",
@@ -55,7 +52,7 @@ final class ACPIGlobalObjects {
                            childNodes: []),
 
             ACPIObjectNode(name: "_OS",
-                           object: AMLString("Windows"),
+                           object: AMLString("Dawrin"),
                            childNodes: [])
         ])
 
@@ -104,8 +101,7 @@ final class ACPIGlobalObjects {
                 parent = childNode
             } else {
                 let newNode = ACPIObjectNode(name: part,
-                                             //namedObjects: [],
-                                            object: nil,
+                                             object: nil,
                                              childNodes: [])
                     parent.childNodes.append(newNode)
                     parent = newNode
@@ -116,7 +112,7 @@ final class ACPIGlobalObjects {
             fatalError("bad node")
         }
         if parent.object != nil {
-            print("already has object")
+            fatalError("already has object")
         }
         parent.object = fixedObject
     }
@@ -150,17 +146,16 @@ final class ACPIGlobalObjects {
     }
 
 
-
     func getGlobalObject(currentScope: AMLNameString, name: AMLNameString)
-        throws -> ACPIObjectNode? {
+        -> (ACPIObjectNode, String)? {
             let nameStr = name._value
             guard nameStr.first != nil else {
-                throw AMLError.invalidData(reason: "string is empty")
+                fatalError("string is empty")
             }
 
             let fullPath = resolveNameTo(scope: currentScope, path: name)
             if let obj = get(fullPath._value) {
-                return obj
+                return (obj, fullPath._value)
             }
             // Do a search up the tree
             guard name.isNameSeg else {
@@ -174,19 +169,18 @@ final class ACPIGlobalObjects {
                 tmpName.append(AMLNameString.pathSeparatorChar)
                 tmpName.append(name._value)
                 if let obj = get(tmpName) {
-                    return obj
+                    return (obj, tmpName)
                 }
             }
             if nameSegs.count == 1 {
                 var tmpName = "\\"
                 tmpName.append(name._value)
                 if let obj =  get(tmpName) {
-                    return obj
+                    return (obj, tmpName)
                 }
             }
             return nil
     }
-
 
 
     func walkNode(name: String, node: ACPIObjectNode, _ body: (String, ACPIObjectNode) -> Void) {
@@ -204,7 +198,7 @@ final class ACPIGlobalObjects {
         for node in childNodes {
             if (node.name == "_HID" || node.name == "_CID") {
                 if let x = node.object as? AMLDataRefObject {
-                    return decodeHID(obj: x).asString
+                    return decodeHID(obj: x).resultAsString?.value
                 }
             }
         }
@@ -222,7 +216,6 @@ final class ACPIGlobalObjects {
                 var name = path
                 if let hid = HIDForDevice(childNodes: node.childNodes) {
                     name += "\t[\(hid)]"
-                    print(name)
                 }
                 devices.append(name)
             }

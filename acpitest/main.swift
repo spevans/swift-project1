@@ -47,10 +47,19 @@ func openOrQuit(filename: String) -> Data {
 
 
 func main() {
-    let fileSet = 1
-
-    let acpi = loadData(fileSet)
-    checkObjects(acpi)
+    var acpis: [ACPI] = Array()
+    for fileSet in 0...2 {
+        print("Testing fileSet:", fileSet)
+        let acpi = loadData(fileSet)
+        acpis.append(acpi)
+    }
+    #if false
+    for fileSet in 0...2 {
+        print("Testing fileSet:", fileSet)
+        let acpi = acpis[fileSet]
+        checkObjects(acpi)
+    }
+    #endif
 }
 
 

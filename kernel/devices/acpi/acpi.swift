@@ -156,7 +156,8 @@ struct ACPI {
         }
         ssdts.insert(ptr, at: 0) // Put the DSDT first
 
-        let parser = AMLParser()
+        let acpiGlobalObjects = ACPIGlobalObjects()
+        let parser = AMLParser(globalObjects: acpiGlobalObjects)
         do {
             for buffer in ssdts {
                 try parser.parse(amlCode: buffer)
@@ -170,7 +171,7 @@ struct ACPI {
         //parser.parseMethods()
         globalObjects = parser.acpiGlobalObjects
         print("End of AML code")
-        return parser.acpiGlobalObjects
+        return acpiGlobalObjects
     }
 
 

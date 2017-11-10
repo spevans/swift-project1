@@ -1,10 +1,10 @@
 tidy up current parsing,
-use nextSymbol more
+DONE use nextSymbol more
 make error messaging better
 merge parses
 
-rename amlopcodes to amltypes
-remove default in switch
+DONE rename amlopcodes to amltypes
+DONE remove default in switch
 
 subParser
 
@@ -16,7 +16,7 @@ AML parser
 
 - Heavy use of types to get compiler to validate everything
 
-- Avoid default case in switch as reduces validation of any new cases added
+DONE - Avoid default case in switch as reduces validation of any new cases added
 
 - switch/case for tables as created at compile time with extra checking and optimistion
 
@@ -25,7 +25,7 @@ AML parser
 - avoid as many runtime checks that could be done as compile checks
 
 
-- NotOp needs to take a second opcode as a param
+- NotOp needs to take a second opcode as a param - Why??
 
 - Need to deal with generic TermArg since its used for specifci types (=> Integer)
 
@@ -49,3 +49,12 @@ Max subparser recursion depth
 TermArg return type Integer, String etc
 Simplify parseArgs etc and merge with Var args
 Scope modifiers dont need to store the objectList
+
+
+
+- Fix RegionSpace read/write at bitOffset
+- merge If/ElseIf/ElseIf/Else blocks
+- Fix dual invokeMethods, should only be one
+- AMLDefOpRegion Should probably be a class and try to allocate its own region at init()
+- Fix enums to have lowercase first letter
+- use parseTermArgAsInteger for any type that takes a TermArg => Integer
