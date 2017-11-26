@@ -7,14 +7,17 @@
 //
 
 
+protocol AMLObject {
+}
+
 final class ACPIGlobalObjects {
 
     final class ACPIObjectNode {
         let name: String
-        var object: AMLNamedObj? = nil
+        var object: AMLObject? = nil                       // FIXME: lower type?
         fileprivate(set) var childNodes: [ACPIObjectNode]    // FIXME: Should be a dictionary of [name: ACPIObjectNode]
 
-        init(name: String, object: AMLNamedObj?, childNodes: [ACPIObjectNode]) {
+        init(name: String, object: AMLObject?, childNodes: [ACPIObjectNode]) {
             self.name = name
             self.object = object
             self.childNodes = childNodes
@@ -38,7 +41,9 @@ final class ACPIGlobalObjects {
         object: nil,
         childNodes: [
             ACPIObjectNode(name: "_OSI",
-                           object: AMLMethod(flags: AMLMethodFlags(flags: 1), parser: nil),
+                           object: AMLMethod(name: AMLNameString(value: "_OSI"),
+                                             flags: AMLMethodFlags(flags: 1),
+                                             parser: nil),
                            childNodes: []),
 
             ACPIObjectNode(name: "_GL",
@@ -52,7 +57,7 @@ final class ACPIGlobalObjects {
                            childNodes: []),
 
             ACPIObjectNode(name: "_OS",
-                           object: AMLString("Dawrin"),
+                           object: AMLString("Darwin"),
                            childNodes: [])
         ])
 
@@ -77,7 +82,7 @@ final class ACPIGlobalObjects {
     }
 
 
-    func fixup(name: String, object: AMLNamedObj) -> AMLNamedObj {
+    func fixup(name: String, object: AMLObject) -> AMLObject {
         if name == "_HID" || name == "_CID" {
             if let o = object as? AMLDataRefObject {
                 return decodeHID(obj: o)
@@ -87,7 +92,7 @@ final class ACPIGlobalObjects {
     }
 
 
-    func add(_ name: String, _ object: AMLNamedObj) {
+    func add(_ name: String, _ object: AMLObject) {
         print("Adding \(name)", type(of: object))
         var parent = globalObjects
         var nameParts = removeRootChar(name: name).components(
@@ -112,7 +117,7 @@ final class ACPIGlobalObjects {
             fatalError("bad node")
         }
         if parent.object != nil {
-            fatalError("already has object")
+            //FIXME: Can an objeect be overwritten? fatalError("already has object")
         }
         parent.object = fixedObject
     }
@@ -246,7 +251,7 @@ final class ACPIGlobalObjects {
             fatalError("\\ not found")
         }
         walkNode(name: root, node: sb) { (path, node) in
-            if let obj = node.object {
+            if let obj = node.object as? AMLNamedObj {
                 body(path, obj)
             }
         }

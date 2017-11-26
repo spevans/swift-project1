@@ -47,9 +47,9 @@ extension ACPI {
                     // only be returned in the context
                     _ = try op.execute(context: &self)
                 } else if let op = termObj as? AMLType1Opcode {
-                    _ = try op.execute(context: &self)
+                    try op.execute(context: &self)
                 } else if let op = termObj as? AMLNamedObj {
-                    _ = try op.execute(context: &self)
+                    try op.createNamedObject(context: &self)
                 } else if let op = termObj as? AMLNameSpaceModifierObj {
                     try op.execute(context: &self)
                 } else {

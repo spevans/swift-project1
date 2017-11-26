@@ -393,7 +393,8 @@ final class AMLParser {
 
 
     private func parseTermObj(symbol: ParsedSymbol) throws -> AMLTermObj {
-        if let obj = try parseSymbol(symbol: symbol) as? AMLTermObj {
+        let x = try parseSymbol(symbol: symbol)
+        if let obj = x as? AMLTermObj {
             return obj
         }
 
@@ -765,7 +766,7 @@ final class AMLParser {
     }
 
 
-    func addGlobalObject(name: AMLNameString, object: AMLNamedObj) throws {
+    func addGlobalObject(name: AMLNameString, object: AMLObject) throws { // FIXME: object should be AMLNamedObhj or AMLDataRefObject
         let nameStr = name._value
         guard let ch = nameStr.first,
             ch == AMLNameString.rootChar else {
@@ -785,7 +786,6 @@ final class AMLParser {
         let numElements = try parser.nextByte()
         let elements = try parser.parsePackageElementList(numElements: numElements)
         return AMLDefPackage(numElements: numElements, elements: elements)
-
     }
 
 
@@ -810,7 +810,7 @@ final class AMLParser {
     }
 
 
-    private func parseDefName() throws -> AMLDataRefObject {
+    private func parseDefName() throws -> AMLDefName {
         let name = try parseNameString()
         guard let symbol = try nextSymbol() else {
             throw AMLError.invalidSymbol(reason: "parseDefName")
@@ -818,7 +818,7 @@ final class AMLParser {
         if let dataObj = try parseSymbol(symbol: symbol) as? AMLDataRefObject {
             try addGlobalObject(name: resolveNameToCurrentScope(path: name),
                                 object: dataObj)
-            return dataObj //parseDataRefObject(symbol: symbol)
+            return AMLDefName(name: name, value: dataObj)
         }
         throw AMLError.invalidSymbol(reason: "\(symbol) is not an AMLDataRefObject")
     }
@@ -836,10 +836,11 @@ final class AMLParser {
 
     private func parseDefIndexField() throws -> AMLDefIndexField {
         let parser = try subParser()
-        _ = try parser.parseNameString()
         let fieldRef = AMLDefFieldRef()
+
         let result = try AMLDefIndexField(
-                dataName: parser.parseNameString(),
+            name: parser.parseNameString(),
+            dataName: parser.parseNameString(),
             flags: AMLFieldFlags(flags: parser.nextByte()),
             fields: parser.parseFieldList(fieldRef: fieldRef))
         // FIXME
@@ -848,13 +849,13 @@ final class AMLParser {
     }
 
 
-    private func parseDefMethod() throws -> AMLDataRefObject {
+    private func parseDefMethod() throws -> AMLMethod {
         let parser = try subParser()
         let name = try parser.parseNameString()
         let fullPath = resolveNameToCurrentScope(path: name)
         parser.currentScope = fullPath
         let flags = try AMLMethodFlags(flags: parser.nextByte())
-        let m = AMLMethod(flags: flags, parser: parser)
+        let m = AMLMethod(name: name, flags: flags, parser: parser)
 
         try addGlobalObject(name: fullPath, object: m)
         return m
@@ -967,12 +968,12 @@ final class AMLParser {
         }
 
         //var context = ACPI.AMLExecutionContext(scope: currentScope, args: [], globalObjects: acpiGlobalObjects)
-        let offset = try parseTermArgAsInteger()
-        let length = try parseTermArgAsInteger()
+        let offset = try parseTermArg() //AsInteger()
+        let length = try parseTermArg() //AsInteger()
 
         let opRegion = AMLDefOpRegion(name: name, region: region,
-                                      offset: AMLIntegerData(value: offset),
-                                      length: AMLIntegerData(value: length))
+                                      offset: offset,
+                                      length: length)
         try addGlobalObject(name: resolveNameToCurrentScope(path: name),
                             object: opRegion)
         return opRegion
@@ -989,7 +990,7 @@ final class AMLParser {
         let name = try parser.parseNameString()
         parser.currentScope = resolveNameToCurrentScope(path: name)
 
-        return try AMLDefProcessor(//name: name,
+        return try AMLDefProcessor(name: name,
                                    procId: parser.nextByte(),
                                    pblkAddr: parser.nextDWord(),
                                    pblkLen: parser.nextByte(),
@@ -1003,10 +1004,7 @@ final class AMLParser {
 
 
     private func parseDefElse() throws -> AMLDefElse {
-        //debugPrint("bytes left", byteStream.bytesToEnd(), "EOS:", byteStream.bytesToEnd())
-        //debugPrint("endOfStream:", byteStream.endOfStream())
         if byteStream.endOfStream() {
-            // FIXME, maybe just catch
             return AMLDefElse(value: nil)
         }
         let parser = try subParser()
@@ -1034,20 +1032,22 @@ final class AMLParser {
 
         // Look ahead to see if the next opcode is an elseOp otherwise there
         // is nothing more to process in this IfElse so return an empty else block
-        let curPosition = byteStream.position
-        if let symbol = try nextSymbol() {
-            if let op = symbol.currentOpcode, op == .elseOp {
-                guard let _defElse = try parseSymbol(symbol: symbol) as? AMLDefElse else {
-                    fatalError("should be DefElse but got  \(symbol)")
+        if !byteStream.endOfStream() {
+            let curPosition = byteStream.position
+            if let symbol = try nextSymbol() {
+                if let op = symbol.currentOpcode, op == .elseOp {
+                    guard let _defElse = try parseSymbol(symbol: symbol) as? AMLDefElse else {
+                        fatalError("should be DefElse but got  \(symbol)")
+                    }
+                    defElse = _defElse
+                } else {
+                    byteStream.position = curPosition
                 }
-                defElse = _defElse
-            } else {
-                byteStream.position = curPosition
             }
         }
-
         return AMLDefIfElse(predicate: predicate, value: termList,
-                           defElse: defElse)
+                            defElse: defElse)
+
     }
 
 

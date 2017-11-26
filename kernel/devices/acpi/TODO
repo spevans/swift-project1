@@ -25,7 +25,7 @@ DONE - Avoid default case in switch as reduces validation of any new cases added
 - avoid as many runtime checks that could be done as compile checks
 
 
-- NotOp needs to take a second opcode as a param - Why??
+DONE - NotOp needs to take a second opcode as a param - Why?? - ITs the Target!!
 
 - Need to deal with generic TermArg since its used for specifci types (=> Integer)
 
@@ -57,4 +57,4 @@ Scope modifiers dont need to store the objectList
 - Fix dual invokeMethods, should only be one
 - AMLDefOpRegion Should probably be a class and try to allocate its own region at init()
 - Fix enums to have lowercase first letter
-- use parseTermArgAsInteger for any type that takes a TermArg => Integer
+

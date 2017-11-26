@@ -57,6 +57,12 @@
 		B933A7951F2FBA8700FE6846 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7311F2F49C700FE6846 /* Extensions.swift */; };
 		B9AF69D61FBDEB8B0049CB98 /* AcpiReadWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9AF69D51FBDEB8B0049CB98 /* AcpiReadWriteTests.swift */; };
 		B9EE704D1D3D536B006B6AB7 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EE704C1D3D536B006B6AB7 /* main.swift */; };
+		B9EF911E1FC9CACA00D14A2F /* AMLType1Opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF911D1FC9CACA00D14A2F /* AMLType1Opcodes.swift */; };
+		B9EF91201FC9CEB800D14A2F /* AMLType1Opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF911D1FC9CACA00D14A2F /* AMLType1Opcodes.swift */; };
+		B9EF91221FC9D14600D14A2F /* AMLType2Opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91211FC9D14600D14A2F /* AMLType2Opcodes.swift */; };
+		B9EF91231FC9D14600D14A2F /* AMLType2Opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91211FC9D14600D14A2F /* AMLType2Opcodes.swift */; };
+		B9EF91251FC9D6EA00D14A2F /* AMLNamedObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91241FC9D6EA00D14A2F /* AMLNamedObject.swift */; };
+		B9EF91261FC9D6EA00D14A2F /* AMLNamedObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91241FC9D6EA00D14A2F /* AMLNamedObject.swift */; };
 		B9F831F61F38BD20009F24AE /* DSDT.asl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831801F38BBA9009F24AE /* DSDT.asl */; };
 		B9F831F71F38BD20009F24AE /* vmware-APIC.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831951F38BC34009F24AE /* vmware-APIC.aml */; };
 		B9F831F81F38BD20009F24AE /* vmware-APIC.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831941F38BC34009F24AE /* vmware-APIC.dsl */; };
@@ -224,6 +230,9 @@
 		B9E3A9241D40FA210099F826 /* amlsource.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = amlsource.swift; sourceTree = "<group>"; };
 		B9EE70491D3D536B006B6AB7 /* acpi */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = acpi; sourceTree = BUILT_PRODUCTS_DIR; };
 		B9EE704C1D3D536B006B6AB7 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		B9EF911D1FC9CACA00D14A2F /* AMLType1Opcodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AMLType1Opcodes.swift; sourceTree = "<group>"; };
+		B9EF91211FC9D14600D14A2F /* AMLType2Opcodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AMLType2Opcodes.swift; sourceTree = "<group>"; };
+		B9EF91241FC9D6EA00D14A2F /* AMLNamedObject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AMLNamedObject.swift; sourceTree = "<group>"; };
 		B9F831801F38BBA9009F24AE /* DSDT.asl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = DSDT.asl; path = acpitest/test_files/DSDT.asl; sourceTree = SOURCE_ROOT; };
 		B9F831821F38BC33009F24AE /* vmware-SRAT.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware-SRAT.dsl"; sourceTree = "<group>"; };
 		B9F831831F38BC33009F24AE /* vmware-HPET.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware-HPET.aml"; sourceTree = "<group>"; };
@@ -416,6 +425,9 @@
 				B933A6ED1F2F492F00FE6846 /* sbst.swift */,
 				B933A6E91F2F492F00FE6846 /* srat.swift */,
 				B933A6DD1F2F492F00FE6846 /* waet.swift */,
+				B9EF911D1FC9CACA00D14A2F /* AMLType1Opcodes.swift */,
+				B9EF91211FC9D14600D14A2F /* AMLType2Opcodes.swift */,
+				B9EF91241FC9D6EA00D14A2F /* AMLNamedObject.swift */,
 			);
 			path = acpi;
 			sourceTree = "<group>";
@@ -750,6 +762,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B9EF91201FC9CEB800D14A2F /* AMLType1Opcodes.swift in Sources */,
 				B933A7941F2F90C900FE6846 /* acpitest.swift in Sources */,
 				B933A77D1F2F8F1100FE6846 /* acpi.swift in Sources */,
 				B933A77E1F2F8F1100FE6846 /* ACPIGlobalObjects.swift in Sources */,
@@ -762,8 +775,10 @@
 				B933A7831F2F8F1100FE6846 /* boot.swift in Sources */,
 				B933A7841F2F8F1100FE6846 /* ecdt.swift in Sources */,
 				B933A7851F2F8F1100FE6846 /* facp.swift in Sources */,
+				B9EF91261FC9D6EA00D14A2F /* AMLNamedObject.swift in Sources */,
 				B933A7861F2F8F1100FE6846 /* facs.swift in Sources */,
 				B933A7871F2F8F1100FE6846 /* hpet.swift in Sources */,
+				B9EF91231FC9D14600D14A2F /* AMLType2Opcodes.swift in Sources */,
 				B933A7881F2F8F1100FE6846 /* madt.swift in Sources */,
 				B933A7891F2F8F1100FE6846 /* mcfg.swift in Sources */,
 				B933A78A1F2F8F1100FE6846 /* sbst.swift in Sources */,
@@ -784,6 +799,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B9EF911E1FC9CACA00D14A2F /* AMLType1Opcodes.swift in Sources */,
 				B9EE704D1D3D536B006B6AB7 /* main.swift in Sources */,
 				B9F8B9D81EC68BE40030BAE8 /* tests.swift in Sources */,
 				B933A6F81F2F492F00FE6846 /* acpi.swift in Sources */,
@@ -802,10 +818,12 @@
 				B933A6FF1F2F492F00FE6846 /* sbst.swift in Sources */,
 				B933A6FB1F2F492F00FE6846 /* srat.swift in Sources */,
 				B933A6F01F2F492F00FE6846 /* waet.swift in Sources */,
+				B9EF91251FC9D6EA00D14A2F /* AMLNamedObject.swift in Sources */,
 				B933A7361F2F49C700FE6846 /* Extensions.swift in Sources */,
 				B933A7431F2F4A0600FE6846 /* bitarray.swift in Sources */,
 				B933A7411F2F4A0600FE6846 /* dwordarray.swift in Sources */,
 				B933A7401F2F4A0600FE6846 /* bytearray.swift in Sources */,
+				B9EF91221FC9D14600D14A2F /* AMLType2Opcodes.swift in Sources */,
 				B933A7421F2F4A0600FE6846 /* integer.swift in Sources */,
 				B933A74D1F2F4ABC00FE6846 /* address.swift in Sources */,
 			);
