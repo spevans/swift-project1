@@ -19,7 +19,7 @@
 		B933A6F71F2F492F00FE6846 /* amlparser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A6E51F2F492F00FE6846 /* amlparser.swift */; };
 		B933A6F81F2F492F00FE6846 /* acpi.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A6E61F2F492F00FE6846 /* acpi.swift */; };
 		B933A6F91F2F492F00FE6846 /* mcfg.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A6E71F2F492F00FE6846 /* mcfg.swift */; };
-		B933A6FA1F2F492F00FE6846 /* ACPIGlobalObjects.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A6E81F2F492F00FE6846 /* ACPIGlobalObjects.swift */; };
+		B933A6FA1F2F492F00FE6846 /* acpiglobalobjects.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A6E81F2F492F00FE6846 /* acpiglobalobjects.swift */; };
 		B933A6FB1F2F492F00FE6846 /* srat.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A6E91F2F492F00FE6846 /* srat.swift */; };
 		B933A6FC1F2F492F00FE6846 /* madt.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A6EA1F2F492F00FE6846 /* madt.swift */; };
 		B933A6FD1F2F492F00FE6846 /* amlutils.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A6EB1F2F492F00FE6846 /* amlutils.swift */; };
@@ -33,7 +33,7 @@
 		B933A74D1F2F4ABC00FE6846 /* address.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7481F2F4ABC00FE6846 /* address.swift */; };
 		B933A77C1F2F8F0700FE6846 /* address.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7481F2F4ABC00FE6846 /* address.swift */; };
 		B933A77D1F2F8F1100FE6846 /* acpi.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A6E61F2F492F00FE6846 /* acpi.swift */; };
-		B933A77E1F2F8F1100FE6846 /* ACPIGlobalObjects.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A6E81F2F492F00FE6846 /* ACPIGlobalObjects.swift */; };
+		B933A77E1F2F8F1100FE6846 /* acpiglobalobjects.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A6E81F2F492F00FE6846 /* acpiglobalobjects.swift */; };
 		B933A77F1F2F8F1100FE6846 /* amlmethod.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A6E11F2F492F00FE6846 /* amlmethod.swift */; };
 		B933A7801F2F8F1100FE6846 /* amlparser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A6E51F2F492F00FE6846 /* amlparser.swift */; };
 		B933A7811F2F8F1100FE6846 /* amltypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A6EC1F2F492F00FE6846 /* amltypes.swift */; };
@@ -55,73 +55,46 @@
 		B933A7921F2F8F2100FE6846 /* MemoryBufferReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7321F2F49C700FE6846 /* MemoryBufferReader.swift */; };
 		B933A7941F2F90C900FE6846 /* acpitest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7761F2F8D6A00FE6846 /* acpitest.swift */; };
 		B933A7951F2FBA8700FE6846 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7311F2F49C700FE6846 /* Extensions.swift */; };
+		B962BDAB1FD30C0500D42D70 /* amlresourcedata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */; };
+		B962BDAC1FD3116B00D42D70 /* amlresourcedata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */; };
 		B9AF69D61FBDEB8B0049CB98 /* AcpiReadWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9AF69D51FBDEB8B0049CB98 /* AcpiReadWriteTests.swift */; };
+		B9D9C9A71FCF491100326AFD /* AcpiQemuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D9C9A61FCF491100326AFD /* AcpiQemuTests.swift */; };
 		B9EE704D1D3D536B006B6AB7 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EE704C1D3D536B006B6AB7 /* main.swift */; };
-		B9EF911E1FC9CACA00D14A2F /* AMLType1Opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF911D1FC9CACA00D14A2F /* AMLType1Opcodes.swift */; };
-		B9EF91201FC9CEB800D14A2F /* AMLType1Opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF911D1FC9CACA00D14A2F /* AMLType1Opcodes.swift */; };
-		B9EF91221FC9D14600D14A2F /* AMLType2Opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91211FC9D14600D14A2F /* AMLType2Opcodes.swift */; };
-		B9EF91231FC9D14600D14A2F /* AMLType2Opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91211FC9D14600D14A2F /* AMLType2Opcodes.swift */; };
-		B9EF91251FC9D6EA00D14A2F /* AMLNamedObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91241FC9D6EA00D14A2F /* AMLNamedObject.swift */; };
-		B9EF91261FC9D6EA00D14A2F /* AMLNamedObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91241FC9D6EA00D14A2F /* AMLNamedObject.swift */; };
-		B9F831F61F38BD20009F24AE /* DSDT.asl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831801F38BBA9009F24AE /* DSDT.asl */; };
+		B9EF911E1FC9CACA00D14A2F /* amltype1opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF911D1FC9CACA00D14A2F /* amltype1opcodes.swift */; };
+		B9EF91201FC9CEB800D14A2F /* amltype1opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF911D1FC9CACA00D14A2F /* amltype1opcodes.swift */; };
+		B9EF91221FC9D14600D14A2F /* amltype2opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */; };
+		B9EF91231FC9D14600D14A2F /* amltype2opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */; };
+		B9EF91251FC9D6EA00D14A2F /* amlnamedobject.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */; };
+		B9EF91261FC9D6EA00D14A2F /* amlnamedobject.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */; };
 		B9F831F71F38BD20009F24AE /* vmware-APIC.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831951F38BC34009F24AE /* vmware-APIC.aml */; };
-		B9F831F81F38BD20009F24AE /* vmware-APIC.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831941F38BC34009F24AE /* vmware-APIC.dsl */; };
 		B9F831F91F38BD20009F24AE /* vmware-BOOT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831911F38BC34009F24AE /* vmware-BOOT.aml */; };
-		B9F831FA1F38BD20009F24AE /* vmware-BOOT.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831921F38BC34009F24AE /* vmware-BOOT.dsl */; };
 		B9F831FB1F38BD20009F24AE /* vmware-DSDT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831851F38BC33009F24AE /* vmware-DSDT.aml */; };
-		B9F831FC1F38BD20009F24AE /* vmware-DSDT.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831871F38BC34009F24AE /* vmware-DSDT.dsl */; };
 		B9F831FD1F38BD20009F24AE /* vmware-FACP.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F8318F1F38BC34009F24AE /* vmware-FACP.aml */; };
-		B9F831FE1F38BD20009F24AE /* vmware-FACP.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F8318E1F38BC34009F24AE /* vmware-FACP.dsl */; };
 		B9F831FF1F38BD20009F24AE /* vmware-FACS1.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F8318D1F38BC34009F24AE /* vmware-FACS1.aml */; };
-		B9F832001F38BD20009F24AE /* vmware-FACS1.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F8318C1F38BC34009F24AE /* vmware-FACS1.dsl */; };
 		B9F832011F38BD20009F24AE /* vmware-FACS2.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831861F38BC33009F24AE /* vmware-FACS2.aml */; };
-		B9F832021F38BD20009F24AE /* vmware-FACS2.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F8318A1F38BC34009F24AE /* vmware-FACS2.dsl */; };
 		B9F832031F38BD20009F24AE /* vmware-HPET.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831831F38BC33009F24AE /* vmware-HPET.aml */; };
-		B9F832041F38BD20009F24AE /* vmware-HPET.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831931F38BC34009F24AE /* vmware-HPET.dsl */; };
 		B9F832051F38BD20009F24AE /* vmware-MCFG.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831901F38BC34009F24AE /* vmware-MCFG.aml */; };
-		B9F832061F38BD20009F24AE /* vmware-MCFG.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F8318B1F38BC34009F24AE /* vmware-MCFG.dsl */; };
 		B9F832071F38BD20009F24AE /* vmware-SRAT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831891F38BC34009F24AE /* vmware-SRAT.aml */; };
-		B9F832081F38BD20009F24AE /* vmware-SRAT.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831821F38BC33009F24AE /* vmware-SRAT.dsl */; };
 		B9F832091F38BD20009F24AE /* vmware-WAET.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831881F38BC34009F24AE /* vmware-WAET.aml */; };
-		B9F8320A1F38BD20009F24AE /* vmware-WAET.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831841F38BC33009F24AE /* vmware-WAET.dsl */; };
 		B9F8320B1F38BD20009F24AE /* macbook31-APIC.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831C31F38BC43009F24AE /* macbook31-APIC.aml */; };
-		B9F8320C1F38BD20009F24AE /* macbook31-APIC.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831AB1F38BC43009F24AE /* macbook31-APIC.dsl */; };
 		B9F8320D1F38BD20009F24AE /* macbook31-ASF!.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831C51F38BC43009F24AE /* macbook31-ASF!.aml */; };
-		B9F8320E1F38BD20009F24AE /* macbook31-ASF!.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831BF1F38BC43009F24AE /* macbook31-ASF!.dsl */; };
 		B9F8320F1F38BD20009F24AE /* macbook31-DSDT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831C01F38BC43009F24AE /* macbook31-DSDT.aml */; };
-		B9F832101F38BD20009F24AE /* macbook31-DSDT.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831C91F38BC43009F24AE /* macbook31-DSDT.dsl */; };
 		B9F832111F38BD20009F24AE /* macbook31-ECDT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831AF1F38BC43009F24AE /* macbook31-ECDT.aml */; };
-		B9F832121F38BD20009F24AE /* macbook31-ECDT.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831C41F38BC43009F24AE /* macbook31-ECDT.dsl */; };
 		B9F832131F38BD20009F24AE /* macbook31-FACP.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831B21F38BC43009F24AE /* macbook31-FACP.aml */; };
-		B9F832141F38BD20009F24AE /* macbook31-FACP.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831CC1F38BC43009F24AE /* macbook31-FACP.dsl */; };
 		B9F832151F38BD20009F24AE /* macbook31-FACS1.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831B11F38BC43009F24AE /* macbook31-FACS1.aml */; };
-		B9F832161F38BD20009F24AE /* macbook31-FACS1.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831B41F38BC43009F24AE /* macbook31-FACS1.dsl */; };
 		B9F832171F38BD20009F24AE /* macbook31-FACS2.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831BD1F38BC43009F24AE /* macbook31-FACS2.aml */; };
-		B9F832181F38BD20009F24AE /* macbook31-FACS2.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831AE1F38BC43009F24AE /* macbook31-FACS2.dsl */; };
 		B9F832191F38BD20009F24AE /* macbook31-HPET.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831B51F38BC43009F24AE /* macbook31-HPET.aml */; };
-		B9F8321A1F38BD20009F24AE /* macbook31-HPET.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831C81F38BC43009F24AE /* macbook31-HPET.dsl */; };
 		B9F8321B1F38BD20009F24AE /* macbook31-MCFG.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831BB1F38BC43009F24AE /* macbook31-MCFG.aml */; };
-		B9F8321C1F38BD20009F24AE /* macbook31-MCFG.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831CA1F38BC43009F24AE /* macbook31-MCFG.dsl */; };
 		B9F8321D1F38BD20009F24AE /* macbook31-SBST.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831B01F38BC43009F24AE /* macbook31-SBST.aml */; };
-		B9F8321E1F38BD20009F24AE /* macbook31-SBST.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831BE1F38BC43009F24AE /* macbook31-SBST.dsl */; };
 		B9F8321F1F38BD20009F24AE /* macbook31-SSDT1.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831B31F38BC43009F24AE /* macbook31-SSDT1.aml */; };
-		B9F832201F38BD20009F24AE /* macbook31-SSDT1.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831C11F38BC43009F24AE /* macbook31-SSDT1.dsl */; };
 		B9F832211F38BD20009F24AE /* macbook31-SSDT2.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831BC1F38BC43009F24AE /* macbook31-SSDT2.aml */; };
-		B9F832221F38BD20009F24AE /* macbook31-SSDT2.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831C71F38BC43009F24AE /* macbook31-SSDT2.dsl */; };
 		B9F832231F38BD20009F24AE /* macbook31-SSDT3.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831CD1F38BC43009F24AE /* macbook31-SSDT3.aml */; };
-		B9F832241F38BD20009F24AE /* macbook31-SSDT3.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831B61F38BC43009F24AE /* macbook31-SSDT3.dsl */; };
 		B9F832251F38BD20009F24AE /* macbook31-SSDT4.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831C21F38BC43009F24AE /* macbook31-SSDT4.aml */; };
-		B9F832261F38BD20009F24AE /* macbook31-SSDT4.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831B91F38BC43009F24AE /* macbook31-SSDT4.dsl */; };
 		B9F832271F38BD20009F24AE /* macbook31-SSDT5.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831AC1F38BC43009F24AE /* macbook31-SSDT5.aml */; };
-		B9F832281F38BD20009F24AE /* macbook31-SSDT5.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831B71F38BC43009F24AE /* macbook31-SSDT5.dsl */; };
 		B9F832291F38BD20009F24AE /* macbook31-SSDT6.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831AA1F38BC43009F24AE /* macbook31-SSDT6.aml */; };
-		B9F8322A1F38BD20009F24AE /* macbook31-SSDT6.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831BA1F38BC43009F24AE /* macbook31-SSDT6.dsl */; };
 		B9F8322B1F38BD20009F24AE /* macbook31-SSDT7.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831C61F38BC43009F24AE /* macbook31-SSDT7.aml */; };
-		B9F8322C1F38BD20009F24AE /* macbook31-SSDT7.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831CB1F38BC43009F24AE /* macbook31-SSDT7.dsl */; };
 		B9F8322D1F38BD20009F24AE /* macbook31-SSDT8.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831B81F38BC43009F24AE /* macbook31-SSDT8.aml */; };
-		B9F8322E1F38BD20009F24AE /* macbook31-SSDT8.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831AD1F38BC43009F24AE /* macbook31-SSDT8.dsl */; };
 		B9F8322F1F38BD20009F24AE /* QEMU-DSDT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831F31F38BC4B009F24AE /* QEMU-DSDT.aml */; };
-		B9F832301F38BD20009F24AE /* QEMU-DSDT.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F831F21F38BC4B009F24AE /* QEMU-DSDT.dsl */; };
 		B9F8326E1F38BDC6009F24AE /* vmware-APIC.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831951F38BC34009F24AE /* vmware-APIC.aml */; };
 		B9F832701F38BDC6009F24AE /* vmware-BOOT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831911F38BC34009F24AE /* vmware-BOOT.aml */; };
 		B9F832721F38BDC6009F24AE /* vmware-DSDT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831851F38BC33009F24AE /* vmware-DSDT.aml */; };
@@ -166,7 +139,7 @@
 		B933A6E51F2F492F00FE6846 /* amlparser.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = amlparser.swift; sourceTree = "<group>"; };
 		B933A6E61F2F492F00FE6846 /* acpi.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = acpi.swift; sourceTree = "<group>"; };
 		B933A6E71F2F492F00FE6846 /* mcfg.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = mcfg.swift; sourceTree = "<group>"; };
-		B933A6E81F2F492F00FE6846 /* ACPIGlobalObjects.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ACPIGlobalObjects.swift; sourceTree = "<group>"; };
+		B933A6E81F2F492F00FE6846 /* acpiglobalobjects.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = acpiglobalobjects.swift; sourceTree = "<group>"; };
 		B933A6E91F2F492F00FE6846 /* srat.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = srat.swift; sourceTree = "<group>"; };
 		B933A6EA1F2F492F00FE6846 /* madt.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = madt.swift; sourceTree = "<group>"; };
 		B933A6EB1F2F492F00FE6846 /* amlutils.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = amlutils.swift; sourceTree = "<group>"; };
@@ -216,6 +189,7 @@
 		B933A7741F2F8D6A00FE6846 /* acpitest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = acpitest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B933A7761F2F8D6A00FE6846 /* acpitest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = acpitest.swift; sourceTree = "<group>"; };
 		B933A7781F2F8D6A00FE6846 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amlresourcedata.swift; sourceTree = "<group>"; };
 		B9A2C1B01F30ECF9003D4D92 /* TODO */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = TODO; sourceTree = "<group>"; };
 		B9A2C1B11F30ECF9003D4D92 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		B9A2C1B31F30EEC7003D4D92 /* boot */ = {isa = PBXFileReference; lastKnownFileType = folder; path = boot; sourceTree = "<group>"; };
@@ -227,12 +201,13 @@
 		B9A2C1BA1F30EF94003D4D92 /* Makefile */ = {isa = PBXFileReference; explicitFileType = sourcecode.make; fileEncoding = 4; path = Makefile; sourceTree = "<group>"; };
 		B9A2C1BB1F30EF94003D4D92 /* Makedefs */ = {isa = PBXFileReference; explicitFileType = sourcecode.make; fileEncoding = 4; path = Makedefs; sourceTree = "<group>"; };
 		B9AF69D51FBDEB8B0049CB98 /* AcpiReadWriteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcpiReadWriteTests.swift; sourceTree = "<group>"; };
+		B9D9C9A61FCF491100326AFD /* AcpiQemuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcpiQemuTests.swift; sourceTree = "<group>"; };
 		B9E3A9241D40FA210099F826 /* amlsource.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = amlsource.swift; sourceTree = "<group>"; };
 		B9EE70491D3D536B006B6AB7 /* acpi */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = acpi; sourceTree = BUILT_PRODUCTS_DIR; };
 		B9EE704C1D3D536B006B6AB7 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
-		B9EF911D1FC9CACA00D14A2F /* AMLType1Opcodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AMLType1Opcodes.swift; sourceTree = "<group>"; };
-		B9EF91211FC9D14600D14A2F /* AMLType2Opcodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AMLType2Opcodes.swift; sourceTree = "<group>"; };
-		B9EF91241FC9D6EA00D14A2F /* AMLNamedObject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AMLNamedObject.swift; sourceTree = "<group>"; };
+		B9EF911D1FC9CACA00D14A2F /* amltype1opcodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amltype1opcodes.swift; sourceTree = "<group>"; };
+		B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amltype2opcodes.swift; sourceTree = "<group>"; };
+		B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amlnamedobject.swift; sourceTree = "<group>"; };
 		B9F831801F38BBA9009F24AE /* DSDT.asl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = DSDT.asl; path = acpitest/test_files/DSDT.asl; sourceTree = SOURCE_ROOT; };
 		B9F831821F38BC33009F24AE /* vmware-SRAT.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware-SRAT.dsl"; sourceTree = "<group>"; };
 		B9F831831F38BC33009F24AE /* vmware-HPET.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware-HPET.aml"; sourceTree = "<group>"; };
@@ -410,11 +385,6 @@
 			children = (
 				B933A6EE1F2F492F00FE6846 /* TODO */,
 				B933A6E61F2F492F00FE6846 /* acpi.swift */,
-				B933A6E81F2F492F00FE6846 /* ACPIGlobalObjects.swift */,
-				B933A6E11F2F492F00FE6846 /* amlmethod.swift */,
-				B933A6E51F2F492F00FE6846 /* amlparser.swift */,
-				B933A6EC1F2F492F00FE6846 /* amltypes.swift */,
-				B933A6EB1F2F492F00FE6846 /* amlutils.swift */,
 				B933A6E41F2F492F00FE6846 /* boot.swift */,
 				B933A6E31F2F492F00FE6846 /* ecdt.swift */,
 				B933A6DE1F2F492F00FE6846 /* facp.swift */,
@@ -425,9 +395,15 @@
 				B933A6ED1F2F492F00FE6846 /* sbst.swift */,
 				B933A6E91F2F492F00FE6846 /* srat.swift */,
 				B933A6DD1F2F492F00FE6846 /* waet.swift */,
-				B9EF911D1FC9CACA00D14A2F /* AMLType1Opcodes.swift */,
-				B9EF91211FC9D14600D14A2F /* AMLType2Opcodes.swift */,
-				B9EF91241FC9D6EA00D14A2F /* AMLNamedObject.swift */,
+				B933A6E81F2F492F00FE6846 /* acpiglobalobjects.swift */,
+				B933A6E11F2F492F00FE6846 /* amlmethod.swift */,
+				B933A6E51F2F492F00FE6846 /* amlparser.swift */,
+				B933A6EC1F2F492F00FE6846 /* amltypes.swift */,
+				B933A6EB1F2F492F00FE6846 /* amlutils.swift */,
+				B9EF911D1FC9CACA00D14A2F /* amltype1opcodes.swift */,
+				B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */,
+				B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */,
+				B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */,
 			);
 			path = acpi;
 			sourceTree = "<group>";
@@ -474,6 +450,7 @@
 		B9EE704B1D3D536B006B6AB7 /* acpitest */ = {
 			isa = PBXGroup;
 			children = (
+				B9D9C9A61FCF491100326AFD /* AcpiQemuTests.swift */,
 				B9AF69D51FBDEB8B0049CB98 /* AcpiReadWriteTests.swift */,
 				B9F8317C1F38B9C0009F24AE /* test_files */,
 				B93092BE1F31B06900870D1F /* StringTests.swift */,
@@ -657,65 +634,35 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B9F831F61F38BD20009F24AE /* DSDT.asl in Resources */,
 				B9F831F71F38BD20009F24AE /* vmware-APIC.aml in Resources */,
-				B9F831F81F38BD20009F24AE /* vmware-APIC.dsl in Resources */,
 				B9F831F91F38BD20009F24AE /* vmware-BOOT.aml in Resources */,
-				B9F831FA1F38BD20009F24AE /* vmware-BOOT.dsl in Resources */,
 				B9F831FB1F38BD20009F24AE /* vmware-DSDT.aml in Resources */,
-				B9F831FC1F38BD20009F24AE /* vmware-DSDT.dsl in Resources */,
 				B9F831FD1F38BD20009F24AE /* vmware-FACP.aml in Resources */,
-				B9F831FE1F38BD20009F24AE /* vmware-FACP.dsl in Resources */,
 				B9F831FF1F38BD20009F24AE /* vmware-FACS1.aml in Resources */,
-				B9F832001F38BD20009F24AE /* vmware-FACS1.dsl in Resources */,
 				B9F832011F38BD20009F24AE /* vmware-FACS2.aml in Resources */,
-				B9F832021F38BD20009F24AE /* vmware-FACS2.dsl in Resources */,
 				B9F832031F38BD20009F24AE /* vmware-HPET.aml in Resources */,
-				B9F832041F38BD20009F24AE /* vmware-HPET.dsl in Resources */,
 				B9F832051F38BD20009F24AE /* vmware-MCFG.aml in Resources */,
-				B9F832061F38BD20009F24AE /* vmware-MCFG.dsl in Resources */,
 				B9F832071F38BD20009F24AE /* vmware-SRAT.aml in Resources */,
-				B9F832081F38BD20009F24AE /* vmware-SRAT.dsl in Resources */,
 				B9F832091F38BD20009F24AE /* vmware-WAET.aml in Resources */,
-				B9F8320A1F38BD20009F24AE /* vmware-WAET.dsl in Resources */,
 				B9F8320B1F38BD20009F24AE /* macbook31-APIC.aml in Resources */,
-				B9F8320C1F38BD20009F24AE /* macbook31-APIC.dsl in Resources */,
 				B9F8320D1F38BD20009F24AE /* macbook31-ASF!.aml in Resources */,
-				B9F8320E1F38BD20009F24AE /* macbook31-ASF!.dsl in Resources */,
 				B9F8320F1F38BD20009F24AE /* macbook31-DSDT.aml in Resources */,
-				B9F832101F38BD20009F24AE /* macbook31-DSDT.dsl in Resources */,
 				B9F832111F38BD20009F24AE /* macbook31-ECDT.aml in Resources */,
-				B9F832121F38BD20009F24AE /* macbook31-ECDT.dsl in Resources */,
 				B9F832131F38BD20009F24AE /* macbook31-FACP.aml in Resources */,
-				B9F832141F38BD20009F24AE /* macbook31-FACP.dsl in Resources */,
 				B9F832151F38BD20009F24AE /* macbook31-FACS1.aml in Resources */,
-				B9F832161F38BD20009F24AE /* macbook31-FACS1.dsl in Resources */,
 				B9F832171F38BD20009F24AE /* macbook31-FACS2.aml in Resources */,
-				B9F832181F38BD20009F24AE /* macbook31-FACS2.dsl in Resources */,
 				B9F832191F38BD20009F24AE /* macbook31-HPET.aml in Resources */,
-				B9F8321A1F38BD20009F24AE /* macbook31-HPET.dsl in Resources */,
 				B9F8321B1F38BD20009F24AE /* macbook31-MCFG.aml in Resources */,
-				B9F8321C1F38BD20009F24AE /* macbook31-MCFG.dsl in Resources */,
 				B9F8321D1F38BD20009F24AE /* macbook31-SBST.aml in Resources */,
-				B9F8321E1F38BD20009F24AE /* macbook31-SBST.dsl in Resources */,
 				B9F8321F1F38BD20009F24AE /* macbook31-SSDT1.aml in Resources */,
-				B9F832201F38BD20009F24AE /* macbook31-SSDT1.dsl in Resources */,
 				B9F832211F38BD20009F24AE /* macbook31-SSDT2.aml in Resources */,
-				B9F832221F38BD20009F24AE /* macbook31-SSDT2.dsl in Resources */,
 				B9F832231F38BD20009F24AE /* macbook31-SSDT3.aml in Resources */,
-				B9F832241F38BD20009F24AE /* macbook31-SSDT3.dsl in Resources */,
 				B9F832251F38BD20009F24AE /* macbook31-SSDT4.aml in Resources */,
-				B9F832261F38BD20009F24AE /* macbook31-SSDT4.dsl in Resources */,
 				B9F832271F38BD20009F24AE /* macbook31-SSDT5.aml in Resources */,
-				B9F832281F38BD20009F24AE /* macbook31-SSDT5.dsl in Resources */,
 				B9F832291F38BD20009F24AE /* macbook31-SSDT6.aml in Resources */,
-				B9F8322A1F38BD20009F24AE /* macbook31-SSDT6.dsl in Resources */,
 				B9F8322B1F38BD20009F24AE /* macbook31-SSDT7.aml in Resources */,
-				B9F8322C1F38BD20009F24AE /* macbook31-SSDT7.dsl in Resources */,
 				B9F8322D1F38BD20009F24AE /* macbook31-SSDT8.aml in Resources */,
-				B9F8322E1F38BD20009F24AE /* macbook31-SSDT8.dsl in Resources */,
 				B9F8322F1F38BD20009F24AE /* QEMU-DSDT.aml in Resources */,
-				B9F832301F38BD20009F24AE /* QEMU-DSDT.dsl in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -762,10 +709,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B9EF91201FC9CEB800D14A2F /* AMLType1Opcodes.swift in Sources */,
+				B962BDAC1FD3116B00D42D70 /* amlresourcedata.swift in Sources */,
+				B9EF91201FC9CEB800D14A2F /* amltype1opcodes.swift in Sources */,
 				B933A7941F2F90C900FE6846 /* acpitest.swift in Sources */,
 				B933A77D1F2F8F1100FE6846 /* acpi.swift in Sources */,
-				B933A77E1F2F8F1100FE6846 /* ACPIGlobalObjects.swift in Sources */,
+				B933A77E1F2F8F1100FE6846 /* acpiglobalobjects.swift in Sources */,
 				B933A77F1F2F8F1100FE6846 /* amlmethod.swift in Sources */,
 				B933A7801F2F8F1100FE6846 /* amlparser.swift in Sources */,
 				B933A7811F2F8F1100FE6846 /* amltypes.swift in Sources */,
@@ -775,10 +723,10 @@
 				B933A7831F2F8F1100FE6846 /* boot.swift in Sources */,
 				B933A7841F2F8F1100FE6846 /* ecdt.swift in Sources */,
 				B933A7851F2F8F1100FE6846 /* facp.swift in Sources */,
-				B9EF91261FC9D6EA00D14A2F /* AMLNamedObject.swift in Sources */,
+				B9EF91261FC9D6EA00D14A2F /* amlnamedobject.swift in Sources */,
 				B933A7861F2F8F1100FE6846 /* facs.swift in Sources */,
 				B933A7871F2F8F1100FE6846 /* hpet.swift in Sources */,
-				B9EF91231FC9D14600D14A2F /* AMLType2Opcodes.swift in Sources */,
+				B9EF91231FC9D14600D14A2F /* amltype2opcodes.swift in Sources */,
 				B933A7881F2F8F1100FE6846 /* madt.swift in Sources */,
 				B933A7891F2F8F1100FE6846 /* mcfg.swift in Sources */,
 				B933A78A1F2F8F1100FE6846 /* sbst.swift in Sources */,
@@ -791,6 +739,7 @@
 				B933A78E1F2F8F2100FE6846 /* bytearray.swift in Sources */,
 				B933A78F1F2F8F2100FE6846 /* dwordarray.swift in Sources */,
 				B933A7901F2F8F2100FE6846 /* integer.swift in Sources */,
+				B9D9C9A71FCF491100326AFD /* AcpiQemuTests.swift in Sources */,
 				B933A77C1F2F8F0700FE6846 /* address.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -799,12 +748,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B9EF911E1FC9CACA00D14A2F /* AMLType1Opcodes.swift in Sources */,
+				B9EF911E1FC9CACA00D14A2F /* amltype1opcodes.swift in Sources */,
 				B9EE704D1D3D536B006B6AB7 /* main.swift in Sources */,
 				B9F8B9D81EC68BE40030BAE8 /* tests.swift in Sources */,
 				B933A6F81F2F492F00FE6846 /* acpi.swift in Sources */,
 				B933A6FE1F2F492F00FE6846 /* amltypes.swift in Sources */,
-				B933A6FA1F2F492F00FE6846 /* ACPIGlobalObjects.swift in Sources */,
+				B933A6FA1F2F492F00FE6846 /* acpiglobalobjects.swift in Sources */,
 				B933A6F31F2F492F00FE6846 /* amlmethod.swift in Sources */,
 				B933A6F71F2F492F00FE6846 /* amlparser.swift in Sources */,
 				B933A6FD1F2F492F00FE6846 /* amlutils.swift in Sources */,
@@ -818,12 +767,13 @@
 				B933A6FF1F2F492F00FE6846 /* sbst.swift in Sources */,
 				B933A6FB1F2F492F00FE6846 /* srat.swift in Sources */,
 				B933A6F01F2F492F00FE6846 /* waet.swift in Sources */,
-				B9EF91251FC9D6EA00D14A2F /* AMLNamedObject.swift in Sources */,
+				B9EF91251FC9D6EA00D14A2F /* amlnamedobject.swift in Sources */,
 				B933A7361F2F49C700FE6846 /* Extensions.swift in Sources */,
 				B933A7431F2F4A0600FE6846 /* bitarray.swift in Sources */,
 				B933A7411F2F4A0600FE6846 /* dwordarray.swift in Sources */,
 				B933A7401F2F4A0600FE6846 /* bytearray.swift in Sources */,
-				B9EF91221FC9D14600D14A2F /* AMLType2Opcodes.swift in Sources */,
+				B962BDAB1FD30C0500D42D70 /* amlresourcedata.swift in Sources */,
+				B9EF91221FC9D14600D14A2F /* amltype2opcodes.swift in Sources */,
 				B933A7421F2F4A0600FE6846 /* integer.swift in Sources */,
 				B933A74D1F2F4ABC00FE6846 /* address.swift in Sources */,
 			);

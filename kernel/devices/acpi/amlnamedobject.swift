@@ -1,12 +1,14 @@
 //
-//  AMLNamedObject.swift
+//  kernel/devices/acpi/amlnamedobject.swift
 //  project1
 //
 //  Created by Simon Evans on 25/11/2017.
 //  Copyright © 2017 Simon Evans. All rights reserved.
 //
+//  Named Object types
 
 
+// Named Objects
 protocol AMLNamedObj: AMLBuffPkgStrObj, AMLTermObj, AMLObject {
     // FIXME: add the name in here
     var name: AMLNameString { get }
@@ -30,11 +32,6 @@ extension AMLNamedObj {
 }
 
 
-// Named Objects
-
-typealias AMLObjectList = AMLTermList // FIXME: ObjectList should be more specific
-
-
 struct AMLDefDataRegion: AMLNamedObj {
     var isReadOnly: Bool { return false }
 
@@ -51,6 +48,45 @@ struct AMLDefDevice: AMLNamedObj {
     // DeviceOp PkgLength NameString ObjectList
     let name: AMLNameString
     let value: AMLObjectList
+
+
+    func currentResourceSettings(context: inout ACPI.AMLExecutionContext) -> [AMLResourceSetting]? {
+        var fullName = context.scope._value
+        fullName.append("._CRS")    // need AMLNameString to allow add segs
+        guard let node = context.globalObjects.get(fullName), let crs = node.object else {
+            print("Cant find _CRS for \(name) [\(fullName)]")
+            return nil
+        }
+
+        let buffer: AMLBuffer?
+        if let obj = crs as? AMLDefName {
+            buffer = obj.value as? AMLBuffer
+        } else {
+            guard let crsObject = crs as? AMLMethod else {
+                fatalError("CRS object is an \(type(of: crs))")
+            }
+            var tmpContext = context.withNewScope(AMLNameString(value: fullName))
+            buffer = crsObject.readValue(context: &tmpContext) as? AMLBuffer
+        }
+        if buffer != nil {
+            return decodeResourceData(buffer!)
+        } else {
+            return nil
+        }
+    }
+
+    func pnpName(context: inout ACPI.AMLExecutionContext) -> String? {
+        var fullName = context.scope._value
+        fullName.append("._HID")    // need AMLNameString to allow add segs
+        guard let node = context.globalObjects.get(fullName), let hid = node.object else {
+            return nil
+        }
+
+        if let hidName = hid as? AMLDefName {
+            return (decodeHID(obj: hidName.value) as? AMLString)?.value
+        }
+        return nil
+    }
 }
 
 
@@ -87,11 +123,6 @@ final class AMLMethod: AMLNamedObj {
         return false
     }
 
-    //var isReadOnly: Bool { return true }
-    //var asInteger: AMLInteger? { return nil }
-    //var asString: String? { return nil }
-
-
     let name: AMLNameString
     let flags: AMLMethodFlags
     private var parser: AMLParser!
@@ -110,6 +141,16 @@ final class AMLMethod: AMLNamedObj {
             parser = nil
         }
         return _termList!
+    }
+
+    func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        do {
+            let termList = try self.termList()
+            try context.execute(termList: termList)
+            return context.returnValue!
+        } catch {
+            fatalError(String(describing: error))
+        }
     }
 }
 
@@ -308,11 +349,16 @@ struct AMLDefField: AMLNamedObj {
     let name: AMLNameString
     let flags: AMLFieldFlags
     let fields: AMLFieldList
+
+    func createNamedObject(context: inout ACPI.AMLExecutionContext) throws {
+        //let fullPath = resolveNameTo(scope: context.scope, path: name)
+        //context.globalObjects.add(fullPath._value, self)
+    }
 }
 
 
 protocol OpRegionSpace {
-    init (offset: AMLInteger, length: AMLInteger, flags: AMLFieldFlags)
+    init(offset: AMLInteger, length: AMLInteger, flags: AMLFieldFlags)
     func read(bitOffset: Int, width: Int) -> AMLInteger
     func write(bitOffset: Int, width: Int, value: AMLInteger)
 }
@@ -326,7 +372,7 @@ final class EmbeddedControlRegionSpace: OpRegionSpace, CustomStringConvertible {
         return "EmbeddedControlRegionSpace"
     }
 
-    init (offset: AMLInteger, length: AMLInteger, flags: AMLFieldFlags) {
+    init(offset: AMLInteger, length: AMLInteger, flags: AMLFieldFlags) {
         self.flags = flags
         array = Array(repeating: 0, count: Int(length))
     }
@@ -607,13 +653,6 @@ struct AMLDefOpRegion: AMLNamedObj {
     let offset: AMLTermArg // => Integer
     let length: AMLTermArg // => Integer
 
-
-  /*  init(name: AMLNameString, region: AMLRegionSpace, offset: AMLIntegerData, length: AMLIntegerData) {
-        self.name = name
-        self.region = region
-        self.offset = offset
-        self.length = length
-    }*/
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let o = operandAsInteger(operand: offset, context: &context)

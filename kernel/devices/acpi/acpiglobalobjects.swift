@@ -1,21 +1,18 @@
 //
-//  ACPIGlobalObjects.swift
-//  acpi
+//  kernel/devices/acpi/acpigloblobjects.swift
 //
 //  Created by Simon Evans on 28/04/2017.
 //  Copyright © 2017 Simon Evans. All rights reserved.
 //
+//  ACPI Global Namespace
 
-
-protocol AMLObject {
-}
 
 final class ACPIGlobalObjects {
 
     final class ACPIObjectNode {
-        let name: String
-        var object: AMLObject? = nil                       // FIXME: lower type?
-        fileprivate(set) var childNodes: [ACPIObjectNode]    // FIXME: Should be a dictionary of [name: ACPIObjectNode]
+        let name: String                                    // FIXME, if the AMLObject has a name, this is redundant
+        var object: AMLObject? = nil                        // FIXME: show it be optional?
+        fileprivate(set) var childNodes: [ACPIObjectNode]   // FIXME: Should be a dictionary of [name: ACPIObjectNode]
 
         init(name: String, object: AMLObject?, childNodes: [ACPIObjectNode]) {
             self.name = name
@@ -38,7 +35,7 @@ final class ACPIGlobalObjects {
     // Predefined objects
     private var globalObjects = ACPIObjectNode(
         name: "\\",
-        object: nil,
+        object: AMLDefName(name: AMLNameString(value: "\\"), value: AMLIntegerData(value: 0)),
         childNodes: [
             ACPIObjectNode(name: "_OSI",
                            object: AMLMethod(name: AMLNameString(value: "_OSI"),
@@ -53,11 +50,13 @@ final class ACPIGlobalObjects {
                            childNodes: []),
 
             ACPIObjectNode(name: "_REV",
-                           object: AMLRevisionOp(),
+                           object: AMLDefName(name: AMLNameString(value: "_REV"),
+                                              value: AMLIntegerData(value: 2)),
                            childNodes: []),
 
             ACPIObjectNode(name: "_OS",
-                           object: AMLString("Darwin"),
+                           object: AMLDefName(name: AMLNameString(value: "_OS"),
+                                              value: AMLString("Darwin")),
                            childNodes: [])
         ])
 
@@ -82,23 +81,12 @@ final class ACPIGlobalObjects {
     }
 
 
-    func fixup(name: String, object: AMLObject) -> AMLObject {
-        if name == "_HID" || name == "_CID" {
-            if let o = object as? AMLDataRefObject {
-                return decodeHID(obj: o)
-            }
-        }
-        return object
-    }
-
-
     func add(_ name: String, _ object: AMLObject) {
         print("Adding \(name)", type(of: object))
         var parent = globalObjects
         var nameParts = removeRootChar(name: name).components(
             separatedBy: AMLNameString.pathSeparatorChar)
         let nodeName = nameParts.last!
-        let fixedObject = fixup(name: nodeName, object: object)
 
         while nameParts.count > 0 {
             let part = nameParts.removeFirst()
@@ -119,7 +107,7 @@ final class ACPIGlobalObjects {
         if parent.object != nil {
             //FIXME: Can an objeect be overwritten? fatalError("already has object")
         }
-        parent.object = fixedObject
+        parent.object = object
     }
 
 
@@ -145,7 +133,12 @@ final class ACPIGlobalObjects {
 
     func getDataRefObject(_ name: String) -> AMLDataRefObject? {
         if let node = get(name) {
-            return node.object as? AMLDataRefObject
+            if let o = node.object as? AMLDataRefObject {
+                return o
+            }
+            if let o = node.object as? AMLDefName {
+                return o.value
+            }
         }
         return nil
     }
@@ -199,50 +192,10 @@ final class ACPIGlobalObjects {
     }
 
 
-    private func HIDForDevice(childNodes: [ACPIObjectNode]) -> String? {
-        for node in childNodes {
-            if (node.name == "_HID" || node.name == "_CID") {
-                if let x = node.object as? AMLDataRefObject {
-                    return decodeHID(obj: x).resultAsString?.value
-                }
-            }
-        }
-        return nil
-    }
-
-
-    func getDevices() -> [String] {
-        guard let sb = get("\\_SB") else {
-            fatalError("No \\_SB system bus node")
-        }
-        var devices: [String] = []
-        walkNode(name: "\\_SB", node: sb) { (path, node) in
-            if node.object is AMLDefDevice {
-                var name = path
-                if let hid = HIDForDevice(childNodes: node.childNodes) {
-                    name += "\t[\(hid)]"
-                }
-                devices.append(name)
-            }
-        }
-        return devices
-    }
-
-
     func dumpObjects() {
         walkNode(name: "\\", node: globalObjects) { (path, node) in
             print("ACPI: \(path)")
         }
-    }
-
-
-    func dumpDevices() {
-        let devices = getDevices()
-        for device in devices {
-            print(device)
-        }
-        print("Have \(devices.count) devices")
-        return
     }
 
 
@@ -258,3 +211,44 @@ final class ACPIGlobalObjects {
     }
 }
 
+
+// Device methods
+extension ACPIGlobalObjects {
+
+    func dumpDevices() {
+        let devices = getDevices()
+        for device in devices {
+            print(device)
+        }
+        print("Have \(devices.count) devices")
+        return
+    }
+
+
+    func getDevices() -> [(String, AMLDefDevice)] {
+        guard let sb = get("\\_SB") else {
+            fatalError("No \\_SB system bus node")
+        }
+        var devices: [(String, AMLDefDevice)] = []
+        walkNode(name: "\\_SB", node: sb) { (path, node) in
+            if let device = node.object as? AMLDefDevice {
+                devices.append((path, device))
+            }
+        }
+        return devices
+    }
+
+
+    // Find all of the PNP devices and call a closure with the PNP name and resource settings
+    func pnpDevices(_ closure: (String, String, [AMLResourceSetting]) -> Void) {
+        getDevices().forEach { (fullName, device) in
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(value: fullName),
+                                                   args: [],
+                                                   globalObjects: self)
+            if let pnpName = device.pnpName(context: &context),
+                let crs = device.currentResourceSettings(context: &context) {
+                closure(fullName, pnpName, crs)
+            }
+        }
+    }
+}

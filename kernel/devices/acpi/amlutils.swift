@@ -1,10 +1,10 @@
 //
-//  amlutils.swift
-//  acpi
+//  kernel/devices/acpi/amlutils.swift
 //
 //  Created by Simon Evans on 30/04/2017.
 //  Copyright © 2017 Simon Evans. All rights reserved.
 //
+//  ACPI misc utilities
 
 
 // Convert a compressed 32bit EISA type ID to a string

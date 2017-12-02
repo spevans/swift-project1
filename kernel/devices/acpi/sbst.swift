@@ -4,7 +4,7 @@
 //  Created by Simon Evans on 06/05/2017.
 //  Copyright © 2017 Simon Evans. All rights reserved.
 //
-// Smart Battery (SBST) Table.
+//  Smart Battery (SBST) Table.
 
 
 struct SBST: ACPITable, CustomStringConvertible {

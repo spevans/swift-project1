@@ -1,11 +1,10 @@
 /*
- * amltypes.swift
+ * kernel/devices/acpi/amltypes.swift
  *
  * Created by Simon Evans on 05/07/2016.
- * Copyright © 2016 Simon Evans. All rights reserved.
+ * Copyright © 2016, 2017 Simon Evans. All rights reserved.
  *
  * AML Type and Opcode definitions
- *
  */
 
 
@@ -30,22 +29,29 @@ protocol AMLTermArg {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg
 }
 
+
 extension AMLTermArg {
     func canBeConverted(to: AMLDataRefObject) -> Bool {
         return false
     }
-    var resultAsString: AMLString? { return nil }
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         return self
     }
 }
 
 
+protocol AMLObject {
+    var name: AMLNameString { get }
+}
+
+typealias AMLObjectList = [AMLObject] // FIXME: ObjectList should be more specific
+
+
 protocol AMLBuffPkgStrObj: AMLTermArg {
 }
 
 
-protocol AMLDataRefObject: AMLBuffPkgStrObj, AMLObject {
+protocol AMLDataRefObject: AMLBuffPkgStrObj {
     var isReadOnly: Bool { get }
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext)
 }
@@ -82,27 +88,29 @@ extension AMLSuperName {
     }
 }
 
-
-protocol AMLSimpleName: AMLSuperName {
-}
-
-
-protocol AMLNameSpaceModifierObj: AMLTermObj {
+protocol AMLNameSpaceModifierObj: AMLTermObj, AMLObject {
     //var name: AMLNameString { get }
     func execute(context: inout ACPI.AMLExecutionContext) throws
 }
 
+protocol AMLSimpleName: AMLSuperName {}
+protocol AMLType6Opcode: AMLSuperName, AMLBuffPkgStrObj {}
+protocol AMLDataObject: AMLDataRefObject {}
+protocol AMLComputationalData: AMLDataObject {}
+protocol AMLFieldElement {}
+protocol AMLConnectField: AMLFieldElement {}
+protocol AMLConstObj: AMLComputationalData {}
 
-protocol AMLType6Opcode: AMLSuperName, AMLBuffPkgStrObj {
+extension AMLConstObj {
+    var isReadOnly: Bool { return true }
 }
 
-
-protocol AMLDataObject: AMLDataRefObject {
-}
-
-
-protocol AMLComputationalData: AMLDataObject {
-}
+typealias AMLFieldList = [AMLFieldElement]
+typealias AMLPredicate = AMLTermArg // => Integer
+typealias AMLDDBHandleObject = AMLSuperName
+typealias AMLMutexObject = AMLSuperName
+typealias AMLEventObject = AMLSuperName
+typealias AMLObjectReference = AMLInteger
 
 
 class AMLIntegerData: AMLDataObject, AMLTermArg, AMLTermObj {
@@ -142,10 +150,7 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
         return false
     }
 
-    var resultAsString: AMLString? {
-        return AMLString(_value)
-    }
-    var _value: String
+    let _value: String
 
     init(value: String) {
         _value = value
@@ -166,14 +171,24 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
     }
 
 
-    func replaceLastSeg(with newSeg: AMLNameString) -> AMLNameString {
+    func replaceLastSeg(with newSeg: AMLNameString?) -> AMLNameString {
         let seperator = AMLNameString.pathSeparatorChar
         var parentSegs = self._value.components(separatedBy: seperator)
         //let child = newSeg._value.components(separatedBy: seperator).last()
         parentSegs.removeLast()
-        parentSegs.append(newSeg._value)
+        if let segment = newSeg {
+            parentSegs.append(segment._value)
+        }
+        if parentSegs.count == 0 {
+            return AMLNameString(value: "\\")
+        }
         let result = parentSegs.joined(separator: String(seperator))
         return AMLNameString(value: result)
+    }
+
+
+    func removeLastSeg() -> AMLNameString {
+        return replaceLastSeg(with: nil)
     }
 
 
@@ -192,7 +207,7 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let scope = context.scope
-        guard let (node, fullName) = context.globalObjects.getGlobalObject(currentScope: scope,
+        guard let (node, fullPath) = context.globalObjects.getGlobalObject(currentScope: scope,
                                                                            name: self) else {
             fatalError("Cant find node: \(_value)")
         }
@@ -200,7 +215,8 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
             fatalError("Cant find namedObj: \(_value)")
         }
         if let fieldElement = namedObject as? AMLNamedField {
-            var tmpContext = ACPI.AMLExecutionContext(scope: AMLNameString(value: fullName),
+            let resolvedScope = AMLNameString(value: fullPath).removeLastSeg()
+            var tmpContext = ACPI.AMLExecutionContext(scope: resolvedScope,
                                                       args: [],
                                                       globalObjects: context.globalObjects)
             return fieldElement.evaluate(context: &tmpContext)
@@ -210,27 +226,25 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
             return n.readValue(context: &context)
         } else if let termArg = namedObject as? AMLTermArg {
             return termArg
+        } else if let namedObj = namedObject as? AMLDefName {
+            return namedObj.value
         } else {
             fatalError("namedObject: \(namedObject) could not execute")
         }
     }
 
 
-
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         print("Updating value of \(self) to \(to)")
-        // Update Va
+        // Update Value
     }
 }
 
 
-//FIXME, also an AMLNAmePath, Should it even exist as a type???
 struct AMLNullName: AMLTarget {
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         // Ignore Updates to nullname
-        print("Ignoring update of \(to) to \(self)")
     }
-    // 0x00
 }
 
 
@@ -249,7 +263,7 @@ struct AMLMethodFlags {
         self.flags = flags
     }
 
-    init (argCount: Int, isSerialized: Bool, syncLevel: Int) {
+    init(argCount: Int, isSerialized: Bool, syncLevel: Int) {
         var f = UInt8(UInt8(argCount) & 0x7)
         f |= isSerialized ? 8 : 0
         f |= UInt8((syncLevel & 0xf) << 4)
@@ -264,14 +278,13 @@ struct AMLMutexFlags {
 
     let flags: AMLByteData
 
-
     init() {
         self.flags = 0
     }
+
     init(flags: AMLByteData) throws {
         try self.init(syncLevel: flags)
     }
-
 
     init(syncLevel: UInt8) throws {
         guard syncLevel & 0x0f == syncLevel else {
@@ -313,9 +326,6 @@ struct AMLArgObj: AMLTermArg, AMLSimpleName, AMLBuffPkgStrObj, AMLTermObj {
 
 
 struct AMLLocalObj: AMLTermArg, AMLSimpleName, AMLBuffPkgStrObj, AMLTermObj {
-
-
-
     let opcode: AMLOpcode      // FIXME needs better type
     var argIdx: Int { return Int(opcode.rawValue - AMLOpcode.local0Op.rawValue) }
 
@@ -354,17 +364,7 @@ struct AMLDebugObj: AMLSuperName, AMLDataRefObject, AMLTarget {
 }
 
 
-// AMLNamedObj
-protocol AMLFieldElement {
-}
-
-protocol AMLConnectField: AMLFieldElement {
-}
-
-
-typealias AMLFieldList = [AMLFieldElement]
-
-struct AMLNamedField: AMLFieldElement, AMLDataObject {
+struct AMLNamedField: AMLFieldElement, AMLDataObject, AMLNamedObj {
     var isReadOnly: Bool = false
 
     let name: AMLNameString
@@ -409,7 +409,12 @@ struct AMLNamedField: AMLFieldElement, AMLDataObject {
                 if let opRegion = opNode.object as? AMLDefOpRegion {
                     fieldRef.opRegion = opRegion
                     return
+                } else {
+                    print("opNode", opNode)
                 }
+
+            } else {
+                fatalError("Cant find \(opRegionName) in \(context.scope)")
             }
             fatalError("No valid opRegion found")
         }
@@ -465,47 +470,38 @@ struct AMLDefName: AMLNameSpaceModifierObj {
 
     func execute(context: inout ACPI.AMLExecutionContext) throws {
         let fullPath = resolveNameTo(scope: context.scope, path: name)
-        context.globalObjects.add(fullPath._value, value)
+        context.globalObjects.add(fullPath._value, self)
+    }
+
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
+        return value
     }
 }
 
 
-
 struct AMLDefScope: AMLNameSpaceModifierObj {
+    // ScopeOp PkgLength NameString TermList
+    let name: AMLNameString
+    let value: AMLTermList
+
+
     func execute(context: inout ACPI.AMLExecutionContext) throws {
         throw AMLError.unimplemented("\(type(of: self))")
 
     }
-
-    // ScopeOp PkgLength NameString TermList
-    let name: AMLNameString
-    let value: AMLTermList
 }
 
 
-
-
-
-typealias AMLPredicate = AMLTermArg // => Integer
-typealias AMLDDBHandleObject = AMLSuperName
-
-
-
-typealias AMLMutexObject = AMLSuperName
 struct AMLDefRelease: AMLType1Opcode {
     // ReleaseOp MutexObject
     let object: AMLMutexObject
 }
 
 
-typealias AMLEventObject = AMLSuperName
 struct AMLEvent {
     // EventOp NameString
     let name: AMLNameString
 }
-
-
-
 
 
 // AMLType6Opcode
@@ -524,9 +520,11 @@ func AMLWordConst(_ v: AMLWordData) -> AMLIntegerData {
     return AMLIntegerData(value: AMLInteger(v))
 }
 
+
 func AMLDWordConst(_ v: AMLDWordData) -> AMLIntegerData {
     return AMLIntegerData(value: AMLInteger(v))
 }
+
 
 func AMLQWordConst(_ v: AMLQWordData) -> AMLIntegerData {
     return AMLIntegerData(value: AMLInteger(v))
@@ -534,24 +532,12 @@ func AMLQWordConst(_ v: AMLQWordData) -> AMLIntegerData {
 
 
 struct AMLString: AMLDataRefObject, AMLTermObj {
-
-    var asString: String? { return self.value }
     var isReadOnly: Bool { return false }
-    var resultAsString: AMLString? { return self }
-
     var value: String
 
     init(_ v: String) {
         value = v
     }
-}
-
-
-protocol AMLConstObj: AMLComputationalData {
-}
-
-extension AMLConstObj {
-    var isReadOnly: Bool { return true }
 }
 
 
@@ -566,6 +552,7 @@ struct AMLZeroOp: AMLConstObj {
     }
 }
 
+
 struct AMLOneOp: AMLConstObj {
     // OneOp
     func canBeConverted(to: AMLDataRefObject) -> Bool {
@@ -576,6 +563,7 @@ struct AMLOneOp: AMLConstObj {
         return AMLIntegerData(value: 1)
     }
 }
+
 
 struct AMLOnesOp: AMLConstObj {
     // OnesOp
@@ -598,15 +586,10 @@ struct AMLRevisionOp: AMLConstObj {
 
 // AMLDataObject
 struct AMLDDBHandle: AMLDataRefObject {
-    var asString: String? { return String(value) }
     let isReadOnly = true
 
     let value: AMLInteger
 }
-
-
-typealias AMLObjectReference = AMLInteger
-
 
 
 // opcode or character
@@ -688,7 +671,6 @@ struct AMLCharSymbol: AMLSymbol, Equatable {
 func ==(lhs: AMLCharSymbol, rhs: AMLCharSymbol) -> Bool {
     return lhs.character == rhs.character
 }
-
 
 
 enum AMLOpcode: UInt16, AMLSymbol {

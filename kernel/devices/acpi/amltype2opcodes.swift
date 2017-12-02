@@ -1,10 +1,10 @@
 //
-//  AMLType2Opcodes.swift
-//  project1
+//  kernel/devices/acpi/amltype2ocodes.swift
 //
 //  Created by Simon Evans on 25/11/2017.
 //  Copyright © 2017 Simon Evans. All rights reserved.
 //
+//  ACPI Type 2 Opcodes
 
 protocol AMLType2Opcode: AMLTermObj, AMLTermArg {
     func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg
@@ -89,8 +89,6 @@ struct AMLDefAnd: AMLType2Opcode {
 
 
 struct AMLBuffer: AMLBuffPkgStrObj, AMLType2Opcode, AMLComputationalData {
-
-    var asString: String? { return nil }
     var isReadOnly: Bool { return true }
 
     // BufferOp PkgLength BufferSize ByteList
@@ -99,7 +97,10 @@ struct AMLBuffer: AMLBuffPkgStrObj, AMLType2Opcode, AMLComputationalData {
 
 
     func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
+        guard let result = size.evaluate(context: &context) as? AMLIntegerData else {
+            fatalError("\(size) does not evaluate to an integer")
+        }
+        return result
     }
 }
 
@@ -129,7 +130,16 @@ struct AMLDefConcatRes: AMLType2Opcode {
 
 
     func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
+        guard let buf1 = data1.evaluate(context: &context) as? AMLBuffer,
+            let buf2 = data2.evaluate(context: &context) as? AMLBuffer else {
+                fatalError("cant evaulate to buffers")
+        }
+        // Fixme, iterate validating the individual entries and add an endtag
+        let result = Array(buf1.value[0..<buf1.value.count-2]) + buf2.value
+
+        let newBuffer = AMLBuffer(size: AMLIntegerData(value: AMLInteger(result.count)), value: result)
+        target.updateValue(to: newBuffer, context: &context)
+        return newBuffer
     }
 }
 
@@ -217,7 +227,6 @@ struct AMLDefDerefOf: AMLType2Opcode, AMLType6Opcode {
 typealias AMLDividend = AMLTermArg // => Integer
 typealias AMLDivisor = AMLTermArg // => Integer
 struct AMLDefDivide: AMLType2Opcode {
-
 
     // DivideOp Dividend Divisor Remainder Quotient
     let dividend: AMLDividend
@@ -670,8 +679,6 @@ struct AMLDefPackage: AMLBuffPkgStrObj, AMLType2Opcode, AMLDataObject, AMLTermAr
 
     var isReadOnly: Bool { return false }
 
-    var asString: String? { fatalError("package to string") }
-
     // PackageOp PkgLength NumElements PackageElementList
     //let pkgLength: AMLPkgLength
     let numElements: AMLByteData
@@ -809,7 +816,8 @@ struct AMLDefStore: AMLType2Opcode {
         //  guard source.canBeConverted(to: target) else {
         //      fatalError("\(source) can not be converted to \(target)")
         //  }
-        var tmpContext = ACPI.AMLExecutionContext(scope: AMLNameString(value: fullPath),
+        let resolvedScope = AMLNameString(value: fullPath).removeLastSeg()
+        var tmpContext = ACPI.AMLExecutionContext(scope: resolvedScope,
                                                   args: context.args,
                                                   globalObjects: context.globalObjects)
 
@@ -818,8 +826,10 @@ struct AMLDefStore: AMLType2Opcode {
         }
         else if let no = dest.object as? AMLDataRefObject {
             no.updateValue(to: source, context: &tmpContext)
+        } else if let no = dest.object as? AMLDefName {
+            no.value.updateValue(to: source, context: &tmpContext)
         } else {
-            fatalError("Cant store \(source) into \(dest.object)")
+            fatalError("Cant store \(source) into \(String(describing: dest.object))")
         }
 
         return v
@@ -940,7 +950,6 @@ struct AMLDefToString: AMLType2Opcode {
 
 
 struct AMLDefWait: AMLType2Opcode {
-
     // WaitOp EventObject Operand
     let object: AMLEventObject
     let operand: AMLOperand
@@ -974,8 +983,6 @@ struct AMLDefXor: AMLType2Opcode {
 
 
 struct AMLMethodInvocation: AMLType2Opcode {
-
-
     // NameString TermArgList
     let method: AMLNameString
     let args: AMLTermArgList
@@ -1009,7 +1016,6 @@ struct AMLMethodInvocation: AMLType2Opcode {
 
     private func _invokeMethod(invocation: AMLMethodInvocation,
                                context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg? {
-
         let name = invocation.method._value
         if name == "\\_OSI" || name == "_OSI" {
             return try _OSI_Method(invocation.args)
@@ -1017,8 +1023,8 @@ struct AMLMethodInvocation: AMLType2Opcode {
 
         //let scope = invocation.method
         guard let (obj, fullPath) = context.globalObjects.getGlobalObject(currentScope: context.scope,
-                                                                          name: invocation.method) else {
-                                                                            throw AMLError.invalidMethod(reason: "Cant find method: \(name)")
+                                                                               name: invocation.method) else {
+                                                                                throw AMLError.invalidMethod(reason: "Cant find method: \(name)")
         }
         guard let method = obj.object as? AMLMethod else {
             throw AMLError.invalidMethod(reason: "\(name) [\(String(describing:obj.object))] is not an AMLMethod")
@@ -1028,7 +1034,6 @@ struct AMLMethodInvocation: AMLType2Opcode {
         var newContext = ACPI.AMLExecutionContext(scope: AMLNameString(value: fullPath),
                                                   args: newArgs,
                                                   globalObjects: context.globalObjects)
-        //            context.withNewScope(AMLNameString(value: fullPath))   //invocation.method)
         try newContext.execute(termList: termList)
         context.returnValue = newContext.returnValue
         return context.returnValue

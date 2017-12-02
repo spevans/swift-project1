@@ -4,7 +4,7 @@
 //  Created by Simon Evans on 07/05/2017.
 //  Copyright © 2017 Simon Evans. All rights reserved.
 //
-// Parsing of System Resource Affinity Table (SRAT)
+//  Parsing of System Resource Affinity Table (SRAT)
 
 protocol SRATAffinityEntry {
 }

@@ -1,11 +1,10 @@
 /*
- * amlparser.swift
+ * kernel/devices/acpi/amlparser.swift
  *
  * Created by Simon Evans on 05/07/2016.
- * Copyright © 2016 Simon Evans. All rights reserved.
+ * Copyright © 2016, 2017 Simon Evans. All rights reserved.
  *
  * AML Parser
- *
  */
 
 
@@ -320,7 +319,8 @@ final class AMLParser {
             let termObj = try parseTermObj(symbol: symbol)
             termList.append(termObj)
             } catch {
-                fatalError("\(error)")
+                //fatalError("\(error)")
+                print("Skipping invalid method:", error)
             }
         }
         return termList
@@ -329,7 +329,14 @@ final class AMLParser {
 
     // FIXME: parse objects to a more specific type
     private func parseObjectList() throws -> AMLObjectList {
-        return try parseTermList()
+        var objectList: [AMLObject] = []
+        for obj in try parseTermList() {
+            guard let amlObj = obj as? AMLObject else {
+                fatalError("\(obj) is not an AMLObject")
+            }
+            objectList.append(amlObj)
+        }
+        return objectList
     }
 
 
@@ -816,9 +823,10 @@ final class AMLParser {
             throw AMLError.invalidSymbol(reason: "parseDefName")
         }
         if let dataObj = try parseSymbol(symbol: symbol) as? AMLDataRefObject {
+            let obj = AMLDefName(name: name, value: dataObj)
             try addGlobalObject(name: resolveNameToCurrentScope(path: name),
-                                object: dataObj)
-            return AMLDefName(name: name, value: dataObj)
+                                object: obj)
+            return obj
         }
         throw AMLError.invalidSymbol(reason: "\(symbol) is not an AMLDataRefObject")
     }
@@ -872,7 +880,6 @@ final class AMLParser {
 
 
     private func parseDefBankField() throws -> AMLDefBankField {
-     //   return try parseVarArgs(opcode: .bankFieldOp)
         throw AMLError.unimplemented()
     }
 
@@ -941,8 +948,12 @@ final class AMLParser {
         let parser = try subParser()
         let name = try parser.parseNameString()
         let fqn = resolveNameToCurrentScope(path: name)
+        // open a new scope.
         parser.currentScope = fqn
-        let dev = try AMLDefDevice(name: name, value: parser.parseTermList())
+        _ = try parser.parseObjectList()
+
+        // No need to store any subobject as they get added to the tree as named objects themselves.
+        let dev = AMLDefDevice(name: name, value: [])
         try addGlobalObject(name: fqn, object: dev)
         return dev
     }

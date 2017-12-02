@@ -4,7 +4,7 @@
 //  Created by Simon Evans on 29/04/2017.
 //  Copyright © 2017 Simon Evans. All rights reserved.
 //
-// Parsing of High Precision Event Timer (HPET).
+//  Parsing of High Precision Event Timer (HPET).
 
 struct HPET: ACPITable, CustomStringConvertible {
 

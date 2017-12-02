@@ -4,7 +4,7 @@
 //  Created by Simon Evans on 07/05/2017.
 //  Copyright © 2017 Simon Evans. All rights reserved.
 //
-// Parsing of Windows ACPI Enlightenment Table (WAET) Table.
+//  Parsing of Windows ACPI Enlightenment Table (WAET) Table.
 
 struct WAET: ACPITable, CustomStringConvertible {
 

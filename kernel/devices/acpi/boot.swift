@@ -1,5 +1,5 @@
 //
-//  kernel/devices/boot.swift
+//  kernel/devices/acpi/boot.swift
 //
 //  Created by Simon Evans on 07/05/2017.
 //  Copyright © 2017 Simon Evans. All rights reserved.

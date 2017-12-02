@@ -4,7 +4,7 @@
 //  Created by Simon Evans on 07/05/2017.
 //  Copyright © 2017 Simon Evans. All rights reserved.
 //
-// Parsing of Firmware ACPI Control Structure (FACS).
+//  Parsing of Firmware ACPI Control Structure (FACS).
 
 struct FACS: ACPITable, CustomStringConvertible {
 

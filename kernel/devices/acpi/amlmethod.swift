@@ -1,10 +1,10 @@
 //
 //  kernel/devices/acpi/amlmethod.swift
-//  acpi
 //
 //  Created by Simon Evans on 12/05/2017.
 //  Copyright © 2017 Simon Evans. All rights reserved.
 //
+//  ACPI method invocation
 
 extension ACPI {
 
@@ -41,7 +41,6 @@ extension ACPI {
 
         mutating func execute(termList: AMLTermList) throws {
             for termObj in termList {
-                print("Executing:", type(of: termObj))
                 if let op = termObj as? AMLType2Opcode {
                     // FIXME, should something be done with the result or maybe it should
                     // only be returned in the context
@@ -108,7 +107,7 @@ extension ACPI {
         guard args.count == 1 else {
             throw AMLError.invalidData(reason: "_OSI: Should only be 1 arg")
         }
-        guard let arg = (args[0] as? AMLString)?.resultAsString else {
+        guard let arg = args[0] as? AMLString else {
             throw AMLError.invalidData(reason: "_OSI: is not a string")
         }
         if arg.value == "Darwin" {

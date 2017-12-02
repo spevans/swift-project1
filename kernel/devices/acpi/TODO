@@ -8,31 +8,23 @@ DONE remove default in switch
 
 subParser
 
-in amlparser extend each type with an init method that reads from the byte stream
-
 * Dont use recursion
 
 AML parser
 
-- Heavy use of types to get compiler to validate everything
+DONE - Heavy use of types to get compiler to validate everything
 
 DONE - Avoid default case in switch as reduces validation of any new cases added
 
 - switch/case for tables as created at compile time with extra checking and optimistion
 
 - protocol just used to mark types for now
-
 - avoid as many runtime checks that could be done as compile checks
 
 
 DONE - NotOp needs to take a second opcode as a param - Why?? - ITs the Target!!
-
-- Need to deal with generic TermArg since its used for specifci types (=> Integer)
-
-
+DONE - Need to deal with generic TermArg since its used for specifci types (=> Integer)
 AML interpreter/bytecode
-
-
 
 -- Sections
 
@@ -46,7 +38,7 @@ AML interpreter/bytecode
 
 Expand names re Scope
 Max subparser recursion depth
-TermArg return type Integer, String etc
+DONE TermArg return type Integer, String etc
 Simplify parseArgs etc and merge with Var args
 Scope modifiers dont need to store the objectList
 
@@ -57,4 +49,3 @@ Scope modifiers dont need to store the objectList
 - Fix dual invokeMethods, should only be one
 - AMLDefOpRegion Should probably be a class and try to allocate its own region at init()
 - Fix enums to have lowercase first letter
-

@@ -38,9 +38,13 @@ SWIFT_SRCS :=	init/startup.swift		\
 		devices/acpi/waet.swift		\
 		devices/acpi/amlparser.swift 	\
 		devices/acpi/amltypes.swift	\
+		devices/acpi/amltype1opcodes.swift \
+		devices/acpi/amltype2opcodes.swift \
+		devices/acpi/amlnamedobject.swift  \
+		devices/acpi/amlresourcedata.swift \
 		devices/acpi/amlutils.swift	\
 		devices/acpi/amlmethod.swift	\
-		devices/acpi/ACPIGlobalObjects.swift \
+		devices/acpi/acpiglobalobjects.swift \
 		devices/cpu.swift		\
 		devices/PCI.swift		\
 		devices/tty.swift		\
