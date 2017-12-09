@@ -9,9 +9,7 @@
 import Foundation
 
 func checkObjects(_ acpi: ACPI) {
-
     acpi.globalObjects.dumpDevices()
-
     acpi.globalObjects.runBody(root: "\\") { (name, object) in
         if let method = object as? AMLMethod, method.flags.argCount == 0 {
             print(name, ":\t", type(of: object), "args: \(method.flags.argCount)")
@@ -35,9 +33,8 @@ func checkObjects(_ acpi: ACPI) {
         return
     }
     print(gpic, value)
-    let invocation = try? AMLMethodInvocation(method: AMLNameString(value: "\\_PIC"),
-                                              args: [AMLIntegerData(value: 1)]) // APIC
-    _ = try? acpi.invokeMethod(invocation: invocation!)
+
+    _ = try? acpi.invokeMethod(name: "\\_PIC", 1)
     guard let newValue = gpic.object as? AMLDataRefObject else {
         return
     }

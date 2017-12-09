@@ -16,7 +16,7 @@ DONE - Heavy use of types to get compiler to validate everything
 
 DONE - Avoid default case in switch as reduces validation of any new cases added
 
-- switch/case for tables as created at compile time with extra checking and optimistion
+DONE - switch/case for tables as created at compile time with extra checking and optimistion
 
 - protocol just used to mark types for now
 - avoid as many runtime checks that could be done as compile checks
@@ -36,7 +36,7 @@ AML interpreter/bytecode
 
 
 
-Expand names re Scope
+DONE Expand names re Scope
 Max subparser recursion depth
 DONE TermArg return type Integer, String etc
 Simplify parseArgs etc and merge with Var args

@@ -6,6 +6,7 @@
 //
 //  ACPI method invocation
 
+
 extension ACPI {
 
     struct AMLExecutionContext {
@@ -73,37 +74,17 @@ extension ACPI {
                 throw AMLError.invalidData(reason: "Bad data: \(arg)")
             }
         }
-        let m = try AMLMethodInvocation(method: AMLNameString(value: name),
-                                        args: methodArgs)
-        return try invokeMethod(invocation: m)
-    }
-
-
-    func invokeMethod(invocation: AMLMethodInvocation) throws -> AMLTermArg? {
-
-        let name = invocation.method._value
-        if name == "\\_OSI" || name == "_OSI" {
-            return try _OSI_Method(invocation.args)
-        }
-
-        let scope = invocation.method
-        guard let obj = globalObjects.get(name) else {
-            throw AMLError.invalidMethod(reason: "Cant find method: \(name)")
-        }
-        guard let method = obj.object as? AMLMethod else {
-            throw AMLError.invalidMethod(reason: "Cant find method: \(name)")
-        }
-        let termList = try method.termList()
-        var context = AMLExecutionContext(scope: scope,
-                                          args: invocation.args,
+        let mi = try AMLMethodInvocation(method: AMLNameString(value: name),
+                                         args: methodArgs)
+        var context = AMLExecutionContext(scope: mi.method,
+                                          args: [],
                                           globalObjects: globalObjects)
 
-        try context.execute(termList: termList)
-        return context.returnValue
+        return try mi.execute(context: &context)
     }
 
 
-    private func _OSI_Method(_ args: AMLTermArgList) throws -> AMLTermArg {
+    static func _OSI_Method(_ args: AMLTermArgList) throws -> AMLTermArg {
         guard args.count == 1 else {
             throw AMLError.invalidData(reason: "_OSI: Should only be 1 arg")
         }

@@ -58,11 +58,9 @@
 		B962BDAB1FD30C0500D42D70 /* amlresourcedata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */; };
 		B962BDAC1FD3116B00D42D70 /* amlresourcedata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */; };
 		B9AF69D61FBDEB8B0049CB98 /* AcpiReadWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9AF69D51FBDEB8B0049CB98 /* AcpiReadWriteTests.swift */; };
-		B9C2AF271FD818D000E6EFEB /* isa.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF261FD818D000E6EFEB /* isa.swift */; };
 		B9C2AF291FD81E5A00E6EFEB /* ReservationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */; };
 		B9C2AF2B1FD84CB300E6EFEB /* KlibTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF2A1FD84CB300E6EFEB /* KlibTests.swift */; };
 		B9C2AF2C1FD84D9000E6EFEB /* ReservationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */; };
-		B9C2AF2E1FD9FA0A00E6EFEB /* devicemanager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF2D1FD9FA0A00E6EFEB /* devicemanager.swift */; };
 		B9D9C9A71FCF491100326AFD /* AcpiQemuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D9C9A61FCF491100326AFD /* AcpiQemuTests.swift */; };
 		B9EE704D1D3D536B006B6AB7 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EE704C1D3D536B006B6AB7 /* main.swift */; };
 		B9EF911E1FC9CACA00D14A2F /* amltype1opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF911D1FC9CACA00D14A2F /* amltype1opcodes.swift */; };
@@ -771,7 +769,6 @@
 				B933A6FA1F2F492F00FE6846 /* acpiglobalobjects.swift in Sources */,
 				B933A6F31F2F492F00FE6846 /* amlmethod.swift in Sources */,
 				B933A6F71F2F492F00FE6846 /* amlparser.swift in Sources */,
-				B9C2AF2E1FD9FA0A00E6EFEB /* devicemanager.swift in Sources */,
 				B9C2AF291FD81E5A00E6EFEB /* ReservationManager.swift in Sources */,
 				B933A6FD1F2F492F00FE6846 /* amlutils.swift in Sources */,
 				B933A6F61F2F492F00FE6846 /* boot.swift in Sources */,
@@ -787,7 +784,6 @@
 				B9EF91251FC9D6EA00D14A2F /* amlnamedobject.swift in Sources */,
 				B933A7361F2F49C700FE6846 /* Extensions.swift in Sources */,
 				B933A7431F2F4A0600FE6846 /* bitarray.swift in Sources */,
-				B9C2AF271FD818D000E6EFEB /* isa.swift in Sources */,
 				B933A7411F2F4A0600FE6846 /* dwordarray.swift in Sources */,
 				B933A7401F2F4A0600FE6846 /* bytearray.swift in Sources */,
 				B962BDAB1FD30C0500D42D70 /* amlresourcedata.swift in Sources */,

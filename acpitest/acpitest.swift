@@ -10,8 +10,6 @@ import XCTest
 
 
 class acpitest: XCTestCase {
-
-
     private var acpi: ACPI!
     var globalObjects: ACPIGlobalObjects!
 
@@ -121,7 +119,9 @@ class acpitest: XCTestCase {
         let invocation = try? AMLMethodInvocation(method: AMLNameString(value: "\\_PIC"),
                                                   AMLByteConst(1)) // APIC
         XCTAssertNotNil(invocation)
-        _ = try? acpi.invokeMethod(invocation: invocation!)
+        var context = ACPI.AMLExecutionContext(scope: invocation!.method,
+                                               args: [], globalObjects: acpi.globalObjects)
+        _ = try? invocation?.execute(context: &context)
 
         guard let gpic2 = globalObjects.getDataRefObject("\\GPIC") as? AMLIntegerData else {
             XCTFail("Cant find object \\_PIC")
@@ -148,19 +148,21 @@ class acpitest: XCTestCase {
 
     func testMethod_SB_INI() {
         do {
-            guard let m = try? AMLMethodInvocation(method: AMLNameString(value: "\\_SB._INI")) else {
+            guard let mi = try? AMLMethodInvocation(method: AMLNameString(value: "\\_SB._INI")) else {
                 XCTFail("Cant create method invocation")
                 return
             }
-            _ = try acpi.invokeMethod(invocation: m)
+            var context = ACPI.AMLExecutionContext(scope: mi.method,
+                                                   args: [], globalObjects: acpi.globalObjects)
+            _ = try? mi.execute(context: &context)
             guard let osys = globalObjects.getDataRefObject("\\OSYS") else {
                 XCTFail("Cant find object \\OSYS")
                 return
             }
 
-            var context = ACPI.AMLExecutionContext(scope: AMLNameString(value: "\\"),
-                                                   args: [],
-                                                   globalObjects: globalObjects)
+            context = ACPI.AMLExecutionContext(scope: AMLNameString(value: "\\"),
+                                               args: [],
+                                               globalObjects: globalObjects)
             let x = osys.evaluate(context: &context) as? AMLIntegerData
             XCTAssertNotNil(x)
             XCTAssertEqual(x!.value, 10000)

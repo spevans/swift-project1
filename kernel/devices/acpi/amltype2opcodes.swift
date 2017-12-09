@@ -999,32 +999,18 @@ struct AMLMethodInvocation: AMLType2Opcode {
         try self.init(method: method, args: args)
     }
 
-    private func _OSI_Method(_ args: AMLTermArgList) throws -> AMLTermArg {
-        guard args.count == 1 else {
-            throw AMLError.invalidData(reason: "_OSI: Should only be 1 arg")
-        }
-        guard let arg = args[0] as? AMLString else {
-            throw AMLError.invalidData(reason: "_OSI: is not a string")
-        }
-        if arg.value == "Darwin" {
-            return AMLIntegerData(value: 0xffffffff)
-        } else {
-            return AMLIntegerData(value: 0)
-        }
-    }
-
 
     private func _invokeMethod(invocation: AMLMethodInvocation,
                                context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg? {
+
         let name = invocation.method._value
         if name == "\\_OSI" || name == "_OSI" {
-            return try _OSI_Method(invocation.args)
+            return try ACPI._OSI_Method(invocation.args)
         }
 
-        //let scope = invocation.method
         guard let (obj, fullPath) = context.globalObjects.getGlobalObject(currentScope: context.scope,
-                                                                               name: invocation.method) else {
-                                                                                throw AMLError.invalidMethod(reason: "Cant find method: \(name)")
+                                                                          name: invocation.method) else {
+            throw AMLError.invalidMethod(reason: "Cant find method: \(name)")
         }
         guard let method = obj.object as? AMLMethod else {
             throw AMLError.invalidMethod(reason: "\(name) [\(String(describing:obj.object))] is not an AMLMethod")
