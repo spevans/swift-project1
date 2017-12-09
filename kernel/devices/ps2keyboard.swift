@@ -10,12 +10,6 @@
  */
 
 
-// Generic Keyboard device
-protocol Keyboard {
-    func readKeyboard() -> UnicodeScalar?
-    // TODO: Add some key modifier state
-}
-
 
 final class PS2Keyboard: Device, PS2Device, Keyboard {
 

@@ -9,6 +9,18 @@
 
 class Device {}
 
+// Generic Keyboard device
+protocol Keyboard {
+    func readKeyboard() -> UnicodeScalar?
+    // TODO: Add some key modifier state
+}
+
+// Generic Timer device
+protocol Timer {
+    func enablePeriodicInterrupt(hz: Int, _ callback: @escaping () -> ()) -> Bool
+}
+
+
 final class DeviceManager {
     let acpi: ACPI
     private(set) var interruptManager: InterruptManager
@@ -28,8 +40,10 @@ final class DeviceManager {
         isaBus.initialiseBusDevices(deviceManager: self)
         PCI.scan(mcfgTable: acpi.mcfg)
         // Set the timer interrupt for 200Hz
-        timer?.setChannel(.CHANNEL_0, mode: .MODE_3, hz: 20)
-        print(timer!)
+        if let timer = timer {
+            _ = timer.enablePeriodicInterrupt(hz: 20, timerCallback)
+            print(timer)
+        }
         TTY.sharedInstance.scrollTimingTest()
     }
 
@@ -44,7 +58,19 @@ final class DeviceManager {
     }
 
 
-    var timer: PIT8254? {
-        return devices.filter { $0 is PIT8254 }.first as? PIT8254
+    var timer: Timer? {
+        return devices.filter { $0 is Timer }.first as? Timer
     }
 }
+
+// FIXME: This is unsafe, needs atomic read/write or some locking
+private var ticks: UInt64 = 0
+
+func timerCallback() {
+    ticks = ticks &+ 1
+    if (ticks % 0x200) == 0 {
+        printf("\ntimerInterrupt: %#016X\n", ticks)
+    }
+    // Do nothing for now
+}
+

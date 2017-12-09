@@ -9,11 +9,12 @@
  */
 
 
-final class PIT8254: Device, ISADevice, CustomStringConvertible {
+final class PIT8254: Device, ISADevice, Timer, CustomStringConvertible {
 
     private let interruptManager: InterruptManager
     private let oscillator = 1193182         // Base frequency
     private let commandPort: UInt16 = 0x43
+    private var periodicTimerCallback: (() -> ())? = nil
 
     // Raw Value is the I/O port
     enum TimerChannel: UInt16 {
@@ -120,6 +121,23 @@ final class PIT8254: Device, ISADevice, CustomStringConvertible {
     }
 
 
+    func enablePeriodicInterrupt(hz: Int, _ callback: @escaping () -> ()) -> Bool {
+        setChannel(.CHANNEL_0, mode: .MODE_3, hz: hz)
+        periodicTimerCallback = callback
+        interruptManager.setIrqHandler(0, handler: timerInterrupt)
+        return true
+    }
+
+
+    private func setChannel(_ channel: TimerChannel, mode: OperatingMode,
+                            hz: Int) {
+        let cmd = toCommandByte(mapChannelToSelect(channel),
+                                AccessMode.LO_HI_BYTE, mode, NumberMode.BINARY)
+        outb(commandPort, cmd)
+        setHz(channel, hz)
+    }
+
+
     private func toCommandByte(_ channel: ChannelSelect, _ access: AccessMode,
         _ mode: OperatingMode, _ number: NumberMode) -> UInt8 {
             return channel.rawValue | access.rawValue | mode.rawValue | number.rawValue
@@ -135,21 +153,12 @@ final class PIT8254: Device, ISADevice, CustomStringConvertible {
         )
     }
 
+
     private func mapChannelToSelect(_ channel: TimerChannel) -> ChannelSelect {
         switch(channel) {
         case .CHANNEL_0: return ChannelSelect.CHANNEL0
         case .CHANNEL_2: return ChannelSelect.CHANNEL2
         }
-    }
-
-
-    func setChannel(_ channel: TimerChannel, mode: OperatingMode,
-        hz: Int) {
-        let cmd = toCommandByte(mapChannelToSelect(channel),
-            AccessMode.LO_HI_BYTE, mode, NumberMode.BINARY)
-        outb(commandPort, cmd)
-        setHz(channel, hz)
-        interruptManager.setIrqHandler(0, handler: timerInterrupt)
     }
 
 
@@ -178,14 +187,10 @@ final class PIT8254: Device, ISADevice, CustomStringConvertible {
         return Int(oscillator / Int(divisor))
     }
 
-    // FIXME: This is unsafe, needs atomic read/write or some locking
-    private var ticks: UInt64 = 0
 
     private func timerInterrupt(irq: Int) {
-        ticks = ticks &+ 1
-        if (ticks % 0x200) == 0 {
-            printf("\ntimerInterrupt: %#016X\n", ticks)
+        if let callback = periodicTimerCallback {
+            callback()
         }
-        // Do nothing for now
     }
 }
