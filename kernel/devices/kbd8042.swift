@@ -18,7 +18,7 @@ protocol PS2Device {
 }
 
 
-final class KBD8042 {
+final class KBD8042: Device, ISADevice {
     // Constants
     static private let DATA_PORT:        UInt16 = 0x60
     static private let STATUS_REGISTER:  UInt16 = 0x64
@@ -175,7 +175,10 @@ final class KBD8042 {
     private var port2device: PS2Device? = nil
 
 
-    init?(interruptManager: InterruptManager) {
+    required init?(interruptManager: InterruptManager, pnpName: String,
+          resource: ISABus.Resources) {
+        super.init()
+
         // 1. Flush output buffer
         if flushOutput() == false { // No device
             print("i8042: Cant find i8042")

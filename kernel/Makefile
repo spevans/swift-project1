@@ -20,6 +20,7 @@ SWIFT_SRCS :=	init/startup.swift		\
 		klib/extensions/dwordarray.swift \
 		klib/MemoryBufferReader.swift	\
 		klib/CircularBuffer.swift	\
+		klib/ReservationManager.swift	\
 		klib/printf.swift		\
 		mm/init.swift			\
 		mm/address.swift		\
@@ -45,7 +46,9 @@ SWIFT_SRCS :=	init/startup.swift		\
 		devices/acpi/amlutils.swift	\
 		devices/acpi/amlmethod.swift	\
 		devices/acpi/acpiglobalobjects.swift \
+		devices/devicemanager.swift	\
 		devices/cpu.swift		\
+		devices/isa.swift		\
 		devices/PCI.swift		\
 		devices/tty.swift		\
 		devices/kbd8042.swift		\

@@ -9,7 +9,7 @@
  */
 
 
-final class PIT8254: CustomStringConvertible {
+final class PIT8254: Device, ISADevice, CustomStringConvertible {
 
     private let interruptManager: InterruptManager
     private let oscillator = 1193182         // Base frequency
@@ -113,7 +113,8 @@ final class PIT8254: CustomStringConvertible {
     }
 
 
-    init(interruptManager: InterruptManager) {
+    required init?(interruptManager: InterruptManager, pnpName: String,
+                   resource: ISABus.Resources) {
         self.interruptManager = interruptManager
         print("PIT8254: init")
     }

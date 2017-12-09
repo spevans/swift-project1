@@ -20,11 +20,8 @@ public func startup(bootParamsAddr: UInt) {
 
 
 final class System {
-    private(set) var interruptManager: InterruptManager
-    private(set) var timer: PIT8254
-    private(set) var kbd8042: KBD8042?
-    private let systemTables: SystemTables
-
+    let systemTables: SystemTables
+    let deviceManager: DeviceManager
 
     init(bootParamsAddr: RawAddress) {
         // Setup GDT/IDT as early as possible to help catch CPU exceptions
@@ -37,14 +34,10 @@ final class System {
 
         // SystemTables() needs the MM setup so that the memory can be mapped
         systemTables = SystemTables(bootParams: bootParams)
-
-        interruptManager = InterruptManager(acpiTables: systemTables.acpiTables)
-        set_interrupt_manager(&interruptManager)
+        deviceManager = DeviceManager(acpiTables: systemTables.acpiTables)
         CPU.getInfo()
         TTY.sharedInstance.setTTY(frameBufferInfo: bootParams.frameBufferInfo)
-
-        timer = PIT8254(interruptManager: interruptManager)
-        initialiseDevices()
+        deviceManager.initialiseDevices()
     }
 
 
@@ -52,20 +45,6 @@ final class System {
         _ = addTask(name: "IRQ Queue runner", task: mainLoop)
         _ = addTask(name: "KeyboardInput", task: keyboardInput)
         run_first_task()
-    }
-
-
-    private func initialiseDevices() {
-        PCI.scan(mcfgTable: systemTables.acpiTables.mcfg)
-        // Set the timer interrupt for 200Hz
-        timer.setChannel(.CHANNEL_0, mode: .MODE_3, hz: 20)
-        print(timer)
-        if systemTables.vendor == "Apple Inc." {
-            print("i8042: Skipping on:", systemTables.vendor)
-        } else {
-            kbd8042 = KBD8042(interruptManager: interruptManager)
-        }
-        TTY.sharedInstance.scrollTimingTest()
     }
 }
 
@@ -78,7 +57,7 @@ func benchmark(_ function: () -> ()) -> UInt64 {
 
 
 fileprivate func mainLoop() {
-    let interruptManager = system.interruptManager
+    let interruptManager = system.deviceManager.interruptManager
     // Idle, woken up by interrupts
     interruptManager.enableIRQs()
     while true {
@@ -108,7 +87,7 @@ fileprivate func keyboardInput() {
 
 // If a keyboard is present, wait and read from it, looping indefinitely
 fileprivate func _keyboardInput() {
-    guard let kbd = system.kbd8042?.keyboardDevice else {
+    guard let kbd = system.deviceManager.keyboard else {
         return
     }
 

@@ -58,6 +58,11 @@
 		B962BDAB1FD30C0500D42D70 /* amlresourcedata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */; };
 		B962BDAC1FD3116B00D42D70 /* amlresourcedata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */; };
 		B9AF69D61FBDEB8B0049CB98 /* AcpiReadWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9AF69D51FBDEB8B0049CB98 /* AcpiReadWriteTests.swift */; };
+		B9C2AF271FD818D000E6EFEB /* isa.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF261FD818D000E6EFEB /* isa.swift */; };
+		B9C2AF291FD81E5A00E6EFEB /* ReservationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */; };
+		B9C2AF2B1FD84CB300E6EFEB /* KlibTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF2A1FD84CB300E6EFEB /* KlibTests.swift */; };
+		B9C2AF2C1FD84D9000E6EFEB /* ReservationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */; };
+		B9C2AF2E1FD9FA0A00E6EFEB /* devicemanager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF2D1FD9FA0A00E6EFEB /* devicemanager.swift */; };
 		B9D9C9A71FCF491100326AFD /* AcpiQemuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D9C9A61FCF491100326AFD /* AcpiQemuTests.swift */; };
 		B9EE704D1D3D536B006B6AB7 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EE704C1D3D536B006B6AB7 /* main.swift */; };
 		B9EF911E1FC9CACA00D14A2F /* amltype1opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF911D1FC9CACA00D14A2F /* amltype1opcodes.swift */; };
@@ -201,6 +206,10 @@
 		B9A2C1BA1F30EF94003D4D92 /* Makefile */ = {isa = PBXFileReference; explicitFileType = sourcecode.make; fileEncoding = 4; path = Makefile; sourceTree = "<group>"; };
 		B9A2C1BB1F30EF94003D4D92 /* Makedefs */ = {isa = PBXFileReference; explicitFileType = sourcecode.make; fileEncoding = 4; path = Makedefs; sourceTree = "<group>"; };
 		B9AF69D51FBDEB8B0049CB98 /* AcpiReadWriteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcpiReadWriteTests.swift; sourceTree = "<group>"; };
+		B9C2AF261FD818D000E6EFEB /* isa.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = isa.swift; sourceTree = "<group>"; };
+		B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReservationManager.swift; sourceTree = "<group>"; };
+		B9C2AF2A1FD84CB300E6EFEB /* KlibTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KlibTests.swift; sourceTree = "<group>"; };
+		B9C2AF2D1FD9FA0A00E6EFEB /* devicemanager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = devicemanager.swift; sourceTree = "<group>"; };
 		B9D9C9A61FCF491100326AFD /* AcpiQemuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcpiQemuTests.swift; sourceTree = "<group>"; };
 		B9E3A9241D40FA210099F826 /* amlsource.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = amlsource.swift; sourceTree = "<group>"; };
 		B9EE70491D3D536B006B6AB7 /* acpi */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = acpi; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -304,12 +313,14 @@
 		B933A6B91F2F46B900FE6846 /* devices */ = {
 			isa = PBXGroup;
 			children = (
+				B9C2AF2D1FD9FA0A00E6EFEB /* devicemanager.swift */,
+				B9C2AF261FD818D000E6EFEB /* isa.swift */,
+				B933A71B1F2F497800FE6846 /* PCI.swift */,
 				B933A7181F2F497800FE6846 /* apic.swift */,
 				B933A7141F2F497800FE6846 /* cpu.swift */,
 				B933A7191F2F497800FE6846 /* ioapic.swift */,
 				B933A7131F2F497800FE6846 /* kbd8042.swift */,
 				B933A7121F2F497800FE6846 /* Makefile */,
-				B933A71B1F2F497800FE6846 /* PCI.swift */,
 				B933A7151F2F497800FE6846 /* pic8259.swift */,
 				B933A7171F2F497800FE6846 /* pit8254.swift */,
 				B933A7161F2F497800FE6846 /* ps2keyboard.swift */,
@@ -344,6 +355,7 @@
 				B933A7341F2F49C700FE6846 /* Makefile */,
 				B933A7321F2F49C700FE6846 /* MemoryBufferReader.swift */,
 				B933A7331F2F49C700FE6846 /* printf.swift */,
+				B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */,
 			);
 			path = klib;
 			sourceTree = "<group>";
@@ -450,6 +462,7 @@
 		B9EE704B1D3D536B006B6AB7 /* acpitest */ = {
 			isa = PBXGroup;
 			children = (
+				B9C2AF2A1FD84CB300E6EFEB /* KlibTests.swift */,
 				B9D9C9A61FCF491100326AFD /* AcpiQemuTests.swift */,
 				B9AF69D51FBDEB8B0049CB98 /* AcpiReadWriteTests.swift */,
 				B9F8317C1F38B9C0009F24AE /* test_files */,
@@ -709,6 +722,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B9C2AF2C1FD84D9000E6EFEB /* ReservationManager.swift in Sources */,
 				B962BDAC1FD3116B00D42D70 /* amlresourcedata.swift in Sources */,
 				B9EF91201FC9CEB800D14A2F /* amltype1opcodes.swift in Sources */,
 				B933A7941F2F90C900FE6846 /* acpitest.swift in Sources */,
@@ -735,6 +749,7 @@
 				B933A7951F2FBA8700FE6846 /* Extensions.swift in Sources */,
 				B933A7921F2F8F2100FE6846 /* MemoryBufferReader.swift in Sources */,
 				B93092C01F31B0FF00870D1F /* printf.swift in Sources */,
+				B9C2AF2B1FD84CB300E6EFEB /* KlibTests.swift in Sources */,
 				B933A78D1F2F8F2100FE6846 /* bitarray.swift in Sources */,
 				B933A78E1F2F8F2100FE6846 /* bytearray.swift in Sources */,
 				B933A78F1F2F8F2100FE6846 /* dwordarray.swift in Sources */,
@@ -756,6 +771,8 @@
 				B933A6FA1F2F492F00FE6846 /* acpiglobalobjects.swift in Sources */,
 				B933A6F31F2F492F00FE6846 /* amlmethod.swift in Sources */,
 				B933A6F71F2F492F00FE6846 /* amlparser.swift in Sources */,
+				B9C2AF2E1FD9FA0A00E6EFEB /* devicemanager.swift in Sources */,
+				B9C2AF291FD81E5A00E6EFEB /* ReservationManager.swift in Sources */,
 				B933A6FD1F2F492F00FE6846 /* amlutils.swift in Sources */,
 				B933A6F61F2F492F00FE6846 /* boot.swift in Sources */,
 				B933A6F51F2F492F00FE6846 /* ecdt.swift in Sources */,
@@ -770,6 +787,7 @@
 				B9EF91251FC9D6EA00D14A2F /* amlnamedobject.swift in Sources */,
 				B933A7361F2F49C700FE6846 /* Extensions.swift in Sources */,
 				B933A7431F2F4A0600FE6846 /* bitarray.swift in Sources */,
+				B9C2AF271FD818D000E6EFEB /* isa.swift in Sources */,
 				B933A7411F2F4A0600FE6846 /* dwordarray.swift in Sources */,
 				B933A7401F2F4A0600FE6846 /* bytearray.swift in Sources */,
 				B962BDAB1FD30C0500D42D70 /* amlresourcedata.swift in Sources */,

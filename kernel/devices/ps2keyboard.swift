@@ -17,7 +17,7 @@ protocol Keyboard {
 }
 
 
-final class PS2Keyboard: PS2Device, Keyboard {
+final class PS2Keyboard: Device, PS2Device, Keyboard {
 
     private var prevScanCode: UInt16 = 0
     private var breakCode: UInt8 = 0
