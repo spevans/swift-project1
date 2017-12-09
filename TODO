@@ -1,6 +1,4 @@
 
-ACPI: Implement method executation
-ACPI: Setup devices found in tables
 ACPI: Setup acpi as a device
 Load kernel as ELF and implement dladdr()/backtrace() (-z max-page-size=0x1000)
 Fix string sorting for ASCII / Decide on libicu stub
@@ -21,6 +19,8 @@ use struct/class more consistenly and fixup what should be singletons etc
 MAYBE Implement malloc() in swift
 
 
+DONE ACPI: Implement method executation
+DONE ACPI: Setup devices found in tables
 DONE Write AML parser to read SDST ACPI tables
 WONTDO Merge kernel.h and klibc.h
 DONE Dont bother setting up the extra GDT/TSS in GDT.swift just do it once in the config page at the front of the kernel and remove duplicate code from BIOS and EFI setup asm.
