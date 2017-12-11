@@ -9,16 +9,27 @@
 
 final class ACPIGlobalObjects {
 
-    final class ACPIObjectNode {
-        let name: String                                    // FIXME, if the AMLObject has a name, this is redundant
-        var object: AMLObject? = nil                        // FIXME: show it be optional?
-        fileprivate(set) var childNodes: [ACPIObjectNode]   // FIXME: Should be a dictionary of [name: ACPIObjectNode]
+    final class ACPIObjectNode: Hashable {
+        private(set) var childNodes: [ACPIObjectNode]   // FIXME: Should be a dictionary of [name: ACPIObjectNode]
+        fileprivate(set) var object: AMLObject
 
-        init(name: String, object: AMLObject?, childNodes: [ACPIObjectNode]) {
-            self.name = name
+        var name: String { return object.name.value }
+        var hashValue: Int { return object.name.value.hashValue }
+
+
+        init(name: String, object: AMLObject, childNodes: [ACPIObjectNode]) {
+            guard name == object.name.shortName.value else {
+                fatalError("ACPIObjectNode.init(): \(name) != \(object.name.shortName.value)")
+            }
             self.object = object
             self.childNodes = childNodes
         }
+
+
+        static func == (lhs: ACPIGlobalObjects.ACPIObjectNode, rhs: ACPIGlobalObjects.ACPIObjectNode) -> Bool {
+            return lhs.name == rhs.name
+        }
+
 
         subscript(index: String) -> ACPIObjectNode? {
             get {
@@ -29,6 +40,10 @@ final class ACPIGlobalObjects {
                 }
                 return nil
             }
+        }
+
+        fileprivate func addChildNode(_ node: ACPIObjectNode) {
+            childNodes.append(node)
         }
     }
 
@@ -82,30 +97,30 @@ final class ACPIGlobalObjects {
 
 
     func add(_ name: String, _ object: AMLObject) {
-        print("Adding \(name)", type(of: object))
+        print("Adding \(name) -> \(object.name.value)", type(of: object))
         var parent = globalObjects
         var nameParts = removeRootChar(name: name).components(
             separatedBy: AMLNameString.pathSeparatorChar)
-        let nodeName = nameParts.last!
+        guard let nodeName = nameParts.last else {
+            fatalError("\(name) has no last segment")
+        }
 
         while nameParts.count > 0 {
             let part = nameParts.removeFirst()
             if let childNode = findNode(named: part, parent: parent) {
                 parent = childNode
             } else {
+                let tmpScope = AMLDefScope(name: AMLNameString(part), value: [])
                 let newNode = ACPIObjectNode(name: part,
-                                             object: nil,
+                                             object: tmpScope,
                                              childNodes: [])
-                    parent.childNodes.append(newNode)
+                    parent.addChildNode(newNode)
                     parent = newNode
             }
         }
 
         guard parent.name == nodeName else {
             fatalError("bad node")
-        }
-        if parent.object != nil {
-            //FIXME: Can an objeect be overwritten? fatalError("already has object")
         }
         parent.object = object
     }

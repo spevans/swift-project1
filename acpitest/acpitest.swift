@@ -97,7 +97,7 @@ class acpitest: XCTestCase {
     func testPackage_S5() {
         let s5 = globalObjects.get("\\_S5")
         XCTAssertNotNil(s5)
-        XCTAssertNotNil(s5!.object!)
+        XCTAssertNotNil(s5!.object)
         guard let package = (s5!.object as? AMLDefName)?.value as? AMLDefPackage else {
             XCTFail("namedObjects[0] is not an AMLDefPackage")
             return

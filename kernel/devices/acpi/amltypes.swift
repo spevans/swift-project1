@@ -230,9 +230,8 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
                                                                            name: self) else {
             fatalError("Cant find node: \(value)")
         }
-        guard let namedObject = node.object else {
-            fatalError("Cant find namedObj: \(value)")
-        }
+
+        let namedObject = node.object
         if let fieldElement = namedObject as? AMLNamedField {
             let resolvedScope = AMLNameString(fullPath).removeLastSeg()
             var tmpContext = ACPI.AMLExecutionContext(scope: resolvedScope,

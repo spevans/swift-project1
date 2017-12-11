@@ -53,10 +53,11 @@ struct AMLDefDevice: AMLNamedObj {
     func currentResourceSettings(context: inout ACPI.AMLExecutionContext) -> [AMLResourceSetting]? {
         var fullName = context.scope.value
         fullName.append("._CRS")    // need AMLNameString to allow add segs
-        guard let node = context.globalObjects.get(fullName), let crs = node.object else {
+        guard let node = context.globalObjects.get(fullName) else {
             print("Cant find _CRS for \(name) [\(fullName)]")
             return nil
         }
+        let crs = node.object
 
         let buffer: AMLBuffer?
         if let obj = crs as? AMLDefName {
@@ -78,9 +79,10 @@ struct AMLDefDevice: AMLNamedObj {
     func pnpName(context: inout ACPI.AMLExecutionContext) -> String? {
         var fullName = context.scope.value
         fullName.append("._HID")    // need AMLNameString to allow add segs
-        guard let node = context.globalObjects.get(fullName), let hid = node.object else {
+        guard let node = context.globalObjects.get(fullName) else {
             return nil
         }
+        let hid = node.object
 
         if let hidName = hid as? AMLDefName {
             return (decodeHID(obj: hidName.value) as? AMLString)?.value

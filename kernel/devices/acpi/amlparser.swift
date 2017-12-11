@@ -823,7 +823,7 @@ final class AMLParser {
             throw AMLError.invalidSymbol(reason: "parseDefName")
         }
         if let dataObj = try parseSymbol(symbol: symbol) as? AMLDataRefObject {
-            let obj = AMLDefName(name: name, value: dataObj)
+            let obj = AMLDefName(name: name.shortName, value: dataObj)
             try addGlobalObject(name: resolveNameToCurrentScope(path: name),
                                 object: obj)
             return obj
@@ -863,7 +863,7 @@ final class AMLParser {
         let fullPath = resolveNameToCurrentScope(path: name)
         parser.currentScope = fullPath
         let flags = try AMLMethodFlags(flags: parser.nextByte())
-        let m = AMLMethod(name: name, flags: flags, parser: parser)
+        let m = AMLMethod(name: name.shortName, flags: flags, parser: parser)
 
         try addGlobalObject(name: fullPath, object: m)
         return m
@@ -928,7 +928,7 @@ final class AMLParser {
 
 
     private func parseDefDataRegion() throws -> AMLDefDataRegion {
-        let name = try parseNameString()
+        let name = try parseNameString().shortName
         let arg1 = try parseTermArg()
         let arg2 = try parseTermArg()
         let arg3 = try parseTermArg()
@@ -937,7 +937,7 @@ final class AMLParser {
 
 
     private func parseDefExternal() throws -> AMLNamedObj {
-        let name = try parseNameString()
+        let name = try parseNameString().shortName
         let type = try nextByte()
         let argCount = try nextByte()
         return try AMLDefExternal(name: name, type: type, argCount: argCount)
@@ -972,15 +972,15 @@ final class AMLParser {
 
 
     private func parseDefOpRegion() throws -> AMLDefOpRegion {
-        let name = try parseNameString()
+        let name = try parseNameString().shortName
         let byte = try nextByte()
         guard let region = AMLRegionSpace(rawValue: byte) else {
             throw AMLError.invalidData(reason: "Bad AMLRegionSpace: \(byte)")
         }
 
         //var context = ACPI.AMLExecutionContext(scope: currentScope, args: [], globalObjects: acpiGlobalObjects)
-        let offset = try parseTermArg() //AsInteger()
-        let length = try parseTermArg() //AsInteger()
+        let offset = try parseTermArg()
+        let length = try parseTermArg()
 
         let opRegion = AMLDefOpRegion(name: name, region: region,
                                       offset: offset,
