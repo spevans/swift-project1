@@ -492,12 +492,6 @@ struct AMLDefScope: AMLNameSpaceModifierObj {
 }
 
 
-struct AMLDefRelease: AMLType1Opcode {
-    // ReleaseOp MutexObject
-    let object: AMLMutexObject
-}
-
-
 struct AMLEvent {
     // EventOp NameString
     let name: AMLNameString

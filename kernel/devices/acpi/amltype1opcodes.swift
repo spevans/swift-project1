@@ -110,6 +110,12 @@ struct AMLDefNotify: AMLType1Opcode {
 }
 
 
+struct AMLDefRelease: AMLType1Opcode {
+    // ReleaseOp MutexObject
+    let object: AMLMutexObject
+}
+
+
 struct AMLDefReset: AMLType1Opcode {
     // ResetOp EventObject
     let object: AMLEventObject
