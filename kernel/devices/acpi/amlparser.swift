@@ -176,7 +176,7 @@ final class AMLParser {
 
 
     init(globalObjects: ACPIGlobalObjects) {
-        currentScope = AMLNameString(value: String(AMLNameString.rootChar))
+        currentScope = AMLNameString(String(AMLNameString.rootChar))
         acpiGlobalObjects = globalObjects
     }
 
@@ -373,7 +373,7 @@ final class AMLParser {
                  */
             default:
                 if let ch = AMLCharSymbol(byte: byte), ch.charType == .leadNameChar {
-                    let name = try AMLNameString(value: parseNameSeg(1, startingWith: String(ch.character)))
+                    let name = try AMLNameString(parseNameSeg(1, startingWith: String(ch.character)))
                     let bitWidth = try parsePkgLength()
                     if name == "" || name == "    " {
                         return nil
@@ -628,19 +628,19 @@ final class AMLParser {
         // TODO: Somehow validate the method at a later stage
 
         guard let (object, _) = acpiGlobalObjects.getGlobalObject(currentScope: currentScope, name: name) else {
-            let r = "No such method \(name._value) in \(currentScope._value)"
+            let r = "No such method \(name.value) in \(currentScope.value)"
             throw AMLError.invalidMethod(reason: r)
         }
 
         guard let method = object.object as? AMLMethod else {
-            throw AMLError.invalidMethod(reason: "\(name._value) is not a Method")
+            throw AMLError.invalidMethod(reason: "\(name.value) is not a Method")
         }
         var args: AMLTermArgList = []
         let flags = method.flags
         if flags.argCount > 0 {
             args = try parseTermArgList(argCount: flags.argCount)
             guard args.count == flags.argCount else {
-                let r = "Method: \(name._value) has argCount of "
+                let r = "Method: \(name.value) has argCount of "
                     + "\(flags.argCount) but only parsed \(args.count) args"
                 throw AMLError.invalidData(reason: r)
             }
@@ -732,7 +732,7 @@ final class AMLParser {
 
         func parsePackageElement(_ symbol: ParsedSymbol) throws -> AMLPackageElement {
             if let ch = symbol.currentChar, ch.charType != .nullChar {
-                return try AMLString(parseNameStringWith(character: ch)._value)
+                return try AMLString(parseNameStringWith(character: ch).value)
             }
 
             guard symbol.currentOpcode != nil else {
@@ -769,12 +769,12 @@ final class AMLParser {
 
     private func determineIfObjectOrName(name: AMLNameString) -> Bool {
         let fullName = resolveNameToCurrentScope(path: name)
-        return (acpiGlobalObjects.get(fullName._value) != nil)
+        return (acpiGlobalObjects.get(fullName.value) != nil)
     }
 
 
     func addGlobalObject(name: AMLNameString, object: AMLObject) throws { // FIXME: object should be AMLNamedObhj or AMLDataRefObject
-        let nameStr = name._value
+        let nameStr = name.value
         guard let ch = nameStr.first,
             ch == AMLNameString.rootChar else {
             throw AMLError.invalidData(reason: "\(nameStr) is not an absolute name")
@@ -1439,7 +1439,7 @@ final class AMLParser {
         }
         // result is now RootChar | PrefixChar 0+
         result += try parseNamePath(ch: ch)
-        return AMLNameString(value: result)
+        return AMLNameString(result)
     }
 
 

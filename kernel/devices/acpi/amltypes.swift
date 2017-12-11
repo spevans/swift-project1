@@ -143,6 +143,37 @@ class AMLIntegerData: AMLDataObject, AMLTermArg, AMLTermObj {
 
 struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
 
+    let value: String
+    var isNameSeg: Bool { return (value.count <= 4) }
+    // Name starts with '\\'
+    var isFullPath: Bool { return value.first == AMLNameString.rootChar }
+
+
+    init(_ value: String) {
+        self.value = value
+       // self.value = AMLString(value)
+    }
+
+
+    // The last segment. If only one segment, removes the root '\\'
+    var shortName: AMLNameString {
+        if value == String(AMLNameString.rootChar) {
+            return self
+        }
+
+        let segs = value.components(separatedBy: AMLNameString.pathSeparatorChar)
+        if segs.count > 1 {
+            return AMLNameString(segs.last!)
+        } else {
+            if value.first == AMLNameString.rootChar {
+                var name = value
+                name.remove(at: value.startIndex)
+                return AMLNameString(name)
+            }
+        }
+        return AMLNameString(value)
+    }
+
     func canBeConverted(to: AMLDataRefObject) -> Bool {
         if to is AMLFieldElement {
             return true
@@ -150,40 +181,28 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
         return false
     }
 
-    let _value: String
-
-    init(value: String) {
-        _value = value
-       // self.value = AMLString(value)
-    }
-
-    var isNameSeg: Bool { return (_value.count <= 4) }
-
-    // Name starts with '\\'
-    var isFullPath: Bool { return _value.first == AMLNameString.rootChar }
-
     func parent() -> AMLNameString {
         let seperator = AMLNameString.pathSeparatorChar
-        var parentSegs = self._value.components(separatedBy: seperator)
+        var parentSegs = value.components(separatedBy: seperator)
         parentSegs.removeLast()
         let result = parentSegs.joined(separator: String(seperator))
-        return AMLNameString(value: result)
+        return AMLNameString(result)
     }
 
 
     func replaceLastSeg(with newSeg: AMLNameString?) -> AMLNameString {
         let seperator = AMLNameString.pathSeparatorChar
-        var parentSegs = self._value.components(separatedBy: seperator)
+        var parentSegs = value.components(separatedBy: seperator)
         //let child = newSeg._value.components(separatedBy: seperator).last()
         parentSegs.removeLast()
         if let segment = newSeg {
-            parentSegs.append(segment._value)
+            parentSegs.append(segment.value)
         }
         if parentSegs.count == 0 {
-            return AMLNameString(value: "\\")
+            return AMLNameString("\\")
         }
         let result = parentSegs.joined(separator: String(seperator))
-        return AMLNameString(value: result)
+        return AMLNameString(result)
     }
 
 
@@ -193,15 +212,15 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
 
 
     static func ==(lhs: AMLNameString, rhs: AMLNameString) -> Bool {
-        return lhs._value == rhs._value
+        return lhs.value == rhs.value
     }
 
     static func ==(lhs: AMLNameString, rhs: String) -> Bool {
-        return lhs._value == rhs
+        return lhs.value == rhs
     }
 
     static func ==(lhs: String, rhs: AMLNameString) -> Bool {
-        return lhs == rhs._value
+        return lhs == rhs.value
     }
 
 
@@ -209,13 +228,13 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
         let scope = context.scope
         guard let (node, fullPath) = context.globalObjects.getGlobalObject(currentScope: scope,
                                                                            name: self) else {
-            fatalError("Cant find node: \(_value)")
+            fatalError("Cant find node: \(value)")
         }
         guard let namedObject = node.object else {
-            fatalError("Cant find namedObj: \(_value)")
+            fatalError("Cant find namedObj: \(value)")
         }
         if let fieldElement = namedObject as? AMLNamedField {
-            let resolvedScope = AMLNameString(value: fullPath).removeLastSeg()
+            let resolvedScope = AMLNameString(fullPath).removeLastSeg()
             var tmpContext = ACPI.AMLExecutionContext(scope: resolvedScope,
                                                       args: [],
                                                       globalObjects: context.globalObjects)
@@ -470,7 +489,7 @@ struct AMLDefName: AMLNameSpaceModifierObj {
 
     func execute(context: inout ACPI.AMLExecutionContext) throws {
         let fullPath = resolveNameTo(scope: context.scope, path: name)
-        context.globalObjects.add(fullPath._value, self)
+        context.globalObjects.add(fullPath.value, self)
     }
 
     func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {

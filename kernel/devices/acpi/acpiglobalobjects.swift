@@ -35,27 +35,27 @@ final class ACPIGlobalObjects {
     // Predefined objects
     private var globalObjects = ACPIObjectNode(
         name: "\\",
-        object: AMLDefName(name: AMLNameString(value: "\\"), value: AMLIntegerData(value: 0)),
+        object: AMLDefName(name: AMLNameString("\\"), value: AMLIntegerData(value: 0)),
         childNodes: [
             ACPIObjectNode(name: "_OSI",
-                           object: AMLMethod(name: AMLNameString(value: "_OSI"),
+                           object: AMLMethod(name: AMLNameString("_OSI"),
                                              flags: AMLMethodFlags(flags: 1),
                                              parser: nil),
                            childNodes: []),
 
             ACPIObjectNode(name: "_GL",
                            object: AMLDefMutex(
-                            name: AMLNameString(value: "_GL"),
+                            name: AMLNameString("_GL"),
                             flags: AMLMutexFlags()),
                            childNodes: []),
 
             ACPIObjectNode(name: "_REV",
-                           object: AMLDefName(name: AMLNameString(value: "_REV"),
+                           object: AMLDefName(name: AMLNameString("_REV"),
                                               value: AMLIntegerData(value: 2)),
                            childNodes: []),
 
             ACPIObjectNode(name: "_OS",
-                           object: AMLDefName(name: AMLNameString(value: "_OS"),
+                           object: AMLDefName(name: AMLNameString("_OS"),
                                               value: AMLString("Darwin")),
                            childNodes: [])
         ])
@@ -146,33 +146,33 @@ final class ACPIGlobalObjects {
 
     func getGlobalObject(currentScope: AMLNameString, name: AMLNameString)
         -> (ACPIObjectNode, String)? {
-            let nameStr = name._value
+            let nameStr = name.value
             guard nameStr.first != nil else {
                 fatalError("string is empty")
             }
 
             let fullPath = resolveNameTo(scope: currentScope, path: name)
-            if let obj = get(fullPath._value) {
-                return (obj, fullPath._value)
+            if let obj = get(fullPath.value) {
+                return (obj, fullPath.value)
             }
             // Do a search up the tree
             guard name.isNameSeg else {
                 return nil
             }
             let seperator = AMLNameString.pathSeparatorChar
-            var nameSegs = currentScope._value.components(separatedBy: seperator)
+            var nameSegs = currentScope.value.components(separatedBy: seperator)
             while nameSegs.count > 1 {
                 _ = nameSegs.popLast()
                 var tmpName = nameSegs.joined(separator: String(seperator))
                 tmpName.append(AMLNameString.pathSeparatorChar)
-                tmpName.append(name._value)
+                tmpName.append(name.value)
                 if let obj = get(tmpName) {
                     return (obj, tmpName)
                 }
             }
             if nameSegs.count == 1 {
                 var tmpName = "\\"
-                tmpName.append(name._value)
+                tmpName.append(name.value)
                 if let obj =  get(tmpName) {
                     return (obj, tmpName)
                 }
@@ -242,7 +242,7 @@ extension ACPIGlobalObjects {
     // Find all of the PNP devices and call a closure with the PNP name and resource settings
     func pnpDevices(_ closure: (String, String, [AMLResourceSetting]) -> Void) {
         getDevices().forEach { (fullName, device) in
-            var context = ACPI.AMLExecutionContext(scope: AMLNameString(value: fullName),
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullName),
                                                    args: [],
                                                    globalObjects: self)
             if let pnpName = device.pnpName(context: &context),

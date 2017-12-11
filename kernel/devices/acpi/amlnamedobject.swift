@@ -27,7 +27,7 @@ extension AMLNamedObj {
 
     func createNamedObject(context: inout ACPI.AMLExecutionContext) throws {
         let fullPath = resolveNameTo(scope: context.scope, path: name)
-        context.globalObjects.add(fullPath._value, self)
+        context.globalObjects.add(fullPath.value, self)
     }
 }
 
@@ -51,7 +51,7 @@ struct AMLDefDevice: AMLNamedObj {
 
 
     func currentResourceSettings(context: inout ACPI.AMLExecutionContext) -> [AMLResourceSetting]? {
-        var fullName = context.scope._value
+        var fullName = context.scope.value
         fullName.append("._CRS")    // need AMLNameString to allow add segs
         guard let node = context.globalObjects.get(fullName), let crs = node.object else {
             print("Cant find _CRS for \(name) [\(fullName)]")
@@ -65,7 +65,7 @@ struct AMLDefDevice: AMLNamedObj {
             guard let crsObject = crs as? AMLMethod else {
                 fatalError("CRS object is an \(type(of: crs))")
             }
-            var tmpContext = context.withNewScope(AMLNameString(value: fullName))
+            var tmpContext = context.withNewScope(AMLNameString(fullName))
             buffer = crsObject.readValue(context: &tmpContext) as? AMLBuffer
         }
         if buffer != nil {
@@ -76,7 +76,7 @@ struct AMLDefDevice: AMLNamedObj {
     }
 
     func pnpName(context: inout ACPI.AMLExecutionContext) -> String? {
-        var fullName = context.scope._value
+        var fullName = context.scope.value
         fullName.append("._HID")    // need AMLNameString to allow add segs
         guard let node = context.globalObjects.get(fullName), let hid = node.object else {
             return nil

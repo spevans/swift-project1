@@ -74,7 +74,7 @@ extension ACPI {
                 throw AMLError.invalidData(reason: "Bad data: \(arg)")
             }
         }
-        let mi = try AMLMethodInvocation(method: AMLNameString(value: name),
+        let mi = try AMLMethodInvocation(method: AMLNameString(name),
                                          args: methodArgs)
         var context = AMLExecutionContext(scope: mi.method,
                                           args: [],

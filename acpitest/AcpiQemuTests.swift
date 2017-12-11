@@ -68,12 +68,12 @@ class AcpiQemuTests: XCTestCase {
 
     func testDevices() {
         // Add some dummy external values
-        acpi.globalObjects.add("\\_SB.PCI0.P0S", AMLDefName(name: AMLNameString(value: "P0S"), value: AMLIntegerData(value: 0x44556677)))
-        acpi.globalObjects.add("\\_SB.PCI0.P0E", AMLDefName(name: AMLNameString(value: "P0E"), value: AMLIntegerData(value: 0xAABBCCDD)))
-        acpi.globalObjects.add("\\_SB.PCI0.P1S", AMLDefName(name: AMLNameString(value: "P1S"), value: AMLIntegerData(value: 0x00010000)))
-        acpi.globalObjects.add("\\_SB.PCI0.P1E", AMLDefName(name: AMLNameString(value: "P1E"), value: AMLIntegerData(value: 0x0002FFFF)))
-        acpi.globalObjects.add("\\_SB.PCI0.P1L", AMLDefName(name: AMLNameString(value: "P1L"), value: AMLIntegerData(value: 0x00020000)))
-        acpi.globalObjects.add("\\_SB.PCI0.P1V", AMLDefName(name: AMLNameString(value: "P1V"), value: AMLIntegerData(value: 1)))
+        acpi.globalObjects.add("\\_SB.PCI0.P0S", AMLDefName(name: AMLNameString("P0S"), value: AMLIntegerData(value: 0x44556677)))
+        acpi.globalObjects.add("\\_SB.PCI0.P0E", AMLDefName(name: AMLNameString("P0E"), value: AMLIntegerData(value: 0xAABBCCDD)))
+        acpi.globalObjects.add("\\_SB.PCI0.P1S", AMLDefName(name: AMLNameString("P1S"), value: AMLIntegerData(value: 0x00010000)))
+        acpi.globalObjects.add("\\_SB.PCI0.P1E", AMLDefName(name: AMLNameString("P1E"), value: AMLIntegerData(value: 0x0002FFFF)))
+        acpi.globalObjects.add("\\_SB.PCI0.P1L", AMLDefName(name: AMLNameString("P1L"), value: AMLIntegerData(value: 0x00020000)))
+        acpi.globalObjects.add("\\_SB.PCI0.P1V", AMLDefName(name: AMLNameString("P1V"), value: AMLIntegerData(value: 1)))
 
         let devices = acpi.globalObjects.getDevices()
         XCTAssertEqual(devices.count, 17)

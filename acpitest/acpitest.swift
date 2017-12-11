@@ -116,7 +116,7 @@ class acpitest: XCTestCase {
         }
         XCTAssertNotNil(gpic)
         XCTAssertEqual(gpic.value, 0)
-        let invocation = try? AMLMethodInvocation(method: AMLNameString(value: "\\_PIC"),
+        let invocation = try? AMLMethodInvocation(method: AMLNameString("\\_PIC"),
                                                   AMLByteConst(1)) // APIC
         XCTAssertNotNil(invocation)
         var context = ACPI.AMLExecutionContext(scope: invocation!.method,
@@ -148,7 +148,7 @@ class acpitest: XCTestCase {
 
     func testMethod_SB_INI() {
         do {
-            guard let mi = try? AMLMethodInvocation(method: AMLNameString(value: "\\_SB._INI")) else {
+            guard let mi = try? AMLMethodInvocation(method: AMLNameString("\\_SB._INI")) else {
                 XCTFail("Cant create method invocation")
                 return
             }
@@ -160,7 +160,7 @@ class acpitest: XCTestCase {
                 return
             }
 
-            context = ACPI.AMLExecutionContext(scope: AMLNameString(value: "\\"),
+            context = ACPI.AMLExecutionContext(scope: AMLNameString("\\"),
                                                args: [],
                                                globalObjects: globalObjects)
             let x = osys.evaluate(context: &context) as? AMLIntegerData

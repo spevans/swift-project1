@@ -816,7 +816,7 @@ struct AMLDefStore: AMLType2Opcode {
         //  guard source.canBeConverted(to: target) else {
         //      fatalError("\(source) can not be converted to \(target)")
         //  }
-        let resolvedScope = AMLNameString(value: fullPath).removeLastSeg()
+        let resolvedScope = AMLNameString(fullPath).removeLastSeg()
         var tmpContext = ACPI.AMLExecutionContext(scope: resolvedScope,
                                                   args: context.args,
                                                   globalObjects: context.globalObjects)
@@ -1003,7 +1003,7 @@ struct AMLMethodInvocation: AMLType2Opcode {
     private func _invokeMethod(invocation: AMLMethodInvocation,
                                context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg? {
 
-        let name = invocation.method._value
+        let name = invocation.method.value
         if name == "\\_OSI" || name == "_OSI" {
             return try ACPI._OSI_Method(invocation.args)
         }
@@ -1017,7 +1017,7 @@ struct AMLMethodInvocation: AMLType2Opcode {
         }
         let termList = try method.termList()
         let newArgs = invocation.args.map { $0.evaluate(context: &context) }
-        var newContext = ACPI.AMLExecutionContext(scope: AMLNameString(value: fullPath),
+        var newContext = ACPI.AMLExecutionContext(scope: AMLNameString(fullPath),
                                                   args: newArgs,
                                                   globalObjects: context.globalObjects)
         try newContext.execute(termList: termList)
