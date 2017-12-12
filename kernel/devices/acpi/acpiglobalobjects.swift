@@ -50,7 +50,7 @@ final class ACPIGlobalObjects {
     // Predefined objects
     private var globalObjects = ACPIObjectNode(
         name: "\\",
-        object: AMLDefName(name: AMLNameString("\\"), value: AMLIntegerData(value: 0)),
+        object: AMLDefName(name: AMLNameString("\\"), value: AMLIntegerData(0)),
         childNodes: [
             ACPIObjectNode(name: "_OSI",
                            object: AMLMethod(name: AMLNameString("_OSI"),
@@ -66,7 +66,7 @@ final class ACPIGlobalObjects {
 
             ACPIObjectNode(name: "_REV",
                            object: AMLDefName(name: AMLNameString("_REV"),
-                                              value: AMLIntegerData(value: 2)),
+                                              value: AMLIntegerData(2)),
                            childNodes: []),
 
             ACPIObjectNode(name: "_OS",

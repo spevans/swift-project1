@@ -229,7 +229,7 @@ struct AMLDefBankField: AMLNamedObj {
 
     func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         print("reading from \(self)")
-        return AMLIntegerData(value: 0)
+        return AMLIntegerData(0)
     }
 
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
@@ -247,7 +247,7 @@ struct AMLDefCreateBitField: AMLNamedObj {
     func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let buffer = sourceBuff.evaluate(context: &context)
         print("reading from \(buffer), bitIndex:", bitIndex)
-        return AMLIntegerData(value: 0)
+        return AMLIntegerData(0)
     }
 
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
@@ -265,7 +265,7 @@ struct AMLDefCreateByteField: AMLNamedObj {
     func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let buffer = sourceBuff.evaluate(context: &context)
         print("reading from \(buffer), byteIndex:", byteIndex)
-        return AMLIntegerData(value: 0)
+        return AMLIntegerData(0)
     }
 
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
@@ -282,7 +282,7 @@ struct AMLDefCreateDWordField: AMLNamedObj {
     func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let buffer = sourceBuff.evaluate(context: &context)
         print("reading from \(buffer), byteIndex:", byteIndex)
-        return AMLIntegerData(value: 0)
+        return AMLIntegerData(0)
     }
 
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
@@ -301,7 +301,7 @@ struct AMLDefCreateField: AMLNamedObj {
     func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let buffer = sourceBuff.evaluate(context: &context)
         print("reading from \(buffer), byteIndex:", bitIndex)
-        return AMLIntegerData(value: 0)
+        return AMLIntegerData(0)
     }
 
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
@@ -319,7 +319,7 @@ struct AMLDefCreateQWordField: AMLNamedObj {
     func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let buffer = sourceBuff.evaluate(context: &context)
         print("reading from \(buffer), byteIndex:", byteIndex)
-        return AMLIntegerData(value: 0)
+        return AMLIntegerData(0)
     }
 
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
@@ -337,7 +337,7 @@ struct AMLDefCreateWordField: AMLNamedObj {
     func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let buffer = sourceBuff.evaluate(context: &context)
         print("reading from \(buffer), byteIndex:", byteIndex)
-        return AMLIntegerData(value: 0)
+        return AMLIntegerData(0)
     }
 
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {

@@ -117,7 +117,7 @@ class AMLIntegerData: AMLDataObject, AMLTermArg, AMLTermObj {
     var value: AMLInteger
     let isReadOnly = false
 
-    init(value: AMLInteger) {
+    init(_ value: AMLInteger) {
         self.value = value
     }
 
@@ -239,7 +239,7 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
                                                       globalObjects: context.globalObjects)
             return fieldElement.evaluate(context: &tmpContext)
             //fieldElement.setOpRegion(context: tmpContext)
-            //return AMLIntegerData(value: fieldElement.resultAsInteger ?? 0)
+            //return AMLIntegerData(fieldElement.resultAsInteger ?? 0)
         } else if let n = namedObject as? AMLNamedObj {
             return n.readValue(context: &context)
         } else if let termArg = namedObject as? AMLTermArg {
@@ -413,7 +413,7 @@ struct AMLNamedField: AMLFieldElement, AMLDataObject, AMLNamedObj {
         setOpRegion(context: context)
         let region = fieldRef.getRegionSpace(context: &context)
         let value = region.read(bitOffset: Int(bitOffset), width: Int(bitWidth))
-        return AMLIntegerData(value: value)
+        return AMLIntegerData(value)
     }
 
 
@@ -525,21 +525,21 @@ struct AMLUserTermObj: AMLType6Opcode {
 
 
 func AMLByteConst(_ v: AMLByteData) -> AMLIntegerData {
-    return AMLIntegerData(value: AMLInteger(v))
+    return AMLIntegerData(AMLInteger(v))
 }
 
 func AMLWordConst(_ v: AMLWordData) -> AMLIntegerData {
-    return AMLIntegerData(value: AMLInteger(v))
+    return AMLIntegerData(AMLInteger(v))
 }
 
 
 func AMLDWordConst(_ v: AMLDWordData) -> AMLIntegerData {
-    return AMLIntegerData(value: AMLInteger(v))
+    return AMLIntegerData(AMLInteger(v))
 }
 
 
 func AMLQWordConst(_ v: AMLQWordData) -> AMLIntegerData {
-    return AMLIntegerData(value: AMLInteger(v))
+    return AMLIntegerData(AMLInteger(v))
 }
 
 
@@ -560,7 +560,7 @@ struct AMLZeroOp: AMLConstObj {
     }
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return AMLIntegerData(value: 0)
+        return AMLIntegerData(0)
     }
 }
 
@@ -572,7 +572,7 @@ struct AMLOneOp: AMLConstObj {
     }
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return AMLIntegerData(value: 1)
+        return AMLIntegerData(1)
     }
 }
 
@@ -583,7 +583,7 @@ struct AMLOnesOp: AMLConstObj {
         return true
     }
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return AMLIntegerData(value: 0xff)
+        return AMLIntegerData(0xff)
     }
 }
 
@@ -591,7 +591,7 @@ struct AMLOnesOp: AMLConstObj {
 struct AMLRevisionOp: AMLConstObj {
     // RevisionOp - AML interpreter supports revision 2
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return AMLIntegerData(value: 2)
+        return AMLIntegerData(2)
     }
 }
 

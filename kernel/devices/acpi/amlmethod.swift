@@ -69,7 +69,7 @@ extension ACPI {
             if let arg = arg as? String {
                 methodArgs.append(AMLString(arg))
             } else if let arg = arg as? AMLInteger {
-                methodArgs.append(AMLIntegerData(value: AMLInteger(arg)))
+                methodArgs.append(AMLIntegerData(AMLInteger(arg)))
             } else {
                 throw AMLError.invalidData(reason: "Bad data: \(arg)")
             }
@@ -92,9 +92,9 @@ extension ACPI {
             throw AMLError.invalidData(reason: "_OSI: is not a string")
         }
         if arg.value == "Darwin" {
-            return AMLIntegerData(value: 0xffffffff)
+            return AMLIntegerData(0xffffffff)
         } else {
-            return AMLIntegerData(value: 0)
+            return AMLIntegerData(0)
         }
     }
 }

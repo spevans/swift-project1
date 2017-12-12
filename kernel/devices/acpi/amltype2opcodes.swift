@@ -51,7 +51,7 @@ struct AMLDefAdd: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
-        let result = AMLIntegerData(value: op1 + op2)
+        let result = AMLIntegerData(op1 + op2)
         return result
     }
 
@@ -74,7 +74,7 @@ struct AMLDefAnd: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
-        let result = AMLIntegerData(value: op1 & op2)
+        let result = AMLIntegerData(op1 & op2)
         target.updateValue(to: result, context: &context)
         return result
     }
@@ -137,7 +137,7 @@ struct AMLDefConcatRes: AMLType2Opcode {
         // Fixme, iterate validating the individual entries and add an endtag
         let result = Array(buf1.value[0..<buf1.value.count-2]) + buf2.value
 
-        let newBuffer = AMLBuffer(size: AMLIntegerData(value: AMLInteger(result.count)), value: result)
+        let newBuffer = AMLBuffer(size: AMLIntegerData(AMLInteger(result.count)), value: result)
         target.updateValue(to: newBuffer, context: &context)
         return newBuffer
     }
@@ -154,16 +154,16 @@ struct AMLDefCondRefOf: AMLType2Opcode {
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         guard let n = name as? AMLNameString else {
-            return AMLIntegerData(value: 0)
+            return AMLIntegerData(0)
         }
         guard let (obj, _) = context.globalObjects.getGlobalObject(currentScope: context.scope,
                                                                    name: n) else {
-                                                                    return AMLIntegerData(value: 0)
+                                                                    return AMLIntegerData(0)
         }
         // FIXME, do the store into the target
         //target.value = obj
         print(String(describing: obj))
-        return AMLIntegerData(value: 1)
+        return AMLIntegerData(1)
     }
 
 
@@ -197,7 +197,7 @@ struct AMLDefDecrement: AMLType2Opcode {
         guard let result = target.evaluate(context: &context) as? AMLIntegerData else {
             fatalError("\target) is not an integer")
         }
-        return AMLIntegerData(value: result.value &- 1)
+        return AMLIntegerData(result.value &- 1)
     }
 
 
@@ -241,7 +241,7 @@ struct AMLDefDivide: AMLType2Opcode {
         guard d2 != 0 else {
             fatalError("divisor is 0")
         }
-        let q = AMLIntegerData(value: (d1 / d2))
+        let q = AMLIntegerData((d1 / d2))
         return q
     }
 
@@ -252,8 +252,8 @@ struct AMLDefDivide: AMLType2Opcode {
         guard d2 != 0 else {
             fatalError("divisor is 0")
         }
-        let q = AMLIntegerData(value: (d1 / d2))
-        let r = AMLIntegerData(value: (d1 % d2))
+        let q = AMLIntegerData((d1 / d2))
+        let r = AMLIntegerData((d1 % d2))
         quotient.updateValue(to: q, context: &context)
         remainder.updateValue(to: r, context: &context)
         return q
@@ -311,7 +311,7 @@ struct AMLDefIncrement: AMLType2Opcode {
         guard let result = target.evaluate(context: &context) as? AMLIntegerData else {
             fatalError("\target) is not an integer")
         }
-        return AMLIntegerData(value: result.value &+ 1)
+        return AMLIntegerData(result.value &+ 1)
     }
 
 
@@ -351,7 +351,7 @@ struct AMLDefLAnd: AMLType2Opcode {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
         let value = AMLBoolean(op1 != 0 && op2 != 0)
-        return AMLIntegerData(value: value)
+        return AMLIntegerData(value)
     }
 
 
@@ -371,7 +371,7 @@ struct AMLDefLEqual: AMLType2Opcode {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
         let value = AMLBoolean(op1 == op2)
-        return AMLIntegerData(value: value)
+        return AMLIntegerData(value)
     }
 
 
@@ -391,7 +391,7 @@ struct AMLDefLGreater: AMLType2Opcode {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
         let value = AMLBoolean(op1 < op2)
-        return AMLIntegerData(value: value)
+        return AMLIntegerData(value)
     }
 
 
@@ -410,7 +410,7 @@ struct AMLDefLGreaterEqual: AMLType2Opcode {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
         let value = AMLBoolean(op1 >= op2)
-        return AMLIntegerData(value: value)
+        return AMLIntegerData(value)
     }
 
 
@@ -429,7 +429,7 @@ struct AMLDefLLess: AMLType2Opcode {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
         let value = AMLBoolean(op1 < op2)
-        return AMLIntegerData(value: value)
+        return AMLIntegerData(value)
     }
 
 
@@ -449,7 +449,7 @@ struct AMLDefLLessEqual: AMLType2Opcode {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
         let value = AMLBoolean(op1 <= op2)
-        return AMLIntegerData(value: value)
+        return AMLIntegerData(value)
     }
 
     func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
@@ -465,7 +465,7 @@ struct AMLDefLNot: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op = operandAsInteger(operand: operand, context: &context)
         let value = AMLBoolean(op == 0)
-        return AMLIntegerData(value: value)
+        return AMLIntegerData(value)
     }
 
 
@@ -514,7 +514,7 @@ struct AMLDefLOr: AMLType2Opcode {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
         let value = AMLBoolean(op1 != 0 || op2 != 0)
-        return AMLIntegerData(value: value)
+        return AMLIntegerData(value)
     }
 
 
@@ -628,7 +628,7 @@ struct AMLDefNot: AMLType2Opcode {
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op = operandAsInteger(operand: operand, context: &context)
-        return AMLIntegerData(value: ~op)
+        return AMLIntegerData(~op)
     }
 
 
@@ -659,7 +659,7 @@ struct AMLDefOr: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
-        return AMLIntegerData(value: op1 | op2)
+        return AMLIntegerData(op1 | op2)
     }
 
 
@@ -725,7 +725,7 @@ struct AMLDefShiftLeft: AMLType2Opcode {
         let op = operandAsInteger(operand: operand, context: &context)
         let shiftCount = operandAsInteger(operand: count, context: &context)
         let value = op << shiftCount
-        return AMLIntegerData(value: value)
+        return AMLIntegerData(value)
     }
 
     func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
@@ -747,7 +747,7 @@ struct AMLDefShiftRight: AMLType2Opcode {
         let op = operandAsInteger(operand: operand, context: &context)
         let shiftCount = operandAsInteger(operand: count, context: &context)
         let value = op >> shiftCount
-        return AMLIntegerData(value: value)
+        return AMLIntegerData(value)
     }
 
     func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
@@ -849,7 +849,7 @@ struct AMLDefSubtract: AMLType2Opcode {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
         let value = op1 &- op2
-        return AMLIntegerData(value: value)
+        return AMLIntegerData(value)
     }
 
     func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
@@ -972,7 +972,7 @@ struct AMLDefXor: AMLType2Opcode {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
         let value = op1 ^ op2
-        return AMLIntegerData(value: value)
+        return AMLIntegerData(value)
     }
 
 
@@ -1031,7 +1031,7 @@ struct AMLMethodInvocation: AMLType2Opcode {
 
         context.returnValue = returnValue
         guard let retval = returnValue else {
-            return AMLIntegerData(value: 0)
+            return AMLIntegerData(0)
         }
         return retval
     }

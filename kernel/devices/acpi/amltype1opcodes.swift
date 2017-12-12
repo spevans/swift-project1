@@ -130,7 +130,7 @@ struct AMLDefReturn: AMLType1Opcode {
 
     init(object: AMLTermArg?) {
         if object == nil {
-            self.object = AMLIntegerData(value: 0)
+            self.object = AMLIntegerData(0)
         } else {
             self.object = object!
         }
