@@ -1,4 +1,5 @@
-
+Fix vasprintf() as used by assert()
+Improve backtrack/stacktrace
 ACPI: Setup acpi as a device
 Load kernel as ELF and implement dladdr()/backtrace() (-z max-page-size=0x1000)
 Fix string sorting for ASCII / Decide on libicu stub
@@ -18,37 +19,3 @@ use struct/class more consistenly and fixup what should be singletons etc
 
 MAYBE Implement malloc() in swift
 
-
-DONE ACPI: Implement method executation
-DONE ACPI: Setup devices found in tables
-DONE Write AML parser to read SDST ACPI tables
-WONTDO Merge kernel.h and klibc.h
-DONE Dont bother setting up the extra GDT/TSS in GDT.swift just do it once in the config page at the front of the kernel and remove duplicate code from BIOS and EFI setup asm.
-DONE Interrupt done, need to seperate data - PS/2 mouse fixes generate own interrupt, seperate data streams
-DONE Find DMI system ID
-DONE Determine Frame buffer
-DONE Draw on screen
-DONE Add simple Graphics Console / fonts
-DONE Update efi-header
-DONE ExitBootServices()
-DONE keyboard
-DONE add function overrider for putchar_unlocked
-DONE write patcher for EFI header
-DONE add early_tty swift driver
-DONE replace isohdppx.bin with own code and move to lib/
-DONE add EFIBootParams
-DONE fix debug build (stack issue)
-DONE add stack over/under flow detector
-DONE and exveption ISTs
-DONE Move to highmem used for kernel space, nb: PR  #7732
-     24367fa5d91ab90641adaef48759c9fd8e4059bb
-DONE Recompile with -mcmodel=kernel incl swift and relink kernel to
-     negative address space
-DONE fix interrupt masking / timer overrun
-DONE Add exception and IRQ ISTs - Inital IST
-DONE Add System and InterruptManager classes.
-DONE Remove the sharedInstance of APIC, KBD8042, PIC8259 and PIT8254
-     and add as instances to System and/or InterruptManager.
-DONE Replace bitSet() functions with subscripts where necessary
-DONE # Try out compile flags: -finline-small-functions -findirect-inlining -ffreestanding
-DONE Implement printf() in swift

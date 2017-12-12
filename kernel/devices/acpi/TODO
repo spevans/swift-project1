@@ -12,14 +12,3 @@ Store local names in the context not the globalObjects
 - AMLDefOpRegion Should probably be a class and try to allocate its own region at init()
 - Fix enums to have lowercase first letter
 
-
-DONE tidy up current parsing,
-DONE use nextSymbol more
-DONE rename amlopcodes to amltypes
-DONE remove default in switch
-DONE - Avoid default case in switch as reduces validation of any new cases added
-DONE - switch/case for tables as created at compile time with extra checking and optimistion
-DONE - NotOp needs to take a second opcode as a param - Why?? - ITs the Target!!
-DONE - Need to deal with generic TermArg since its used for specifci types (=> Integer)
-DONE Expand names re Scope
-DONE TermArg return type Integer, String etc
