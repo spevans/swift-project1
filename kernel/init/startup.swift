@@ -14,6 +14,7 @@ fileprivate(set) var system: System!
 @_silgen_name("startup")
 public func startup(bootParamsAddr: UInt) {
     system = System(bootParamsAddr: bootParamsAddr)
+    system.initSystem()
     system.runSystem()
     koops("kernel: Shouldnt get here")
 }
@@ -22,6 +23,7 @@ public func startup(bootParamsAddr: UInt) {
 final class System {
     let systemTables: SystemTables
     let deviceManager: DeviceManager
+    let bootParams: BootParams
 
     init(bootParamsAddr: RawAddress) {
         // Setup GDT/IDT as early as possible to help catch CPU exceptions
@@ -29,12 +31,15 @@ final class System {
         setupIDT()
 
         // BootParams must come first to find memory regions for MM
-        let bootParams = parse(bootParamsAddr: VirtualAddress(bootParamsAddr))
+        bootParams = parse(bootParamsAddr: VirtualAddress(bootParamsAddr))
         setupMM(bootParams: bootParams)
 
         // SystemTables() needs the MM setup so that the memory can be mapped
         systemTables = SystemTables(bootParams: bootParams)
         deviceManager = DeviceManager(acpiTables: systemTables.acpiTables)
+    }
+
+    fileprivate func initSystem() {
         CPU.getInfo()
         TTY.sharedInstance.setTTY(frameBufferInfo: bootParams.frameBufferInfo)
         deviceManager.initialiseDevices()

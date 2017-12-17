@@ -193,6 +193,7 @@
 		B933A7761F2F8D6A00FE6846 /* acpitest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = acpitest.swift; sourceTree = "<group>"; };
 		B933A7781F2F8D6A00FE6846 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amlresourcedata.swift; sourceTree = "<group>"; };
+		B97A313F1FE55E2200E651DC /* piix.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = piix.swift; sourceTree = "<group>"; };
 		B9A2C1B01F30ECF9003D4D92 /* TODO */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = TODO; sourceTree = "<group>"; };
 		B9A2C1B11F30ECF9003D4D92 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		B9A2C1B31F30EEC7003D4D92 /* boot */ = {isa = PBXFileReference; lastKnownFileType = folder; path = boot; sourceTree = "<group>"; };
@@ -311,14 +312,15 @@
 		B933A6B91F2F46B900FE6846 /* devices */ = {
 			isa = PBXGroup;
 			children = (
+				B933A7121F2F497800FE6846 /* Makefile */,
 				B9C2AF2D1FD9FA0A00E6EFEB /* devicemanager.swift */,
-				B9C2AF261FD818D000E6EFEB /* isa.swift */,
 				B933A71B1F2F497800FE6846 /* PCI.swift */,
+				B9C2AF261FD818D000E6EFEB /* isa.swift */,
+				B97A313F1FE55E2200E651DC /* piix.swift */,
 				B933A7181F2F497800FE6846 /* apic.swift */,
 				B933A7141F2F497800FE6846 /* cpu.swift */,
 				B933A7191F2F497800FE6846 /* ioapic.swift */,
 				B933A7131F2F497800FE6846 /* kbd8042.swift */,
-				B933A7121F2F497800FE6846 /* Makefile */,
 				B933A7151F2F497800FE6846 /* pic8259.swift */,
 				B933A7171F2F497800FE6846 /* pit8254.swift */,
 				B933A7161F2F497800FE6846 /* ps2keyboard.swift */,

@@ -97,7 +97,7 @@ final class ACPIGlobalObjects {
 
 
     func add(_ name: String, _ object: AMLObject) {
-        print("Adding \(name) -> \(object.name.value)", type(of: object))
+        debugPrint("Adding \(name) -> \(object.name.value) \(type(of: object))")
         var parent = globalObjects
         var nameParts = removeRootChar(name: name).components(
             separatedBy: AMLNameString.pathSeparatorChar)

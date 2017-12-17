@@ -946,7 +946,7 @@ final class AMLParser {
 
     private func parseDefDevice() throws -> AMLDefDevice {
         let parser = try subParser()
-        let name = try parser.parseNameString()
+        let name = try parser.parseNameString().shortName
         let fqn = resolveNameToCurrentScope(path: name)
         // open a new scope.
         parser.currentScope = fqn
@@ -1001,7 +1001,7 @@ final class AMLParser {
         let name = try parser.parseNameString()
         parser.currentScope = resolveNameToCurrentScope(path: name)
 
-        return try AMLDefProcessor(name: name,
+        return try AMLDefProcessor(name: name.shortName,
                                    procId: parser.nextByte(),
                                    pblkAddr: parser.nextDWord(),
                                    pblkLen: parser.nextByte(),

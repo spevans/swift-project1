@@ -89,6 +89,23 @@ struct AMLDefDevice: AMLNamedObj {
         }
         return nil
     }
+
+    func addressResource(context: inout ACPI.AMLExecutionContext) -> AMLInteger? {
+        var fullName = context.scope.value
+        fullName.append("._ADR")    // need AMLNameString to allow add segs
+        guard let node = context.globalObjects.get(fullName) else {
+            return nil
+        }
+        if let adr = node.object as? AMLNamedObj,
+            let v = adr.readValue(context: &context) as? AMLIntegerData {
+            return v.value
+        }
+        if let adr = node.object as? AMLDefName, let v = adr.value as? AMLIntegerData {
+            return v.value
+        }
+
+        return nil
+    }
 }
 
 

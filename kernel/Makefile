@@ -50,6 +50,7 @@ SWIFT_SRCS :=	init/startup.swift		\
 		devices/cpu.swift		\
 		devices/isa.swift		\
 		devices/PCI.swift		\
+		devices/piix.swift		\
 		devices/tty.swift		\
 		devices/kbd8042.swift		\
 		devices/ps2keyboard.swift	\
