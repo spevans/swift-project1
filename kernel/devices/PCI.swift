@@ -51,7 +51,7 @@ final class UnknownPCIDevice: Device, PCIDevice, CustomStringConvertible {
     let acpiName: String?
 
     var description: String {
-        var desc = deviceFunction.description
+        var desc = "PCI: Unknown device: " + deviceFunction.description
         if let name = acpiName {
             desc.append(": ")
             desc.append(name)

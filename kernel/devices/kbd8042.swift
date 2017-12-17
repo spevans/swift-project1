@@ -18,7 +18,7 @@ protocol PS2Device {
 }
 
 
-final class KBD8042: Device, ISADevice {
+final class KBD8042: Device, ISADevice, CustomStringConvertible {
     // Constants
     static private let DATA_PORT:        UInt16 = 0x60
     static private let STATUS_REGISTER:  UInt16 = 0x64
@@ -174,6 +174,7 @@ final class KBD8042: Device, ISADevice {
     private var port1device: PS2Device? = nil
     private var port2device: PS2Device? = nil
 
+    var description: String { return "KBD8042" }
 
     required init?(interruptManager: InterruptManager, pnpName: String,
           resource: ISABus.Resources) {

@@ -10,9 +10,9 @@
 // can be initialised.
 
 
-final class PIIX: Device, PCIDevice {
+final class PIIX: Device, PCIDevice, CustomStringConvertible {
     private let deviceFunction: PCIDeviceFunction
-
+    var description: String { return deviceFunction.description + ": PIIX" }
 
     init?(parentBus: Bus, deviceFunction: PCIDeviceFunction) {
         self.deviceFunction = deviceFunction
@@ -20,9 +20,10 @@ final class PIIX: Device, PCIDevice {
 
     init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpi: ACPIGlobalObjects.ACPIObjectNode, fullName: String) {
         self.deviceFunction = deviceFunction
-        print("Adding PIIX3")
+        print("PIIX: Adding ISA bus")
 
         let isaBus = ISABus(parentBus: parentBus, acpi: acpi, fullName: fullName)
         isaBus.initialiseDevices()
+        parentBus.addDevice(isaBus)
     }
 }

@@ -95,8 +95,11 @@ final class PIT8254: Device, ISADevice, Timer, CustomStringConvertible {
         }
     }
 
-
     var description: String {
+        return "PIT8254"
+    }
+
+    var status: String {
         // Readback command, latch status, readback for channels 0,1,2
         let readBackCmd: UInt8 = ChannelSelect.READBACK.rawValue | 0b00101110
         outb(commandPort, readBackCmd)

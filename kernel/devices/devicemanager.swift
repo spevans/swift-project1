@@ -16,7 +16,7 @@ class UnknownDevice: Device, CustomStringConvertible {
 
     init(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPIGlobalObjects.ACPIObjectNode? = nil,
          acpiFullName: String? = nil) {
-        description = "PCI: Unknown Device: \(pnpName ?? "") \(acpiFullName ?? "")"
+        description = "Unknown Device: \(pnpName ?? "") \(acpiFullName ?? "")"
     }
 }
 
@@ -138,10 +138,28 @@ final class DeviceManager {
             print(timer)
         }
         TTY.sharedInstance.scrollTimingTest()
+        dumpDeviceTree()
     }
 
     func addDevice(_ device: Device) {
         devices.append(device)
+    }
+
+
+    private func dumpBus(_ bus: Bus, depth: Int) {
+        let spaces = String(repeating: " ", count: depth * 6)
+        for device in bus.devices {
+            print("\(spaces)+--- \(device)")
+            if let bus = device as? Bus {
+                dumpBus(bus, depth: depth + 1)
+            }
+        }
+    }
+
+
+    func dumpDeviceTree() {
+        print(masterBus)
+        dumpBus(masterBus, depth: 0)
     }
 
 
