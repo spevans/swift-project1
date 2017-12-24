@@ -302,7 +302,7 @@ private func _printUnsigned<Target: UnicodeOutputStream>(to output: inout Target
 @inline(never)
 private func dispatchPrint<Target: UnicodeOutputStream>(to output: inout Target,
     formatChar: FormatChar, itemsIterator: inout ArgIterator,
-    formatIterator: inout UnsafeBufferPointerIterator<UInt8>) {
+    formatIterator: inout UnsafeBufferPointer<UInt8>.Iterator) {
 
     let digits: StaticString = "0123456789abcdef"
     //var longModifier = false

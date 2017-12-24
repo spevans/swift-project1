@@ -74,6 +74,7 @@ abort()
 
 
 UNIMPLEMENTED(backtrace)
+UNIMPLEMENTED(dladdr)
 
 
 // Unicode (libicu)
