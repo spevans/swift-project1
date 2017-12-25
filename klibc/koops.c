@@ -23,8 +23,9 @@ koops(const char *fmt, ...)
         va_list args;
         va_start(args, fmt);
         kvprintf(fmt, args);
+        kprintf("\n");
         va_end(args);
-        stop();
+        __builtin_trap();
 }
 
 

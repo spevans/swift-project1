@@ -30,6 +30,8 @@
 #include "klibc.h"
 #include "mm.h"
 
+#define MALLOC_DEBUG
+
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 
@@ -263,14 +265,14 @@ init_mm()
 
 // Debugging for now, wouldnt work normally as text could be there for other reasons
 static void
-validate_is_slab(struct slab_header *slab)
+validate_is_slab(const char *caller, struct slab_header *slab)
 {
 #ifdef MALLOC_DEBUG
         if (strcmp(slab->signature, "MALLOC")) {
-                koops("slab @ %p is not a slab!", slab);
+                koops("%s: slab @ %p is not a slab!", caller, slab);
         }
         if (compute_checksum(slab) != slab->checksum) {
-                koops("slab @ %p has invalid checksum!", slab);
+                koops("%s: slab @ %p has invalid checksum!", caller, slab);
         }
 #endif
 }
@@ -328,7 +330,7 @@ malloc(size_t size)
                         slab = add_new_slab(slab_idx);
                         freebit = 0;
                 } else {
-                        validate_is_slab(slab);
+                        validate_is_slab(__func__, slab);
                         freebit = find_lowest_bit(slab, slab_idx);
                         if (unlikely(freebit == -1)) {
                                 slab = add_new_slab(slab_idx);
@@ -377,7 +379,7 @@ free(void *ptr)
                 size_t pages = (slab->slab_size + sizeof(struct malloc_region)) / PAGE_SIZE;
                 free_pages(slab, pages);
         } else {
-                validate_is_slab(slab);
+                validate_is_slab(__func__, slab);
                 size_t offset = (ptr - (void *)slab);
                 debugf("slab=%p size=%lu  offset=%"PRIu64 "\n", slab, slab->slab_size, offset);
                 if (unlikely(offset < 64)) {
@@ -433,7 +435,7 @@ malloc_usable_size(const void *ptr)
         uint64_t p = (uint64_t)ptr;
         struct slab_header *slab = (struct slab_header *)(p & ~PAGE_MASK);
         if (region_is_slab(slab)) {
-                validate_is_slab(slab);
+                validate_is_slab(__func__, slab);
                 retval = slab->slab_size;
         } else {
                 struct malloc_region *region = (struct malloc_region *)slab;
