@@ -73,22 +73,6 @@ abort()
 }
 
 
-long
-sysconf(int name)
-{
-        switch(name) {
-        case _SC_PAGESIZE:
-                return PAGE_SIZE;
-
-        case _SC_NPROCESSORS_ONLN:
-                return 1;
-
-        default:
-                koops("UNIMPLEMENTED sysconf: name = %d\n", name);
-        }
-}
-
-
 UNIMPLEMENTED(backtrace)
 
 
