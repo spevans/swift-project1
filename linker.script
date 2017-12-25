@@ -5,45 +5,27 @@ PAGE_SIZE = 0x1000;
 /* Needs to be bigger for DEBUG mode, can be 2 for non debug */
 STACK_SIZE = 6 * PAGE_SIZE;
 
-SECTIONS
-{
-  /* 256TB - 512GB + 1MB */
+PHDRS {
+      text   PT_LOAD FLAGS(5);  /* R_E */
+      rodata PT_LOAD FLAGS(4);  /* R__ */
+      data   PT_LOAD FLAGS(6);  /* RW_ */
+}
+
+SECTIONS {
+  . = 0x1000;
+  /* 256TB - 2GB + 1MB */
   .text.start (0xffffffff80100000) : {
     _kernel_start = .;
     _text_start = .;
     *(.text .text.*)
-  }
+  } :text
 
-
-/*  .rela.init      : { *(.rela.init) }
-  .rela.text      : { *(.rela.text .rela.text.* .rela.gnu.linkonce.t.*) }
-  .rela.fini      : { *(.rela.fini) }
-  .rela.rodata    : { *(.rela.rodata .rela.rodata.* .rela.gnu.linkonce.r.*) }
-  .rela.data.rel.ro   : { *(.rela.data.rel.ro .rela.data.rel.ro.* .rela.gnu.linkonce.d.rel.ro.*) }
-  .rela.data      : { *(.rela.data .rela.data.* .rela.gnu.linkonce.d.*) }
-  .rela.tdata     : { *(.rela.tdata .rela.tdata.* .rela.gnu.linkonce.td.*) }
-  .rela.tbss      : { *(.rela.tbss .rela.tbss.* .rela.gnu.linkonce.tb.*) }
-  .rela.ctors     : { *(.rela.ctors) }
-  .rela.dtors     : { *(.rela.dtors) }
-  .rela.got       : { *(.rela.got) }
-  .rela.bss       : { *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*) }
-  .rela.ldata     : { *(.rela.ldata .rela.ldata.* .rela.gnu.linkonce.l.*) }
-  .rela.lbss      : { *(.rela.lbss .rela.lbss.* .rela.gnu.linkonce.lb.*) }
-  .rela.lrodata   : { *(.rela.lrodata .rela.lrodata.* .rela.gnu.linkonce.lr.*) }
-  .rela.ifunc     : { *(.rela.ifunc) } */
   .rela.plt :{
       *(.rela.plt)
       PROVIDE_HIDDEN (__rela_iplt_start = .);
       *(.rela.iplt)
       PROVIDE_HIDDEN (__rela_iplt_end = .);
   }
-
-
- .got : {    *(.got) *(.igot) }
- .got.plt : {   *(.got.plt)  *(.igot.plt) }
- .plt            : { *(.plt) *(.iplt) }
- .plt.got        : { *(.plt.got) }
- .plt.bnd        : { *(.plt.bnd) }
 
   .init : {
     KEEP (*(SORT_NONE(.init)))
@@ -54,7 +36,14 @@ SECTIONS
   .rodata : ALIGN(0x1000) {
     _rodata_start = .;
     *(.rodata .rodata.*)
-  }
+    _rodata_end = .;
+  } :rodata
+  . = ALIGN(0x1000);
+
+  .data : ALIGN(0x10) {
+    _data_start = .;
+    *(.data .data.*)
+  } :data
 
   .preinit_array : {
     PROVIDE_HIDDEN (__preinit_array_start = .);
@@ -73,7 +62,6 @@ SECTIONS
     KEEP (*(.fini_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .dtors))
     PROVIDE_HIDDEN (__fini_array_end = .);
   }
-  PROVIDE(_rodata_end = .);
 
   .swift2_protocol_conformances : {
     .swift2_protocol_conformances_start = . ;
@@ -87,11 +75,14 @@ SECTIONS
     *(.swift2_type_metadata) ;
   }
 
-  .data : ALIGN(0x1000) {
-    _data_start = .;
-    *(.data .data.*)
-    _data_end = .;
-  }
+  .got     : { *(.got) *(.igot)          }
+  .got.plt : { *(.got.plt)  *(.igot.plt) }
+  .plt     : { *(.plt) *(.iplt)          }
+  .plt.got : { *(.plt.got)               }
+  .plt.bnd : { *(.plt.bnd)               }
+
+  PROVIDE(_data_end = .);
+  . = ALIGN(0x1000);
 
  /* Thread Local Storage sections  */
   .tdata          : { *(.tdata .tdata.* .gnu.linkonce.td.*) }
@@ -119,4 +110,8 @@ SECTIONS
 
   . = ALIGN(PAGE_SIZE);
   _kernel_end = .;
+
+  /DISCARD/ : {
+    *(.comment)
+  }
 }
