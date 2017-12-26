@@ -60,6 +60,7 @@ void * _Nonnull memsetw(void * _Nonnull dest, uint16_t w, size_t count);
 int strcmp(const char * _Nonnull s1, const char * _Nonnull s2);
 char * _Nonnull strcpy(char * _Nonnull dest, const char * _Nonnull src);
 size_t strlen(const char * _Nonnull s);
+size_t malloc_usable_size (const void * _Nullable ptr);
 
 
 // early_tty.c

@@ -51,31 +51,83 @@ dump_basic_string(struct basic_string *this)
 }
 
 
-
-// std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::find(char const*, unsigned long, unsigned long) const
-size_t
-_ZNKSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE4findEPKcmm(
-        struct basic_string *this,
-        char const *str,
-        size_t pos,
-        size_t len)
+static char *
+__create_storage( struct basic_string *this,
+        size_t *capacity,
+        size_t old_capacity)
 {
-        koops("UNIMPLEMENTED: find(%p, str='%s', pos=%ld, len=%ld)\n", this,
-              str, pos, len);
-        return npos;
+        if (*capacity > max_string_size) {
+                koops("Alloc of string > max_string_size");
+        }
+        if (*capacity > old_capacity) {
+                old_capacity *= 2;
+                if (*capacity >= old_capacity) {
+                        return malloc(*capacity + 1);
+                }
+                if (old_capacity <= max_string_size) {
+                        *capacity = old_capacity;
+                        return malloc(*capacity + 1);
+                } else {
+                        *capacity = max_string_size;
+                        return malloc(max_string_size + 1);
+                }
+        }
+        return malloc(*capacity + 1);
 }
 
 
-
-// std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::compare(char const*) const
-int
-_ZNKSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE7compareEPKc(
-        struct basic_string *this,
-        const char *str)
+// Resize the underlying storage to hold a new size (capacity may still be
+// greater). If shrinking the string it may be converted to a short string.
+// If a heap stored string will still be a heap stored string after shrinking,
+// dont bother to reallocate the storage just keep it the same size/capacity.
+// If length is increased, the extra storage will contained undefined data
+// but will still be nul terminated.
+// The old string data is returned if not copied and freed.
+static char *
+__resize_string(struct basic_string *this, size_t new_size, int copy_and_free)
 {
-        koops("UNIMPLEMENTED: compare(%p, str='%s')\n", this, str);
-        return 0;
+        char *result = NULL;
+
+        if (new_size < this->length) {
+                // Can it be converted to a short string? Convert if so,
+                // otherwise dont bother to shrink the allocated string.
+                if (new_size <= short_string_capacity) {
+                        if (!is_short_string(this)) {
+                                if (copy_and_free) {
+                                        memcpy(this->short_string, this->string,
+                                               new_size);
+                                        free(this->string);
+                                } else {
+                                        result = this->string;
+                                }
+                                this->string = this->short_string;
+                        }
+                }
+        } else if (new_size > capacity(this)) {
+                size_t new_capacity = new_size;
+                char *new_string = __create_storage(this, &new_capacity,
+                                                    capacity(this));
+                if (!new_string) {
+                        koops("malloc");
+                }
+                if (copy_and_free) {
+                        memcpy(new_string, this->string, this->length);
+                        if (!is_short_string(this)) {
+                                free(this->string);
+                        }
+                } else {
+                        result = this->string;
+                }
+                this->capacity = malloc_usable_size(new_string);
+                this->string = new_string;
+        }
+        // The bytes between the old length and the new will be undefined
+        this->length = new_size;
+        this->string[new_size] = '\0';
+
+        return result;
 }
+
 
 // std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_replace(unsigned long, unsigned long, char const*, unsigned long)
 struct basic_string *
@@ -128,17 +180,6 @@ _ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE7reserveEm(
 }
 
 
-// std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&, unsigned long, unsigned long)
-void
-_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC2ERKS4_mm(
-        struct basic_string *this,
-        struct basic_string *that,
-        unsigned long l1, unsigned long l2)
-{
-        koops("UNIMPLEMENTED: _ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC2ERKS4_mm");
-}
-
-
 // std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)
 char *
 _ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE9_M_createERmm(
@@ -147,23 +188,7 @@ _ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE9_M_createERmm(
         size_t old_capacity)
 {
         debugf("_M_create(%p, %zu, %zu)\n", this, *capacity, old_capacity);
-        if (*capacity > max_string_size) {
-                koops("Alloc of string > max_string_size");
-        }
-        if (*capacity > old_capacity) {
-                old_capacity *= 2;
-                if (*capacity >= old_capacity) {
-                        return malloc(*capacity + 1);
-                }
-                if (old_capacity <= max_string_size) {
-                        *capacity = old_capacity;
-                        return malloc(*capacity + 1);
-                } else {
-                        *capacity = max_string_size;
-                        return malloc(max_string_size + 1);
-                }
-        }
-        return malloc(*capacity + 1);
+        return __create_storage(this, capacity, old_capacity);
 }
 
 
@@ -178,32 +203,14 @@ _ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE9_M_appendEPKcm(
         dump_basic_string(this);
 
         if (len > 0) {
-                size_t new_length = this->length + len;
-                if (new_length > capacity(this)) {
-                        size_t new_capacity = new_length;
-                        char *new_string = _ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE9_M_createERmm(this, &new_capacity, capacity(this));
-                        if (!new_string) {
-                                koops("malloc");
-                        }
-                        if (this->length > 0) {
-                                memcpy(new_string, this->string, this->length);
-                        }
-                        if (!is_short_string(this)) {
-                                free(this->string);
-                        }
-                        this->string = new_string;
-                        this->capacity = new_capacity;
-                }
-                memcpy(this->string + this->length, str, len);
-                this->string[new_length] = '\0';
-                this->length = new_length;
+                size_t length = this->length;
+                __resize_string(this, length + len, 1);
+                memcpy(this->string + length, str, len);
         }
         dump_basic_string(this);
 
-        //  koops("UNIMPLEMENTED: append(%p, '%s', %zu)\n", this, str, len);
         return this;
 }
-
 
 
 
