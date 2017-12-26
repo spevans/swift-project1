@@ -237,6 +237,7 @@ __kvprintf(print_char_func print_func, void *data, const char *fmt, size_t fmtle
 
                                 case 'u':
                                 case 'Z':
+                                        arg &= UINT_MAX;
                                         is_signed = FALSE;
                                 do_decimal:
                                         digits = "0123456789";

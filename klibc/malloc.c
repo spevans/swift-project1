@@ -103,6 +103,7 @@ static const int MAX_SLAB_SIZE = 4032;        // Anything over this gets pages
 
 
 #ifdef MALLOC_DEBUG
+
 static uint64_t
 compute_checksum(struct slab_header *slab)
 {
@@ -112,6 +113,26 @@ compute_checksum(struct slab_header *slab)
                 checksum ^= fields[i];
         }
         return checksum;
+}
+
+static void
+dump_header(struct slab_header *slab)
+{
+        kprintf("Slab header @ %p\n", slab);
+        kprintf("slab_size: %lu\n", slab->slab_size);
+        if (slab->slab_size > MAX_SLAB_SIZE) {
+                return;
+        }
+        kprintf("allocation_bm[0]: %016lx\n", slab->allocation_bm[0]);
+        kprintf("allocation_bm[1]: %016lx\n", slab->allocation_bm[1]);
+        kprintf("next: %p prev: %p malloc_cnt: %u, free_cnt: %u\n",
+                slab->next, slab->prev, slab->malloc_cnt, slab->free_cnt);
+        char sig_tmp[9];
+        memcpy(sig_tmp, slab->signature, 8);
+        sig_tmp[8] = '\0';
+        kprintf("signature: %s\n", sig_tmp);
+        kprintf("checksum: %016lx\n", slab->checksum);
+        kprintf("computed: %016lx\n", compute_checksum(slab));
 }
 #endif
 
@@ -245,12 +266,14 @@ add_new_slab(int slab_idx)
         slab->next = current_head;
         if (current_head) {
                 current_head->prev = slab;
+                update_checksum(current_head);
         }
         slabs[slab_idx] = slab;
 
 #ifdef MALLOC_DEBUG
-        strcpy(slab->signature, "MALLOC");      // for debugging
+        strcpy(slab->signature, "#MALLOC");      // for debugging
         update_checksum(slab);
+        dump_header(slab);
 #endif
         return slab;
 }
@@ -265,14 +288,16 @@ init_mm()
 
 // Debugging for now, wouldnt work normally as text could be there for other reasons
 static void
-validate_is_slab(const char *caller, struct slab_header *slab)
+validate_is_slab(const char *caller, struct slab_header *slab, uintptr_t arg)
 {
 #ifdef MALLOC_DEBUG
-        if (strcmp(slab->signature, "MALLOC")) {
-                koops("%s: slab @ %p is not a slab!", caller, slab);
+        if (strcmp(slab->signature, "#MALLOC")) {
+                dump_header(slab);
+                koops("%s(%#lx): slab @ %p is not a slab!", caller, arg, slab);
         }
         if (compute_checksum(slab) != slab->checksum) {
-                koops("%s: slab @ %p has invalid checksum!", caller, slab);
+                dump_header(slab);
+                koops("%s(%#lx): slab @ %p has invalid checksum!", caller, arg, slab);
         }
 #endif
 }
@@ -330,7 +355,7 @@ malloc(size_t size)
                         slab = add_new_slab(slab_idx);
                         freebit = 0;
                 } else {
-                        validate_is_slab(__func__, slab);
+                        validate_is_slab(__func__, slab, (uintptr_t)size);
                         freebit = find_lowest_bit(slab, slab_idx);
                         if (unlikely(freebit == -1)) {
                                 slab = add_new_slab(slab_idx);
@@ -379,7 +404,7 @@ free(void *ptr)
                 size_t pages = (slab->slab_size + sizeof(struct malloc_region)) / PAGE_SIZE;
                 free_pages(slab, pages);
         } else {
-                validate_is_slab(__func__, slab);
+                validate_is_slab(__func__, slab, (uintptr_t)ptr);
                 size_t offset = (ptr - (void *)slab);
                 debugf("slab=%p size=%lu  offset=%"PRIu64 "\n", slab, slab->slab_size, offset);
                 if (unlikely(offset < 64)) {
@@ -420,7 +445,7 @@ malloc_usable_size(const void *ptr)
         size_t retval = 0;
 
         if (read_int_nest_count() > 0) {
-                koops("malloc called in interrupt handler");
+                koops("malloc_usable_size called in interrupt handler");
         }
         if (ptr == NULL) {
                 return 0;
@@ -435,7 +460,7 @@ malloc_usable_size(const void *ptr)
         uint64_t p = (uint64_t)ptr;
         struct slab_header *slab = (struct slab_header *)(p & ~PAGE_MASK);
         if (region_is_slab(slab)) {
-                validate_is_slab(__func__, slab);
+                validate_is_slab(__func__, slab, (uintptr_t)ptr);
                 retval = slab->slab_size;
         } else {
                 struct malloc_region *region = (struct malloc_region *)slab;
