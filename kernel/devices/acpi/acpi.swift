@@ -113,7 +113,7 @@ struct RSDP2: CustomStringConvertible {
 }
 
 
-struct ACPI {
+final class ACPI {
     private(set) var mcfg: MCFG?
     private(set) var facp: FACP?
     private(set) var madt: MADT?
@@ -135,13 +135,11 @@ struct ACPI {
             parseEntry(rawSDTPtr: rawSDTPtr, vendor: vendor, product: product)
         }
 
-        print("Parsing AML")
         if dsdt == nil, let dsdtAddr = facp?.dsdtAddress {
             print("Found DSDT address in FACP: 0x\(asHex(dsdtAddr.value))")
             parseEntry(rawSDTPtr: mkSDTPtr(dsdtAddr),
                        vendor: vendor, product: product)
         }
-        globalObjects = parseAMLTables()
     }
 
 
@@ -150,7 +148,8 @@ struct ACPI {
     }
 
 
-    mutating func parseAMLTables() -> ACPIGlobalObjects? {
+    func parseAMLTables() {
+        print("Parsing AML")
         guard let ptr = dsdt else {
             fatalError("ACPI: No valid DSDT found")
         }
@@ -171,11 +170,10 @@ struct ACPI {
         //parser.parseMethods()
         globalObjects = parser.acpiGlobalObjects
         print("End of AML code")
-        return acpiGlobalObjects
     }
 
 
-    mutating func parseEntry(rawSDTPtr: UnsafeRawPointer, vendor: String,
+    func parseEntry(rawSDTPtr: UnsafeRawPointer, vendor: String,
         product: String) {
 
         let signature = tableSignature(ptr: rawSDTPtr)

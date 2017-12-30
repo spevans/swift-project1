@@ -117,6 +117,7 @@ final class DeviceManager {
 
 
     init(acpiTables: ACPI) {
+        acpiTables.parseAMLTables()
         guard let (sb, sbFullName) = acpiTables.globalObjects.getGlobalObject(currentScope: AMLNameString("\\"),
                                                                         name: AMLNameString("_SB")) else {
             fatalError("No \\_SB system bus node")

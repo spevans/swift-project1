@@ -72,7 +72,7 @@ func loadData(_ fileSet: Int) -> ACPI {
     var testDir = Bundle.main.resourcePath!
     testDir.append("/acpitest.xctest/Contents/Resources/")
 
-    var acpi = ACPI()
+    let acpi = ACPI()
     for file in files[fileSet] {
         //print("Filename:", file)
         let data = openOrQuit(filename: testDir + "/" + file)
