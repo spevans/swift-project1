@@ -27,7 +27,7 @@
  *       access the video memory without having to readjust after the
  *       mapping is changed. Defined as PHYSICAL_MEM_BASE.
  *
- * 1GB @ 0xffffffff80000000 (256TB-512GB) -> 0x100000 (1MB)
+ * 1GB @ 0xffffffff80000000 (256TB-2GB) -> 0x100000 (1MB)
  *       The kernel's virtual address that it executes at.
  *       Maps to where the kernel is physically loaded.
  *       Defined as KERNEL_VIRTUAL_BASE
@@ -63,15 +63,18 @@
  * the various page table entries.
  */
 
+
+private(set) var kernelPhysBase = PhysAddress(0)
+
 // Setup initial page tables and map kernel
 func setupMM(bootParams: BootParams) {
 
     // Convert a virtual address between kernel_start and kernel_end into a
     // physical address
-    let kernelPhysBase = bootParams.kernelPhysAddress
+    kernelPhysBase = bootParams.kernelPhysAddress
 
     func kernelPhysAddress(_ address: VirtualAddress) -> PhysAddress {
-        guard address >= _kernel_start_addr && address <= _kernel_end_addr else {
+        guard address >= _kernel_start_addr && address < _kernel_end_addr else {
             printf("kernelPhysAddress: invalid address: %p", address)
             stop()
         }
@@ -200,6 +203,7 @@ private func getPageAtIndex(_ dirPage: PageTableDirectory, _ idx: Int)
     -> PageTableDirectory {
     if !pagePresent(dirPage[idx]) {
         let newPage = alloc(pages: 1)
+        memset(newPage, 0, Int(PAGE_SIZE))
         let paddr = virtualToPhys(address: newPage.address)
         let entry = makePDE(address: paddr, readWrite: true, userAccess: false,
             writeThrough: true, cacheDisable: false, noExec: false)

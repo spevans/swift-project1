@@ -30,7 +30,7 @@
 #include "klibc.h"
 #include "mm.h"
 
-#define MALLOC_DEBUG
+//#define MALLOC_DEBUG
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
@@ -291,7 +291,7 @@ static void
 validate_is_slab(const char *caller, struct slab_header *slab, uintptr_t arg)
 {
 #ifdef MALLOC_DEBUG
-        if (strcmp(slab->signature, "#MALLOC")) {
+        if (memcmp(slab->signature, "#MALLOC", 8)) {
                 dump_header(slab);
                 koops("%s(%#lx): slab @ %p is not a slab!", caller, arg, slab);
         }

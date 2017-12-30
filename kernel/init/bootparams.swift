@@ -43,13 +43,14 @@ struct MemoryRange: CustomStringConvertible {
     let type: MemoryType
     let start: PhysAddress
     let size: UInt
+    var endAddress: PhysAddress { return start.advanced(by: size - 1) }
 
     var description: String {
         let str = (size >= mb) ? String.sprintf(" %6uMB  ", size / mb) :
                 String.sprintf(" %6uKB  ", size / kb)
 
         return String.sprintf("%12X - %12X %@ %@", start.value,
-            start.advanced(by: size - 1).value, str, type)
+            endAddress.value, str, type)
     }
 }
 

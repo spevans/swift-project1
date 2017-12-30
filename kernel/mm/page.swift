@@ -59,6 +59,17 @@ func pageTableDirectoryAt(address: PhysAddress) -> PageTableDirectory {
 
 
 func virtualToPhys(address: VirtualAddress, base: UInt64 = getCR3()) -> PhysAddress {
+    // Quick lookups in premapped areas
+    if address >= PHYSICAL_MEM_BASE && address < PHYSICAL_MEM_BASE + 0x400_000_000_000 { // 64TB window
+        return PhysAddress(address - PHYSICAL_MEM_BASE)
+    }
+    if address >= _kernel_start_addr && address < _kernel_end_addr {
+        if kernelPhysBase.value != 0 {
+            return kernelPhysBase.advanced(by: address - _kernel_start_addr)
+        }
+    }
+
+    // Otherwise walk the page tables
     let pml4 = UInt(base)
     let idx0 = pml4Index(address)
     let idx1 = pdpIndex(address)

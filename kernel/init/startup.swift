@@ -36,6 +36,10 @@ final class System {
 
         // SystemTables() needs the MM setup so that the memory can be mapped
         systemTables = SystemTables(bootParams: bootParams)
+        let freeMemoryRanges = bootParams.memoryRanges.filter {
+            $0.type == MemoryType.Conventional
+        }
+        addPagesToFreePageList(freeMemoryRanges)
         deviceManager = DeviceManager(acpiTables: systemTables.acpiTables)
     }
 
