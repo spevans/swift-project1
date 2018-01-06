@@ -51,6 +51,8 @@ final class System {
 
 
     fileprivate func runSystem() {
+        //showSymbols(stringTablePtr: system.bootParams.stringTablePtr,
+        //    stringTableSize: system.bootParams.stringTableSize)
         _ = addTask(name: "IRQ Queue runner", task: mainLoop)
         _ = addTask(name: "KeyboardInput", task: keyboardInput)
         run_first_task()
@@ -62,6 +64,38 @@ func benchmark(_ function: () -> ()) -> UInt64 {
     let t0 = rdtsc()
     function()
     return rdtsc() - t0
+}
+
+
+public func showSymbols(stringTablePtr: UnsafePointer<CChar>,
+    stringTableSize: UInt64) {
+
+    guard stringTableSize > 0 else {
+        print("Emptry string table")
+        return
+    }
+    print("stringTablePtr: vaddr:", stringTablePtr, "paddr:",
+        virtualToPhys(address: stringTablePtr.address))
+    var offset: UInt64 = 0
+    var count  = 0
+    while offset < stringTableSize {
+        var str = ""
+        var len = 0
+        let ptr = stringTablePtr.advanced(by: Int(offset))
+        while offset + UInt64(len) + 1 < stringTableSize {
+            let ch = ptr.advanced(by: len).pointee
+            if ch == 0 {
+                break
+            }
+            len = len + 1
+            str.append(Character(UnicodeScalar(UInt8(ch))))
+        }
+
+        print("\(count)\t\(offset):\t", str, len);
+        offset = offset + UInt64(len) + 1
+        count = count + 1
+        if count > 20 { return }
+    }
 }
 
 

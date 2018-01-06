@@ -57,6 +57,10 @@ struct EFIBootParams: BootParams {
     let memoryRanges: [MemoryRange]
     let frameBufferInfo: FrameBufferInfo?
     let kernelPhysAddress: PhysAddress
+    let symbolTablePtr: UnsafeRawPointer
+    let symbolTableSize: UInt64
+    let stringTablePtr: UnsafePointer<CChar>
+    let stringTableSize: UInt64
 
 
     init?(bootParamsAddr: VirtualAddress) {
@@ -94,6 +98,10 @@ struct EFIBootParams: BootParams {
             configTablePtr = try membuf.read()
             printf("bootparams: configTableCount: %ld configTablePtr: %#x\n",
                 configTableCount, configTablePtr.address)
+            symbolTablePtr = try membuf.read()
+            symbolTableSize = try membuf.read()
+            stringTablePtr = try membuf.read()
+            stringTableSize = try membuf.read()
         } catch {
             koops("bootparams: Cant read memory map settings")
         }

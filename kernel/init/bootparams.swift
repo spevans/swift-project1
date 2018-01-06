@@ -103,6 +103,10 @@ protocol BootParams {
     var source: String { get }
     var frameBufferInfo: FrameBufferInfo? { get }
     var kernelPhysAddress: PhysAddress { get }
+    var symbolTablePtr: UnsafeRawPointer { get }
+    var symbolTableSize: UInt64 { get }
+    var stringTablePtr: UnsafePointer<CChar> { get }
+    var stringTableSize: UInt64 { get }
     func findTables() -> (UnsafePointer<rsdp1_header>?,
         UnsafePointer<smbios_header>?)
 }

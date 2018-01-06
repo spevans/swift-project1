@@ -154,6 +154,10 @@ print_ptr_table()
                 fb->address, fb->size);
         uprintf("nr entries: %ld, config table: %p\n", bp->nr_efi_config_entries,
                 bp->efi_config_table);
+        uprintf("Symbol table @ %p size = 0x%lx\n", bp->symbol_table,
+                bp->symbol_table_size);
+        uprintf("string table @ %p size = 0x%lx\n", bp->string_table,
+                bp->string_table_size);
 }
 
 
@@ -748,17 +752,30 @@ relocate_kernel()
         // load address order and there are no unneccessary gaps
         // between sections.
 
-        Elf64_Ehdr *elf_hdr = kernel_image.elf_hdr;
-        Elf64_Phdr *first = elf_program_header(&kernel_image, 0);
-        Elf64_Phdr *last = elf_program_header(&kernel_image,
-                                              elf_hdr->e_phnum - 1);
+        struct elf_file *ki = &kernel_image;
+        Elf64_Ehdr *elf_hdr = ki->elf_hdr;
+        Elf64_Phdr *first = elf_program_header(ki, 0);
+        Elf64_Phdr *last = elf_program_header(ki, elf_hdr->e_phnum - 1);
         size_t total_sz = (last->p_vaddr - first->p_vaddr) + last->p_memsz;
-        total_sz = (total_sz + PAGE_SIZE - 1) & ~(PAGE_SIZE-1);
+        total_sz = (total_sz + PAGE_MASK) & ~PAGE_MASK;
         // FIXME - Add an extra page at the end of the BSS for the
         // entry stub and boot params data. This is only needed becasue
         // BSS is cleared in kernel/init/main.asm over writing the boot params
         total_sz += PAGE_SIZE;
         uprintf("Size of kernel and bss: %ld\n", total_sz);
+
+        size_t symbol_size = ki->symbol_table->sh_size
+                + ki->string_table->sh_size;
+        uprintf("symbol_size: %lx\n", symbol_size);
+
+        // Compute the vaddr where the symbol table will reside
+        Elf64_Addr symtab_vaddr = first->p_vaddr + total_sz;
+        Elf64_Addr strtab_vaddr = symtab_vaddr + ki->symbol_table->sh_size;
+        size_t symbol_offset = total_sz;
+        total_sz += (symbol_size + PAGE_MASK) & ~PAGE_MASK;
+        total_sz += PAGE_SIZE;
+        uprintf("Size of kernel+bss+symbols %lx\n", total_sz);
+
         struct memory_region region = {
                 .req_size = total_sz,
                 .type = MEM_TYPE_KERNEL
@@ -776,17 +793,58 @@ relocate_kernel()
          */
 
         for (size_t idx = 0; idx < elf_hdr->e_phnum; idx++) {
-                Elf64_Phdr *pheader = elf_program_header(&kernel_image, idx);
+                Elf64_Phdr *pheader = elf_program_header(ki, idx);
                 uintptr_t offset = pheader->p_vaddr - first->p_vaddr;
                 void *kdest = region.base + offset;
-                void *ksrc =  elf_program_data(&kernel_image, pheader);
+                void *ksrc =  elf_program_data(ki, pheader);
                 size_t sz = pheader->p_filesz;
                 uprintf("Copying %lx bytes of kernel @ offset = %lx image from %p -> %p\n",
                         sz, offset, ksrc, kdest);
                 memcpy(kdest, ksrc, sz);
         }
 
-        ptr_table->boot_params.kernel_phys_addr = region.base;
+        // Copy over the symbol table, sh string table and string table
+        uprintf("symbol table @ %lx [%lx], len = %lx\n", ki->symbol_table->sh_offset,
+                symtab_vaddr, ki->symbol_table->sh_size);
+        uprintf("string table @ %lx [%lx], len = %lx\n", ki->string_table->sh_offset,
+                strtab_vaddr, ki->string_table->sh_size);
+
+        memcpy(region.base + symbol_offset,
+               kernel_elf_header() + ki->symbol_table->sh_offset,
+               ki->symbol_table->sh_size);
+        memcpy(region.base + symbol_offset + ki->symbol_table->sh_size,
+               kernel_elf_header() + ki->string_table->sh_offset,
+               ki->string_table->sh_size);
+
+#if 0
+        // Dump symbols
+        char *sym = region.base + symbol_offset + ki->symbol_table->sh_size;
+        size_t offset = 0;
+        size_t count = 0;
+        while (offset <  ki->string_table->sh_size) {
+                char * str = sym  + offset;
+                size_t len = strlen(str);
+                uprintf("%lu\t%lu\t%s\t%lu\n", count, offset, str, len);
+                offset += len + 1;
+                count++;
+                if (count > 10) {
+                        break;
+                }
+        }
+#endif
+
+        void *kdest = region.base + symbol_offset + ki->symbol_table->sh_size;
+        void *ksrc = kernel_elf_header() + ki->string_table->sh_offset;
+        size_t strsz = ki->string_table->sh_size;
+        uprintf("Copying %lx bytes of string table from %p -> %p\n",
+                strsz, ksrc, kdest);
+
+        struct efi_boot_params *bp = &ptr_table->boot_params;
+        bp->kernel_phys_addr = region.base;
+        bp->symbol_table = (void *)symtab_vaddr;
+        bp->symbol_table_size = ki->symbol_table->sh_size;
+        bp->string_table = (void *)strtab_vaddr;
+        bp->string_table_size = ki->string_table->sh_size;
         ptr_table->last_page = region.base + (region.pages - 1) * PAGE_SIZE;
         uprint_string("Kernel copied into place\n");
         print_memory_region(&region);

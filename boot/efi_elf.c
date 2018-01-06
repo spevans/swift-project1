@@ -1,3 +1,13 @@
+/*
+ * boot/efi_elf.c
+ *
+ * Created by Simon Evans on 06/01/2018.
+ * Copyright © 2018 Simon Evans. All rights reserved.
+ *
+ * EFI ELF loader functions.
+ *
+ */
+
 #include <efi.h>
 #include <klibc.h>
 #include <elf.h>
@@ -100,6 +110,9 @@ dump_elf_header(struct elf_file *file)
                elf_hdr->e_shentsize, elf_hdr->e_shnum);
         uprintf("Section header string table index: %d\n", elf_hdr->e_shstrndx);
 
+        uprintf("sh_string_table: %p\n", file->sh_string_table);
+        uprintf("string_table:\t %p\n", file->string_table);
+        uprintf("symbol_table:\t %p\n", file->symbol_table);
         uprintf("\nProgram Headers:\n");
 
         for (int idx = 0; idx < elf_hdr->e_phnum; idx++) {

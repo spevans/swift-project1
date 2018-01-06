@@ -121,16 +121,26 @@ func setupMM(bootParams: BootParams) {
     addMapping(start: _kernel_start_addr, size: textSize,
         physStart: kernelPhysBase, readWrite: false, noExec: false)
 
+    let rodataPhys = kernelPhysBase + textSize
     addMapping(start: rodataStart, size: rodataSize,
-        physStart: kernelPhysBase + textSize, readWrite: false, noExec: true)
+        physStart: rodataPhys, readWrite: false, noExec: true)
 
-    addMapping(start: dataStart, size: dataSize,
-        physStart: kernelPhysBase + textSize + rodataSize, readWrite: true,
-        noExec: true)
+    let dataPhys = rodataPhys + rodataSize
+    addMapping(start: dataStart, size: dataSize, physStart: dataPhys,
+        readWrite: true, noExec: true)
 
+    let stackPhys = dataPhys + dataSize + PAGE_SIZE
     addMapping(start: _stack_start_addr, size: stackHeapSize,
-        physStart: kernelPhysBase + textSize + rodataSize + dataSize
-            + PAGE_SIZE, readWrite: true, noExec: true)
+        physStart: stackPhys, readWrite: true, noExec: true)
+
+    // Add mapping for the symbol and string tables after the stack
+    let symbolSize = bootParams.symbolTableSize + bootParams.stringTableSize
+    if symbolSize > 0 {
+        let symtabPhys = (stackPhys + stackHeapSize + PAGE_SIZE).pageAddress(pageSize: PAGE_SIZE, roundUp: true).address
+        addMapping(start: bootParams.symbolTablePtr.address,
+            size: UInt(symbolSize), physStart: symtabPhys,
+            readWrite: false, noExec: true)
+    }
 
     printf("MM: Physical address of kernelBase     (%p): (%p)\n",
         kernelBase, kernelPhysAddress(kernelBase).value)

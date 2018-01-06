@@ -55,6 +55,10 @@ struct efi_boot_params {
         struct frame_buffer fb;
         uint64_t nr_efi_config_entries;
         efi_config_table_t * _Nonnull efi_config_table;
+        void * _Nonnull symbol_table;
+        size_t symbol_table_size;
+        void * _Nonnull string_table;
+        size_t string_table_size;
 }  __attribute__((packed));
 
 

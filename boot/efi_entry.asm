@@ -229,7 +229,8 @@ GDT:
 
         ALIGN   8
 
-;;; These values are setup by efi_main.c
+;;; These values are setup by efi_main.c - this layout must match
+;;; struct efi_boot_params in include/mm.h
 pointer_table:
         .image_base     DQ      0
         .pml4:          DQ      0x12345678
@@ -251,5 +252,12 @@ framebuffer:
 efi_config_table:
         .nr_cfg_entries:DQ      0
         .config_table:  DQ      0
+symbol_table:
+        .address:       DQ      0
+        .size:          DQ      0
+string_table:
+        .address:       DQ      0
+        .size:          DQ      0
+
         ALIGN   8
 stub_end:
