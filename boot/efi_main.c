@@ -39,10 +39,10 @@ struct memory_region {
 #define PAGE_PHYS_ADDR_MASK 0x0000fffffffff000ULL
 
 
-void *kernel_bin_start();
-void *kernel_bin_end();
+void *kernel_elf_header();
+void *kernel_elf_end();
 uint64_t bss_size();
-static int uprintf(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+int uprintf(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 efi_status_t add_mapping(void *vaddr, void *paddr, size_t page_cnt);
 void dump_mapping(void *vaddr);
 
@@ -96,7 +96,7 @@ early_print_char(char ch)
 }
 
 
-static int
+int
 uprintf(const char *fmt, ...)
 {
         char buf[512];
@@ -728,19 +728,43 @@ dump_pte(pte *pte_addr)
 efi_status_t
 relocate_kernel()
 {
-        uprintf("Kernel image @ %p - %p BSS size: %#lx\n", kernel_bin_start(),
-                kernel_bin_end(), bss_size());
+        uprintf("Kernel image @ %p - %p BSS size: %#lx\n", kernel_elf_header(),
+                kernel_elf_end(), bss_size());
 
-        uint64_t kernel_sz = kernel_bin_end() - kernel_bin_start();
-        uint64_t total_sz = kernel_sz + bss_size();
+        uint64_t kernel_sz = kernel_elf_end() - kernel_elf_header();
+        struct elf_file kernel_image = {
+                .file_data = kernel_elf_header(),
+                .file_len = kernel_sz
+        };
+
+        efi_status_t status = elf_init_file(&kernel_image);
+        uprintf("elf_init_file: %lu\n", status);
+        if (status != EFI_SUCCESS) {
+                print_status("Read elf header: ", status);
+                return status;
+        }
+        // Find the size of all of the program load sections.
+        // For now, assume they are contiguous and in ascending
+        // load address order and there are no unneccessary gaps
+        // between sections.
+
+        Elf64_Ehdr *elf_hdr = kernel_image.elf_hdr;
+        Elf64_Phdr *first = elf_program_header(&kernel_image, 0);
+        Elf64_Phdr *last = elf_program_header(&kernel_image,
+                                              elf_hdr->e_phnum - 1);
+        size_t total_sz = (last->p_vaddr - first->p_vaddr) + last->p_memsz;
+        total_sz = (total_sz + PAGE_SIZE - 1) & ~(PAGE_SIZE-1);
         // FIXME - Add an extra page at the end of the BSS for the
         // entry stub and boot params data. This is only needed becasue
         // BSS is cleared in kernel/init/main.asm over writing the boot params
         total_sz += PAGE_SIZE;
         uprintf("Size of kernel and bss: %ld\n", total_sz);
-        struct memory_region region = { .req_size = total_sz,
-                                        .type = MEM_TYPE_KERNEL };
-        efi_status_t status = alloc_memory(&region);
+        struct memory_region region = {
+                .req_size = total_sz,
+                .type = MEM_TYPE_KERNEL
+        };
+
+        status = alloc_memory(&region);
         if (status != EFI_SUCCESS) {
                 print_status("alloc_memory: ", status);
                 return status;
@@ -750,7 +774,18 @@ relocate_kernel()
          * by the kernel startup. This could be replaced with a decompressor
          * for a compressed kernel etc
          */
-        memcpy(region.base, kernel_bin_start(), kernel_sz);
+
+        for (size_t idx = 0; idx < elf_hdr->e_phnum; idx++) {
+                Elf64_Phdr *pheader = elf_program_header(&kernel_image, idx);
+                uintptr_t offset = pheader->p_vaddr - first->p_vaddr;
+                void *kdest = region.base + offset;
+                void *ksrc =  elf_program_data(&kernel_image, pheader);
+                size_t sz = pheader->p_filesz;
+                uprintf("Copying %lx bytes of kernel @ offset = %lx image from %p -> %p\n",
+                        sz, offset, ksrc, kdest);
+                memcpy(kdest, ksrc, sz);
+        }
+
         ptr_table->boot_params.kernel_phys_addr = region.base;
         ptr_table->last_page = region.base + (region.pages - 1) * PAGE_SIZE;
         uprint_string("Kernel copied into place\n");

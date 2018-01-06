@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <elf.h>
 
 typedef void *efi_handle_t;
 typedef uint8_t efi_boolean;
@@ -10,6 +11,8 @@ typedef uint8_t efi_boolean;
 typedef uint64_t efi_uintn;
 typedef uint64_t efi_physical_address;
 typedef uint64_t efi_virtual_address;
+
+int uprintf(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 
 #define EFIERR(a)           (0x8000000000000000 | a)
 static inline int
@@ -139,5 +142,23 @@ typedef struct {
 #include "efi/gop.h"
 #include "efi/console.h"
 #include "efi/api.h"
+
+// ELF functions used for the ELF kernel.
+
+struct elf_file {
+        void *file_data; // mmap()'d input ELF file
+        size_t file_len;
+        Elf64_Ehdr *elf_hdr;
+        Elf64_Shdr *section_headers;
+        Elf64_Phdr *program_headers;
+        Elf64_Shdr *sh_string_table;
+        Elf64_Shdr *string_table;
+        Elf64_Shdr *symbol_table;
+};
+
+efi_status_t elf_init_file(struct elf_file *kernel_image);
+Elf64_Phdr *elf_program_header(struct elf_file *file, size_t idx);
+void *elf_program_data(struct elf_file *file, Elf64_Phdr *header);
+Elf64_Shdr *elf_section_header(struct elf_file *file, size_t idx);
 
 #endif  // __EFI_H__

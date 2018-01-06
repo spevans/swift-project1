@@ -13,12 +13,12 @@
         DEFAULT REL
 
         extern efi_main
-        extern _binary_output_kernel_bin_start
-        extern _binary_output_kernel_bin_end
+        extern _binary_output_kernel_elf_start
+        extern _binary_output_kernel_elf_end
 
         global efi_entry
-        global kernel_bin_start
-        global kernel_bin_end
+        global kernel_elf_header
+        global kernel_elf_end
         global bss_size
         global efi_call2
         global efi_call3
@@ -67,12 +67,12 @@ enter_kernel:
         rep     movsb
         jmp     rbx             ; entry_stub copied into last_page
 
-kernel_bin_start:
-        lea     rax, [_binary_output_kernel_bin_start]
+kernel_elf_header:
+        lea     rax, [_binary_output_kernel_elf_start]
         ret
 
-kernel_bin_end:
-        lea     rax, [_binary_output_kernel_bin_end]
+kernel_elf_end:
+        lea     rax, [_binary_output_kernel_elf_end]
         ret
 
 bss_size:

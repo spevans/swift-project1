@@ -26,10 +26,10 @@ output/kernel.bin: output/kernel.elf
 	(objdump -d output/kernel.elf -Mintel | $(SWIFT)-demangle > output/kernel.dmp) &
 
 
-output/kernel.efi: output/kernel.bin boot/efi_entry.asm boot/efi_main.c klibc/kprintf.c
+output/kernel.efi: output/kernel.bin boot/efi_entry.asm boot/efi_main.c boot/efi_elf.c klibc/kprintf.c
 	make -C boot
-	objcopy	-I binary -O elf64-x86-64 -B i386:x86-64 output/kernel.bin output/kernel.bin.obj
-	ld --no-demangle -static -Tboot/efi_linker.script -Map=output/efi_body.map -o output/efi_body.bin boot/efi_entry.o boot/efi_main.o boot/kprintf.o
+	objcopy	-I binary -O elf64-x86-64 -B i386:x86-64 output/kernel.elf output/kernel.elf.obj
+	ld --no-demangle -static -Tboot/efi_linker.script -Map=output/efi_body.map -o output/efi_body.bin boot/efi_entry.o boot/efi_main.o boot/efi_elf.o boot/kprintf.o
 	utils/.build/release/efi_patch boot/efi_header.bin output/efi_body.bin output/kernel.map output/kernel.efi
 
 
@@ -43,7 +43,7 @@ output/boot-cd.iso: output/boot-hd.img output/kernel.efi
 	mkdir -p output/iso_tmp/efi/boot output/iso_tmp/boot
 	cp output/boot-hd.img output/iso_tmp/boot.img
 	cp output/kernel.efi output/iso_tmp/efi/boot/bootx64.efi
-	/sbin/mkfs.msdos -C output/iso_tmp/boot/efi.img 12288
+	/sbin/mkfs.msdos -C output/iso_tmp/boot/efi.img 16384
 	mmd -i output/iso_tmp/boot/efi.img ::efi
 	mmd -i output/iso_tmp/boot/efi.img ::efi/boot
 	mcopy -i output/iso_tmp/boot/efi.img output/kernel.efi ::efi/boot
