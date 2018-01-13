@@ -139,7 +139,7 @@ func setupMM(bootParams: BootParams) {
         let symtabPhys = (stackPhys + stackHeapSize + PAGE_SIZE).pageAddress(pageSize: PAGE_SIZE, roundUp: true).address
         addMapping(start: bootParams.symbolTablePtr.address,
             size: UInt(symbolSize), physStart: symtabPhys,
-            readWrite: false, noExec: true)
+            readWrite: true, noExec: true)
     }
 
     printf("MM: Physical address of kernelBase     (%p): (%p)\n",

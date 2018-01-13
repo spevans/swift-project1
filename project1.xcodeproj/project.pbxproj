@@ -57,6 +57,7 @@
 		B933A7951F2FBA8700FE6846 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7311F2F49C700FE6846 /* Extensions.swift */; };
 		B962BDAB1FD30C0500D42D70 /* amlresourcedata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */; };
 		B962BDAC1FD3116B00D42D70 /* amlresourcedata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */; };
+		B9793D4F200A571B0013E03B /* symbols.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9793D4E200A571B0013E03B /* symbols.swift */; };
 		B9AF69D61FBDEB8B0049CB98 /* AcpiReadWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9AF69D51FBDEB8B0049CB98 /* AcpiReadWriteTests.swift */; };
 		B9C2AF291FD81E5A00E6EFEB /* ReservationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */; };
 		B9C2AF2B1FD84CB300E6EFEB /* KlibTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF2A1FD84CB300E6EFEB /* KlibTests.swift */; };
@@ -193,6 +194,7 @@
 		B933A7761F2F8D6A00FE6846 /* acpitest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = acpitest.swift; sourceTree = "<group>"; };
 		B933A7781F2F8D6A00FE6846 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amlresourcedata.swift; sourceTree = "<group>"; };
+		B9793D4E200A571B0013E03B /* symbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = symbols.swift; sourceTree = "<group>"; };
 		B97A313F1FE55E2200E651DC /* piix.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = piix.swift; sourceTree = "<group>"; };
 		B9A2C1B01F30ECF9003D4D92 /* TODO */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = TODO; sourceTree = "<group>"; };
 		B9A2C1B11F30ECF9003D4D92 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -368,6 +370,7 @@
 				B933A7461F2F4ABC00FE6846 /* init.swift */,
 				B933A7491F2F4ABC00FE6846 /* Makefile */,
 				B933A7471F2F4ABC00FE6846 /* page.swift */,
+				B9793D4E200A571B0013E03B /* symbols.swift */,
 			);
 			path = mm;
 			sourceTree = "<group>";
@@ -764,6 +767,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B9EF911E1FC9CACA00D14A2F /* amltype1opcodes.swift in Sources */,
+				B9793D4F200A571B0013E03B /* symbols.swift in Sources */,
 				B9EE704D1D3D536B006B6AB7 /* main.swift in Sources */,
 				B9F8B9D81EC68BE40030BAE8 /* tests.swift in Sources */,
 				B933A6F81F2F492F00FE6846 /* acpi.swift in Sources */,

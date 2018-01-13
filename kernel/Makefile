@@ -26,6 +26,7 @@ SWIFT_SRCS :=	init/startup.swift		\
 		mm/address.swift		\
 		mm/page.swift			\
 		mm/alloc.swift			\
+		mm/symbols.swift		\
 		devices/acpi/acpi.swift		\
 		devices/acpi/boot.swift		\
 		devices/acpi/ecdt.swift		\

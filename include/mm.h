@@ -62,6 +62,15 @@ struct efi_boot_params {
 }  __attribute__((packed));
 
 
+// Used by dladdr()
+typedef struct {
+    const char * _Nullable dli_fname;        /* File name of defining object.  */
+    void * _Nullable dli_fbase;              /* Load address of that object.  */
+    const char * _Nullable dli_sname;        /* Name of nearest symbol.  */
+    void * _Nullable dli_saddr;              /* Exact value of nearest symbol.  */
+} Dl_info;
+
+
 void * _Nullable alloc_pages(size_t count);
 void free_pages(void * _Nonnull pages, size_t count);
 void * _Nullable malloc(size_t size);
