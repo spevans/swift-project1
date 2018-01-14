@@ -9,7 +9,7 @@ Everything from the boot sector until startup() in [startup.swift](https://githu
 is written in x86 assembly.
 
 Boot sectors are always written in ASM due to the small size (512 bytes) and
-the need to put certain bytes in certain offsets. It may be possible to write
+the need to put specific bytes at certain offsets. It may be possible to write
 one in C but it would be composed almost entirely of inline assembly due to
 segment and stack setup, and BIOS calls.
 
@@ -40,10 +40,10 @@ assembly routines. Swift's safety would offer very little advantage here.
 
 - EFI
 
-EFI booting was added so that I could test on my Macbook (3,1 Late 2007). The
-EFI code is much simplified because the firmware already puts the cpu into 64bit
-mode and loads the kernel (embedded in a .efi file) into memory. The EFI code
-only needs to do the following:
+EFI booting was added to allow testing on a Macbook (3,1 Late 2007). The EFI
+code is much simplier compared to the BIOS loading because the firmware already
+puts the cpu into 64bit mode and loads the kernel (embedded in a .efi file) into
+memory. The EFI code only needs to do the following:
 
 1. Allocate memory for the kernel and BSS and copy the kernel to the new memory
 2. Setup page tables for kernel
@@ -59,23 +59,35 @@ extra undefined functions that the kernel is linked to. This would have the
 disadvantage of making the .efi file very large.
 
 
+## globalinit*()
+
+[TODO]
+
+
+## malloc() and free()
+
+[TODO]
+
+
 ## Thread Local Storage (TLS)
 
-To support the use of `swift_once` via `pthread_once` in [linux_libc.c](https://github.com/spevans/swift-project1/blob/master/fakelib/linux_libc.c#L98)
+To support the use of `swift_once` via `pthread_once` in [linux_libc.c](https://github.com/spevans/swift-project1/blob/master/klibc/linux_libc.c#L98)
 thread local storage [TLS](https://uclibc.org/docs/tls.pdf) needs to be taken
 into account. There are 2 methods for implementing it in ELF: by implementing
 `__tls_get_addr()` or using the `%fs` segment register.
 
-I opted to implement the `%fs` segment register which involved adding an extra
-entry to the GDT. Its a bit of a hacked up solution as it just allocates a small
-size for the region. In the future I may change it to the other method by
-implementing  `__tls_get_addr()`.
+Implementing the `%fs` segment register method involved adding an extra entry
+to the GDT. Its a bit of a hacked up solution as it just allocates a small size
+for the region.
 
 One problem caused by using the `%fs` is that the addressing is RIP relative and
-so addresses must be within 32bit (4GB) space. This causes a limitation on the
+so addresses must be within 32bit (4GB) space. This causes a limitation with the
 address the kernel can be linked to. Thats why in the [linker script](https://github.com/spevans/swift-project1/blob/master/linker.script#L10) the link address is
 0x40100000 and not a more conventional 0x8000000000000000 (8EB) that is often
-used where the kernel occupies the 'top half' of the address space (https://en.wikipedia.org/wiki/X86-64#VIRTUAL-ADDRESS-SPACE)
+used where the kernel occupies the 'top half' of the address space (https://en.wikipedia.org/wiki/X86-64#VIRTUAL-ADDRESS-SPACE).
+
+TLS is also used to hold a uBreakIterator per thread as they are expensive to
+setup.
 
 
 ## Streaming SIMD Extensions (SSE)
@@ -90,19 +102,10 @@ use.
 ~~Since context switching is not currently implemented anyway it was easier to
 just enable SSE and use the extra registers for now.~~
 
-Since I removed floating point from [stdlib](development.md#stdlib) SSE is no
-longer enabled in the kernel and the SSE register are not used or saved in
+Update: Since I removed floating point from [stdlib](development.md#stdlib) SSE
+is no longer enabled in the kernel and the SSE register are not used or saved in
 interrupt handlers.
 
-
-## globalinit*()
-
-[TODO]
-
-
-## malloc() and free()
-
-[TODO]
 
 
 ## Reading data tables in Swift
@@ -118,7 +121,21 @@ I had was the memory address of the table.
 The pointer can be cast to the struct and then accessed or copied using the
 `.pointee` property
 
+
+```
+// test.h
+#include <stdint.h>
+
+static inline uintptr_t
+ptr_to_uint(const void *ptr)
+{
+        return (uintptr_t)ptr;
+}
+```
+
+
 ```swift
+// test.swift
 struct Test {
     let data1: UInt64
     let data2: UInt8
@@ -154,7 +171,7 @@ the address of a struct is a hack and not guaranteed to work. It is mostly
 exploiting how Swift currently treats structs and could break in the future.
 
 
-#### 2. Use a C struct and a Swift struct
+#### 1. Use a C struct and a Swift struct
 
 This method uses a C struct to accurately represent the memory layout and a
 Swift struct to represent a more useful view including using String etc for any
@@ -164,7 +181,7 @@ is an example of this converting a C `struct smbios_header` to a Swift
 `struct SMBIOS`.
 
 
-#### 3. Read individual elements from a buffer
+#### 2. Read individual elements from a buffer
 
 An earlier method I had come up with was [MemoryBufferReader](https://github.com/spevans/swift-project1/blob/master/kernel/klib/MemoryBufferReader.swift).
 This was used for reading from mmapped files or any `UnsafeBufferPointer`.

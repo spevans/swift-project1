@@ -14,8 +14,9 @@ There is a short writeup about it [here](http://si.org/projects/project1).
 - Installs interrupts and exception/fault handlers
 - Sets up paging
 - Scans ACPI/SMBIOS tables
-- Parses ACPI tables
+- Parses ACPI tables including AML bytecode in DSDT, SSDT tables
 - Initialises the APIC and IO/APIC (or PIC)
+- Traverses the ACPI device tree adding known devices according to topology.
 - Scans PCI bus (MMIO or PIO) to show vendor/device IDs
 - Initialises the PIT and PS/2 keyboard controller
 - Sets up an APIC and PIT timers and shows a test message with interrupt counts.
@@ -23,13 +24,12 @@ There is a short writeup about it [here](http://si.org/projects/project1).
   translates them to ASCII codes to show on the screen. The Macbook doesn't
   have an i8042 PS/2 keyboard controller so the keyboard will not work.
 
-Currently working on an ACPI AML parser and bytecode interpreter to allow more
-devices to be setup correctly including the Realtime Clock and PCI interrupts.
+Currently working on enabling ACPI to process ACPI events and setting up more
+devices including the Realtime Clock and PCI interrupts.
 
 The next major tasks are:
 
-- ACPI parser and bytecode interpreter to find the full device tree
-- USB controller and USB keyboard driver
+- USB controller and USB keyboard driver for the keyboard on Macbook 3,1
 
 
 ## How to build it
@@ -47,20 +47,20 @@ To build a .iso for a usbkey also requires:
 * mtools
 
 
-A special version of the Swift compiler is required with options to disable red zone and
-set the x86_64 memory model to *kernel*. A Swift stdlib compiled with these options is also
-required. A suitable compiler/library can be obtained
-[here](https://github.com/spevans/swift-kstdlib/). A snapshot can be downloaded from
-(https://github.com/spevans/swift-kstdlib/releases). Normally the latest one with the highest
-date is required.
+A special version of the Swift compiler is required with options to disable the
+red zone and set the x86_64 memory model to *kernel*. A Swift stdlib compiled
+with these options is also required. A suitable compiler/library can be obtained
+[here](https://github.com/spevans/swift-kstdlib/). A snapshot can be downloaded
+from (https://github.com/spevans/swift-kstdlib/releases). Normally the latest
+one with the highest date is required.
 
 The version required is listed in the `Makedefs` file in the `KSWIFTDIR` variable eg:
 ```
-KSWIFTDIR := $(shell readlink -f ~/swift-kernel-20170730)
+KSWIFTDIR := $(shell readlink -f ~/swift-kernel-20180113)
 ```
 
-A normal Swift [snapshot](https://swift.org/download/#snapshots) is required to build the
-utilities that patch the image for booting.
+A normal Swift [snapshot](https://swift.org/download/#snapshots) is required to
+build the utilities that patch the image for booting.
 
 You should now have 2 compilers installed, one in `~/swift-kernel-<YYYYMMDD>`
 and the other wherever you installed the snapshot (I install it and symlink `~/swift` to it).
@@ -90,10 +90,10 @@ $ make iso
 ```
 
 
-![Screenshot](doc/screenshot.png)
+![Screenshot](doc/screenshot-2.png)
 
 
-Copyright (c) 2015 - 2017 Simon Evans
+Copyright (c) 2015 - 2018 Simon Evans
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
