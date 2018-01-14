@@ -71,6 +71,7 @@ typedef struct {
 } Dl_info;
 
 
+int dladdr(void * _Nullable addr, Dl_info * _Nonnull info);
 void * _Nullable alloc_pages(size_t count);
 void free_pages(void * _Nonnull pages, size_t count);
 void * _Nullable malloc(size_t size);

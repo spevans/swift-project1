@@ -14,6 +14,7 @@
 
 
 extern void *_kernel_stack;
+extern void *_stack_start;
 static const int max_depth = 40;
 
 
@@ -38,9 +39,7 @@ stack_trace(uintptr_t rsp, uintptr_t rbp)
         if (rsp == 0) {
                 return;
         }
-        //void **rsp_ptr = (void *)rsp;
         uint64_t *rsp_ptr = (uint64_t *)rsp;
-        //let rsp_ptr = UnsafePointer<UInt>(bitPattern: UInt(rsp))
         kprintf("RSP-24: %lx = %16.16lx\n", rsp-24, *(rsp_ptr-3));
         kprintf("RSP-16: %lx = %16.16lx\n", rsp-16, *(rsp_ptr-2));
         kprintf("RSP-08: %lx = %16.16lx\n", rsp-8, *(rsp_ptr-1));
@@ -49,7 +48,6 @@ stack_trace(uintptr_t rsp, uintptr_t rbp)
         kprintf("RSP+16: %lx = %16.16lx\n", rsp+16, *(rsp_ptr+2));
         kprintf("RSP+24: %lx = %16.16lx\n", rsp+24, *(rsp_ptr+3));
 
-        //uintptr_t rbp_addr = rbp;
         if (rbp == 0) {
                 kprintf("Frame pointer is NULL\n");
                 return;
@@ -58,12 +56,21 @@ stack_trace(uintptr_t rsp, uintptr_t rbp)
         size_t idx = 0;
 
         kprintf("rbp_ptr = %p _kernel_stack = %p\n", rbp_ptr, &_kernel_stack);
-        while ((uintptr_t)rbp_ptr < (uintptr_t)&_kernel_stack) {
+        while ((uintptr_t)rbp_ptr > (uintptr_t)&_stack_start
+               && (uintptr_t)rbp_ptr < (uintptr_t)&_kernel_stack) {
                 if (rbp_ptr == NULL) {
                         kprintf("Frame pointer is NULL\n");
                         return;
                 }
-                kprintf("[%p]: %p ret=%p\n", rbp_ptr, *rbp_ptr, *(rbp_ptr+1));
+                Dl_info info;
+                void *ret_addr = *(rbp_ptr+1);
+                if (dladdr(ret_addr, &info)) {
+                    kprintf("[%p]: %p ret=%s +%lx\n", ret_addr, *(rbp_ptr+1),
+                            info.dli_sname,
+                            (uintptr_t)ret_addr - (uintptr_t)info.dli_saddr);
+                } else {
+                    kprintf("[%p]: %p ret=<unavailable>\n", rbp_ptr, ret_addr);
+                }
                 rbp_ptr = *rbp_ptr;
                 idx += 1;
                 if (idx >= max_depth) {
@@ -100,3 +107,6 @@ dump_registers(struct exception_regs *registers)
                 registers->cs, registers->ds, registers->es,
                 registers->fs, registers->gs, registers->ss);
 }
+
+
+UNIMPLEMENTED(backtrace)

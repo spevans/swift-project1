@@ -73,9 +73,6 @@ abort()
 }
 
 
-UNIMPLEMENTED(backtrace)
-
-
 // Unicode (libicu)
 UNIMPLEMENTED(u_strToLower_55)
 UNIMPLEMENTED(u_strToUpper_55)

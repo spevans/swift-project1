@@ -121,9 +121,19 @@ __cxa_atexit(void (*func) (void *), void *arg, void *dso_handle)
 }
 
 
-UNIMPLEMENTED(__cxa_demangle)
-UNIMPLEMENTED(__overflow)
-UNIMPLEMENTED(_ZNKSt8__detail20_Prime_rehash_policy14_M_need_rehashEmmm)
+// Just return that the name could not be demangled so that the name gets
+// passed to the swift symbol demangler. A full demangler implementation
+// is quite large and not needed at the moment.
+char *
+__cxa_demangle(const char *mangled_name, char * output_buffer,
+               size_t *length, int *status)
+{
+    if (status) {
+        *status = -2; // 'Not a valid C++ name'
+    }
+    return NULL;
+}
+
 
 // std::ios_base::Init::Init()
 void
@@ -132,7 +142,6 @@ _ZNSt8ios_base4InitC1Ev()
         return;
 }
 
-UNIMPLEMENTED(_ZNSt8ios_base4InitD1Ev) // std::ios_base::Init::~Init()
 
 // std::thread::hardware_concurrency()
 // see also misc.c:sysconf()
@@ -140,3 +149,7 @@ int _ZNSt6thread20hardware_concurrencyEv()
 {
         return 1;
 }
+
+
+UNIMPLEMENTED(_ZNSt8ios_base4InitD1Ev) // std::ios_base::Init::~Init()
+UNIMPLEMENTED(_ZNKSt8__detail20_Prime_rehash_policy14_M_need_rehashEmmm)
