@@ -60,13 +60,6 @@ __assert_fail(const char *err, const char *file,
 
 
 void
-__stack_chk_fail()
-{
-        koops("stack check fail !");
-}
-
-
-void
 abort()
 {
         koops("abort() called");

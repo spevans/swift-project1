@@ -77,28 +77,6 @@ _ZSt17__throw_bad_allocv()
 }
 
 
-// std::__throw_system_error(int)
-void
-_ZSt20__throw_system_errori(int error)
-{
-        koops("klibc/libcpp.c: System error: %d", error);
-}
-
-
-// std::__throw_out_of_range_fmt(char const*, ...)
-void
-_ZSt24__throw_out_of_range_fmtPKcz(char const *fmt, ...)
-{
-        va_list args;
-        va_start(args, fmt);
-
-        kprintf("\nOut of range");
-        int len = kvprintf(fmt, args);
-        va_end(args);
-        koops("");
-}
-
-
 int
 __cxa_guard_acquire(void *guard)
 {
