@@ -1,0 +1,23 @@
+Cant do array of Enum values
+Cant do index of C array via variables eg, idt.0 ok, x= 0. idt.x or idt[x] not ok
+
+DONT use C var args as it allocs memory for the output
+
+Optimisations required for interrupt handlers since var's
+call global_init / swift_once otherwise.
+
+Using thread local via %fs restricts data access to first 4G
+linear - Only needed for ICU root optimisation
+
+forward declarations needed in scripts? (eg foverride.swift calling parseArgs)
+
+
+bitfields are annoying
+
+print(a,b,c) v print("\(a) \(b) \(c)") and malloc
+
+
+- ELF requires calls to be made with aligned stack so it always add extra
+  values to the rsp somewhere, as does EFI.
+
+- Mac is UEFI firmware with EFI (UGA) graphics.

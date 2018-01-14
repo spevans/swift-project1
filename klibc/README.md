@@ -1,21 +1,21 @@
-fakelibc is the interface between Swift's stdlib and the rest of the system.
+klibc is the interface between Swift's stdlib and the underlying hardware.
 It exports the functions that are needed in libc/libc++ and matches the glibc
 versions since the stdlib is compiled on Linux. The functions fall into three
 categories:
 
 1. Unimplemented. Print a message and halt. These are not always needed or can
-be fixed up later.
+be implemented later.
 
 2. Bare minimum implementation. Sometimes these are written to provide just
-enough for stdlib to work and expect specific parameters, eg `mmap` and
-`munmap` which are only used in one place.
+enough for stdlib to work and expect specific parameters, eg `write` and
+`fprintf` which only accept stdout and stder as output channels.
 
 3. Full implementations. These often wrap functions provided in other parts
-of the code, eg `putchar` or `vasprintf`.
+of the code, eg `printf` or `vasprintf`.
 
 
-Some functions are required by other parts of the kernel, eg `malloc/free` etc
-so these are implemented elsewhere.
+Some functions are also required by other parts of the kernel, eg `malloc/free`
+etc
 
 Since a special build of Swift / stdlib is used, some functionality has been
 removed eg Math functions `sin`, `cos` etc. This has been done by removing the

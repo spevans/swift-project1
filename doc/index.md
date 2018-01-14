@@ -1,40 +1,35 @@
 # Overview
 
-project1 - writing a simple bare metal kernel in Swift
+swift-project1 - writing a simple bare metal kernel in Swift
 
 A project to write a kernel in Swift with that can boot on a Mac or PC.
-The main aim is to get a simple kernel booting up with a CLI with full
-concurrency/thread support on multiple cores.
+The eventual aim is to get a simple kernel booting up with a CLI with full
+concurrency/thread support on multiple cores to investigate using Swift
+for systems programming.
+
 
 [project1 on github](https://github.com/spevans/swift-project1)
 
 
-Current status:
-
-- Boots up (Under QEMU, Bochs or VMWare)
-- Scans ACPI/SMBIOS tables
-- Installs interrupts and exception/fault handlers
-- Sets up paging
-- Scans PCI bus
-- Initialises timer and keyboard
-- Initialises PIC, PIT and PS/2 keyboard controller
-- Runs two simple tasks, one printing 'A' and the other printing 'B' in a loop
-  with a simple stack context switch
-
-The next step is to get multi processor support working
+The main aspects being investigated are:
 
 
-The main aspects investigated were:
+## [Target Host](target-host.md)
+- 64bit x86_64, Qemu, Bochs, VMware and Macbooks
+
 
 ## [Development environment and compiler](development.md)
-- Red zone
+- Additions to the swift compiler: Red zone and kernel address space
 - Using the compiler
 - Libraries
-- C & assembly required to get binary starting up
-- Stdlib
 - Swift modules
-- Why is there so much C in the code?
-- Will it build on OSX?
+
+
+## [Standard library and runtime](kstdlib.md)
+- Floating point and Maths functions
+- Stdio and print()
+- Unicode and libICU
+- klibc
 
 
 ## [Initialisation](initialisation.md)
@@ -57,9 +52,14 @@ The main aspects investigated were:
 
 
 ## [Other Notes](other-notes.md)
-- Testing environment (boches, qemu etc)
+- Will it build on OSX?
 - What to do differently next time
 - Future directions
 
+
+## Unsafe Swift
+- When to use C or Assembly (interrupts, GDT, IDT)
+- unsafeBitCast
+- 
 
 ## [Useful links](useful-links.md)

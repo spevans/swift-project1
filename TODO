@@ -1,7 +1,6 @@
 Fix vasprintf() as used by assert()
 Improve backtrack/stacktrace
 ACPI: Setup acpi as a device
-Load kernel as ELF and implement dladdr()/backtrace() (-z max-page-size=0x1000)
 Fix string sorting for ASCII / Decide on libicu stub
 Add MemoryManager and TaskManager classes.
 Add Resource manager for i/o ports and mmio
@@ -19,3 +18,4 @@ use struct/class more consistenly and fixup what should be singletons etc
 
 MAYBE Implement malloc() in swift
 
+DONE Load kernel as ELF and implement dladdr()/backtrace() (-z max-page-size=0x1000)

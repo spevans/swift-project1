@@ -118,7 +118,21 @@ I had was the memory address of the table.
 The pointer can be cast to the struct and then accessed or copied using the
 `.pointee` property
 
+
+```
+// test.h
+#include <stdint.h>
+
+static inline uintptr_t
+ptr_to_uint(const void *ptr)
+{
+        return (uintptr_t)ptr;
+}
+```
+
+
 ```swift
+// test.swift
 struct Test {
     let data1: UInt64
     let data2: UInt8
