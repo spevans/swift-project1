@@ -101,18 +101,16 @@ struct exception_regs {
 };
 
 
-struct cpuid_result {
-        union {
-                struct {
-                        uint32_t eax;
-                        uint32_t ebx;
-                        uint32_t ecx;
-                        uint32_t edx;
-                } regs;
-                // Used to access the result as a string
-                // for functions returning cpu name etc
-                char bytes[33];
-        } u;
+union cpuid_result {
+        struct {
+                uint32_t eax;
+                uint32_t ebx;
+                uint32_t ecx;
+                uint32_t edx;
+        } regs;
+        // Used to access the result as a string
+        // for functions returning cpu name etc
+        char bytes[33];
 };
 
 

@@ -19,79 +19,79 @@ struct CPUID: CustomStringConvertible {
     let cpuid80000001: cpuid_result
     let cpuid80000008: cpuid_result
 
-    var APICId:      UInt8 { return UInt8(cpuid01.u.regs.ebx >> 24) }
-    var sse3:        Bool { return cpuid01.u.regs.ecx.bit(0) }
-    var pclmulqdq:   Bool { return cpuid01.u.regs.ecx.bit(1) }
-    var dtes64:      Bool { return cpuid01.u.regs.ecx.bit(2) }
-    var monitor:     Bool { return cpuid01.u.regs.ecx.bit(3) }
-    var dscpl:       Bool { return cpuid01.u.regs.ecx.bit(4) }
-    var vmx:         Bool { return cpuid01.u.regs.ecx.bit(5) }
-    var smx:         Bool { return cpuid01.u.regs.ecx.bit(6) }
-    var eist:        Bool { return cpuid01.u.regs.ecx.bit(7) }
-    var tm2:         Bool { return cpuid01.u.regs.ecx.bit(8) }
-    var ssse3:       Bool { return cpuid01.u.regs.ecx.bit(9) }
-    var cnxtid:      Bool { return cpuid01.u.regs.ecx.bit(10) }
-    var sdbg:        Bool { return cpuid01.u.regs.ecx.bit(11) }
-    var fma:         Bool { return cpuid01.u.regs.ecx.bit(12) }
-    var cmpxchg16b:  Bool { return cpuid01.u.regs.ecx.bit(13) }
-    var xptr:        Bool { return cpuid01.u.regs.ecx.bit(14) }
-    var pdcm:        Bool { return cpuid01.u.regs.ecx.bit(15) }
-    var pcid:        Bool { return cpuid01.u.regs.ecx.bit(17) }
-    var dca:         Bool { return cpuid01.u.regs.ecx.bit(18) }
-    var sse4_1:      Bool { return cpuid01.u.regs.ecx.bit(19) }
-    var sse4_2:      Bool { return cpuid01.u.regs.ecx.bit(20) }
-    var x2apic:      Bool { return cpuid01.u.regs.ecx.bit(21) }
-    var movbe:       Bool { return cpuid01.u.regs.ecx.bit(22) }
-    var popcnt:      Bool { return cpuid01.u.regs.ecx.bit(23) }
-    var tscDeadline: Bool { return cpuid01.u.regs.ecx.bit(24) }
-    var aesni:       Bool { return cpuid01.u.regs.ecx.bit(25) }
-    var xsave:       Bool { return cpuid01.u.regs.ecx.bit(26) }
-    var osxsave:     Bool { return cpuid01.u.regs.ecx.bit(27) }
-    var avx:         Bool { return cpuid01.u.regs.ecx.bit(28) }
-    var f16c:        Bool { return cpuid01.u.regs.ecx.bit(29) }
-    var rdrand:      Bool { return cpuid01.u.regs.ecx.bit(30) }
+    var APICId:      UInt8 { return UInt8(cpuid01.regs.ebx >> 24) }
+    var sse3:        Bool { return cpuid01.regs.ecx.bit(0) }
+    var pclmulqdq:   Bool { return cpuid01.regs.ecx.bit(1) }
+    var dtes64:      Bool { return cpuid01.regs.ecx.bit(2) }
+    var monitor:     Bool { return cpuid01.regs.ecx.bit(3) }
+    var dscpl:       Bool { return cpuid01.regs.ecx.bit(4) }
+    var vmx:         Bool { return cpuid01.regs.ecx.bit(5) }
+    var smx:         Bool { return cpuid01.regs.ecx.bit(6) }
+    var eist:        Bool { return cpuid01.regs.ecx.bit(7) }
+    var tm2:         Bool { return cpuid01.regs.ecx.bit(8) }
+    var ssse3:       Bool { return cpuid01.regs.ecx.bit(9) }
+    var cnxtid:      Bool { return cpuid01.regs.ecx.bit(10) }
+    var sdbg:        Bool { return cpuid01.regs.ecx.bit(11) }
+    var fma:         Bool { return cpuid01.regs.ecx.bit(12) }
+    var cmpxchg16b:  Bool { return cpuid01.regs.ecx.bit(13) }
+    var xptr:        Bool { return cpuid01.regs.ecx.bit(14) }
+    var pdcm:        Bool { return cpuid01.regs.ecx.bit(15) }
+    var pcid:        Bool { return cpuid01.regs.ecx.bit(17) }
+    var dca:         Bool { return cpuid01.regs.ecx.bit(18) }
+    var sse4_1:      Bool { return cpuid01.regs.ecx.bit(19) }
+    var sse4_2:      Bool { return cpuid01.regs.ecx.bit(20) }
+    var x2apic:      Bool { return cpuid01.regs.ecx.bit(21) }
+    var movbe:       Bool { return cpuid01.regs.ecx.bit(22) }
+    var popcnt:      Bool { return cpuid01.regs.ecx.bit(23) }
+    var tscDeadline: Bool { return cpuid01.regs.ecx.bit(24) }
+    var aesni:       Bool { return cpuid01.regs.ecx.bit(25) }
+    var xsave:       Bool { return cpuid01.regs.ecx.bit(26) }
+    var osxsave:     Bool { return cpuid01.regs.ecx.bit(27) }
+    var avx:         Bool { return cpuid01.regs.ecx.bit(28) }
+    var f16c:        Bool { return cpuid01.regs.ecx.bit(29) }
+    var rdrand:      Bool { return cpuid01.regs.ecx.bit(30) }
 
-    var fpu:         Bool { return cpuid01.u.regs.edx.bit(0) }
-    var vme:         Bool { return cpuid01.u.regs.edx.bit(1) }
-    var de:          Bool { return cpuid01.u.regs.edx.bit(2) }
-    var pse:         Bool { return cpuid01.u.regs.edx.bit(3) }
-    var tsc:         Bool { return cpuid01.u.regs.edx.bit(4) }
-    var msr:         Bool { return cpuid01.u.regs.edx.bit(5) }
-    var pae:         Bool { return cpuid01.u.regs.edx.bit(6) }
-    var mce:         Bool { return cpuid01.u.regs.edx.bit(7) }
-    var cx8:         Bool { return cpuid01.u.regs.edx.bit(8) }
-    var apic:        Bool { return cpuid01.u.regs.edx.bit(9) }
-    var sysenter:    Bool { return cpuid01.u.regs.edx.bit(11) }
-    var mtrr:        Bool { return cpuid01.u.regs.edx.bit(12) }
-    var pge:         Bool { return cpuid01.u.regs.edx.bit(13) }
-    var mca:         Bool { return cpuid01.u.regs.edx.bit(14) }
-    var cmov:        Bool { return cpuid01.u.regs.edx.bit(15) }
-    var pat:         Bool { return cpuid01.u.regs.edx.bit(16) }
-    var pse36:       Bool { return cpuid01.u.regs.edx.bit(17) }
-    var psn:         Bool { return cpuid01.u.regs.edx.bit(18) }
-    var clfsh:       Bool { return cpuid01.u.regs.edx.bit(19) }
-    var ds:          Bool { return cpuid01.u.regs.edx.bit(21) }
-    var acpi:        Bool { return cpuid01.u.regs.edx.bit(22) }
-    var mmx:         Bool { return cpuid01.u.regs.edx.bit(23) }
-    var fxsr:        Bool { return cpuid01.u.regs.edx.bit(24) }
-    var sse:         Bool { return cpuid01.u.regs.edx.bit(25) }
-    var sse2:        Bool { return cpuid01.u.regs.edx.bit(26) }
-    var ss:          Bool { return cpuid01.u.regs.edx.bit(27) }
-    var htt:         Bool { return cpuid01.u.regs.edx.bit(28) }
-    var tm:          Bool { return cpuid01.u.regs.edx.bit(29) }
-    var pbe:         Bool { return cpuid01.u.regs.edx.bit(31) }
+    var fpu:         Bool { return cpuid01.regs.edx.bit(0) }
+    var vme:         Bool { return cpuid01.regs.edx.bit(1) }
+    var de:          Bool { return cpuid01.regs.edx.bit(2) }
+    var pse:         Bool { return cpuid01.regs.edx.bit(3) }
+    var tsc:         Bool { return cpuid01.regs.edx.bit(4) }
+    var msr:         Bool { return cpuid01.regs.edx.bit(5) }
+    var pae:         Bool { return cpuid01.regs.edx.bit(6) }
+    var mce:         Bool { return cpuid01.regs.edx.bit(7) }
+    var cx8:         Bool { return cpuid01.regs.edx.bit(8) }
+    var apic:        Bool { return cpuid01.regs.edx.bit(9) }
+    var sysenter:    Bool { return cpuid01.regs.edx.bit(11) }
+    var mtrr:        Bool { return cpuid01.regs.edx.bit(12) }
+    var pge:         Bool { return cpuid01.regs.edx.bit(13) }
+    var mca:         Bool { return cpuid01.regs.edx.bit(14) }
+    var cmov:        Bool { return cpuid01.regs.edx.bit(15) }
+    var pat:         Bool { return cpuid01.regs.edx.bit(16) }
+    var pse36:       Bool { return cpuid01.regs.edx.bit(17) }
+    var psn:         Bool { return cpuid01.regs.edx.bit(18) }
+    var clfsh:       Bool { return cpuid01.regs.edx.bit(19) }
+    var ds:          Bool { return cpuid01.regs.edx.bit(21) }
+    var acpi:        Bool { return cpuid01.regs.edx.bit(22) }
+    var mmx:         Bool { return cpuid01.regs.edx.bit(23) }
+    var fxsr:        Bool { return cpuid01.regs.edx.bit(24) }
+    var sse:         Bool { return cpuid01.regs.edx.bit(25) }
+    var sse2:        Bool { return cpuid01.regs.edx.bit(26) }
+    var ss:          Bool { return cpuid01.regs.edx.bit(27) }
+    var htt:         Bool { return cpuid01.regs.edx.bit(28) }
+    var tm:          Bool { return cpuid01.regs.edx.bit(29) }
+    var pbe:         Bool { return cpuid01.regs.edx.bit(31) }
 
-    var lahfsahf:    Bool { return cpuid80000001.u.regs.ecx.bit(0) }
-    var lzcnt:       Bool { return cpuid80000001.u.regs.ecx.bit(5) }
-    var prefetchw:   Bool { return cpuid80000001.u.regs.ecx.bit(8) }
+    var lahfsahf:    Bool { return cpuid80000001.regs.ecx.bit(0) }
+    var lzcnt:       Bool { return cpuid80000001.regs.ecx.bit(5) }
+    var prefetchw:   Bool { return cpuid80000001.regs.ecx.bit(8) }
 
-    var syscall:     Bool { return cpuid80000001.u.regs.edx.bit(11) }
-    var nxe:         Bool { return cpuid80000001.u.regs.edx.bit(20) }
-    var pages1G:     Bool { return cpuid80000001.u.regs.edx.bit(26) }
-    var IA32_EFER:   Bool { return cpuid80000001.u.regs.edx.bit(29) }
+    var syscall:     Bool { return cpuid80000001.regs.edx.bit(11) }
+    var nxe:         Bool { return cpuid80000001.regs.edx.bit(20) }
+    var pages1G:     Bool { return cpuid80000001.regs.edx.bit(26) }
+    var IA32_EFER:   Bool { return cpuid80000001.regs.edx.bit(29) }
 
     var maxPhyAddrBits: UInt {
-        let max = UInt(cpuid80000008.u.regs.eax & 0xff)
+        let max = UInt(cpuid80000008.regs.eax & 0xff)
         if max > 0 {
             return max
         } else {
@@ -126,10 +126,10 @@ struct CPUID: CustomStringConvertible {
         var info = cpuid_result() //eax: 0, ebx: 0, ecx: 0, edx: 0)
         var ptr = UnsafePointer<CChar>(cpuid(0, &info) + 4)
         vendorName = String(cString: ptr)
-        maxBasicInput = info.u.regs.eax
+        maxBasicInput = info.regs.eax
 
         cpuid(0x80000000, &info)
-        maxExtendedInput = info.u.regs.eax
+        maxExtendedInput = info.regs.eax
 
         if (maxBasicInput >= 1) {
             cpuid(0x1, &info)
