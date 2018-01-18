@@ -26,12 +26,12 @@ enables the functionality provided by the underlying LLVM.
 
 By convention, x86_64 kernel code is compiled to use [canonical address space](https://en.wikipedia.org/wiki/X86-64#VIRTUAL-ADDRESS-SPACE) although it isnt a requirement. The
 default [memory model](http://eli.thegreenplace.net/2012/01/03/understanding-the-x64-code-models)
-is `small' which puts code into the first 2GB of memory using RIP-relative
+is `small` which puts code into the first 2GB of memory using RIP-relative
 addressing. To compile code to work with RIP-relative addressing in the highest
 2GB (sometimes refereed to as `negative address space' as the top bit is set)
-would require an '-mcmodel=kernel' option (like clang). Currently swift doesnt
-have an `-mcmodel' option so I just changed the default model in [IRGen.cpp](https://github.com/spevans/swift-kstdlib/blob/swift-kernel-20170515/lib/IRGen/IRGen.cpp#L502) from
-'Default' to 'Kernel'. The only other compiler change was disabling negative
+would require an `-mcmodel=kernel` option (like clang). Currently swift doesnt
+have an `-mcmodel` option so I just changed the default model in [IRGen.cpp](https://github.com/spevans/swift-kstdlib/blob/swift-kernel-20170515/lib/IRGen/IRGen.cpp#L502) from
+`Default` to `Kernel`. The only other compiler change was disabling negative
 pointer values not needing to be refcounted and used as tagged pointers for
 small values. In effect this needs to be swapped round since all pointers in
 negative space will be valid but lower half pointers wont be valid kernel
@@ -41,10 +41,10 @@ pointers so are eligible for being used in this way.
 ### Using the compiler
 
 When compiling you can compile related source files into a module and then link
-the modules together or compile all source files at once and produce one .o file.
-Obviously with lots of files it will eventually become slow recompiling them
-every time but currently its useful since the `-whole-module-optimization` flag
-can be used.
+the modules together or compile all source files at once and produce one `.o`
+file. Obviously with lots of files it will eventually become slow recompiling
+them every time but currently its useful since the `-whole-module-optimization`
+flag can be used.
 
 Compilation command looks something like:
 
@@ -86,15 +86,14 @@ and function names. However actual module files are not created with this option
 
 ### Libraries
 
-Now that a .o ELF file has been produced it needs to be linked to a final
+Now that a `.o` ELF file has been produced it needs to be linked to a final
 executable. Swift requires that its stdlib is linked in as this provides some
 basic functions that are needed by Swift at runtime.
 
-The 3 libraries that need to be linked in are
+The 2 libraries that need to be linked in are
 ```
 libswiftCore.a
 libclang_rt.builtins-x86_64.a
-libswiftImageInspectionStatic.a
 ```
 
 and should be in `lib/swift_static/linux` under the install directory.
@@ -102,7 +101,7 @@ and should be in `lib/swift_static/linux` under the install directory.
 
 ### Swift modules
 
-I originally use Swift modules when building the project, making each
+I originally used Swift modules when building the project, making each
 subdirectory (kernel/devices, kernel/init, kernel/traps etc) into their own
 module and then linked them all afterwards. However there were two problems with
 this:
