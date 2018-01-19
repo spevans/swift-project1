@@ -59,6 +59,16 @@ extra undefined functions that the kernel is linked to. This would have the
 disadvantage of making the .efi file very large.
 
 
+## globalinit*()
+
+[TODO]
+
+
+## malloc() and free()
+
+[TODO]
+
+
 ## Thread Local Storage (TLS)
 
 To support the use of `swift_once` via `pthread_once` in [linux_libc.c](https://github.com/spevans/swift-project1/blob/master/klibc/linux_libc.c#L98)
@@ -78,7 +88,7 @@ address the kernel can be linked to. Thats why in the [linker script](https://gi
 used where the kernel occupies the 'top half' of the address space (https://en.wikipedia.org/wiki/X86-64#VIRTUAL-ADDRESS-SPACE).
 
 TLS is also used to hold a uBreakIterator per thread as they are expensive to setup
-[
+
 
 ## Streaming SIMD Extensions (SSE)
 
@@ -96,15 +106,6 @@ Since I removed floating point from [stdlib](development.md#stdlib) SSE is no
 longer enabled in the kernel and the SSE register are not used or saved in
 interrupt handlers.
 
-
-## globalinit*()
-
-[TODO]
-
-
-## malloc() and free()
-
-[TODO]
 
 
 ## Reading data tables in Swift

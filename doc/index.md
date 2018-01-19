@@ -27,14 +27,14 @@ The main aspects being investigated are:
 ## [Standard library and runtime](kstdlib.md)
 - Floating point and Maths functions
 - Stdio and print()
-- Unicode and libICU
 - klibc
+- Unicode and libICU (TODO)
 
 
 ## [Initialisation](initialisation.md)
 - From boot to swift startup()
-- globalinit*()
-- malloc() and free()
+- globalinit*() (TODO)
+- malloc() and free() (TODO)
 - Thread Local Storage (TLS)
 - Streaming SIMD Extensions (SSE)
 - Reading data tables in swift
@@ -55,9 +55,10 @@ The main aspects being investigated are:
 - Future directions
 
 
+[TODO]
 ## Unsafe Swift
 - When to use C or Assembly (interrupts, GDT, IDT)
 - unsafeBitCast
-- 
+
 
 ## [Useful links](useful-links.md)
