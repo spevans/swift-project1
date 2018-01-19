@@ -40,10 +40,10 @@ assembly routines. Swift's safety would offer very little advantage here.
 
 - EFI
 
-EFI booting was added so that I could test on my Macbook (3,1 Late 2007). The
-EFI code is much simplified because the firmware already puts the cpu into 64bit
-mode and loads the kernel (embedded in a .efi file) into memory. The EFI code
-only needs to do the following:
+EFI booting was added to allow testing on a Macbook (3,1 Late 2007). The EFI
+code is much simplier compared to the BIOS loading because the firmware already
+puts the cpu into 64bit mode and loads the kernel (embedded in a .efi file) into
+memory. The EFI code only needs to do the following:
 
 1. Allocate memory for the kernel and BSS and copy the kernel to the new memory
 2. Setup page tables for kernel
@@ -61,7 +61,7 @@ disadvantage of making the .efi file very large.
 
 ## Thread Local Storage (TLS)
 
-To support the use of `swift_once` via `pthread_once` in [linux_libc.c](https://github.com/spevans/swift-project1/blob/master/fakelib/linux_libc.c#L98)
+To support the use of `swift_once` via `pthread_once` in [linux_libc.c](https://github.com/spevans/swift-project1/blob/master/klibc/linux_libc.c#L98)
 thread local storage [TLS](https://uclibc.org/docs/tls.pdf) needs to be taken
 into account. There are 2 methods for implementing it in ELF: by implementing
 `__tls_get_addr()` or using the `%fs` segment register.
@@ -75,8 +75,10 @@ One problem caused by using the `%fs` is that the addressing is RIP relative and
 so addresses must be within 32bit (4GB) space. This causes a limitation on the
 address the kernel can be linked to. Thats why in the [linker script](https://github.com/spevans/swift-project1/blob/master/linker.script#L10) the link address is
 0x40100000 and not a more conventional 0x8000000000000000 (8EB) that is often
-used where the kernel occupies the 'top half' of the address space (https://en.wikipedia.org/wiki/X86-64#VIRTUAL-ADDRESS-SPACE)
+used where the kernel occupies the 'top half' of the address space (https://en.wikipedia.org/wiki/X86-64#VIRTUAL-ADDRESS-SPACE).
 
+TLS is also used to hold a uBreakIterator per thread as they are expensive to setup
+[
 
 ## Streaming SIMD Extensions (SSE)
 
