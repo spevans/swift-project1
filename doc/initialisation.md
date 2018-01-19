@@ -170,7 +170,7 @@ the address of a struct is a hack and not guaranteed to work. It is mostly
 exploiting how Swift currently treats structs and could break in the future.
 
 
-#### 2. Use a C struct and a Swift struct
+#### 1. Use a C struct and a Swift struct
 
 This method uses a C struct to accurately represent the memory layout and a
 Swift struct to represent a more useful view including using String etc for any
@@ -180,7 +180,7 @@ is an example of this converting a C `struct smbios_header` to a Swift
 `struct SMBIOS`.
 
 
-#### 3. Read individual elements from a buffer
+#### 2. Read individual elements from a buffer
 
 An earlier method I had come up with was [MemoryBufferReader](https://github.com/spevans/swift-project1/blob/master/kernel/klib/MemoryBufferReader.swift).
 This was used for reading from mmapped files or any `UnsafeBufferPointer`.

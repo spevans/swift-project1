@@ -47,7 +47,7 @@ Allows the CR3 register to be get/set easily using `let addr = getCR3()` and
 
 Pointers in Swift use the types `UnsafePointer` and `UnsafeMutablePointer` and
 can be created from an address using the `init(bitPattern: UInt)?` method. It
-returns an Optional which will be `nil` if the address was 0. 
+returns an Optional which will be `nil` if the address was 0.
 
 
 Pointer values (uintptr_t) can be represented using `UInt`. A couple of macros
@@ -99,59 +99,74 @@ lots of `*_ptr()` and `*_addr()` functions.
 
 Swift function names use name mangling to include the module name and method
 signature. However when exporting to C or asm this can be inconvenient
-especially if the function signature changes. `@_silgen_name` can be used to
-provide an override for a function so that it has a consistent name:
+especially if the function signature changes. `@_cdecl` can be used to
+provide a C declaration for a function so that it has a consistent name,
+although it adds a wrapper function to map between C and Swift calling
+convention. `@_silgen_name` can also be used although this is unsupported.
+
 
 ```swift
-func function1(a: Int) -> UInt {
-    return UInt(a)
+public func function1(a: Int) -> Bool {
+    return a == 1
 }
 
-@_silgen_name("function2")
-func function2(a: Int) -> UInt {
-    return UInt(a)
+@_cdecl("function2")
+func _function2(a: Int) -> Bool {
+    return a == 1
+}
+
+@_silgen_name("function3")
+func _function3(a: Int) -> Bool {
+    return a == 1
 }
 ```
 
-converts to
+compiles to
 
 ```asm
-
 Disassembly of section .text:
 
-0000000000000000 <_TF4test9function1FSiSu>:
-   0:	55                      push   %rbp
-   1:	48 89 e5                mov    %rsp,%rbp
-   4:	50                      push   %rax
-   5:	48 83 ff 00             cmp    $0x0,%rdi
-   9:	48 89 7d f8             mov    %rdi,-0x8(%rbp)
-   d:	7c 0a                   jl     19 <_TF4test9function1FSiSu+0x19>
-   f:	48 8b 45 f8             mov    -0x8(%rbp),%rax
-  13:	48 83 c4 08             add    $0x8,%rsp
-  17:	5d                      pop    %rbp
-  18:	c3                      retq
-  19:	0f 0b                   ud2
-  1b:	0f 1f 44 00 00          nopl   0x0(%rax,%rax,1)
+0000000000000000 <$S4test9function11aSbSi_tF>:
+   0:	55                   	push   rbp
+   1:	48 89 e5             	mov    rbp,rsp
+   4:	48 83 ff 01          	cmp    rdi,0x1
+   8:	0f 94 c0             	sete   al
+   b:	5d                   	pop    rbp
+   c:	c3                   	ret
+   d:	0f 1f 00             	nop    DWORD PTR [rax]
 
-0000000000000020 <function2>:
-  20:	55                      push   %rbp
-  21:	48 89 e5                mov    %rsp,%rbp
-  24:	50                      push   %rax
-  25:	48 83 ff 00             cmp    $0x0,%rdi
-  29:	48 89 7d f8             mov    %rdi,-0x8(%rbp)
-  2d:	7c 0a                   jl     39 <function2+0x19>
-  2f:	48 8b 45 f8             mov    -0x8(%rbp),%rax
-  33:	48 83 c4 08             add    $0x8,%rsp
-  37:	5d                      pop    %rbp
-  38:	c3                      retq
-  39:	0f 0b                   ud2
+0000000000000010 <function2>:
+  10:	55                   	push   rbp
+  11:	48 89 e5             	mov    rbp,rsp
+  14:	e8 07 00 00 00       	call   20 <$S4test10_function21aSbSi_tF>
+  19:	24 01                	and    al,0x1
+  1b:	5d                   	pop    rbp
+  1c:	c3                   	ret
+  1d:	0f 1f 00             	nop    DWORD PTR [rax]
+
+0000000000000020 <$S4test10_function21aSbSi_tF>:
+  20:	55                   	push   rbp
+  21:	48 89 e5             	mov    rbp,rsp
+  24:	48 83 ff 01          	cmp    rdi,0x1
+  28:	0f 94 c0             	sete   al
+  2b:	5d                   	pop    rbp
+  2c:	c3                   	ret
+  2d:	0f 1f 00             	nop    DWORD PTR [rax]
+
+0000000000000030 <function3>:
+  30:	55                   	push   rbp
+  31:	48 89 e5             	mov    rbp,rsp
+  34:	48 83 ff 01          	cmp    rdi,0x1
+  38:	0f 94 c0             	sete   al
+  3b:	5d                   	pop    rbp
+  3c:	c3                   	ret
 ```
 
 With function1's name decoding to:
 
 ```bash
-$ swift-demangle _TF4test9function1FSiSu
-_TF4test9function1FSiSu ---> test.function1 (Swift.Int) -> Swift.UInt
+$ swift-demangle '$S4test9function11aSbSi_tF'
+$S4test9function11aSbSi_tF ---> test.function1(a: Swift.Int) -> Swift.Bool
 ```
 
 

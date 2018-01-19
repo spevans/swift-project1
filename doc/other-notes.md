@@ -1,7 +1,6 @@
 # Other Notes
 
 
-
 ## Will it build on OSX?
 
 Currently it will not build on OSX. I originally started developing on OSX

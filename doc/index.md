@@ -3,9 +3,8 @@
 swift-project1 - writing a simple bare metal kernel in Swift
 
 A project to write a kernel in Swift with that can boot on a Mac or PC.
-The eventual aim is to get a simple kernel booting up with a CLI with full
-concurrency/thread support on multiple cores to investigate using Swift
-for systems programming.
+The eventual aim is to get a simple kernel booting up with a CLI and some
+device drivers, to investigate using Swift for systems programming.
 
 
 [project1 on github](https://github.com/spevans/swift-project1)
@@ -53,7 +52,6 @@ The main aspects being investigated are:
 
 ## [Other Notes](other-notes.md)
 - Will it build on OSX?
-- What to do differently next time
 - Future directions
 
 
