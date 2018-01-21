@@ -9,7 +9,7 @@ SWIFTDIR := $(shell readlink -f ~/swift)
 SWIFT := $(SWIFTDIR)/usr/bin/swift
 
 # The path to the kernel-lib swift compiler
-KSWIFTDIR := $(shell readlink -f ~/swift-kernel-20180113)
+KSWIFTDIR := $(shell readlink -f ~/swift-kernel-20180121)
 KSWIFT := $(KSWIFTDIR)/usr/bin/swift
 KSWIFTC := $(KSWIFTDIR)/usr/bin/swiftc
 KSWIFTLIBDIR := $(KSWIFTDIR)/usr/lib/swift_static/linux

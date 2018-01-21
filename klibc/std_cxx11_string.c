@@ -129,20 +129,6 @@ __resize_string(struct basic_string *this, size_t new_size, int copy_and_free)
 }
 
 
-// std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_replace(unsigned long, unsigned long, char const*, unsigned long)
-struct basic_string *
-_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE10_M_replaceEmmPKcm(
-        struct basic_string *this,
-        size_t pos,
-        size_t len1,
-        const char *str,
-        size_t len2)
-{
-        koops("UNIMPLEMENTED: replace(%p, %zu, %zu, '%s', %zu)\n", this, pos, len1,
-              str, len2);
-        return this;
-}
-
 
 // std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::swap(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&)
 void
@@ -222,8 +208,45 @@ _ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE9_M_mutateEmmPKcm(
         char const *str,
         size_t len2)
 {
-        koops("UNIMPLEMENTED: _M_mutate(%p, %zu, %zu, %s, %zu)\n", this, pos,
-              len1, str, len2);
+        size_t how_much = this->length - pos - len1;
+        size_t new_capacity = this->length + len2 - len1;
+
+        char *data = malloc(new_capacity + 1);
+        if (pos) { memcpy(data, this->string, pos); }
+        if (str && len2) { memcpy(data + pos, str, len2); }
+        if (how_much) {
+                memcpy(data + pos + len2, this->string + pos + len1, how_much);
+        }
+        data[pos + len2 + how_much] = '\0';
+
+        this->length = new_capacity;
+        if (!is_short_string(this)) {
+                free(this->string);
+        }
+        this->string = data;
+        this->capacity = new_capacity;
+}
+
+
+// std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_replace(unsigned long, unsigned long, char const*, unsigned long)
+struct basic_string *
+_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE10_M_replaceEmmPKcm(
+        struct basic_string *this,
+        size_t pos,
+        size_t len1,
+        const char *str,
+        size_t len2)
+{
+        //        kprintf("replace(%p, %zu, %zu, '%s', %zu)\n", this, pos, len1, str, len2);
+
+        size_t __old_size = this->length;
+        size_t __new_size = __old_size + len2 - len1;
+
+        // TODO: Should do in buffer replacement if buffer is big enough, only
+        // falling back got _M_mutate if not.
+        _ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE9_M_mutateEmmPKcm(
+               this, pos, len1, str, len2);
+        return this;
 }
 
 

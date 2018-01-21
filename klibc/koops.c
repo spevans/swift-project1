@@ -15,7 +15,7 @@
 
 extern void *_kernel_stack;
 extern void *_stack_start;
-static const int max_depth = 40;
+static const int max_depth = 128;
 
 
 void
@@ -30,8 +30,35 @@ koops(const char *fmt, ...)
 }
 
 
+// Both backtrace() and stack_trace() require the kernel, kstdlib and
+// Swift runtime are compiled with "-fno-omit-frame-pointer" and
+// "-mno-omit-leaf-frame-pointer" so that the stack frame is preserved
+// and stored in RBP.
+
+int
+backtrace(void **buffer, int size)
+{
+        if (buffer == NULL || size == 0) {
+                return 0;
+        }
+
+        int count = 0;
+        void **rbp_ptr = (void **)getRBP();
+        while (count < size &&
+               (uintptr_t)rbp_ptr > (uintptr_t)&_stack_start
+               && (uintptr_t)rbp_ptr < (uintptr_t)&_kernel_stack) {
+                *buffer = *(rbp_ptr + 1);
+                rbp_ptr = *rbp_ptr;
+                count++;
+                buffer++;
+        }
+        return count;
+}
+
+
 // Simple stack backtrace using rbp to walk the stack
-// Needs an update for eh_frame at some point
+// Needs an update for eh_frame at some point. Called from the exception
+// handlers.
 void
 stack_trace(uintptr_t rsp, uintptr_t rbp)
 {
@@ -107,6 +134,3 @@ dump_registers(struct exception_regs *registers)
                 registers->cs, registers->ds, registers->es,
                 registers->fs, registers->gs, registers->ss);
 }
-
-
-UNIMPLEMENTED(backtrace)

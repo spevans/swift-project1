@@ -205,6 +205,10 @@ __kvprintf(print_char_func print_func, void *data, const char *fmt, size_t fmtle
                                         }
                                         goto again;
 
+                                case 't':
+                                        flags |= PF_LONG;
+                                        goto again;
+
                                 case 'p':
                                         flags |= PF_LONG;
                                         break;

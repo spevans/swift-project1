@@ -210,6 +210,14 @@ wrmsr(uint32_t msr, uint32_t eax, uint32_t edx)
         asm volatile ("wrmsr" : : "c" (msr), "a" (eax), "d" (edx) : );
 }
 
+static inline uint64_t
+getRBP()
+{
+        uint64_t res;
+        asm volatile ("mov %%rbp, %0" : "=r" (res) : : );
+        return res;
+}
+
 
 static inline uint64_t
 getCR0()
