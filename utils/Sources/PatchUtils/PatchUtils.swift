@@ -96,7 +96,7 @@ public func parseMap(_ filename: String) -> Dictionary<String, UInt> {
     var symbols = Dictionary<String, UInt>(minimumCapacity: 16384)
     for line in kernelMap.components(separatedBy: "\n") {
         // Split by multiple spaces
-        let components = line.components(separatedBy: " ").flatMap {
+        let components = line.components(separatedBy: " ").compactMap {
             $0 == "" ? nil : $0
         }
 
