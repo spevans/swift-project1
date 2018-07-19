@@ -1494,7 +1494,12 @@ final class AMLParser {
                 name.remove(at: name.index(before: name.endIndex))
             }
         }
-        return name
+        // FIXME: This is a hack to work around the fact that String.remove(at:)
+        // will return allocated UTF8 string even if the source was an ASCII SSO
+        // which causes problems with Unicode normalisation later on.
+        var name2 = ""
+        for ch in name { name2 += String(ch) }
+        return name2
     }
 
 

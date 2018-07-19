@@ -474,3 +474,12 @@ malloc_usable_size(const void *ptr)
         load_eflags(flags);
         return retval;
 }
+
+
+int
+posix_memalign(void **memptr, size_t alignment, size_t size)
+{
+        void *mem = malloc(size);
+        *memptr = mem;
+        return 0;
+}

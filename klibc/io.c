@@ -38,6 +38,13 @@ fprintf(void *stream, const char *format, ...)
 }
 
 
+int
+fputs(const char *string, void *stream)
+{
+        return fprintf(stream, "%s", string);
+}
+
+
 size_t
 fwrite(const void *ptr, size_t size, size_t nmemb, void *stream)
 {

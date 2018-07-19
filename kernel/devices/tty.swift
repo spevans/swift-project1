@@ -18,11 +18,12 @@ typealias TextCoord = text_coord
 
 
 // kprint via the C early_tty.c driver
+@inline(never)
 func kprint(_ string: StaticString) {
     precondition(string.isASCII)
     string.withUTF8Buffer({
-            $0.forEach({ TTY.sharedInstance.printChar(CChar($0)) })
-        })
+        $0.forEach({ TTY.sharedInstance.printChar(CChar($0)) })
+    })
 }
 
 
@@ -42,19 +43,26 @@ func print(_ items: Any..., separator: String = " ",
 }
 
 
+@inline(never)
+func print(_ item: String) {
+    var output = _tty()
+    output.write(item)
+    output.write("\n")
+}
+
+
+func print(_ item: StaticString) {
+    kprint(item)
+}
+
+
 internal struct _tty : UnicodeOutputStream {
     mutating func write(_ string: String) {
+        // FIXME: Get precondition to work
+        //precondition(string._guts.isASCII, "String must be ASCII")
         if string.isEmpty { return }
-
-        if let asciiBuffer = string._core.asciiBuffer {
-            //defer { _fixLifetime(string) }
-            for c in asciiBuffer {
-                TTY.sharedInstance.printChar(CChar(c))
-            }
-        } else {
-            for c in string.utf8 {
-                TTY.sharedInstance.printChar(CChar(c))
-            }
+        for c in string.unicodeScalars {
+            TTY.sharedInstance.printChar(CChar(truncatingIfNeeded: c.value))
         }
     }
 

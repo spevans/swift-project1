@@ -139,7 +139,7 @@ protocol UnicodeOutputStream : TextOutputStream {
 
 
 extension String: UnicodeOutputStream {
-     mutating func write(_ unicodeScalar: UnicodeScalar) {
+    mutating func write(_ unicodeScalar: UnicodeScalar) {
         self += String(unicodeScalar)
     }
 }

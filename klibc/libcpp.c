@@ -77,6 +77,14 @@ _ZSt17__throw_bad_allocv()
 }
 
 
+// std::__throw_bad_function_call()
+void
+_ZSt25__throw_bad_function_callv()
+{
+        koops("bad function call");
+}
+
+
 int
 __cxa_guard_acquire(void *guard)
 {
@@ -130,4 +138,8 @@ int _ZNSt6thread20hardware_concurrencyEv()
 
 
 UNIMPLEMENTED(_ZNSt8ios_base4InitD1Ev) // std::ios_base::Init::~Init()
-UNIMPLEMENTED(_ZNKSt8__detail20_Prime_rehash_policy14_M_need_rehashEmmm)
+
+// std::__detail::_Prime_rehash_policy::_M_need_rehash(unsigned long, unsigned long, unsigned long) const
+void _ZNKSt8__detail20_Prime_rehash_policy14_M_need_rehashEmmm(
+        unsigned long l1, unsigned long l2, unsigned long l3) {
+}

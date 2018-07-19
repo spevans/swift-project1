@@ -54,7 +54,7 @@ struct BitArray8: CustomStringConvertible {
     }
 
 
-    subscript(index: CountableClosedRange<Int>) -> UInt8 {
+    subscript(index: ClosedRange<Int>) -> UInt8 {
         get {
             var ret: UInt8 = 0
             var bit: UInt8 = 1
@@ -139,7 +139,7 @@ struct BitArray16: CustomStringConvertible {
     }
 
 
-    subscript(index: CountableClosedRange<Int>) -> UInt16 {
+    subscript(index: ClosedRange<Int>) -> UInt16 {
         get {
             var ret: UInt16 = 0
             var bit: UInt16 = 1
@@ -229,7 +229,7 @@ struct BitArray32: CustomStringConvertible {
         }
     }
 
-    subscript(index: CountableClosedRange<Int>) -> UInt32 {
+    subscript(index: ClosedRange<Int>) -> UInt32 {
         get {
             var ret: UInt32 = 0
             var bit: UInt32 = 1
@@ -327,7 +327,7 @@ struct BitArray64: CustomStringConvertible {
     }
 
 
-    subscript(index: CountableClosedRange<Int>) -> UInt64 {
+    subscript(index: ClosedRange<Int>) -> UInt64 {
         get {
             var ret: UInt64 = 0
             var bit: UInt64 = 1
