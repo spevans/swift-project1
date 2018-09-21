@@ -2,7 +2,7 @@
  * kernel/mm/alloc.swift
  *
  * Created by Simon Evans on 19/04/2017.
- * Copyright © 2016 - 2017 Simon Evans. All rights reserved.
+ * Copyright © 2016 - 2018 Simon Evans. All rights reserved.
  *
  * Allocation of physical memory pages and virtual address space.
  * Simple memory management for now, just enough for alloc_pages() and
@@ -19,8 +19,27 @@ private struct FreePageListEntry {
 }
 
 private typealias FreePageListEntryPtr = UnsafeMutablePointer<FreePageListEntry>
-private var freePageListHead: FreePageListEntryPtr? = nil
-private var nextFreePage = UnsafeMutableRawPointer(bitPattern: _heap_start_addr)!
+private var freePageListHead = initFreeList()
+
+// This is called the first time alloc_pages() is called, usually by malloc()
+private func initFreeList() -> FreePageListEntryPtr? {
+    let heap_phys = virtualToPhys(address: _heap_start_addr)
+    let pageCount = Int((_heap_end_addr - _heap_start_addr) / PAGE_SIZE)
+    let ptr = FreePageListEntryPtr(bitPattern: _heap_start_addr)
+    ptr?.pointee = FreePageListEntry(
+        regionStart: PhysPageAddress(heap_phys, pageSize: PAGE_SIZE),
+        pageCount: pageCount,
+        next: nil
+    )
+    // Use single argument versions of kprintf() which has specialisation for
+    // 1 Int or UInt arg. see printf.swift.
+    kprintf("init_free_list: heap_start: %p ", _heap_start_addr)
+    kprintf("heap_end: %p ", _heap_end_addr)
+    kprintf("heap_phys: %p ", heap_phys.value);
+    kprintf("pageCount: %llu\n", pageCount);
+
+    return ptr
+}
 
 
 // Currently used by malloc.c so still need the _cdecl
@@ -34,15 +53,10 @@ public func alloc_pages(pages: Int) -> VirtualAddress {
 
 public func alloc(pages: Int) -> UnsafeMutableRawPointer {
     precondition(pages > 0)
-    let tmp = nextFreePage.advanced(by: pages * Int(PAGE_SIZE))
-    if tmp.address <= _heap_end_addr {
-        let result = nextFreePage
-        nextFreePage = tmp
-        return result
-    }
 
     var head = freePageListHead
     var prev: FreePageListEntryPtr? = nil
+    kprintf("Trying to allocate %d pages\n", pages)
     while let ptr = head {
         let entry = ptr.pointee
         if entry.pageCount == pages {
@@ -53,31 +67,25 @@ public func alloc(pages: Int) -> UnsafeMutableRawPointer {
             } else {
                 prev!.pointee.next = entry.next
             }
-            //printf("alloc(pages: %ld) -> %p\n", pages, result.vaddr)
             return UnsafeMutableRawPointer(bitPattern: result.vaddr)!
         }
         if entry.pageCount > pages {
             let newPageCount = entry.pageCount - pages
             let result = entry.regionStart.advanced(by: newPageCount)
             ptr.pointee.pageCount = newPageCount
-            //printf("alloc(pages: %ld) -> %p\n", pages, result.vaddr)
             return UnsafeMutableRawPointer(bitPattern: result.vaddr)!
         }
         prev = ptr
         head = entry.next
     }
 
-    printf("No more free pages for allocation of: %d pages\n", pages)
+    kprintf("No more free pages for allocation of: %d pages\n", pages)
     stop()
 }
 
 
 @_cdecl("free_pages")
 public func freePages(at address: VirtualAddress, count: Int) {
-    guard address >= _heap_end_addr else {
-        printf("Trying to free pre-allocated heap page, ignoring\n")
-        return
-    }
     let paddr = virtualToPhys(address: address)
     addPagesToFreeList(physPage: PhysPageAddress(paddr, pageSize: PAGE_SIZE), pageCount: count)
 }

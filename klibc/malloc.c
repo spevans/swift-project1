@@ -1,7 +1,7 @@
 /*
  * klibc/malloc.c
  *
- * Copyright © 2015 - 2017 Simon Evans. All rights reserved.
+ * Copyright © 2015 - 2018 Simon Evans. All rights reserved.
  *
  * Simple memory management for now just enough to provide a simple malloc()
  *
@@ -326,6 +326,7 @@ void *
 malloc(size_t size)
 {
         void *retval = NULL;
+        debugf("malloc(%ld)\n", size);
         if (sizeof(struct slab_header) != PAGE_SIZE) {
                 koops("slab_header is %lu bytes", sizeof(struct slab_header));
         }
