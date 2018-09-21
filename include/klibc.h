@@ -2,7 +2,7 @@
  * kernel/klibc.h
  *
  * Created by Simon Evans on 12/12/2015.
- * Copyright © 2015, 2016 Simon Evans. All rights reserved.
+ * Copyright © 2015 - 2018 Simon Evans. All rights reserved.
  *
  * Miscellaneous functions mostly string/memory
  *
@@ -43,6 +43,10 @@ int kvsnprintf(char * _Nonnull buf, size_t size, const char * _Nonnull fmt, va_l
 int kvlprintf(const char * _Nonnull fmt, size_t len, va_list args);
 int kvprintf(const char * _Nonnull fmt, va_list args) __attribute__ ((format (printf, 1, 0)));
 int kprintf(const char * _Nonnull fmt, ...) __attribute__ ((format (printf, 1, 2)));
+int kprintf1arg(const char * _Nonnull fmt, long l1);
+int kprintf2args(const char * _Nonnull fmt, long l1, long l2);
+int kprintf3args(const char * _Nonnull fmt, long l1, long l2, long l3);
+
 // bochs printf
 int bprintf(const char * _Nonnull fmt, ...) __attribute__ ((format (printf, 1, 2)));
 void bochs_print_string(const char * _Nonnull str, size_t len);

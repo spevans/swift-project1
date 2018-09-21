@@ -1,7 +1,7 @@
 /*
  * klibc/kprintf.c
  *
- * Copyright © 2015 Simon Evans. All rights reserved.
+ * Copyright © 2015 - 2018 Simon Evans. All rights reserved.
  *
  * printf style functions.
  *
@@ -484,6 +484,25 @@ kprintf(const char *fmt, ...)
 
         return len;
 }
+
+int
+kprintf1arg(const char *fmt, long l1)
+{
+        return kprintf(fmt, l1);
+}
+
+int
+kprintf2args(const char *fmt, long l1, long l2)
+{
+        return kprintf(fmt, l1, l2);
+}
+
+int
+kprintf3args(const char *fmt, long l1, long l2, long l3)
+{
+        return kprintf(fmt, l1, l2, l3);
+}
+
 
 #ifndef TESTS
 // Print to the bochs console, requires 'port_e9_hack: enabled=1' in the bochsrc
