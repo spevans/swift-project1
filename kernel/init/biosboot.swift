@@ -72,9 +72,9 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
     let memoryRanges: [MemoryRange]
     let frameBufferInfo: FrameBufferInfo? = nil
     let kernelPhysAddress: PhysAddress
-    let symbolTablePtr = UnsafePointer<Elf64_Sym>(bitPattern: 0)!
+    let symbolTablePtr: UnsafePointer<Elf64_Sym>? = nil
     let symbolTableSize: UInt64 = 0
-    let stringTablePtr = UnsafePointer<CChar>(bitPattern: 0)!
+    let stringTablePtr: UnsafePointer<CChar>? = nil
     let stringTableSize: UInt64 = 0
 
     var description: String {

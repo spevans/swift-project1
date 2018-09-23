@@ -134,12 +134,13 @@ func setupMM(bootParams: BootParams) {
         physStart: stackPhys, readWrite: true, noExec: true)
 
     // Add mapping for the symbol and string tables after the stack
-    let symbolSize = bootParams.symbolTableSize + bootParams.stringTableSize
-    if symbolSize > 0 {
-        let symtabPhys = (stackPhys + stackHeapSize + PAGE_SIZE).pageAddress(pageSize: PAGE_SIZE, roundUp: true).address
-        addMapping(start: bootParams.symbolTablePtr.address,
-            size: UInt(symbolSize), physStart: symtabPhys,
-            readWrite: true, noExec: true)
+
+    if let symbolTablePtr = bootParams.symbolTablePtr,
+        bootParams.symbolTableSize > 0 && bootParams.stringTableSize > 0 {
+            let symtabPhys = (stackPhys + stackHeapSize + PAGE_SIZE).pageAddress(pageSize: PAGE_SIZE, roundUp: true).address
+            addMapping(start: symbolTablePtr.address,
+                size: UInt(bootParams.symbolTableSize + bootParams.stringTableSize),
+                physStart: symtabPhys, readWrite: true, noExec: true)
     }
 
     printf("MM: Physical address of kernelBase     (%p): (%p)\n",

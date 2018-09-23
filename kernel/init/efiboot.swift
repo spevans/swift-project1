@@ -57,9 +57,9 @@ struct EFIBootParams: BootParams {
     let memoryRanges: [MemoryRange]
     let frameBufferInfo: FrameBufferInfo?
     let kernelPhysAddress: PhysAddress
-    let symbolTablePtr: UnsafePointer<Elf64_Sym>
+    let symbolTablePtr: UnsafePointer<Elf64_Sym>?
     let symbolTableSize: UInt64
-    let stringTablePtr: UnsafePointer<CChar>
+    let stringTablePtr: UnsafePointer<CChar>?
     let stringTableSize: UInt64
 
 

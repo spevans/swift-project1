@@ -14,22 +14,26 @@ private var _stringTablePtr: UnsafePointer<CChar>? = nil
 private var _stringTableSize = 0
 
 
-func symbolLookupInit(symbolTablePtr: UnsafePointer<Elf64_Sym>,
-                             symbolTableSize: UInt64,
-                             stringTablePtr: UnsafePointer<CChar>,
-                             stringTableSize: UInt64) {
-
+func symbolLookupInit(bootParams: BootParams) {
+    // Check if already initialised
     guard _symbolTablePtr == nil else {
         return
     }
-    _symbolCount = Int(symbolTableSize) / MemoryLayout<Elf64_Sym>.stride
+
+    guard
+        let symbolTablePtr = bootParams.symbolTablePtr,
+        let stringTablePtr = bootParams.stringTablePtr else {
+        return
+    }
+
+    _symbolCount = Int(bootParams.symbolTableSize) / MemoryLayout<Elf64_Sym>.stride
 
     guard _symbolCount > 0 else {
         print("Empty symbol table")
         return
     }
 
-    guard stringTableSize > 0 else {
+    guard bootParams.stringTableSize > 0 else {
         print("Empty string table")
         return
     }
@@ -43,7 +47,7 @@ func symbolLookupInit(symbolTablePtr: UnsafePointer<Elf64_Sym>,
     // TODO: Remap the memory as RO now it has been sorted
     _symbolTablePtr = symbolTablePtr
     _stringTablePtr = stringTablePtr
-    _stringTableSize = Int(stringTableSize)
+    _stringTableSize = Int(bootParams.stringTableSize)
 }
 
 

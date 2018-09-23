@@ -34,11 +34,7 @@ final class System {
         bootParams = parse(bootParamsAddr: VirtualAddress(bootParamsAddr))
         setupMM(bootParams: bootParams)
 
-        symbolLookupInit(symbolTablePtr: bootParams.symbolTablePtr,
-                         symbolTableSize: bootParams.symbolTableSize,
-                         stringTablePtr: bootParams.stringTablePtr,
-                         stringTableSize: bootParams.stringTableSize)
-
+        symbolLookupInit(bootParams: bootParams)
         // SystemTables() needs the MM setup so that the memory can be mapped
         systemTables = SystemTables(bootParams: bootParams)
         let freeMemoryRanges = bootParams.memoryRanges.filter {
