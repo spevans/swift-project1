@@ -180,7 +180,7 @@ private var ticks: UInt64 = 0
 func timerCallback() {
     ticks = ticks &+ 1
     if (ticks % 0x200) == 0 {
-        printf("\ntimerInterrupt: %#016X\n", ticks)
+        //printf("\ntimerInterrupt: %#016X\n", ticks)
     }
     // Do nothing for now
 }

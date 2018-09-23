@@ -19,12 +19,15 @@ final class PS2Keyboard: Device, PS2Device, Keyboard {
     // Keyboard state
     private var leftShift = false
     private var rightShift = false
+    private var leftCtrl = false
+    private var rightCtrl = false
 
 
     enum E0_ScanCodes: UInt8 {
     case Slash          = 0x4A
     case PrintScreen    = 0x36
     case RightAlt       = 0x6A
+    case LeftCtrl       = 0x20
     case RightCtrl      = 0x14
     case Break          = 0x3E
     case Home           = 0x6C
@@ -92,7 +95,10 @@ final class PS2Keyboard: Device, PS2Device, Keyboard {
         90: UnicodeScalar("\r"),
         93: UnicodeScalar("\\"),
         102: UnicodeScalar(8),
-        118: UnicodeScalar(27)
+        118: UnicodeScalar(27),
+
+        0x6b: UnicodeScalar(2), // left arrow = ctrl-b
+        0x74: UnicodeScalar(6), // right arrow = ctrl-f
     ]
 
 
@@ -149,6 +155,39 @@ final class PS2Keyboard: Device, PS2Device, Keyboard {
         118: UnicodeScalar(27)
     ]
 
+
+    private let ctrlMap: [UInt8: UnicodeScalar] = [
+        21: UnicodeScalar(17),
+        26: UnicodeScalar(26),
+        27: UnicodeScalar(19),
+        28: UnicodeScalar(1),
+        29: UnicodeScalar(23),
+        33: UnicodeScalar(3),
+        34: UnicodeScalar(24),
+        35: UnicodeScalar(4),
+        36: UnicodeScalar(5),
+        42: UnicodeScalar(22),
+        43: UnicodeScalar(6),
+        44: UnicodeScalar(20),
+        45: UnicodeScalar(18),
+        49: UnicodeScalar(14),
+        50: UnicodeScalar(2),
+        51: UnicodeScalar(8),
+        52: UnicodeScalar(7),
+        53: UnicodeScalar(25),
+        58: UnicodeScalar(13),
+        59: UnicodeScalar(10),
+        60: UnicodeScalar(21),
+        66: UnicodeScalar(11),
+        67: UnicodeScalar(9),
+        68: UnicodeScalar(15),
+        75: UnicodeScalar(12),
+        77: UnicodeScalar(16),
+        102: UnicodeScalar(8),
+        118: UnicodeScalar(27),
+    ]
+
+
     private var inputBuffer: CircularBuffer<UInt8>
 
     init(buffer: CircularBuffer<UInt8>) {
@@ -159,7 +198,7 @@ final class PS2Keyboard: Device, PS2Device, Keyboard {
 
     public func readKeyboard() -> UnicodeScalar? {
         while let scanCode = inputBuffer.remove() {
-            //printf("kbd: scanCode: %#02x\n", scanCode)
+            serialPrintf("kbd: scanCode: %#02x\n", scanCode)
 
             if scanCode == 0xf0 {
                 breakCode = 0xff
@@ -206,8 +245,9 @@ final class PS2Keyboard: Device, PS2Device, Keyboard {
         -> UnicodeScalar? {
         if keyDown {
             switch keyCode {
-            case 18: leftShift = true
-            case 89: rightShift = true
+            case 0x12: leftShift = true
+            case 0x59: rightShift = true
+            case 0x14: leftCtrl = true
             default:
                 guard let char = readKeymap(scanCode: keyCode) else {
                     print("kbd: Unknown keycode down: \(keyCode)")
@@ -217,8 +257,9 @@ final class PS2Keyboard: Device, PS2Device, Keyboard {
             }
         } else {
             switch keyCode {
-            case 18: leftShift = false
-            case 89: rightShift = false
+            case 0x12: leftShift = false
+            case 0x59: rightShift = false
+            case 0x14: leftCtrl = false
             default:
                 return nil
             }
@@ -228,6 +269,9 @@ final class PS2Keyboard: Device, PS2Device, Keyboard {
 
 
     private func readKeymap(scanCode: UInt8) -> UnicodeScalar? {
+        if leftCtrl {
+            return ctrlMap[scanCode]
+        }
         if leftShift || rightShift {
             return shiftedMap[scanCode]
         } else {

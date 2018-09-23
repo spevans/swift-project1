@@ -56,7 +56,6 @@ public func alloc(pages: Int) -> UnsafeMutableRawPointer {
 
     var head = freePageListHead
     var prev: FreePageListEntryPtr? = nil
-    kprintf("Trying to allocate %d pages\n", pages)
     while let ptr = head {
         let entry = ptr.pointee
         if entry.pageCount == pages {

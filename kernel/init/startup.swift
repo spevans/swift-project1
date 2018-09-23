@@ -106,15 +106,10 @@ fileprivate func _keyboardInput() {
     }
 
     let tty = TTY.sharedInstance
-
-    print("> ", terminator: "")
     while true {
-        while let char = kbd.readKeyboard() {
-            if char.isASCII {
-                tty.printChar(CChar(truncatingIfNeeded: char.value))
-            } else {
-                print("\(char) is not ASCII\n")
-            }
+        let line = tty.readLine(prompt: "> ", keyboard: kbd)
+        if line == "dumpbus" {
+            system.deviceManager.dumpDeviceTree()
         }
     }
 }

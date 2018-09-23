@@ -171,6 +171,14 @@ func printf(_ format: StaticString, _ items: Any...) {
     var iterator = ArgIterator(args: items)
     _printf(to: &output, format: format, itemsIterator: &iterator)
 }
+
+
+func serialPrintf(_ format: StaticString, _ items: Any...) {
+    var output = _serial()
+    var iterator = ArgIterator(args: items)
+    _printf(to: &output, format: format, itemsIterator: &iterator)
+}
+
 #endif
 
 

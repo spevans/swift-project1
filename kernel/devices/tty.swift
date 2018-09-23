@@ -74,6 +74,24 @@ internal struct _tty : UnicodeOutputStream {
 }
 
 
+internal struct _serial: UnicodeOutputStream {
+    mutating func write(_ string: String) {
+        if string.isEmpty { return }
+        for c in string.unicodeScalars {
+            if c.isASCII {
+                serial_print_char(CChar(truncatingIfNeeded: c.value))
+            }
+        }
+    }
+
+    mutating func write(_ unicodeScalar: UnicodeScalar) {
+        if unicodeScalar.isASCII, let ch = Int32(exactly: unicodeScalar.value) {
+            serial_print_char(CChar(ch))
+        }
+    }
+}
+
+
 protocol ScreenDriver {
     var charsPerLine: TextCoord { get }
     var totalLines:   TextCoord { get }
@@ -97,7 +115,7 @@ final class TTY {
 
     // The cursorX and cursorY and managed by early_tty.c so they
     // can be kept in sync
-    private var cursorX: TextCoord {
+    var cursorX: TextCoord {
         get { return earlyTTY.cursorX }
         set(newX) {
             earlyTTY.cursorX = newX
@@ -106,7 +124,7 @@ final class TTY {
     }
 
 
-    private var cursorY: TextCoord {
+    var cursorY: TextCoord {
         get { return earlyTTY.cursorY }
         set(newY) {
             earlyTTY.cursorY = newY
@@ -181,6 +199,98 @@ final class TTY {
                 cursorX = x
                 cursorY = y
             })
+    }
+
+
+    func readLine(prompt: String, keyboard: Keyboard) -> String {
+        var cmdString: [CChar] = []
+        var clipboard: [CChar] = []
+
+        print(prompt, terminator: "")
+        var initialCursorX = cursorX
+        var initialCursorY = cursorY
+        var idx = 0 // index in current string
+        var line: String?
+
+        while line == nil {
+            while let char = keyboard.readKeyboard() {
+                var clearSpaces = 0
+                if !char.isASCII {
+                    continue
+                }
+                let ch = CChar(truncatingIfNeeded: char.value)
+
+                if ch == 1 { // ctrl-a
+                    idx = 0
+                }
+                else if ch == 2 { // ctrl-b
+                    if idx > 0 {
+                        idx -= 1
+                    }
+                }
+                else if ch == 5 { // ctrl-e
+                    idx = cmdString.count
+                }
+                else if ch == 6 { // ctrl-f
+                    if idx < cmdString.count {
+                        idx += 1
+                    }
+                }
+
+                else if ch == 8 { // ctrl-h DEL
+                    if idx > 0 {
+                        idx -= 1
+                        cmdString.remove(at: idx)
+                        clearSpaces = 1
+                    }
+                }
+                else if ch == 10 || ch == 13 { // ctrl-j, ctrl-m NL, CR
+                    cmdString.append(0)
+                    line = cmdString.withUnsafeBufferPointer {
+                        return String(validatingUTF8: $0.baseAddress!)
+                    }
+                    if line == nil {
+                        print("\nCant convert to a String");
+                        line = ""
+                    }
+                    cmdString.removeLast()
+                    cmdString.append(10)
+                } else if ch == 11 { // ctrl-k cut to clipboard
+                    if idx < cmdString.count {
+                        let r = idx..<cmdString.count
+                        clipboard = Array(cmdString[r])
+                        cmdString.removeSubrange(r)
+                        clearSpaces = clipboard.count
+                    }
+                } else if ch == 25 { // ctrl-y yank back
+                    cmdString.insert(contentsOf: clipboard, at: idx)
+                    idx += clipboard.count
+                } else if ch == 12 { // ctrl-l
+                    clearScreen()
+                    print(prompt, terminator: "")
+                    initialCursorX = cursorX
+                    initialCursorY = cursorY
+                }
+
+                else if ch >= 32 {
+                    cmdString.insert(ch, at: idx)
+                    idx += 1
+                }
+                // Draw the current string
+                cursorX = initialCursorX
+                cursorY = initialCursorY
+
+                cmdString.forEach {
+                    printChar($0)
+                }
+                while clearSpaces > 0 {
+                    printChar(32)
+                    clearSpaces -= 1
+                }
+            }
+        }
+
+        return line!
     }
 
 

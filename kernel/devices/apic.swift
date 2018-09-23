@@ -394,7 +394,7 @@ public func apicIntHandler(registers: ExceptionRegisters) {
         stop()
     }
 
-    printf("APIC INT Handler: %d\n", apicInt)
+    //printf("APIC INT Handler: %d\n", apicInt)
     if let apic = localAPIC {
         apic.EOI = 1
     }
