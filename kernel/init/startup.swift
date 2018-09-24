@@ -98,6 +98,7 @@ fileprivate func keyboardInput() {
 // If a keyboard is present, wait and read from it, looping indefinitely
 fileprivate func _keyboardInput() {
     guard let kbd = system.deviceManager.keyboard else {
+        print("No keyboard found")
         return
     }
 
@@ -106,6 +107,13 @@ fileprivate func _keyboardInput() {
         let line = tty.readLine(prompt: "> ", keyboard: kbd)
         if line == "dumpbus" {
             system.deviceManager.dumpDeviceTree()
+        }
+        else if line == "date" {
+            if let cmos = system.deviceManager.rtc {
+                print(cmos.readTime())
+            } else {
+                print("Cant find a RTC")
+            }
         }
     }
 }

@@ -172,6 +172,10 @@ final class DeviceManager {
     var timer: Timer? {
         return devices.filter { $0 is Timer }.first as? Timer
     }
+
+    var rtc: CMOSRTC? {
+        return devices.filter { $0 is CMOSRTC }.first as? CMOSRTC
+    }
 }
 
 // FIXME: This is unsafe, needs atomic read/write or some locking

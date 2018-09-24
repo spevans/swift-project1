@@ -45,6 +45,10 @@ struct FACP: ACPITable {
         return tablePtr.pointee.iapc_boot_arch.bit(IAPC_RTC_NOT_PRESENT) == false
     }
 
+    var rtcCenturyIndex: UInt8 {
+        return tablePtr.pointee.century
+    }
+
     var facsAddress: PhysAddress? {
         let table = tablePtr.pointee
         if table.header.length >= 140 {

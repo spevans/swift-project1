@@ -177,7 +177,8 @@ final class KBD8042: Device, ISADevice, CustomStringConvertible {
     var description: String { return "KBD8042" }
 
     required init?(interruptManager: InterruptManager, pnpName: String,
-          resource: ISABus.Resources) {
+        resources: ISABus.Resources, facp: FACP?) {
+        print("i8042:", pnpName, resources)
         super.init()
 
         // 1. Flush output buffer

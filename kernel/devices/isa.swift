@@ -11,15 +11,17 @@
 
 
 protocol ISADevice {
-    init?(interruptManager: InterruptManager, pnpName: String, resource: ISABus.Resources)
+    init?(interruptManager: InterruptManager, pnpName: String,
+        resources: ISABus.Resources, facp: FACP?)
 }
 
 
 final class UnknownISADevice: Device, ISADevice, CustomStringConvertible {
     let description: String
 
-    init?(interruptManager: InterruptManager, pnpName: String, resource: ISABus.Resources) {
-        description = "ISA: Unknown device: \(pnpName)"
+    init?(interruptManager: InterruptManager, pnpName: String,
+        resources: ISABus.Resources, facp: FACP?) {
+        description = "ISA: Unknown device: \(pnpName) \(resources)"
     }
 }
 
@@ -58,9 +60,23 @@ final class ISABus: Bus {
                     switch pnpName {
                     case "PNP0303": ps2keyboard = crs
                     case "PNP0F13": ps2mouse = crs
+                    case "PNP0B00":
+                        if let cmos = CMOSRTC(interruptManager: im,
+                            pnpName: pnpName,
+                            resources: extractCRSSettings(crs),
+                            facp: deviceManager.acpiTables.facp
+                        ) {
+                            print(cmos)
+                            addDevice(cmos)
+                            deviceManager.addDevice(cmos)
+                            let date = cmos.readTime()
+                            print("Current datetime:", date)
+                        }
+
                     default:
                         let resources = extractCRSSettings(crs)
-                        if let dev = UnknownISADevice(interruptManager: im, pnpName: pnpName, resource: resources) {
+                        if let dev = UnknownISADevice(interruptManager: im,
+                            pnpName: pnpName, resources: resources, facp: nil) {
                             addDevice(dev)
                         }
                     }
@@ -70,7 +86,7 @@ final class ISABus: Bus {
         if !ps2keyboard.isEmpty {
             ps2keyboard.append(contentsOf: ps2mouse)
             if let device = KBD8042(interruptManager: im, pnpName: "PNP0303",
-                                    resource: extractCRSSettings(ps2keyboard)) {
+                resources: extractCRSSettings(ps2keyboard), facp: nil) {
                 addDevice(device)
                 deviceManager.addDevice(device)
                 // FIXME: KBD8042 should really be some port of BusDevice that adds its
@@ -82,7 +98,8 @@ final class ISABus: Bus {
         }
 
         if let timer = PIT8254(interruptManager: im, pnpName: "PNP0100",
-                               resource: ISABus.Resources(ioPorts: [0x40, 0x42], interrupts: [0])) {
+            resources: ISABus.Resources(ioPorts: [0x40, 0x42], interrupts: [0]),
+            facp: nil) {
             addDevice(timer)
             deviceManager.addDevice(timer)
         }

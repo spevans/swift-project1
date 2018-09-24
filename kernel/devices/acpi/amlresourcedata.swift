@@ -105,9 +105,9 @@ struct AMLIOPortSetting: AMLResourceSetting {
         precondition(buffer.count == 7)
 
         if buffer[0] == 0 {
-            decodes16Bit = true
-        } else if buffer[0] == 1 {
             decodes16Bit = false
+        } else if buffer[0] == 1 {
+            decodes16Bit = true
         } else {
             fatalError("Invalid byte0 for IOPort: \(buffer[0])")
         }
@@ -119,7 +119,9 @@ struct AMLIOPortSetting: AMLResourceSetting {
 
     func ioPorts() -> [UInt16] {
         var ports: [UInt16] = []
-        for port in minimumBaseAddress...maximumBaseAddress {
+        let mask: UInt16 = decodes16Bit ? 0xffff : 0x03ff
+        for offset in 0..<rangeLength {
+            let port = (minimumBaseAddress + UInt16(offset)) & mask
             ports.append(port)
         }
         return ports

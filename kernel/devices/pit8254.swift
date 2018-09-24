@@ -2,9 +2,9 @@
  * kernel/devices/8254timer.swift
  *
  * Created by Simon Evans on 10/01/2016.
- * Copyright © 2016 Simon Evans. All rights reserved.
+ * Copyright © 2016, 2018 Simon Evans. All rights reserved.
  *
- * 8254 PIT Programmable Interval Timer
+ * 8254 PIT Programmable Interval Timer.
  *
  */
 
@@ -118,7 +118,7 @@ final class PIT8254: Device, ISADevice, Timer, CustomStringConvertible {
 
 
     required init?(interruptManager: InterruptManager, pnpName: String,
-                   resource: ISABus.Resources) {
+        resources: ISABus.Resources, facp: FACP?) {
         self.interruptManager = interruptManager
         print("PIT8254: init")
     }
