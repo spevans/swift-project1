@@ -13,7 +13,10 @@ final class PIT8254: Device, ISADevice, Timer, CustomStringConvertible {
 
     private let interruptManager: InterruptManager
     private let oscillator = 1193182         // Base frequency
-    private let commandPort: UInt16 = 0x43
+    private let channel0Port: UInt16
+    private let channel2Port: UInt16
+    private let commandPort: UInt16
+    private let irq: UInt8
     private var periodicTimerCallback: (() -> ())? = nil
 
     // Raw Value is the I/O port
@@ -105,11 +108,11 @@ final class PIT8254: Device, ISADevice, Timer, CustomStringConvertible {
         outb(commandPort, readBackCmd)
 
         // Channel select isnt present in status readback
-        var (_, access, mode, number) = fromCommandByte(inb(TimerChannel.CHANNEL_0.rawValue))
+        var (_, access, mode, number) = fromCommandByte(.CHANNEL_0)
         var divider = (access.rawValue == AccessMode.LO_HI_BYTE.rawValue) ? getCount(TimerChannel.CHANNEL_0) : 0
         var result = "pit: Channel0: access: \(access), mode: \(mode), value: \(number), count: \(divider)\n"
 
-        (_, access, mode, number) = fromCommandByte(inb(TimerChannel.CHANNEL_2.rawValue))
+        (_, access, mode, number) = fromCommandByte(.CHANNEL_2)
         divider = (access.rawValue == AccessMode.LO_HI_BYTE.rawValue) ? getCount(TimerChannel.CHANNEL_2) : 0
         result += "pit: Channel2: access: \(access), mode: \(mode), value: \(number), count: \(divider)"
 
@@ -119,8 +122,18 @@ final class PIT8254: Device, ISADevice, Timer, CustomStringConvertible {
 
     required init?(interruptManager: InterruptManager, pnpName: String,
         resources: ISABus.Resources, facp: FACP?) {
+        print("PIT8254: init:", resources)
+
+        guard resources.ioPorts.count > 3
+            && resources.interrupts.count > 0 else {
+            print("PIT8254: Requires 4 IO ports and 1 IRQ")
+            return nil
+        }
         self.interruptManager = interruptManager
-        print("PIT8254: init")
+        channel0Port = resources.ioPorts[0]
+        channel2Port = resources.ioPorts[2]
+        commandPort = resources.ioPorts[3]
+        irq = resources.interrupts[0]
     }
 
 
@@ -147,8 +160,9 @@ final class PIT8254: Device, ISADevice, Timer, CustomStringConvertible {
     }
 
 
-    private func fromCommandByte(_ command: UInt8) ->
+    private func fromCommandByte(_ channel: TimerChannel) ->
         (ChannelSelect, AccessMode, OperatingMode, NumberMode) {
+        let command = inb(mapChannelToPort(channel))
         return (ChannelSelect(channel: command),
                 AccessMode(mode: command),
                 OperatingMode(mode: command),
@@ -161,6 +175,14 @@ final class PIT8254: Device, ISADevice, Timer, CustomStringConvertible {
         switch(channel) {
         case .CHANNEL_0: return ChannelSelect.CHANNEL0
         case .CHANNEL_2: return ChannelSelect.CHANNEL2
+        }
+    }
+
+
+    private func mapChannelToPort(_ channel: TimerChannel) -> UInt16 {
+        switch(channel) {
+        case .CHANNEL_0: return channel0Port
+        case .CHANNEL_2: return channel2Port
         }
     }
 

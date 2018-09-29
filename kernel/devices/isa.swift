@@ -59,7 +59,15 @@ final class ISABus: Bus {
                     //print("Configuring \(pnpName)")
                     switch pnpName {
                     case "PNP0303": ps2keyboard = crs
-                    case "PNP0F13": ps2mouse = crs
+                    case "PNP0F03", "PNP0F13": ps2mouse = crs
+                    case "PNP0100":
+                        if let timer = PIT8254(interruptManager: im, pnpName: "PNP0100",
+                            resources: extractCRSSettings(crs),
+                            facp: nil) {
+                            addDevice(timer)
+                            deviceManager.addDevice(timer)
+                        }
+
                     case "PNP0B00":
                         if let cmos = CMOSRTC(interruptManager: im,
                             pnpName: pnpName,
@@ -95,13 +103,6 @@ final class ISABus: Bus {
                     deviceManager.addDevice(keyboard)
                 }
             }
-        }
-
-        if let timer = PIT8254(interruptManager: im, pnpName: "PNP0100",
-            resources: ISABus.Resources(ioPorts: [0x40, 0x42], interrupts: [0]),
-            facp: nil) {
-            addDevice(timer)
-            deviceManager.addDevice(timer)
         }
     }
 
