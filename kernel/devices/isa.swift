@@ -3,7 +3,7 @@
 //
 //
 //  Created by Simon Evans on 06/12/2017.
-//  Copyright © 2017 Simon Evans. All rights reserved.
+//  Copyright © 2017 - 2018 Simon Evans. All rights reserved.
 //
 
 // There is only one ISA (EISA) bus and it owns all of the I/O address space
@@ -29,9 +29,37 @@ final class UnknownISADevice: Device, ISADevice, CustomStringConvertible {
 final class ISABus: Bus {
 
     // Resources used by a device
-    struct Resources {
-        let ioPorts: [UInt16]
+    struct Resources: CustomStringConvertible {
+        let ioPorts: [ClosedRange<UInt16>]
         let interrupts: [UInt8]
+
+        var description: String {
+            var s = ""
+            if !ioPorts.isEmpty {
+                var io = ""
+                for r in ioPorts {
+                    if io != "" { io.append(", ") }
+                    if r.count == 1 {
+                        io.append("0x\(String(r.first!, radix: 16))")
+                    } else {
+                        io.append("0x\(String(r.first!, radix: 16))-0x\(String(r.last!, radix: 16))")
+                    }
+                }
+                s = "io: "
+                s.append(io)
+            }
+            if !interrupts.isEmpty {
+                var irq = ""
+                for i in interrupts {
+                    if !irq.isEmpty { irq.append(", ") }
+                    irq.append(String(i))
+                }
+                if !s.isEmpty { s.append(" ") }
+                s.append("irq: ")
+                s.append(irq)
+            }
+            return s
+        }
     }
 
     let rs = ReservedSpace(name: "IO Ports", start: 0, end: 0xfff)
@@ -107,12 +135,12 @@ final class ISABus: Bus {
     }
 
     private func extractCRSSettings(_ resources: [AMLResourceSetting]) -> ISABus.Resources {
-        var ioports: [UInt16] = []
+        var ioports: [ClosedRange<UInt16>] = []
         var irqs: [UInt8] = []
 
         for resource in resources {
             if let ioPort = resource as? AMLIOPortSetting {
-                ioports.append(contentsOf: ioPort.ioPorts())
+                ioports.append(ioPort.ioPorts())
             } else if let irq = resource as? AMLIrqSetting {
                 irqs.append(contentsOf: irq.interrupts())
             } else {

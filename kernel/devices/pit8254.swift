@@ -99,7 +99,8 @@ final class PIT8254: Device, ISADevice, Timer, CustomStringConvertible {
     }
 
     var description: String {
-        return "PIT8254"
+        return String.sprintf("PIT8254: cmd: 0x%2.2x chan0: 0x%2.2x chan2: 0x%2.2x, irq: %u",
+            commandPort, channel0Port, channel2Port, irq)
     }
 
     var status: String {
@@ -124,15 +125,16 @@ final class PIT8254: Device, ISADevice, Timer, CustomStringConvertible {
         resources: ISABus.Resources, facp: FACP?) {
         print("PIT8254: init:", resources)
 
-        guard resources.ioPorts.count > 3
+        guard let ports = resources.ioPorts.first, ports.count > 3
             && resources.interrupts.count > 0 else {
             print("PIT8254: Requires 4 IO ports and 1 IRQ")
             return nil
         }
         self.interruptManager = interruptManager
-        channel0Port = resources.ioPorts[0]
-        channel2Port = resources.ioPorts[2]
-        commandPort = resources.ioPorts[3]
+        let idx = ports.startIndex
+        channel0Port = ports[ports.index(idx, offsetBy: 0)]
+        channel2Port = ports[ports.index(idx, offsetBy: 2)]
+        commandPort = ports[ports.index(idx, offsetBy: 3)]
         irq = resources.interrupts[0]
     }
 

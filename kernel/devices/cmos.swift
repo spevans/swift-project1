@@ -18,7 +18,7 @@ final class CMOSRTC: Device, ISADevice, CustomStringConvertible {
     private let centuryIndex: UInt8
 
     var description: String {
-        return String.sprintf("CMOS RTC addr=0x%2.2x data=0x%2.2x irq=%u",
+        return String.sprintf("CMOS RTC addr: 0x%2.2x data: 0x%2.2x irq: %u",
             addressPort, dataPort, irq)
     }
 
@@ -26,14 +26,15 @@ final class CMOSRTC: Device, ISADevice, CustomStringConvertible {
     init?(interruptManager: InterruptManager, pnpName: String,
         resources: ISABus.Resources, facp: FACP?) {
         print("CMOS: init:", resources)
-        guard resources.ioPorts.count > 1
+        guard let ports = resources.ioPorts.first, ports.count > 1
             && resources.interrupts.count > 0 else {
             print("CMOS: Requires 2 IO ports and 1 IRQ")
             return nil
         }
         self.interruptManager = interruptManager
-        addressPort = resources.ioPorts[0]
-        dataPort = resources.ioPorts[1]
+        let idx = ports.startIndex
+        addressPort = ports[ports.index(idx, offsetBy: 0)]
+        dataPort = ports[ports.index(idx, offsetBy: 1)]
         irq = resources.interrupts[0]
         if let century = facp?.rtcCenturyIndex, century < 64 {
             centuryIndex = century

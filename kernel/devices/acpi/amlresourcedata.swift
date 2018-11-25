@@ -117,14 +117,11 @@ struct AMLIOPortSetting: AMLResourceSetting {
         rangeLength = buffer[6]
     }
 
-    func ioPorts() -> [UInt16] {
-        var ports: [UInt16] = []
+    func ioPorts() -> ClosedRange<UInt16> {
         let mask: UInt16 = decodes16Bit ? 0xffff : 0x03ff
-        for offset in 0..<rangeLength {
-            let port = (minimumBaseAddress + UInt16(offset)) & mask
-            ports.append(port)
-        }
-        return ports
+        let start = minimumBaseAddress & mask
+        let end = (minimumBaseAddress + UInt16(rangeLength - 1)) & mask
+        return start...end
     }
 }
 
