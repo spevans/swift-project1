@@ -417,7 +417,6 @@ show_gop_info(efi_graphics_output_protocol_t *gop,
         if (best_mode != gop->mode->mode) {
                 uprintf("Trying to set mode to: %d, press any key to continue\n",
                         best_mode);
-                wait_for_key(NULL);
                 status = efi_call2(gop->set_mode, (uintptr_t)gop, best_mode);
                 if (status != EFI_SUCCESS) {
                         print_status("Cant set best GOP mode", status);
@@ -1069,8 +1068,6 @@ efi_main(void *handle, efi_system_table_t *_sys_table,
                 dump_data(&table->vendor_guid, sizeof(efi_guid_t));
         }
 #endif
-        uprintf("Press any key to ExitBootServices\n");
-        wait_for_key(NULL);
         if (exit_boot_services() != EFI_SUCCESS) {
                 goto error;
         }

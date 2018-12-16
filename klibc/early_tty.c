@@ -100,6 +100,15 @@ serial_xmit_empty()
 void
 serial_print_char(const char c)
 {
+        static const char hexchars[] = "0123456789abcdef";
+        if (c  < 0 || c > 127 || (c >= 0 && c <= 31 && c != '\n' && c != '\t')) {
+                unsigned char idx = (unsigned char)c;
+                serial_print_char('\\');
+                serial_print_char('x');
+                serial_print_char(hexchars[(idx >> 4) & 0xf]);
+                serial_print_char(hexchars[(idx >> 0) & 0xf]);
+                return;
+        }
         int tries = 64;
         while (!serial_xmit_empty() && tries--);
         if (tries > 0) {
@@ -400,5 +409,15 @@ early_print_string(const char *text)
 {
         while(*text) {
                 early_print_char(*text++);
+        }
+}
+
+
+void
+kprint(const char *string)
+{
+        while(*string) {
+                early_print_char(*string);
+                string++;
         }
 }

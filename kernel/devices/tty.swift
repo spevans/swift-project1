@@ -21,9 +21,10 @@ typealias TextCoord = text_coord
 @inline(never)
 func kprint(_ string: StaticString) {
     precondition(string.isASCII)
-    string.withUTF8Buffer({
-        $0.forEach({ TTY.sharedInstance.printChar(CChar($0)) })
-    })
+    string.utf8Start.withMemoryRebound(to: Int8.self, capacity: string.utf8CodeUnitCount) {
+        (ptr: UnsafePointer<Int8>) -> Void in
+        kprint(ptr)
+    }
 }
 
 

@@ -27,7 +27,7 @@ typedef int64_t off_t;
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
 
-#ifdef DEBUG
+#if DEBUG
 #define debugf(...) do {                                            \
         serial_printf("debug: %p: ", __builtin_return_address(0));  \
         serial_printf(__VA_ARGS__);                                 \
@@ -54,6 +54,8 @@ int serial_printf(const char * _Nonnull fmt, ...) __attribute__ ((format (printf
 
 
 // klibc
+void abort(void);
+void debugger_hook(void);
 void koops(const char * _Nonnull fmt, ...) __attribute__ ((format (printf, 1, 2))) __attribute__((noreturn));
 void dump_registers(struct exception_regs * _Nonnull registers);
 void stack_trace(uintptr_t rsp, uintptr_t rbp);
@@ -65,10 +67,9 @@ int strcmp(const char * _Nonnull s1, const char * _Nonnull s2);
 char * _Nonnull strcpy(char * _Nonnull dest, const char * _Nonnull src);
 size_t strlen(const char * _Nonnull s);
 
-
 // early_tty.c
 typedef uint16_t text_coord;
-
+void kprint(const char * _Nonnull string);
 void serial_print_char(const char ch);
 void early_print_char(const char c);
 void early_print_string(const char * _Nonnull text);

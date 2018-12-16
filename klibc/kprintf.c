@@ -486,6 +486,7 @@ kprintf(const char *fmt, ...)
         return len;
 }
 
+
 int
 kprintf1arg(const char *fmt, long l1)
 {

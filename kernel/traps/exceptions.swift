@@ -23,7 +23,7 @@ func divideByZeroException(registers: ExceptionRegisters) {
     kprint("divideByZero\n")
     dump_registers(registers)
     stackTrace(registers)
-    stop()
+    abort()
 }
 
 
@@ -31,7 +31,7 @@ func debugException(registers: ExceptionRegisters) {
     kprint("debugException\n")
     dump_registers(registers)
     stackTrace(registers)
-    stop()
+    abort()
 }
 
 
@@ -39,7 +39,7 @@ func nonMaskableInterrupt(registers: ExceptionRegisters) {
     kprint("NMI\n")
     dump_registers(registers)
     stackTrace(registers)
-    stop()
+    abort()
 }
 
 
@@ -54,7 +54,7 @@ func overflowException(registers: ExceptionRegisters) {
     kprint("Overflow Exception\n")
     dump_registers(registers)
     stackTrace(registers)
-    stop()
+    abort()
 }
 
 
@@ -62,7 +62,7 @@ func boundsException(registers: ExceptionRegisters) {
     kprint("Bounds Exception\n")
     dump_registers(registers)
     stackTrace(registers)
-    stop()
+    abort()
 }
 
 
@@ -70,7 +70,7 @@ func invalidOpcodeException(registers: ExceptionRegisters) {
     kprint("Invalid Opcode Exception\n")
     dump_registers(registers)
     stackTrace(registers)
-    stop()
+    abort()
 }
 
 
@@ -86,8 +86,7 @@ func doubleFault(registers: ExceptionRegisters) {
     } else {
         stackTrace(registers)
     }
-    kprint("\nSTOP\n")
-    stop()
+    abort()
 }
 
 
@@ -96,7 +95,7 @@ func invalidTSSException(registers: ExceptionRegisters) {
     kprint("Invalid Task State Segment\n");
     dump_registers(registers)
     stackTrace(registers)
-    stop()
+    abort()
 }
 
 
@@ -105,7 +104,7 @@ func segmentNotPresentException(registers: ExceptionRegisters) {
     kprint("Segment Not Present Exception\n")
     dump_registers(registers)
     stackTrace(registers)
-    stop()
+    abort()
 }
 
 
@@ -114,7 +113,7 @@ func stackFault(registers: ExceptionRegisters) {
     kprint("Stack Fault\n")
     dump_registers(registers)
     stackTrace(registers)
-    stop()
+    abort()
 }
 
 
@@ -123,7 +122,7 @@ func generalProtectionFault(registers: ExceptionRegisters) {
     printf("GP Fault code: %#x\n", errorCode)
     dump_registers(registers)
     stackTrace(registers)
-    stop()
+    abort()
 }
 
 
@@ -133,7 +132,7 @@ func pageFault(registers: ExceptionRegisters) {
     dump_registers(registers)
     stackTrace(registers)
     kprint("\nSTOP\n")
-    stop()
+    abort()
 }
 
 
@@ -141,7 +140,7 @@ func fpuFault(registers: ExceptionRegisters) {
     kprint("FPU Fault")
     dump_registers(registers)
     stackTrace(registers)
-    stop()
+    abort()
 }
 
 
@@ -150,7 +149,7 @@ func alignmentCheckException(registers: ExceptionRegisters) {
     kprint("Alignment Check Exception\n")
     dump_registers(registers)
     stackTrace(registers)
-    stop()
+    abort()
 }
 
 
@@ -158,7 +157,7 @@ func machineCheckException(registers: ExceptionRegisters) {
     kprint("Machine Check Exception")
     dump_registers(registers)
     stackTrace(registers)
-    stop()
+    abort()
 }
 
 
@@ -166,7 +165,7 @@ func simdException(registers: ExceptionRegisters) {
     kprint("SIMD Exception")
     dump_registers(registers)
     stackTrace(registers)
-    stop()
+    abort()
 }
 
 
@@ -175,7 +174,7 @@ func unhandledException(registers: ExceptionRegisters) {
     kprint("Unhandled Exception\n")
     dump_registers(registers)
     stackTrace(registers)
-    stop()
+    abort()
 }
 
 
