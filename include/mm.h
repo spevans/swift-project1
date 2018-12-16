@@ -76,5 +76,6 @@ void * _Nullable alloc_pages(size_t count);
 void free_pages(void * _Nonnull pages, size_t count);
 void * _Nullable malloc(size_t size);
 void free(void * _Nullable ptr);
+size_t malloc_usable_size (const void * _Nonnull ptr);
 
 #endif  // __MM_H__

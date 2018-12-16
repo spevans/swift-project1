@@ -14,6 +14,7 @@
 #include <string.h>
 #include <stdint.h>
 #endif
+#include <assert.h>
 
 
 void early_print_char(const char ch);
@@ -556,6 +557,48 @@ serial_printf(const char *fmt, ...)
 
         return len;
 }
+
+
+void
+m_print_char(void *buf_p, char ch)
+{
+        struct string_buf *buf = buf_p;
+        if (buf->count + 1 >= buf->max_len) {
+                char *newbuffer = malloc(buf->max_len * 2);
+                size_t newlen = malloc_usable_size(newbuffer);
+                assert(newlen > buf->max_len);
+
+                memcpy(newbuffer, buf->data, buf->count);
+                free(buf->data);
+                buf->data = newbuffer;
+                buf->max_len = newlen;
+        }
+        buf->data[buf->count] = ch;
+        buf->count++;
+        buf->data[buf->count] = '\0';
+}
+
+
+int
+kvasnprintf(char **strp, const char *fmt, va_list args)
+{
+        struct string_buf string_buf = {};
+
+        string_buf.data = malloc(128);
+        string_buf.max_len = malloc_usable_size(string_buf.data);
+        string_buf.count = 0;
+        string_buf.data[0] = '\0';
+        int len = __kvprintf(m_print_char, &string_buf, fmt, SIZE_MAX, args);
+        if (len == -1) {
+                *strp = NULL;
+                free(string_buf.data);
+        } else {
+                *strp = string_buf.data;
+        }
+        return len;
+}
+
+
 #endif // EFI
 
 
