@@ -13,8 +13,8 @@ enum ReadError: Error {
     case InvalidData
 }
 
+struct MemoryBufferReader {
 
-final class MemoryBufferReader {
     let ptr: UnsafeRawPointer
     let buffer: UnsafeBufferPointer<UInt8>
     var offset: Int = 0
@@ -48,7 +48,7 @@ final class MemoryBufferReader {
     // Functions to convert ASCII strings in memory to String. Inefficient
     // conversions because Foundation isnt available
     // Only really works for 7bit ASCII as it assumes the code is valid UTF-8
-    func readASCIIZString(maxSize: Int) throws -> String {
+    mutating  func readASCIIZString(maxSize: Int) throws -> String {
         guard maxSize > 0 else {
             throw ReadError.InvalidOffset
         }
@@ -75,7 +75,7 @@ final class MemoryBufferReader {
 
 
     // read from the current offset until the first nul byte is found
-    func scanASCIIZString() throws -> String {
+    mutating func scanASCIIZString() throws -> String {
         var result = ""
 
         var ch: UInt8 = try read()
@@ -88,7 +88,8 @@ final class MemoryBufferReader {
     }
 
 
-    func read<T>() throws -> T {
+    mutating func read<T>() throws -> T {
+        precondition(MemoryLayout<T>.stride == MemoryLayout<T>.size, "Size \(type(of: T.self)) != Stride")
         guard bytesRemaining > 0 else {
             throw ReadError.InvalidOffset
         }
@@ -104,6 +105,7 @@ final class MemoryBufferReader {
 
 
     func readAtIndex<T>(_ index: Int) throws -> T {
+        precondition(MemoryLayout<T>.stride == MemoryLayout<T>.size, "Size \(type(of: T.self)) != Stride")
         guard index + MemoryLayout<T>.size <= buffer.count else {
             throw ReadError.InvalidOffset
         }
@@ -147,7 +149,7 @@ final class MemoryBufferReader {
     ***/
 
 
-    func readULEB128() throws -> UInt64 {
+    mutating func readULEB128() throws -> UInt64 {
         var value: UInt64 = 0
         var shift: UInt64 = 0
         var byte: UInt8 = 0
@@ -162,7 +164,7 @@ final class MemoryBufferReader {
     }
 
 
-    func readSLEB128() throws -> Int64 {
+    mutating func readSLEB128() throws -> Int64 {
         var value: Int64 = 0
         var shift: Int64 = 0
         var byte: UInt8 = 0

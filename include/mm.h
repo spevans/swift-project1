@@ -30,19 +30,22 @@
 #define TSS_SELECTOR  0x20
 
 
+struct e820_entry {
+        uint64_t base_address;
+        uint64_t length;
+        uint32_t type;
+} __attribute__((packed));
+
+
 // Structure for boot information passed from BIOS loader to kernel
 // Changes must also update boot/memory.asm
 struct bios_boot_params {
-        char signature[8];      // ASCIIZ string 'BIOS'
-        size_t size;            // Size of entire table including embedded data and signature
+        char signature[8];              // ASCIIZ string 'BIOS'
+        size_t table_size;              // Size of entire table including embedded data and signature
         void * _Nonnull kernel_phys_addr;
         void * _Nonnull e820_map;
-        size_t e820_entries;    // Number of e820 memory map entries
-
-        // FIXME: The following line triggers SR-1318 so is commented out but
-        // isnt currently needed anyway
-        // char data[0];
-}  __attribute__((packed));
+        size_t e820_entries;            // Number of e820 memory map entries
+} __attribute__((packed));
 
 
 struct efi_boot_params {
@@ -50,15 +53,15 @@ struct efi_boot_params {
         size_t size;            // Size of entire table including embedded data and signature
         void * _Nonnull kernel_phys_addr;
         void * _Nonnull memory_map;
-        size_t memory_map_size;
-        size_t memory_map_desc_size;
+        uint64_t memory_map_size;
+        uint64_t memory_map_desc_size;
         struct frame_buffer fb;
         uint64_t nr_efi_config_entries;
-        efi_config_table_t * _Nonnull efi_config_table;
-        void * _Nonnull symbol_table;
-        size_t symbol_table_size;
-        void * _Nonnull string_table;
-        size_t string_table_size;
+        const efi_config_table_t * _Nonnull efi_config_table;
+        const Elf64_Sym * _Nonnull symbol_table;
+        uint64_t symbol_table_size;
+        const char * _Nonnull string_table;
+        uint64_t string_table_size;
 }  __attribute__((packed));
 
 

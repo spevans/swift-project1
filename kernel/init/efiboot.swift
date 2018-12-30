@@ -29,7 +29,7 @@ struct EFIBootParams: BootParams {
         }
 
 
-        init?(descriptor: MemoryBufferReader) {
+        init?(descriptor: inout MemoryBufferReader) {
             let offset = descriptor.offset
             do {
                 guard let dt = MemoryType(rawValue: try descriptor.read()) else {
@@ -69,39 +69,39 @@ struct EFIBootParams: BootParams {
             print("bootparams: boot_params are not EFI")
             return nil
         }
-        let membuf = MemoryBufferReader(bootParamsAddr,
+        var membuf = MemoryBufferReader(bootParamsAddr,
             size: MemoryLayout<efi_boot_params>.stride)
-        membuf.offset = 8       // skip signature
         do {
-            let bootParamsSize: UInt = try membuf.read()
+            let efiBootParams: efi_boot_params = try membuf.read()
+            let bootParamsSize = efiBootParams.size
             guard bootParamsSize > 0 else {
                 print("bootparams: bootParamsSize = 0")
                 return nil
             }
-            kernelPhysAddress = try membuf.read()
+            kernelPhysAddress = PhysAddress(efiBootParams.kernel_phys_addr.address)
 
             printf("bootparams: bootParamsSize = %ld kernelPhysAddress: %p\n",
                 bootParamsSize, kernelPhysAddress.value)
 
-            let memoryMapAddr: VirtualAddress = try membuf.read()
-            let memoryMapSize: UInt = try membuf.read()
-            let descriptorSize: UInt = try membuf.read()
+            let memoryMapAddr = VirtualAddress(efiBootParams.memory_map.address)
+            let memoryMapSize = efiBootParams.memory_map_size
+            let descriptorSize = efiBootParams.memory_map_desc_size
 
             print("bootparams: reading frameBufferInfo")
-            frameBufferInfo = FrameBufferInfo(fb: try membuf.read())
+            frameBufferInfo = FrameBufferInfo(fb: efiBootParams.fb)
 
             memoryRanges = EFIBootParams.parseMemoryMap(memoryMapAddr,
-                memoryMapSize, descriptorSize, frameBufferInfo)
+                UInt(memoryMapSize), UInt(descriptorSize), frameBufferInfo)
 
-            configTableCount = try membuf.read()
+            configTableCount = UInt(efiBootParams.nr_efi_config_entries)
             print("bootparams: reading ctp")
-            configTablePtr = try membuf.read()
+            configTablePtr = efiBootParams.efi_config_table
             printf("bootparams: configTableCount: %ld configTablePtr: %#x\n",
                 configTableCount, configTablePtr.address)
-            symbolTablePtr = try membuf.read()
-            symbolTableSize = try membuf.read()
-            stringTablePtr = try membuf.read()
-            stringTableSize = try membuf.read()
+            symbolTablePtr = efiBootParams.symbol_table
+            symbolTableSize = efiBootParams.symbol_table_size
+            stringTablePtr = efiBootParams.string_table
+            stringTableSize = efiBootParams.string_table_size
         } catch {
             koops("bootparams: Cant read memory map settings")
         }
@@ -118,12 +118,12 @@ struct EFIBootParams: BootParams {
 
         var ranges: [MemoryRange] = []
         ranges.reserveCapacity(Int(descriptorCount))
-        let descriptorBuf = MemoryBufferReader(memoryMapAddr,
+        var descriptorBuf = MemoryBufferReader(memoryMapAddr,
             size: Int(memoryMapSize))
 
         for i in 0..<descriptorCount {
             descriptorBuf.offset = Int(descriptorSize * i)
-            guard let descriptor = EFIMemoryDescriptor(descriptor: descriptorBuf) else {
+            guard let descriptor = EFIMemoryDescriptor(descriptor: &descriptorBuf) else {
                 print("bootparams: Failed to read descriptor")
                 continue
             }

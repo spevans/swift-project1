@@ -21,13 +21,19 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
 
 
     struct E820MemoryRange: CustomStringConvertible {
-        let baseAddr: UInt64
+        let baseAddress: UInt64
         let length: UInt64
         let type: UInt32
 
+        init(_ entry: e820_entry) {
+            baseAddress = entry.base_address
+            length = entry.length
+            type = entry.type
+        }
+
         var description: String {
-            var desc = String.sprintf("%12X - %12X %4.4X", baseAddr,
-                baseAddr + length - 1, type)
+            var desc = String.sprintf("%12X - %12X %4.4X", baseAddress,
+                baseAddress + length - 1, type)
             let size = UInt(length)
             if (size >= mb) {
                 desc += String.sprintf(" %6uMB  ", size / mb)
@@ -60,7 +66,7 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
             }
 
             return MemoryRange(type: mtype,
-                start: PhysAddress(RawAddress(self.baseAddr)),
+                start: PhysAddress(RawAddress(self.baseAddress)),
                 size: UInt(self.length))
         }
     }
@@ -88,22 +94,20 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
             print("bootparams: boot_params are not BIOS")
             return nil
         }
-        let membuf = MemoryBufferReader(bootParamsAddr,
-            size: MemoryLayout<bios_boot_params>.stride)
-        membuf.offset = 8       // skip signature
+        var membuf = MemoryBufferReader(bootParamsAddr, size: MemoryLayout<bios_boot_params>.stride)
         do {
+            let biosBootParams: bios_boot_params = try membuf.read()
             // FIXME: use bootParamsSize to size a buffer limit
-            let bootParamsSize: UInt = try membuf.read()
-            guard bootParamsSize > 0 else {
-                print("bootparams: bootParamsSize = 0")
+            guard biosBootParams.table_size > 0 else {
+                print("bootparams: biosBootParams.table_size = 0")
                 return nil
             }
-            kernelPhysAddress = PhysAddress(try membuf.read())
+            kernelPhysAddress = PhysAddress(biosBootParams.kernel_phys_addr.address)
             printf("bootParamsSize = %ld kernelPhysAddress: %#x\n",
-                bootParamsSize, kernelPhysAddress.value)
+                biosBootParams.table_size, kernelPhysAddress.value)
 
-            let e820MapAddr = PhysAddress(try membuf.read())
-            let e820Entries: UInt = try membuf.read()
+            let e820MapAddr = PhysAddress(biosBootParams.e820_map.address)
+            let e820Entries = UInt(biosBootParams.e820_entries)
             memoryRanges = BiosBootParams.parseE820Table(kernelPhysAddress,
                 e820MapAddr, e820Entries)
         } catch {
@@ -117,20 +121,24 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
     // FIXME - still needs to check for overlapping regions
     static private func parseE820Table(_ kernelPhysAddress: PhysAddress,
         _ e820MapPhysAddr: PhysAddress, _ e820Entries: UInt) -> [MemoryRange] {
+
         guard e820Entries > 0 && e820MapPhysAddr.value > 0 else {
             koops("E820: map is empty")
         }
-        let e820MapAddr = e820MapPhysAddr.vaddr
+
         var ranges: [MemoryRange] = []
         ranges.reserveCapacity(Int(e820Entries))
-        let buf = MemoryBufferReader(e820MapAddr,
-            size: MemoryLayout<E820MemoryRange>.stride * Int(e820Entries))
+
+        var membuf = MemoryBufferReader(e820MapPhysAddr.vaddr,
+            size: MemoryLayout<e820_entry>.stride * Int(e820Entries))
         let kernelSize = UInt(_kernel_end_addr - _kernel_start_addr)
         let kernelPhysEnd = kernelPhysAddress.advanced(by: kernelSize)
         printf("E820: Kernel size: %lx\n", kernelSize)
 
         for _ in 0..<e820Entries {
-            if let entry: E820MemoryRange = try? buf.read() {
+            do {
+                let e820entry: e820_entry = try membuf.read()
+                let entry = E820MemoryRange(e820entry)
                 if let memEntry = entry.toMemoryRange() {
                     // Find the entry that covers the memory where the kernel
                     // is loaded and adjust it then add another range for the
@@ -155,6 +163,8 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
                         ranges.append(memEntry)
                     }
                 }
+            } catch {
+                print("Error reading E820 tables:", error)
             }
         }
 

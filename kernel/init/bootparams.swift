@@ -127,7 +127,7 @@ func parse(bootParamsAddr: VirtualAddress) -> BootParams {
     guard let signature = readSignature(bootParamsAddr) else {
         koops("bootparams: Cant find boot params signature")
     }
-    print("bootparams: signature: \(signature)");
+    print("bootparams: signature:", signature)
 
     if (signature == "BIOS") {
         print("bootparams: Found BIOS boot params")
@@ -179,7 +179,7 @@ struct SystemTables {
 
 func readSignature(_ address: VirtualAddress) -> String? {
     let signatureSize = 8
-    let membuf = MemoryBufferReader(address, size: signatureSize)
+    var membuf = MemoryBufferReader(address, size: signatureSize)
     guard let sig = try? membuf.readASCIIZString(maxSize: signatureSize) else {
         return nil
     }
