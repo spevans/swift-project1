@@ -233,3 +233,11 @@ swift_once_f(uintptr_t *predicate, void (*function)(void *), void *context)
                 function(context);
         }
 }
+
+
+//swift::swift_once_f(unsigned long*, void (*)(void*), void*)
+void
+_ZN5swift12swift_once_fEPmPFvPvES1_(uintptr_t *predicate, void (*function)(void *), void *context)
+{
+        swift_once_f(predicate, function, context);
+}

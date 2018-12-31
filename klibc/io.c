@@ -39,9 +39,40 @@ fprintf(void *stream, const char *format, ...)
 
 
 int
+printf(const char *format, ...)
+{
+        va_list argp;
+        va_start(argp, format);
+        int len = kvprintf(format, argp);
+        va_end(argp);
+
+        return len;
+}
+
+int
+puts(const char *str)
+{
+        kprint(str);
+        kprint("\n");
+        return 0;
+}
+
+
+int
 fputs(const char *string, void *stream)
 {
         return fprintf(stream, "%s", string);
+}
+
+
+int
+fputc(int c, void *stream)
+{
+        if (stream != stderr && stream != stdout) {
+                koops("fputc stream = %p", stream);
+        }
+        early_print_char((char)c);
+        return 0;
 }
 
 

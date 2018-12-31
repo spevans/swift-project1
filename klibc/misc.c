@@ -51,6 +51,15 @@ klibc_start()
 
 
 void
+_klibc_random(void *buffer, size_t count)
+{
+        char *p = buffer;
+        for (size_t i = 0; i < count; i++) {
+                p[i] = (char)i;
+        }
+}
+
+void
 __assert_fail(const char *err, const char *file,
                unsigned int line, const char *function)
 {
@@ -63,6 +72,28 @@ void
 abort()
 {
         koops("abort() called");
+}
+
+
+char *
+strerror(int errno)
+{
+        return "fatal error";
+}
+
+
+// Used when libswiftCore is compiled with debugging
+int
+isdigit(int c)
+{
+        return (c >= '0' && c <='9');
+}
+
+
+char *
+getenv(const char *name)
+{
+        return NULL;
 }
 
 
@@ -89,3 +120,33 @@ UNIMPLEMENTED(u_isdefined_55)
 UNIMPLEMENTED(unorm2_hasBoundaryBefore_55)
 UNIMPLEMENTED(unorm2_normalize_55)
 UNIMPLEMENTED(u_hasBinaryProperty_55)
+
+UNIMPLEMENTED(u_charAge_60)
+UNIMPLEMENTED(u_charName_60)
+UNIMPLEMENTED(u_hasBinaryProperty_60)
+UNIMPLEMENTED(u_isdefined_60)
+UNIMPLEMENTED(u_getIntPropertyValue_60)
+UNIMPLEMENTED(u_strToLower_60)
+UNIMPLEMENTED(u_strToTitle_60)
+UNIMPLEMENTED(u_strToUpper_60)
+UNIMPLEMENTED(ubrk_close_60)
+UNIMPLEMENTED(ubrk_following_60)
+UNIMPLEMENTED(ubrk_open_60)
+UNIMPLEMENTED(ubrk_preceding_60)
+UNIMPLEMENTED(ubrk_setText_60)
+UNIMPLEMENTED(ubrk_setUText_60)
+UNIMPLEMENTED(ucol_closeElements_60)
+UNIMPLEMENTED(ucol_next_60)
+UNIMPLEMENTED(ucol_openElements_60)
+UNIMPLEMENTED(ucol_open_60)
+UNIMPLEMENTED(ucol_setAttribute_60)
+UNIMPLEMENTED(ucol_strcollIter_60)
+UNIMPLEMENTED(ucol_strcoll_60)
+UNIMPLEMENTED(uiter_setString_60)
+UNIMPLEMENTED(uiter_setUTF8_60)
+UNIMPLEMENTED(unorm2_getNFCInstance_60)
+UNIMPLEMENTED(unorm2_hasBoundaryBefore_60)
+UNIMPLEMENTED(unorm2_normalize_60)
+UNIMPLEMENTED(unorm2_spanQuickCheckYes_60)
+UNIMPLEMENTED(utext_openUChars_60)
+UNIMPLEMENTED(utext_openUTF8_60)

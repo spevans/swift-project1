@@ -2,12 +2,8 @@ TOPDIR := ..
 include $(TOPDIR)/Makedefs
 
 OBJS := misc.o string.o io.o kprintf.o printf.o pthread.o \
-		libcpp.o x86_string.o x86_misc.o koops.o early_tty.o malloc.o
-
-OBJS += std_cxx11_string.o
-# used if compiled against older libcstd++
-# FAKELIB_OBJS += std_string.o
-
+		libcpp.o x86_string.o x86_misc.o koops.o early_tty.o malloc.o \
+		std_cxx11_string.o
 
 all: klibc.o
 
