@@ -29,8 +29,26 @@ typedef void (*print_char_func)(void *data, char ch);
 #define PF_SPC   4
 #define PF_HASH  8
 #define PF_ZERO  16
-#define PF_SHORT 32
-#define PF_LONG  64
+
+
+enum data_type {
+        pf_char = 1,
+        pf_short,
+        pf_int,
+        pf_long,
+        pf_long_long,
+        pf_size_t,
+        pf_ptrdiff_t,
+        pf_intptr_t,
+        pf_intmax_t,
+};
+
+
+union data_value {
+        intmax_t signed_v;
+        uintmax_t unsigned_v;
+};
+
 
 /* Syntax of format specifiers in FMT is
                 `% [FLAGS] [WIDTH] [.PRECISION] [TYPE] CONV'
@@ -109,6 +127,118 @@ next_char(const char **s, size_t *len)
 
 
 static int
+_do_string(union data_value value, int precision, int width, uint32_t flags,
+           print_char_func print_func, void *data)
+{
+        int count = 0;
+
+        char *str = (char *)value.unsigned_v;
+        if(str == NULL) {
+                str = "(nil)";
+        }
+        int len = strlen(str);
+
+        if(precision > 0 && len > precision) {
+                len = precision;
+        }
+        if(width > 0) {
+                if(width <= len) {
+                        _print_string(print_func, data, &count, str);
+                } else {
+                        if(flags & PF_MINUS) {
+                                _print_string(print_func, data, &count, str);
+                                _print_repeat(print_func, data, &count, ' ', width - len);
+                        } else {
+                                _print_repeat(print_func, data, &count, (flags & PF_ZERO) ? '0' : ' ', width - len);
+                                _print_string(print_func, data, &count, str);
+                        }
+                }
+        } else {
+                while(len--) {
+                        print_func(data, *str++);
+                        count++;
+                }
+        }
+        return count;
+}
+
+
+static int
+_do_number(union data_value value, int precision, int width, int len,
+           int is_signed, char *digits, int radix, uint32_t flags,
+           print_char_func print_func, void *data)
+{
+        uintmax_t number;
+        int count = 0;
+        char tmpbuf[40];
+        char *tmp;
+
+        if(is_signed) {
+                if(value.signed_v < 0) {
+                        _print_char(print_func, data, &count, '-');
+                        len++;
+                        if (value.signed_v == INTMAX_MIN) {
+                                number = -INTMAX_MIN;
+                        } else {
+                                number = (uintmax_t)(0 - value.signed_v);
+                        }
+                } else {
+                        number = value.signed_v;
+                        if(flags & PF_PLUS) {
+                                _print_char(print_func, data, &count, '+');
+                                len++;
+                        }
+                        else if(flags & PF_SPC) {
+                                _print_char(print_func, data, &count, ' ');
+                                len++;
+                        }
+                }
+        } else {
+                number = value.unsigned_v;
+        }
+
+        int num_len = len;
+        tmp = tmpbuf;
+        if(number == 0) {
+                *tmp++ = digits[0];
+                len++;
+        } else {
+                while(number > 0) {
+                        *tmp++ = digits[number % radix];
+                        len++;
+                        number /= radix;
+                }
+        }
+        num_len = len - num_len;
+        if(precision != 0 && len < precision) {
+                while(len < precision) {
+                        *tmp++ = digits[0];
+                        len++;
+                }
+        }
+        if(width > len) {
+                if(flags & PF_MINUS) {
+                        /* left justify. */
+                        while(tmp != tmpbuf) {
+                                _print_char(print_func, data, &count, *(--tmp));
+                        }
+                        _print_repeat(print_func, data, &count, ' ', width - len);
+                } else {
+                        _print_repeat(print_func, data, &count, (flags & PF_ZERO) ? '0' : ' ', width - len);
+                        while(tmp != tmpbuf) {
+                                _print_char(print_func, data, &count, *(--tmp));
+                        }
+                }
+        } else {
+                while(tmp != tmpbuf) {
+                        _print_char(print_func, data, &count, *(--tmp));
+                }
+        }
+        return count;
+}
+
+
+static int
 __kvprintf(print_char_func print_func, void *data, const char *fmt, size_t fmtlen, va_list args)
 {
         static const int FALSE = 0;
@@ -124,11 +254,12 @@ __kvprintf(print_char_func print_func, void *data, const char *fmt, size_t fmtle
                         if (c == 0) { // Error, incomplete format string
                                 return -1;
                         } else if(c != '%') {
-                                int flags = 0;
+                                uint32_t flags = 0;
+                                enum data_type type = pf_int;
+                                union data_value value = { 0 };
                                 int width = 0;
                                 int precision = 0;
-                                int len = 0, num_len;
-                                uintptr_t arg;
+                                int len = 0;
                                 fmt--;
                                 fmtlen++;
 
@@ -178,12 +309,18 @@ __kvprintf(print_char_func print_func, void *data, const char *fmt, size_t fmtle
                                         goto again;
 
                                 case 'h':
-                                        flags |= PF_SHORT;
+                                        type = pf_short;
                                         goto again;
 
                                 case 'l':
+                                        if (type == pf_long) {
+                                                type = pf_long_long;
+                                        } else {
+                                                type = pf_long;
+                                        }
+                                        goto again;
                                 case 'z':
-                                        flags |= PF_LONG;
+                                        type = pf_size_t;
                                         goto again;
 
                                 case '.':
@@ -207,76 +344,112 @@ __kvprintf(print_char_func print_func, void *data, const char *fmt, size_t fmtle
                                         goto again;
 
                                 case 't':
-                                        flags |= PF_LONG;
+                                        flags |= pf_ptrdiff_t;
                                         goto again;
+                                }
 
-                                case 'p':
-                                        flags |= PF_LONG;
+
+                                switch(c) {
+                                case 'i': case 'd':
+
+                                        switch (type) {
+                                        case pf_char:  value.signed_v = (intmax_t)va_arg(args, int); break;
+                                        case pf_short: value.signed_v = (intmax_t)va_arg(args, int); break;
+                                        case pf_int: value.signed_v = (intmax_t)va_arg(args, int); break;
+                                        case pf_long: value.signed_v = (intmax_t)va_arg(args, long); break;
+                                        case pf_long_long: value.signed_v = (intmax_t)va_arg(args, long long); break;
+                                        case pf_size_t: value.signed_v = (intmax_t)va_arg(args, ssize_t); break;
+                                        case pf_ptrdiff_t: value.signed_v = (intmax_t)va_arg(args, ptrdiff_t); break;
+                                        case pf_intptr_t: value.signed_v = (intmax_t)va_arg(args, intptr_t); break;
+                                        case pf_intmax_t: value.signed_v = va_arg(args, intmax_t); break;
+                                        }
+                                        break;
+
+                                case 'o': case 'u': case 'x': case 'X':
+                                        switch (type) {
+                                        case pf_char:  value.unsigned_v = (uintmax_t)va_arg(args, int); break;
+                                        case pf_short: value.unsigned_v = (uintmax_t)va_arg(args, int); break;
+                                        case pf_int: value.unsigned_v = (uintmax_t)va_arg(args, unsigned int); break;
+                                        case pf_long: value.unsigned_v = (uintmax_t)va_arg(args, unsigned long); break;
+                                        case pf_long_long: value.unsigned_v = (uintmax_t)va_arg(args, unsigned long long); break;
+                                        case pf_size_t: value.unsigned_v = (uintmax_t)va_arg(args, size_t); break;
+                                        case pf_ptrdiff_t: value.unsigned_v = (uintmax_t)va_arg(args, ptrdiff_t); break;
+                                        case pf_intptr_t: value.unsigned_v = (uintmax_t)va_arg(args, uintptr_t); break;
+                                        case pf_intmax_t: value.unsigned_v = va_arg(args, uintmax_t); break;
+                                        }
+                                        break;
+
+                                case 'p': case 's':
+                                        type = pf_intptr_t;
+                                        value.unsigned_v = (uintmax_t)va_arg(args, uintptr_t);
+                                        break;
+
+                                case 'c':
+                                        value.unsigned_v = (uintmax_t)va_arg(args, int);
                                         break;
                                 }
 
-                                if(flags & PF_LONG) {
-                                        arg = va_arg(args, unsigned long long);
-                                } else if(flags & PF_SHORT) {
-                                        arg = (int16_t)va_arg(args, int);
-                                } else {
-                                        arg = (uintptr_t)va_arg(args, uintptr_t);
-                                }
 
                                 switch(c) {
-                                        char tmpbuf[40];
-                                        char *tmp;
-                                        char *digits;
-                                        int radix;
-                                        int is_signed;
+                                        char *digits = "0123456789";
+                                        int is_signed = TRUE;
 
                                 case 'n':
                                         /* Store the number of characters output so far in *arg. */
-                                        *(int *)arg = count;
+                                        *(int *)va_arg(args, uintptr_t) = count;
                                         break;
 
                                 case 'i':
                                 case 'd':
+                                        digits = "0123456789";
                                         is_signed = TRUE;
-                                        goto do_decimal;
+                                        count += _do_number(value, precision, width, len,
+                                                            is_signed, digits, 10, flags, print_func,
+                                                            data);
+                                        break;
 
                                 case 'u':
-                                case 'Z':
-                                        arg &= UINT_MAX;
-                                        is_signed = FALSE;
-                                do_decimal:
                                         digits = "0123456789";
-                                        radix = 10;
-                                        goto do_number;
+                                        is_signed = FALSE;
+                                        count += _do_number(value, precision, width, len,
+                                                            is_signed, digits, 10, flags, print_func,
+                                                            data);
+                                        break;
 
                                 case 'o':
                                         is_signed = TRUE;
                                         digits = "01234567";
-                                        radix = 8;
                                         if(flags & PF_HASH) {
                                                 _print_char(print_func, data,
                                                             &count, '0');
                                                 len++;
                                         }
-                                        goto do_number;
+                                        count += _do_number(value, precision, width, len,
+                                                            is_signed, digits, 8, flags, print_func,
+                                                            data);
+                                        break;
 
                                 case 'b':
                                         is_signed = FALSE;
                                         digits = "01";
-                                        radix = 2;
                                         if(flags & PF_HASH) {
                                                 _print_string(print_func, data,
                                                               &count, "0b");
                                                 len += 2;
                                         }
-                                        goto do_number;
+                                        count += _do_number(value, precision, width, len,
+                                                            is_signed, digits, 2, flags, print_func,
+                                                            data);
+                                        break;
 
                                 case 'p':
-                                        if(arg == 0) {
+                                        if(value.unsigned_v == 0) {
                                                 /* NULL pointer */
-                                                arg = (uint64_t)"(nil)";
-                                                goto do_string;
+                                                value.unsigned_v = (uintmax_t)"(nil)";
+                                                count += _do_string(value, precision, width, flags, print_func, data);
+                                                break;
                                         }
+                                        is_signed = FALSE;
                                         flags |= PF_HASH;
                                         /* FALL THROUGH */
 
@@ -287,7 +460,12 @@ __kvprintf(print_char_func print_func, void *data, const char *fmt, size_t fmtle
                                                               &count, "0x");
                                                 len += 2;
                                         }
-                                        goto do_hex;
+                                        is_signed = FALSE;
+                                        count += _do_number(value, precision, width, len,
+                                                            is_signed, digits, 16, flags, print_func,
+                                                            data);
+                                        break;
+
                                 case 'X':
                                         digits = "0123456789ABCDEF";
                                         if(flags & PF_HASH) {
@@ -295,109 +473,31 @@ __kvprintf(print_char_func print_func, void *data, const char *fmt, size_t fmtle
                                                               &count, "0x");
                                                 len += 2;
                                         }
-                                do_hex:
                                         is_signed = FALSE;
-                                        radix = 16;
-                                        /* FALL THROUGH */
-
-                                do_number:
-                                        if(is_signed) {
-                                                if((long)arg < 0) {
-                                                        _print_char(print_func, data, &count, '-');
-                                                        arg = (uint32_t)(0 - (long)arg);
-                                                        len++;
-                                                }
-                                                else if(flags & PF_PLUS) {
-                                                        _print_char(print_func, data, &count, '+');
-                                                        len++;
-                                                }
-                                                else if(flags & PF_SPC) {
-                                                        _print_char(print_func, data, &count, ' ');
-                                                        len++;
-                                                }
-                                        }
-                                        num_len = len;
-                                        tmp = tmpbuf;
-                                        if(arg == 0) {
-                                                *tmp++ = digits[0];
-                                                len++;
-                                        } else {
-                                                while(arg > 0) {
-                                                        *tmp++ = digits[arg % radix];
-                                                        len++;
-                                                        arg /= radix;
-                                                }
-                                        }
-                                        num_len = len - num_len;
-                                        if(precision != 0 && len < precision) {
-                                                while(len < precision) {
-                                                        *tmp++ = digits[0];
-                                                        len++;
-                                                }
-                                        }
-                                        if(width > len) {
-                                                if(flags & PF_MINUS) {
-                                                        /* left justify. */
-                                                        while(tmp != tmpbuf) {
-                                                                _print_char(print_func, data, &count, *(--tmp));
-                                                        }
-                                                        _print_repeat(print_func, data, &count, ' ', width - len);
-                                                } else {
-                                                        _print_repeat(print_func, data, &count, (flags & PF_ZERO) ? '0' : ' ', width - len);
-                                                        while(tmp != tmpbuf) {
-                                                                _print_char(print_func, data, &count, *(--tmp));
-                                                        }
-                                                }
-                                        } else {
-                                                while(tmp != tmpbuf) {
-                                                        _print_char(print_func, data, &count, *(--tmp));
-                                                }
-                                        }
+                                        count += _do_number(value, precision, width, len,
+                                                            is_signed, digits, 16, flags, print_func,
+                                                            data);
                                         break;
 
-                                case 'c':
+                                case 'c': {
+                                        unsigned char ch = (unsigned char)value.unsigned_v;
                                         if(width > 1) {
                                                 if(flags & PF_MINUS) {
-                                                        _print_char(print_func, data, &count, c);
+                                                        _print_char(print_func, data, &count, ch);
                                                         _print_repeat(print_func, data, &count, ' ', width - 1);
                                                 } else {
                                                         _print_repeat(print_func, data, &count,
                                                                       (flags & PF_ZERO) ? '0' : ' ', width - 1);
-                                                        _print_char(print_func, data, &count, c);
+                                                        _print_char(print_func, data, &count, ch);
                                                 }
                                         } else {
-                                                _print_char(print_func, data, &count, (char)arg);
+                                                _print_char(print_func, data, &count, ch);
                                         }
                                         break;
+                                }
 
                                 case 's':
-                                do_string:
-                                        if((char *)arg == NULL) {
-                                                arg = (uintptr_t)"(nil)";
-                                        }
-                                        len = strlen((char *)arg);
-                                        if(precision > 0 && len > precision) {
-                                                len = precision;
-                                        }
-                                        if(width > 0) {
-                                                if(width <= len) {
-                                                        _print_string(print_func, data, &count, (char *)arg);
-                                                } else {
-                                                        if(flags & PF_MINUS) {
-                                                                _print_string(print_func, data, &count, (char *)arg);
-                                                                _print_repeat(print_func, data, &count, ' ', width - len);
-                                                        } else {
-                                                                _print_repeat(print_func, data, &count, (flags & PF_ZERO) ? '0' : ' ', width - len);
-                                                                _print_string(print_func, data, &count, (char *)arg);
-                                                        }
-                                                }
-                                        } else {
-                                                char *p = (char *)arg;
-                                                while(len--) {
-                                                        print_func(data, *p++);
-                                                        count++;
-                                                }
-                                        }
+                                        count += _do_string(value, precision, width, flags, print_func, data);
                                         break;
                                 }
                         } else {
