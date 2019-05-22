@@ -46,6 +46,7 @@ To build a .iso for a usbkey also requires:
 * xorriso
 * mtools
 
+sudo apt-get install nasm xorriso mtools
 
 A special version of the Swift compiler is required with options to disable the
 red zone and set the x86_64 memory model to *kernel*. A Swift stdlib compiled
@@ -89,6 +90,11 @@ target. This will also create a `kernel.efi` file that can be booted in GRUB
 $ make iso
 ```
 
+
+To run with gdb and no console
+```
+$ qemu-system-x86_64 -S -s -nographic -cdrom output/boot-cd.iso -bios bios.bin  -D log -d cpu_reset,guest_errors,unimp -no-reboot
+```
 
 ![Screenshot](doc/screenshot-2.png)
 

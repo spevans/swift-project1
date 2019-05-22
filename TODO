@@ -1,3 +1,10 @@
+DEBUGGING:
+    - Fix stack guard page
+    - Add stub exception handlers in the IDT as early as possible to catch DIV0 etc
+    - Fix makefile to build debug
+    - Compress kernel to allow bigger kernel in ISO
+    - Fix call to swift::fatalError() to work correctly
+
 Fix vasprintf() as used by assert()
 Improve backtrack/stacktrace
 ACPI: Setup acpi as a device
