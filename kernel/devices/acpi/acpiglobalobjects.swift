@@ -14,8 +14,6 @@ final class ACPIGlobalObjects {
         fileprivate(set) var object: AMLObject
 
         var name: String { return object.name.value }
-        var hashValue: Int { return object.name.value.hashValue }
-
 
         init(name: String, object: AMLObject, childNodes: [ACPIObjectNode]) {
             guard name == object.name.shortName.value else {
@@ -30,6 +28,9 @@ final class ACPIGlobalObjects {
             return lhs.name == rhs.name
         }
 
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(name)
+        }
 
         subscript(index: String) -> ACPIObjectNode? {
             get {

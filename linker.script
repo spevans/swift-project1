@@ -2,8 +2,9 @@ ENTRY(main)
 OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
 
 PAGE_SIZE = 0x1000;
-/* Needs to be bigger for DEBUG mode, can be 2 for non debug */
-STACK_SIZE = 4 * PAGE_SIZE;
+/* Needs to be bigger for DEBUG mode, can be 16 for non debug */
+/* FIXME: Needs to be more accurately sized in both modes once guard page is fixed */
+STACK_SIZE = 16 * PAGE_SIZE;
 
 PHDRS {
       text   PT_LOAD FLAGS(5);  /* R_E */
@@ -14,7 +15,7 @@ PHDRS {
 SECTIONS {
   . = 0x1000;
   /* 256TB - 2GB + 1MB */
-  .text.start (0xffffffff80100000) : {
+  .text (0xffffffff80100000) : {
     _kernel_start = .;
     _text_start = .;
     *(.text .text.*)
@@ -61,18 +62,6 @@ SECTIONS {
     KEEP (*(SORT_BY_INIT_PRIORITY(.fini_array.*) SORT_BY_INIT_PRIORITY(.dtors.*)))
     KEEP (*(.fini_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .dtors))
     PROVIDE_HIDDEN (__fini_array_end = .);
-  }
-
-  .swift2_protocol_conformances : {
-    .swift2_protocol_conformances_start = . ;
-    QUAD(SIZEOF(.swift2_protocol_conformances) - 8) ;
-    *(.swift2_protocol_conformances) ;
-  }
-
-  .swift2_type_metadata : {
-    .swift2_type_metadata_start = . ;
-    QUAD(SIZEOF(.swift2_type_metadata) - 8) ;
-    *(.swift2_type_metadata) ;
   }
 
   .got     : { *(.got) *(.igot)          }

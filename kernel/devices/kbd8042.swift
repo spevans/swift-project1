@@ -279,11 +279,11 @@ final class KBD8042: Device, ISADevice, CustomStringConvertible {
     }
 
 
-    public var keyboardDevice: Keyboard? {
-        if let kbd = port1device as? Keyboard {
+    public var keyboardDevice: (Device & Keyboard)? {
+        if let kbd = port1device as? (Device & Keyboard) {
             return kbd
         }
-        if let kbd = port2device as? Keyboard {
+        if let kbd = port2device as? (Device & Keyboard) {
             return kbd
         }
         return nil

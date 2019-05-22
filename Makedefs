@@ -1,5 +1,4 @@
 UNAME_S := $(shell uname -s)
-CC := clang
 NASM := nasm
 NASM_FLAGS := -Werror -p$(TOPDIR)/include/macros.asm
 MODULE_DIR := $(TOPDIR)/modules
@@ -9,14 +8,15 @@ SWIFTDIR := $(shell readlink -f ~/swift)
 SWIFT := $(SWIFTDIR)/usr/bin/swift
 
 # The path to the kernel-lib swift compiler
-KSWIFTDIR := $(shell readlink -f ~/swift-kernel-20180701)
+KSWIFTDIR := $(shell readlink -f ~/kstdlib-20190509)
 KSWIFT := $(KSWIFTDIR)/usr/bin/swift
 KSWIFTC := $(KSWIFTDIR)/usr/bin/swiftc
 KSWIFTLIBDIR := $(KSWIFTDIR)/usr/lib/swift_static/linux
-KSWIFTLIBS := $(KSWIFTLIBDIR)/libswiftCore.a $(KSWIFTLIBDIR)/../../swift/linux/x86_64/swiftrt.o
-KSWIFTC_FLAGS := -gnone -Xfrontend -disable-red-zone -Xcc -mno-red-zone -Xfrontend -mcode-model=kernel -Xcc -mcmodel=kernel -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -std=gnu11 -Xfrontend -warn-long-function-bodies=60000 -DKERNEL
+KSWIFTLIBS := $(KSWIFTLIBDIR)/libswiftCore.a $(KSWIFTLIBDIR)/x86_64/swiftrt.o
+KSWIFTC_FLAGS := -gnone -Xfrontend -disable-red-zone -Xcc -mno-red-zone -Xfrontend -mcode-model=kernel -Xcc -mcmodel=kernel -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -std=gnu11 -Xfrontend -warn-long-function-bodies=60000 -DKERNEL -Xcc -DKERNELLIB=1
 
-CFLAGS := -Wall -std=gnu11 -Wextra -Werror -fno-builtin -fno-stack-protector -fno-omit-frame-pointer -fno-common -mno-red-zone -mcmodel=kernel -I$(TOPDIR)/include
+CC := $(KSWIFTDIR)/usr/bin/clang
+CFLAGS := -ggdb -Wall -std=gnu11 -Wextra -Werror -fno-builtin -fno-stack-protector -fno-omit-frame-pointer -fno-common -mno-red-zone -mcmodel=kernel -I$(TOPDIR)/include
 
 ifndef USE_FP
 	CFLAGS := $(CFLAGS) -mno-mmx -mno-sse -mno-sse2 -ffreestanding

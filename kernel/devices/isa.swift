@@ -127,7 +127,7 @@ final class ISABus: Bus {
                 deviceManager.addDevice(device)
                 // FIXME: KBD8042 should really be some port of BusDevice that adds its
                 // sub devices.
-                if let keyboard = device.keyboardDevice as? Device {
+                if let keyboard = device.keyboardDevice {
                     deviceManager.addDevice(keyboard)
                 }
             }

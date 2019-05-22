@@ -4,10 +4,17 @@ include $(TOPDIR)/Makedefs
 KERNEL_OBJS := kernel/kernel.o klibc/klibc.o
 SUBDIRS := boot kernel klibc utils
 EXTRA_LIBS := $(KSWIFTDIR)/usr/lib/swift/clang/lib/linux/libclang_rt.builtins-x86_64.a
-
 .PHONY: clean kernel
 
-all: kernel output/boot-hd.img
+all: iso output/boot-hd.img
+
+output/kernel.bin: output/kernel.elf
+	echo Converting $^ to $@
+	objcopy -O binary $^ $@
+	#utils/foverride $@ output/kernel.map _swift_stdlib_putchar_unlocked putchar
+	(objdump -d output/kernel.elf -Mintel | $(SWIFT)-demangle > output/kernel.dmp) &
+
+output/kernel.elf: kernel linker.script
 
 kernel:
 ifneq ($(UNAME_S), Linux)
@@ -17,14 +24,6 @@ endif
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir; done
 	# initial link must be via ELF to produce a GOT
 	ld --no-demangle -static -Tlinker.script -Map=output/kernel.map -z max-page-size=0x1000 -o output/kernel.elf $(KERNEL_OBJS) $(KSWIFTLIBS) $(EXTRA_LIBS)
-
-output/kernel.elf: kernel linker.script
-
-output/kernel.bin: output/kernel.elf
-	objcopy -O binary $^ $@
-	#utils/foverride $@ output/kernel.map _swift_stdlib_putchar_unlocked putchar
-	(objdump -d output/kernel.elf -Mintel | $(SWIFT)-demangle > output/kernel.dmp) &
-
 
 output/kernel.efi: output/kernel.bin boot/efi_entry.asm boot/efi_main.c boot/efi_elf.c klibc/kprintf.c
 	make -C boot
@@ -41,19 +40,21 @@ iso: output/boot-cd.iso
 output/boot-cd.iso: output/boot-hd.img output/kernel.efi
 	rm -rf output/iso_tmp output/boot-cd.iso output/efi.img
 	mkdir -p output/iso_tmp/efi/boot output/iso_tmp/boot
-	cp output/boot-hd.img output/iso_tmp/boot.img
-	cp output/kernel.efi output/iso_tmp/efi/boot/bootx64.efi
-	/sbin/mkfs.msdos -C output/iso_tmp/boot/efi.img 16384
+	#cp output/boot-hd.img output/iso_tmp/boot.img
+	#cp output/kernel.efi output/iso_tmp/efi/boot/bootx64.efi
+	/sbin/mkfs.msdos -C output/iso_tmp/boot/efi.img 20000
 	mmd -i output/iso_tmp/boot/efi.img ::efi
 	mmd -i output/iso_tmp/boot/efi.img ::efi/boot
-	mcopy -i output/iso_tmp/boot/efi.img output/kernel.efi ::efi/boot
+	#mcopy -i output/iso_tmp/boot/efi.img output/kernel.efi ::efi/boot
 	# uncomment line below to make bootable EFI ISO
 	mcopy -i output/iso_tmp/boot/efi.img output/kernel.efi ::efi/boot/bootx64.efi
-	xorrisofs -J -joliet-long -isohybrid-mbr boot/isohdr.bin \
-	-b boot.img -c boot.cat -boot-load-size 4 -boot-info-table -no-emul-boot \
+	xorrisofs -J -joliet-long \
 	-eltorito-alt-boot -e boot/efi.img -no-emul-boot -isohybrid-gpt-basdat 	 \
 	-isohybrid-apm-hfsplus -o output/boot-cd.iso output/iso_tmp
-	rm -r output/iso_tmp
+#	rm -r output/iso_tmp
+
+	#-isohybrid-mbr boot/isohdr.bin \
+	#-b boot.img -c boot.cat -boot-load-size 4 -boot-info-table -no-emul-boot \
 
 clean:
 	rm -rf output/*
