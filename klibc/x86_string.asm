@@ -22,9 +22,9 @@ memchr:
         mov     rsi, rdi
         mov     rcx, rdx
         je      .notfound
-        rep     scasb
+        repnz   scasb
         jne     .notfound
-        mov     r8, rsi
+        mov     r8, rdi
 .notfound:
         dec     r8
         mov     rax, r8
