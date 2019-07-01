@@ -16,6 +16,7 @@
 #ifndef __X86_FUNCS_H__
 #define __X86_FUNCS_H__
 #include "x86defs.h"
+#include "vmx.h"
 
 
 static inline uint64_t
@@ -84,27 +85,27 @@ stop()
 
 
 static inline void
-lgdt(const struct dt_info *gdt)
+lgdt(const struct dt_info * _Nonnull gdt)
 {
         asm volatile ("lgdt (%0)" : : "r" (gdt) : "memory");
 }
 
 
 static inline void
-sgdt(struct dt_info *gdt)
+sgdt(struct dt_info * _Nonnull gdt)
 {
         asm volatile ("sgdt (%0)" : : "r" (gdt) : "memory");
 }
 
 
 static inline void
-lidt(const struct dt_info *gdt)
+lidt(const struct dt_info * _Nonnull gdt)
 {
         asm volatile ("lidt (%0)" : : "r" (gdt) : "memory");
 }
 
 static inline void
-sidt(struct dt_info *gdt)
+sidt(struct dt_info * _Nonnull gdt)
 {
         asm volatile ("sidt (%0)" : : "r" (gdt) : "memory");
 }
@@ -166,8 +167,8 @@ inl(uint16_t port)
 
 
 // Returns a pointer to the char array for ease of converting to a String
-static inline const char *
-cpuid(const uint32_t function, union cpuid_result *result)
+static inline const char * _Nonnull
+cpuid(const uint32_t function, union cpuid_result * _Nonnull result)
 {
         uint32_t eax, ebx, ecx, edx;
         asm volatile ("cpuid"
@@ -257,6 +258,22 @@ static inline void
 setCR3(uint64_t value)
 {
         asm volatile ("mov %0, %%cr3" : : "r" (value) : );
+}
+
+
+static inline uint64_t
+getCR4()
+{
+        uint64_t res;
+        asm volatile ("mov %%cr4, %0" : "=r" (res) : : );
+        return res;
+}
+
+
+static inline void
+setCR4(uint64_t value)
+{
+        asm volatile ("mov %0, %%cr4" : : "r" (value) : );
 }
 
 

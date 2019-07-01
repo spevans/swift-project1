@@ -60,6 +60,7 @@ SWIFT_SRCS :=	init/startup.swift		\
 		devices/apic.swift		\
 		devices/ioapic.swift		\
 		devices/cmos.swift		\
+		devices/vmx.swift		\
 		traps/exceptions.swift		\
 		traps/interrupt.swift		\
 		traps/IDT.swift			\

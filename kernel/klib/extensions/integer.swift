@@ -70,3 +70,23 @@ extension UnsignedInteger {
         self.init(withDWords: dwords)
     }
 }
+
+extension Bool {
+    init(_ bit: Int) {
+        precondition(bit == 0 || bit == 1)
+        self = (bit == 1) ? true : false
+    }
+}
+
+extension FixedWidthInteger {
+
+    init(maskFromBitCount bitCount: Int) {
+        precondition(Self.min == 0, "Only unsigned integers allowed")
+        precondition(bitCount >= 0 && bitCount <= Self.bitWidth)
+        if bitCount == Self.bitWidth {
+            self = Self.max
+        } else {
+            self = (1 << bitCount) - 1
+        }
+    }
+}

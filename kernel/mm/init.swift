@@ -312,6 +312,7 @@ private func add1GBMapping(_ addr: VirtualAddress, physAddress: PhysAddress) {
         let entry = makePTE(address: physAddress, readWrite: true,
             userAccess: false, writeThrough: true, cacheDisable: false,
             global: false, noExec: true, largePage: true, PAT: false)
+        printf("1GB Mapping entry: %16.16llx\n", entry);
         pdpPage[idx1] = entry
     } else {
         koops("MM: 1GB mapping cant be added, already present")

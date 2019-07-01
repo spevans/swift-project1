@@ -29,7 +29,7 @@ final class System {
         // Setup GDT/IDT as early as possible to help catch CPU exceptions
         setupGDT()
         setupIDT()
-
+        CPU.getInfo()
         // BootParams must come first to find memory regions for MM
         bootParams = parse(bootParamsAddr: VirtualAddress(bootParamsAddr))
         setupMM(bootParams: bootParams)
@@ -48,6 +48,16 @@ final class System {
         CPU.getInfo()
         TTY.sharedInstance.setTTY(frameBufferInfo: bootParams.frameBufferInfo)
         deviceManager.initialiseDevices()
+        print("enabling vmx")
+        _ = enableVMX()
+        print("testVMX")
+        testVMX()
+        print("testVMXLanuch")
+        _ = VMXLaunch()
+        print("testVMXResume")
+        _ = VMXResume()
+        print("disableVMX")
+        disableVMX()
     }
 
 
@@ -102,18 +112,29 @@ fileprivate func _keyboardInput() {
         return
     }
 
-    let tty = TTY.sharedInstance
-    while true {
-        let line = tty.readLine(prompt: "> ", keyboard: kbd)
-        if line == "dumpbus" {
-            system.deviceManager.dumpDeviceTree()
-        }
-        else if line == "date" {
+    let cmds = [
+        "dumpbus": { system.deviceManager.dumpDeviceTree() },
+        "date": {
             if let cmos = system.deviceManager.rtc {
                 print(cmos.readTime())
             } else {
                 print("Cant find a RTC")
             }
+        },
+        "showcpu": {
+            CPU.getInfo()
+        },
+        "vmxon": { _ = enableVMX() },
+        "vmxoff": { disableVMX() },
+    ]
+
+    let tty = TTY.sharedInstance
+    while true {
+        let line = tty.readLine(prompt: "> ", keyboard: kbd)
+        if let f = cmds[line] {
+            f()
+        } else {
+            print("Unknown command:", line)
         }
     }
 }

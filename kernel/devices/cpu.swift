@@ -120,6 +120,7 @@ struct CPUID: CustomStringConvertible {
         if syscall     { str += "syscall "     }
         if mtrr        { str += "mtrr "        }
         if pat         { str += "pat "         }
+        if vmx         { str += "vmx "         }
         str += "\nCPU: APIDId: \(APICId)"
 
         return str
@@ -178,6 +179,72 @@ private let cpuId = CPUID()
 
 struct CPU {
 
+    enum PATEntry: UInt8 {
+        case Uncacheable = 0
+        case WriteCombining = 1
+        case WriteThrough = 4
+        case WriteProtected = 5
+        case WriteBack = 6
+        case Uncached = 7
+    }
+
+
+    struct IA32FeatureControl {
+        private var value: BitArray64
+
+
+        init() {
+            value = BitArray64(readMSR(0x3A))
+        }
+
+
+        func update() -> Bool {
+            // Check if lock bit is set clear to avoid GP fault
+            guard BitArray64(readMSR(0x3A))[0] == 0 else {
+                return false
+            }
+            writeMSR(0x3A, value.toUInt64())
+            return true
+        }
+
+
+        var lock: Bool {
+            get { Bool(value[0]) }
+            set { value[0] = newValue ? 1 : 0 }
+        }
+
+        var enableVMXInsideSMX: Bool {
+            get { Bool(value[1]) }
+            set { value[1] = newValue ? 1 : 0 }
+        }
+
+        var enableVMXOutsideSMX: Bool {
+            get { Bool(value[2]) }
+            set { value[2] = newValue ? 1 : 0 }
+        }
+
+        var senterLocalFunctionsEnable: UInt16 {
+            get { UInt16(value[8...14]) }
+            set { value[8...14] = UInt64(newValue) }
+        }
+
+        var senterGlobalFunctionsEnable: Bool {
+            get { Bool(value[15]) }
+            set { value[15] = newValue ? 1 : 0 }
+        }
+
+        var sgxGlobalFunctionsEnable: Bool {
+            get { Bool(value[18]) }
+            set { value[18] = newValue ? 1 : 0 }
+        }
+
+        var lmceOn: Bool {
+            get { Bool(value[20]) }
+            set { value[20] = newValue ? 1 : 0 }
+        }
+    }
+
+
     static func getInfo() {
         print(cpuId)
     }
@@ -189,15 +256,9 @@ struct CPU {
 
 
     static func enableWP(_ enable: Bool) {
-        let WPbit: UInt64 = 1 << 16
-
-        var cr0 = getCR0()
-        if enable {
-            cr0 |= WPbit
-        } else {
-            cr0 &= ~WPbit
-        }
-        setCR0(cr0)
+        var cr0 = CPU.cr0
+        cr0.wp = enable
+        CPU.cr0 = cr0
     }
 
 
@@ -216,15 +277,6 @@ struct CPU {
 
     // Setup the Page Attribute Table
     static func setupPAT() {
-
-        enum PATEntry: UInt8 {
-            case Uncacheable = 0
-            case WriteCombining = 1
-            case WriteThrough = 4
-            case WriteProtected = 5
-            case WriteBack = 6
-            case Uncached = 7
-        }
 
         guard cpuId.pat else {
             koops("CPU doesnt support PAT")
@@ -269,5 +321,125 @@ struct CPU {
     static func writeMSR(_ msr: UInt32, _ value: UInt64) {
         let v = DWordArray2(value)
         wrmsr(msr, v[0], v[1])
+    }
+
+
+    struct CR0Register {
+        private(set) var bits: BitArray64
+        var value: UInt64 { bits.toUInt64() }
+
+        var ne: Bool {
+            get { Bool(bits[5]) }
+            set { bits[5] = newValue ? 1 : 0 }
+        }
+
+        var wp: Bool {
+            get { Bool(bits[16]) }
+            set { bits[16] = newValue ? 1 : 0 }
+        }
+
+        init(_ value: UInt64) {
+            bits = BitArray64(value)
+        }
+
+        init() {
+            bits = BitArray64(getCR0())
+        }
+    }
+
+
+    struct CR4Register {
+        private(set) var bits: BitArray64
+        var value: UInt64 { bits.toUInt64() }
+
+        var vmxe: Bool {
+            get { Bool(bits[13]) }
+            set { bits[13] = newValue ? 1 : 0 }
+        }
+
+        init(_ value: UInt64) {
+            bits = BitArray64(value)
+        }
+
+        init() {
+            bits = BitArray64(getCR4())
+        }
+    }
+
+
+    static var cr0: CR0Register {
+        get { CR0Register() }
+        set { setCR0(newValue.value) }
+    }
+
+
+    static var cr4: CR4Register {
+        get { CR4Register() }
+        set { setCR4(newValue.value) }
+    }
+
+}
+
+
+struct VMXFixedBits {
+    let cr0Fixed0Bits: UInt64 = CPU.readMSR(0x486)
+    let cr0Fixed1Bits: UInt64 = CPU.readMSR(0x487)
+    let cr4Fixed0Bits: UInt64 = CPU.readMSR(0x488)
+    let cr4Fixed1Bits: UInt64 = CPU.readMSR(0x489)
+
+
+    func updateCR0(bits: CPU.CR0Register) -> CPU.CR0Register {
+        var result = bits.value | cr0Fixed0Bits
+        result &= cr0Fixed1Bits
+        return CPU.CR0Register(result)
+    }
+
+    func updateCR4(bits: CPU.CR4Register) -> CPU.CR4Register {
+        var result = bits.value | cr4Fixed0Bits
+        result &= cr4Fixed1Bits
+        return CPU.CR4Register(result)
+    }
+}
+
+
+struct VMXBasicInfo: CustomStringConvertible {
+
+    private let bits: BitArray64
+
+    let recommendedMemoryType: CPU.PATEntry
+
+    var vmcsRevisionId: UInt32 { UInt32(bits[0...30]) }
+    var vmxRegionSize: Int { Int(bits[32...44]) }
+    var physAddressWidthMaxBits: UInt {
+        Bool(bits[48]) ? 32 : cpuId.maxPhyAddrBits
+    }
+    var supportsDualMonitorOfSMM: Bool { Bool(bits[48]) }
+    var vmExitsDueToInOut: Bool { Bool(bits[54]) }
+    var vmxControlsCanBeCleared: Bool { Bool(bits[55]) }
+
+    var description: String {
+        var str = "VMX: Basic Info: revision ID: \(vmcsRevisionId) \(String(vmcsRevisionId, radix: 16))\n"
+        str += "VMX: region size: \(vmxRegionSize) bytes "
+        str += "max address bits: \(physAddressWidthMaxBits)\n"
+        str += "VMX: supportsDualMonitor: \(supportsDualMonitorOfSMM) "
+        str += "recommendedMemoryType: \(recommendedMemoryType) "
+        return str
+    }
+
+    init() {
+        bits = BitArray64(CPU.readMSR(0x480))
+        guard bits[31] == 0 else {
+            fatalError("Bit31 of IA32_VMX_BASIC is not 0")
+        }
+
+        let memTypeVal = UInt8(bits[50...53])
+        guard let memoryType = CPU.PATEntry(rawValue: memTypeVal) else {
+            fatalError("Invalid memoryType: \(memTypeVal)")
+        }
+        recommendedMemoryType = memoryType
+
+        guard vmxRegionSize > 0 && vmxRegionSize <= 4096 else {
+            fatalError("vmxRegionSize: \(vmxRegionSize) should be 1-4096")
+        }
     }
 }
