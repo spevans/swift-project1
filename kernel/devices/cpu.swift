@@ -87,7 +87,11 @@ struct CPUID: CustomStringConvertible {
 
     var syscall:     Bool { return cpuid80000001.regs.edx.bit(11) }
     var nxe:         Bool { return cpuid80000001.regs.edx.bit(20) }
-    var pages1G:     Bool { return cpuid80000001.regs.edx.bit(26) }
+
+    // FIXME: 1G Pages seem to break using qemu on macos with hypervisor framework.
+    // Not sure where bug is atm.
+    //var pages1G:     Bool { return cpuid80000001.regs.edx.bit(26) }
+    var pages1G: Bool { return false }
     var IA32_EFER:   Bool { return cpuid80000001.regs.edx.bit(29) }
 
     var maxPhyAddrBits: UInt {
