@@ -89,6 +89,8 @@ struct MemoryBufferReader {
 
 
     mutating func read<T>() throws -> T {
+        // This is awful but catches attempts to read an optional
+        precondition(!"\(type(of: T.self))".hasPrefix("Optional<"), "Dont call read() with an optional")
         precondition(MemoryLayout<T>.stride == MemoryLayout<T>.size, "Size \(type(of: T.self)) != Stride")
         guard bytesRemaining > 0 else {
             throw ReadError.InvalidOffset
@@ -105,6 +107,8 @@ struct MemoryBufferReader {
 
 
     func readAtIndex<T>(_ index: Int) throws -> T {
+        // This is awful but catches attempts to read an optional
+        precondition(!"\(type(of: T.self))".hasPrefix("Optional<"), "Dont call readAtIndex() with an optional")
         precondition(MemoryLayout<T>.stride == MemoryLayout<T>.size, "Size \(type(of: T.self)) != Stride")
         guard index + MemoryLayout<T>.size <= buffer.count else {
             throw ReadError.InvalidOffset

@@ -101,7 +101,7 @@ private func addPagesToFreeList(physPage: PhysPageAddress, pageCount: Int) {
 func addPagesToFreePageList(_ ranges: [MemoryRange]) {
     for range in ranges {
         let startPage = range.start.pageAddress(pageSize: PAGE_SIZE, roundUp: true)
-        let pageCount = startPage.address.distance(to: range.endAddress) / PAGE_SIZE
+        let pageCount = startPage.address.distance(to: range.endAddress + 1) / PAGE_SIZE
         addPagesToFreeList(physPage: startPage, pageCount: Int(pageCount))
     }
 }

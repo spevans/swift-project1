@@ -55,14 +55,14 @@ struct SMBIOS {
                 return nil
             }
             let index = Int(offset) - 4
-            if let idx: UInt8 = try? data.readAtIndex(index) {
+            do {
+                let idx: UInt8 = try data.readAtIndex(index)
                 let stringId = Int(idx)
                 guard stringId > 0 && stringId <= strings.count else {
                     return nil
                 }
-
                 return strings[stringId - 1]
-            } else {
+            } catch {
                 print("SMBIOS: error reading id")
                 return nil
             }
@@ -109,11 +109,10 @@ struct SMBIOS {
             + "@ \(asHex(tableAddress)) size: \(tableLength)")
 
         func str(_ a: String?) -> String {
-            return a == nil ? "nil" : a!
+            return a ?? "nil"
         }
 
         for entry in parseTables() {
-            //print("SMBIOS:", entry)
             switch entry.type {
 
             case 0:     // BIOS information
