@@ -2,6 +2,7 @@ UNAME_S := $(shell uname -s)
 NASM := nasm
 NASM_FLAGS := -Werror -p$(TOPDIR)/include/macros.asm
 MODULE_DIR := $(TOPDIR)/modules
+GITVER := $(shell git rev-parse HEAD)
 
 # The normal swift compiler
 SWIFTDIR := $(shell readlink -f ~/swift)
