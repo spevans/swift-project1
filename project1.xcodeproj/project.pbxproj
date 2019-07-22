@@ -131,6 +131,18 @@
 		B9F8B9D81EC68BE40030BAE8 /* tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9F8B9D71EC68BE40030BAE8 /* tests.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		B95867E522E5D082005FA3BF /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		B93092BE1F31B06900870D1F /* StringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringTests.swift; sourceTree = "<group>"; };
 		B933A6DD1F2F492F00FE6846 /* waet.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = waet.swift; sourceTree = "<group>"; };
@@ -193,6 +205,11 @@
 		B933A7741F2F8D6A00FE6846 /* acpitest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = acpitest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B933A7761F2F8D6A00FE6846 /* acpitest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = acpitest.swift; sourceTree = "<group>"; };
 		B933A7781F2F8D6A00FE6846 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B95867E722E5D082005FA3BF /* kernel */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = kernel; sourceTree = BUILT_PRODUCTS_DIR; };
+		B95867F322E5D4BC005FA3BF /* vmx.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = vmx.swift; path = vm/vmx.swift; sourceTree = "<group>"; };
+		B95867F522E635EA005FA3BF /* vmcs.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = vmcs.swift; path = vm/vmcs.swift; sourceTree = "<group>"; };
+		B95867F622E635EA005FA3BF /* vmentry.asm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm.asm; name = vmentry.asm; path = vm/vmentry.asm; sourceTree = "<group>"; };
+		B95867F722E635EA005FA3BF /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = vm/Makefile; sourceTree = "<group>"; };
 		B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amlresourcedata.swift; sourceTree = "<group>"; };
 		B9793D4E200A571B0013E03B /* symbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = symbols.swift; sourceTree = "<group>"; };
 		B97A313F1FE55E2200E651DC /* piix.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = piix.swift; sourceTree = "<group>"; };
@@ -288,6 +305,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B95867E422E5D082005FA3BF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B9EE70461D3D536B006B6AB7 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -301,6 +325,7 @@
 		B933A6B81F2F469900FE6846 /* kernel */ = {
 			isa = PBXGroup;
 			children = (
+				B95867F222E5D34F005FA3BF /* vm */,
 				B933A6BA1F2F46C000FE6846 /* init */,
 				B933A6BC1F2F46CB00FE6846 /* mm */,
 				B933A6B91F2F46B900FE6846 /* devices */,
@@ -434,6 +459,17 @@
 			path = extensions;
 			sourceTree = "<group>";
 		};
+		B95867F222E5D34F005FA3BF /* vm */ = {
+			isa = PBXGroup;
+			children = (
+				B95867F722E635EA005FA3BF /* Makefile */,
+				B95867F522E635EA005FA3BF /* vmcs.swift */,
+				B95867F622E635EA005FA3BF /* vmentry.asm */,
+				B95867F322E5D4BC005FA3BF /* vmx.swift */,
+			);
+			name = vm;
+			sourceTree = "<group>";
+		};
 		B9EE70401D3D536B006B6AB7 = {
 			isa = PBXGroup;
 			children = (
@@ -458,6 +494,7 @@
 			children = (
 				B9EE70491D3D536B006B6AB7 /* acpi */,
 				B933A7741F2F8D6A00FE6846 /* acpitest.xctest */,
+				B95867E722E5D082005FA3BF /* kernel */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -590,6 +627,23 @@
 			productReference = B933A7741F2F8D6A00FE6846 /* acpitest.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		B95867E622E5D082005FA3BF /* kernel */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B95867EB22E5D082005FA3BF /* Build configuration list for PBXNativeTarget "kernel" */;
+			buildPhases = (
+				B95867EE22E5D094005FA3BF /* ShellScript */,
+				B95867E422E5D082005FA3BF /* Frameworks */,
+				B95867E522E5D082005FA3BF /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = kernel;
+			productName = kernel;
+			productReference = B95867E722E5D082005FA3BF /* kernel */;
+			productType = "com.apple.product-type.tool";
+		};
 		B9EE70481D3D536B006B6AB7 /* acpi */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = B9EE70501D3D536B006B6AB7 /* Build configuration list for PBXNativeTarget "acpi" */;
@@ -613,12 +667,18 @@
 		B9EE70411D3D536B006B6AB7 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastSwiftUpdateCheck = 0900;
+				LastSwiftUpdateCheck = 1100;
 				LastUpgradeCheck = 0900;
 				ORGANIZATIONNAME = "Simon Evans";
 				TargetAttributes = {
 					B933A7731F2F8D6A00FE6846 = {
 						CreatedOnToolsVersion = 9.0;
+					};
+					B95867E622E5D082005FA3BF = {
+						CreatedOnToolsVersion = 11.0;
+						DevelopmentTeam = U2L29966XS;
+						LastSwiftMigration = 1100;
+						ProvisioningStyle = Automatic;
 					};
 					B9EE70481D3D536B006B6AB7 = {
 						CreatedOnToolsVersion = 8.0;
@@ -632,6 +692,7 @@
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				English,
 				en,
 			);
 			mainGroup = B9EE70401D3D536B006B6AB7;
@@ -641,6 +702,7 @@
 			targets = (
 				B9EE70481D3D536B006B6AB7 /* acpi */,
 				B933A7731F2F8D6A00FE6846 /* acpitest */,
+				B95867E622E5D082005FA3BF /* kernel */,
 			);
 		};
 /* End PBXProject section */
@@ -719,6 +781,26 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		B95867EE22E5D094005FA3BF /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\ndocker run --rm -v $SRCROOT:$SRCROOT -w $SRCROOT -t -e TERM= swift-kstdlib make iso\n\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		B933A7701F2F8D6A00FE6846 /* Sources */ = {
@@ -840,6 +922,53 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = acpitest/acpi_test.h;
 				SWIFT_VERSION = 4.0;
+			};
+			name = Release;
+		};
+		B95867EC22E5D082005FA3BF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = U2L29966XS;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		B95867ED22E5D082005FA3BF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = U2L29966XS;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
 		};
@@ -990,6 +1119,15 @@
 			buildConfigurations = (
 				B933A77A1F2F8D6A00FE6846 /* Debug */,
 				B933A77B1F2F8D6A00FE6846 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B95867EB22E5D082005FA3BF /* Build configuration list for PBXNativeTarget "kernel" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B95867EC22E5D082005FA3BF /* Debug */,
+				B95867ED22E5D082005FA3BF /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

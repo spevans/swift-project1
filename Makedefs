@@ -5,8 +5,7 @@ MODULE_DIR := $(TOPDIR)/modules
 GITVER := $(shell git rev-parse HEAD)
 
 # The normal swift compiler
-SWIFTDIR := $(shell readlink -f ~/swift)
-SWIFT := $(SWIFTDIR)/usr/bin/swift
+SWIFT := swift
 
 # The path to the kernel-lib swift compiler
 KSWIFTDIR := $(shell readlink -f ~/kstdlib-20190620)

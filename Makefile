@@ -61,5 +61,5 @@ output/boot-cd.iso: output/boot-hd.img output/kernel.efi
 	#-b boot.img -c boot.cat -boot-load-size 4 -boot-info-table -no-emul-boot \
 
 clean:
-	rm -rf output/*
+	rm -rf output/* build DerivedData
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir clean; done
