@@ -310,7 +310,7 @@ struct BitArray64: CustomStringConvertible {
             precondition(index >= 0)
             precondition(index < 64)
 
-            return (rawValue & UInt64(1 << index) == 0) ? 0 : 1
+            return (rawValue & (UInt64(1) << index) == 0) ? 0 : 1
         }
 
         set {
@@ -319,9 +319,9 @@ struct BitArray64: CustomStringConvertible {
             precondition(newValue == 0 || newValue == 1)
 
             if (newValue == 1) {
-                rawValue |= UInt64(1 << index)
+                rawValue |= (UInt64(1) << index)
             } else {
-                rawValue &= ~(UInt64(1 << index))
+                rawValue &= ~(UInt64(1) << index)
             }
         }
     }

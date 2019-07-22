@@ -34,6 +34,8 @@ struct PhysAddress: CVarArg, Comparable, Hashable, CustomStringConvertible {
         return PhysPageAddress(self, pageSize: pageSize, roundUp: roundUp)
     }
 
+    var isPageAligned: Bool { (value & UInt(PAGE_MASK)) == 0 }
+
     func advanced(by n: Int) -> PhysAddress {
         return PhysAddress(value + UInt(n))
     }

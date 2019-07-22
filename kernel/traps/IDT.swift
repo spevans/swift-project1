@@ -61,7 +61,7 @@ func setupIDT() {
         printf(": Info: %p/%u\n", UInt(bitPattern: idt.base), idt.limit)
     }
 
-    var currentIdtInfo = dt_info(limit: 0, base: nil)
+    var currentIdtInfo = dt_info()
     sidt(&currentIdtInfo)
     printIDT("Current", currentIdtInfo)
 
@@ -139,4 +139,10 @@ func setupIDT() {
     printIDT("New", currentIdtInfo)
     print("IDT: Testing Breakpoint:")
     test_breakpoint()
+}
+
+func currentIDT() -> dt_info {
+    var idt = dt_info()
+    sidt(&idt)
+    return idt
 }

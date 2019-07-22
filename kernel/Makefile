@@ -6,13 +6,12 @@ GITVER := $(shell git rev-parse HEAD)
 
 SWIFT_MODULE := SwiftKernel
 SWIFT_OBJS := SwiftKernel.o
-SWIFT_SRCS :=	init/startup.swift		\
+_SWIFT_SRCS :=	init/startup.swift		\
 		init/bootparams.swift		\
 		init/biosboot.swift		\
 		init/efiboot.swift		\
 		init/smbios.swift		\
 		init/GDT.swift			\
-		init/version.swift		\
 		klib/Extensions.swift		\
 		klib/extensions/integer.swift	\
 		klib/extensions/bitarray.swift	\
@@ -60,15 +59,18 @@ SWIFT_SRCS :=	init/startup.swift		\
 		devices/apic.swift		\
 		devices/ioapic.swift		\
 		devices/cmos.swift		\
-		devices/vmx.swift		\
 		traps/exceptions.swift		\
 		traps/interrupt.swift		\
 		traps/IDT.swift			\
-		tasks/tasks.swift
+		tasks/tasks.swift		\
+		vm/vmx.swift			\
+		vm/vmcs.swift
 
-KERNEL_OBJS := init/init.o traps/traps.o SwiftKernel.o
+CWD := $(shell pwd)
+SWIFT_SRCS := $(addprefix $(CWD)/, $(_SWIFT_SRCS)) init/version.swift
 
-SUBDIRS := devices mm traps init
+KERNEL_OBJS := init/init.o traps/traps.o vm/vmentry.o SwiftKernel.o
+SUBDIRS := devices mm traps init vm
 HEADERS = $(TOPDIR)/include/*.h
 
 all: kernel.o

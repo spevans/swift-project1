@@ -257,7 +257,7 @@ struct CPU {
 
     static func enableWP(_ enable: Bool) {
         var cr0 = CPU.cr0
-        cr0.wp = enable
+        cr0.writeProtect = enable
         CPU.cr0 = cr0
     }
 
@@ -324,19 +324,9 @@ struct CPU {
     }
 
 
-    struct CR0Register {
+    struct CR0Register: CustomStringConvertible {
         private(set) var bits: BitArray64
         var value: UInt64 { bits.toUInt64() }
-
-        var ne: Bool {
-            get { Bool(bits[5]) }
-            set { bits[5] = newValue ? 1 : 0 }
-        }
-
-        var wp: Bool {
-            get { Bool(bits[16]) }
-            set { bits[16] = newValue ? 1 : 0 }
-        }
 
         init(_ value: UInt64) {
             bits = BitArray64(value)
@@ -345,17 +335,116 @@ struct CPU {
         init() {
             bits = BitArray64(getCR0())
         }
+
+        var protectionEnable: Bool {
+            get { Bool(bits[0]) }
+            set { bits[0] = newValue ? 1 : 0 }
+        }
+
+        var monitorCoprocessor: Bool {
+            get { Bool(bits[1]) }
+            set { bits[1] = newValue ? 1 : 0 }
+        }
+
+        var fpuEmulation: Bool {
+            get { Bool(bits[2]) }
+            set { bits[2] = newValue ? 1 : 0 }
+        }
+
+        var taskSwitched: Bool {
+            get { Bool(bits[3]) }
+            set { bits[3] = newValue ? 1 : 0 }
+        }
+
+        var extensionType: Bool {
+            get { Bool(bits[4]) }
+            set { bits[4] = newValue ? 1 : 0 }
+        }
+
+        var numericError: Bool {
+            get { Bool(bits[5]) }
+            set { bits[5] = newValue ? 1 : 0 }
+        }
+
+        var writeProtect: Bool {
+            get { Bool(bits[16]) }
+            set { bits[16] = newValue ? 1 : 0 }
+        }
+
+        var alignmentMask: Bool {
+            get { Bool(bits[18]) }
+            set { bits[18] = newValue ? 1 : 0 }
+        }
+
+        var notWriteThrough: Bool {
+            get { Bool(bits[29]) }
+            set { bits[29] = newValue ? 1 : 0 }
+        }
+
+        var cacheDisable: Bool {
+            get { Bool(bits[30]) }
+            set { bits[30] = newValue ? 1 : 0 }
+        }
+
+        var paging: Bool {
+            get { Bool(bits[31]) }
+            set { bits[31] = newValue ? 1 : 0 }
+        }
+
+        var description: String {
+            var result = "PE: " + (protectionEnable ? "1" : "0")
+            result += " MC: " + (monitorCoprocessor ? "1" : "0")
+            result += " FE: " + (fpuEmulation ? "1" : "0")
+            result += " TS: " + (taskSwitched ? "1" : "0")
+            result += " ET: " + (extensionType ? "1" : "0")
+            result += " NE: " + (numericError ? "1" : "0")
+            result += " WP: " + (writeProtect ? "1" : "0")
+            result += " AM: " + (alignmentMask ? "1" : "0")
+            result += " WT: " + (notWriteThrough ? "1" : "0")
+            result += " CD: " + (cacheDisable ? "1" : "0")
+            result += " PG: " + (paging ? "1" : "0")
+
+            return result
+        }
     }
 
 
-    struct CR4Register {
+    struct CR3Register {
         private(set) var bits: BitArray64
         var value: UInt64 { bits.toUInt64() }
 
-        var vmxe: Bool {
-            get { Bool(bits[13]) }
-            set { bits[13] = newValue ? 1 : 0 }
+        init(_ value: UInt64) {
+            bits = BitArray64(value)
         }
+
+        init() {
+            bits = BitArray64(getCR3())
+        }
+
+        var pagelevelWriteThrough: Bool {
+            get { Bool(bits[3]) }
+            set { bits[3] = newValue ? 1 : 0 }
+        }
+
+        var pagelevelCacheDisable: Bool {
+            get { Bool(bits[4]) }
+            set { bits[4] = newValue ? 1 : 0 }
+        }
+
+        var pageDirectoryBase: PhysAddress {
+            get { PhysAddress(UInt(value) & ~PAGE_MASK) }
+            set {
+                precondition(newValue.isPageAligned)
+                bits[12...63] = 0  // clear current address
+                bits = BitArray64(UInt64(newValue.value) | value)
+            }
+        }
+    }
+
+
+    struct CR4Register: CustomStringConvertible {
+        private(set) var bits: BitArray64
+        var value: UInt64 { bits.toUInt64() }
 
         init(_ value: UInt64) {
             bits = BitArray64(value)
@@ -363,6 +452,131 @@ struct CPU {
 
         init() {
             bits = BitArray64(getCR4())
+        }
+
+        var vme: Bool {
+            get { Bool(bits[0]) }
+            set { bits[0] = newValue ? 1 : 0 }
+        }
+
+        var pvi: Bool {
+            get { Bool(bits[1]) }
+            set { bits[1] = newValue ? 1 : 0 }
+        }
+
+        var tsd: Bool {
+            get { Bool(bits[2]) }
+            set { bits[2] = newValue ? 1 : 0 }
+        }
+
+        var de: Bool {
+            get { Bool(bits[3]) }
+            set { bits[3] = newValue ? 1 : 0 }
+        }
+
+        var pse: Bool {
+            get { Bool(bits[4]) }
+            set { bits[4] = newValue ? 1 : 0 }
+        }
+
+        var pae: Bool {
+            get { Bool(bits[5]) }
+            set { bits[5] = newValue ? 1 : 0 }
+        }
+
+        var mce: Bool {
+            get { Bool(bits[6]) }
+            set { bits[6] = newValue ? 1 : 0 }
+        }
+
+        var pge: Bool {
+            get { Bool(bits[7]) }
+            set { bits[7] = newValue ? 1 : 0 }
+        }
+
+        var pce: Bool {
+            get { Bool(bits[8]) }
+            set { bits[8] = newValue ? 1 : 0 }
+        }
+
+        var osfxsr: Bool {
+            get { Bool(bits[9]) }
+            set { bits[9] = newValue ? 1 : 0 }
+        }
+
+        var osxmmxcpt: Bool {
+            get { Bool(bits[10]) }
+            set { bits[10] = newValue ? 1 : 0 }
+        }
+
+        var umip: Bool {
+            get { Bool(bits[11]) }
+            set { bits[11] = newValue ? 1 : 0 }
+        }
+
+        var vmxe: Bool {
+            get { Bool(bits[13]) }
+            set { bits[13] = newValue ? 1 : 0 }
+        }
+
+        var smxe: Bool {
+            get { Bool(bits[14]) }
+            set { bits[14] = newValue ? 1 : 0 }
+        }
+
+        var fsgsbase: Bool {
+            get { Bool(bits[16]) }
+            set { bits[16] = newValue ? 1 : 0 }
+        }
+
+        var pcide: Bool {
+            get { Bool(bits[17]) }
+            set { bits[17] = newValue ? 1 : 0 }
+        }
+
+        var osxsave: Bool {
+            get { Bool(bits[18]) }
+            set { bits[18] = newValue ? 1 : 0 }
+        }
+
+        var smep: Bool {
+            get { Bool(bits[20]) }
+            set { bits[20] = newValue ? 1 : 0 }
+        }
+
+        var smap: Bool {
+            get { Bool(bits[21]) }
+            set { bits[21] = newValue ? 1 : 0 }
+        }
+
+        var pke: Bool {
+            get { Bool(bits[22]) }
+            set { bits[22] = newValue ? 1 : 0 }
+        }
+
+        var description: String {
+            var result = "VME: " + (vme ? "1" : "0")
+            result += " PVI: " + (pvi ? "1" : "0")
+            result += " TSD: " + (tsd ? "1" : "0")
+            result += " DE: " + (tsd ? "1" : "0")
+            result += " PSE: " + (pse ? "1" : "0")
+            result += " PAE: " + (pae ? "1" : "0")
+            result += " MCE: " + (mce ? "1" : "0")
+            result += " PGE: " + (pge ? "1" : "0")
+            result += " PCE: " + (pce ? "1" : "0")
+            result += " OSFXSR: " + (osfxsr ? "1" : "0")
+            result += " OSXMMXCPT: " + (osxmmxcpt ? "1" : "0")
+            result += " UMIP: " + (umip ? "1" : "0")
+            result += " VMXE: " + (vmxe ? "1" : "0")
+            result += " SMXE: " + (smxe ? "1" : "0")
+            result += " FSGSBASE: " + (fsgsbase ? "1" : "0")
+            result += " PCIDE: " + (pcide ? "1" : "0")
+            result += " OSXSAVE: " + (osxsave ? "1" : "0")
+            result += " SMEP: " + (smep ? "1" : "0")
+            result += " SMAP: " + (smap ? "1" : "0")
+            result += " PKE: " + (pke ? "1" : "0")
+
+            return result
         }
     }
 
@@ -398,6 +612,13 @@ struct VMXFixedBits {
         var result = bits.value | cr4Fixed0Bits
         result &= cr4Fixed1Bits
         return CPU.CR4Register(result)
+    }
+
+    // Unrestricted guest is true when the PG and PE bits in CR0
+    // DO NOT need to be set, determined from the CR0 Fixed0 Bits MSR
+    var allowsUnrestrictedGuest: Bool {
+        let cr0 = CPU.CR0Register(cr0Fixed0Bits)
+        return !(cr0.protectionEnable || cr0.paging)
     }
 }
 
@@ -442,4 +663,85 @@ struct VMXBasicInfo: CustomStringConvertible {
             fatalError("vmxRegionSize: \(vmxRegionSize) should be 1-4096")
         }
     }
+}
+
+
+struct VMXAllowedBits {
+    let allowedToBeZero: Bool
+    let allowedToBeOne: Bool
+
+    init(_ bits :BitArray64, _ index: Int) {
+        // Note that bits allowed to be zero are set to 0 but these are flipped
+        // to enable 'allowedToBeZero == true' if they are zero
+        allowedToBeZero = !Bool(bits[index])
+        allowedToBeOne = Bool(bits[index + 32])
+    }
+}
+
+
+struct VMXPrimaryProcessorBasedControls {
+    let bits: BitArray64
+
+    init() {
+        bits = BitArray64(CPU.readMSR(0x482))
+    }
+
+    var intWindowExiting:           VMXAllowedBits { VMXAllowedBits(bits, 2)  }
+    var useTSCOffsetting:           VMXAllowedBits { VMXAllowedBits(bits, 3)  }
+    var hltExiting:                 VMXAllowedBits { VMXAllowedBits(bits, 7)  }
+    var invlpgExiting:              VMXAllowedBits { VMXAllowedBits(bits, 9)  }
+    var mwaitExiting:               VMXAllowedBits { VMXAllowedBits(bits, 10) }
+    var rdpmcExiting:               VMXAllowedBits { VMXAllowedBits(bits, 11) }
+    var rdtscExiting:               VMXAllowedBits { VMXAllowedBits(bits, 12) }
+    var cr3LoadExiting:             VMXAllowedBits { VMXAllowedBits(bits, 15) }
+    var cr3StoreExiting:            VMXAllowedBits { VMXAllowedBits(bits, 16) }
+    var cr8LoadExiting:             VMXAllowedBits { VMXAllowedBits(bits, 19) }
+    var cr8StoreExiting:            VMXAllowedBits { VMXAllowedBits(bits, 20) }
+    var useTPRShadow:               VMXAllowedBits { VMXAllowedBits(bits, 21) }
+    var nmiWindowExiting:           VMXAllowedBits { VMXAllowedBits(bits, 22) }
+    var movDRExiting:               VMXAllowedBits { VMXAllowedBits(bits, 23) }
+    var unconditionalIOExiting:     VMXAllowedBits { VMXAllowedBits(bits, 24) }
+    var useIOBitmaps:               VMXAllowedBits { VMXAllowedBits(bits, 25) }
+    var monitorTrapFlag:            VMXAllowedBits { VMXAllowedBits(bits, 27) }
+    var useMSRbitmaps:              VMXAllowedBits { VMXAllowedBits(bits, 28) }
+    var monitorExiting:             VMXAllowedBits { VMXAllowedBits(bits, 29) }
+    var pauseExiting:               VMXAllowedBits { VMXAllowedBits(bits, 30) }
+    var activateSecondaryControls:  VMXAllowedBits { VMXAllowedBits(bits, 31) }
+}
+
+
+struct VMXSecondaryProcessorBasedControls {
+    let bits: BitArray64
+
+    init() {
+        bits = BitArray64(CPU.readMSR(0x48B))
+    }
+
+    var vitualizeApicAccesses:      VMXAllowedBits { VMXAllowedBits(bits, 0)  }
+    var enableEPT:                  VMXAllowedBits { VMXAllowedBits(bits, 1)  }
+    var descriptorTableExiting:     VMXAllowedBits { VMXAllowedBits(bits, 2)  }
+    var enableRDTSCP:               VMXAllowedBits { VMXAllowedBits(bits, 3)  }
+    var virtualizeX2ApicMode:       VMXAllowedBits { VMXAllowedBits(bits, 4)  }
+    var enableVPID:                 VMXAllowedBits { VMXAllowedBits(bits, 5)  }
+    var wbinvdExiting:              VMXAllowedBits { VMXAllowedBits(bits, 6)  }
+    var unrestrictedGuest:          VMXAllowedBits { VMXAllowedBits(bits, 7)  }
+    var apicRegisterVirtualization: VMXAllowedBits { VMXAllowedBits(bits, 8)  }
+    var virtualInterruptDelivery:   VMXAllowedBits { VMXAllowedBits(bits, 9)  }
+    var pauseLoopExiting:           VMXAllowedBits { VMXAllowedBits(bits, 10) }
+    var rdrandExiting:              VMXAllowedBits { VMXAllowedBits(bits, 11) }
+    var enableInvpcid:              VMXAllowedBits { VMXAllowedBits(bits, 12) }
+    var enableVMFunctions:          VMXAllowedBits { VMXAllowedBits(bits, 13) }
+    var vmcsShadowing:              VMXAllowedBits { VMXAllowedBits(bits, 14) }
+    var enableEnclsExiting:         VMXAllowedBits { VMXAllowedBits(bits, 15) }
+    var rdseedExiting:              VMXAllowedBits { VMXAllowedBits(bits, 16) }
+    var enablePML:                  VMXAllowedBits { VMXAllowedBits(bits, 17) }
+    var eptViolation:               VMXAllowedBits { VMXAllowedBits(bits, 18) }
+    var concealVMXFromPT:           VMXAllowedBits { VMXAllowedBits(bits, 19) }
+    var enableXSAVES:               VMXAllowedBits { VMXAllowedBits(bits, 20) }
+    var modeBasedExecCtrlForEPT:    VMXAllowedBits { VMXAllowedBits(bits, 22) }
+    var subpageWritePermsForEPT:    VMXAllowedBits { VMXAllowedBits(bits, 23) }
+    var iptUsesGuestPhysAddress:    VMXAllowedBits { VMXAllowedBits(bits, 24) }
+    var useTSCScaling:              VMXAllowedBits { VMXAllowedBits(bits, 25) }
+    var enableUserWaitAndPause:     VMXAllowedBits { VMXAllowedBits(bits, 26) }
+    var enableENCLVExiting:         VMXAllowedBits { VMXAllowedBits(bits, 28) }
 }

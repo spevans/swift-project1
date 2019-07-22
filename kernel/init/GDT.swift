@@ -100,3 +100,9 @@ func setupGDT() {
     ltr(UInt16(TSS_SELECTOR))
     print("TSS loaded")
 }
+
+func currentGDT() -> dt_info {
+    var gdt = dt_info()
+    sgdt(&gdt)
+    return gdt
+}

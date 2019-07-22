@@ -52,12 +52,10 @@ final class System {
         _ = enableVMX()
         print("testVMX")
         testVMX()
-        print("testVMXLanuch")
-        _ = VMXLaunch()
-        print("testVMXResume")
-        _ = VMXResume()
-        print("disableVMX")
         disableVMX()
+        // gitBuildVersion defined in kernel/init/version.swift, created
+        // by kernel/Makefile
+        print("Version: \(gitBuildVersion)\n")
     }
 
 
@@ -91,10 +89,6 @@ fileprivate func mainLoop() {
 fileprivate func keyboardInput() {
     // Try reading from the keyboard otherwise just pause forever
     // (used for testing on macbook where there is no PS/2 keyboard)
-
-    // gitBuildVersion defined in kernel/init/version.swift, created
-    // by kernel/Makefile
-    print("Version: \(gitBuildVersion)\n")
 
     _keyboardInput()
     print("No keyboard!")
