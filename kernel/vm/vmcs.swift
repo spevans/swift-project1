@@ -1,16 +1,19 @@
 /*
- * kernel/devices/vmcs.swift
- *
- * Created by Simon Evans on 20/07/2019.
- * Copyright © 2019 Simon Evans. All rights reserved.
- *
- * VMCS functionality.
- *
- */
+* kernel/devices/vmcs.swift
+*
+* Created by Simon Evans on 20/07/2019.
+* Copyright © 2019 Simon Evans. All rights reserved.
+*
+* VMCS functionality.
+*
+*/
 
 
 final class VMCS {
     static let vmxInfo = VMXBasicInfo()
+
+    let vmExecPrimary = VMXPrimaryProcessorBasedControls()
+    let vmExecSecondary: VMXSecondaryProcessorBasedControls?
     
     let address: VirtualAddress
     var vcpu: vcpu_info = vcpu_info()
@@ -29,6 +32,12 @@ final class VMCS {
         UnsafeMutableRawPointer(bitPattern: address)!
         .storeBytes(of: VMCS.vmxInfo.vmcsRevisionId, toByteOffset: 0,
             as: UInt32.self)
+
+        if vmExecPrimary.activateSecondaryControls.allowedToBeOne {
+            vmExecSecondary = VMXSecondaryProcessorBasedControls()
+        } else {
+            vmExecSecondary = nil
+        }
     }
 
 
@@ -46,6 +55,23 @@ final class VMCS {
     deinit {
         freePages(at: address, count: 1)
     }
+
+
+    var vpid: UInt16 {
+        get { vmread16(0x0) }
+        set { vmwrite16(0x0, newValue) }
+    }
+
+    var interruptNotificationVector: UInt16 {
+        get { vmread16(0x2) }
+        set { vmwrite16(0x2, newValue) }
+    }
+
+    var eptpIndex: UInt16 {
+        get { vmread16(0x4) }
+        set { vmwrite16(0x4, newValue) }
+    }
+
 
     // Guest Selectors
     var guestESSelector: UInt16 {
@@ -88,8 +114,18 @@ final class VMCS {
         set { vmwrite16(0x80E, newValue) }
     }
 
+    var guestInterruptStatus: UInt16 {
+        get { vmread16(0x810) }
+        set { vmwrite16(0x810, newValue) }
+    }
 
-    // Host Selectgors
+    var pmlIndex: UInt16 {
+        get { vmread16(0x812) }
+        set { vmwrite16(0x812, newValue) }
+    }
+
+    
+    // Host Selectors
     var hostESSelector: UInt16 {
         get { vmread16(0xC00) }
         set { vmwrite16(0xC00, newValue) }
@@ -121,8 +157,214 @@ final class VMCS {
     }
 
     var hostTRSelector: UInt16 {
-        get { vmread16(0xC0A) }
-        set { vmwrite16(0xC0A, newValue) }
+        get { vmread16(0xC0C) }
+        set { vmwrite16(0xC0C, newValue) }
+    }
+
+    // 64Bit Control Fields
+    var ioBitmapAAddress: UInt64 {
+        get { vmread64(0x2000) }
+        set { vmwrite64(0x2000, newValue) }
+    }
+
+    var ioBitmapBAddress: UInt64 {
+        get { vmread64(0x2002) }
+        set { vmwrite64(0x2002, newValue) }
+    }
+
+    var msrBitmapAddress: UInt64 {
+        get { vmread64(0x2004) }
+        set { vmwrite64(0x2004, newValue) }
+    }
+
+    var vmExitMSRStoreAddress: UInt64 {
+        get { vmread64(0x2006) }
+        set { vmwrite64(0x2006, newValue) }
+    }
+
+    var vmExitMSRLoadAddress: UInt64 {
+        get { vmread64(0x2008) }
+        set { vmwrite64(0x2008, newValue) }
+    }
+
+    var vmEntryMSRLoadAddress: UInt64 {
+        get { vmread64(0x200A) }
+        set { vmwrite64(0x200A, newValue) }
+    }
+
+    var executiveVMCSPtr: UInt64 {
+        get { vmread64(0x200C) }
+        set { vmwrite64(0x200C, newValue) }
+    }
+
+    var pmlAddress: UInt64 {
+        get { vmread64(0x200E) }
+        set { vmwrite64(0x200E, newValue) }
+    }
+
+    var tscOffset: UInt64 {
+        get { vmread64(0x2010) }
+        set { vmwrite64(0x2010, newValue) }
+    }
+
+    var virtualAPICAddress: UInt64 {
+        get { vmread64(0x2012) }
+        set { vmwrite64(0x2012, newValue) }
+    }
+
+    var apicAccessAddress: UInt64 {
+        get { vmread64(0x2014) }
+        set { vmwrite64(0x2014, newValue) }
+    }
+
+    var postedInterruptDescAddress: UInt64 {
+        get { vmread64(0x2016) }
+        set { vmwrite64(0x2016, newValue) }
+    }
+
+    var vmFunctionControls: UInt64 {
+        get { vmread64(0x2018) }
+        set { vmwrite64(0x2018, newValue) }
+    }
+
+    var eptp: UInt64 {
+        get { vmread64(0x201A) }
+        set { vmwrite64(0x201A, newValue) }
+    }
+
+    var eoiExitBitmap0: UInt64 {
+        get { vmread64(0x201C) }
+        set { vmwrite64(0x201C, newValue) }
+    }
+
+    var eoiExitBitmap1: UInt64 {
+        get { vmread64(0x201E) }
+        set { vmwrite64(0x201E, newValue) }
+    }
+
+    var eoiExitBitmap2: UInt64 {
+        get { vmread64(0x2020) }
+        set { vmwrite64(0x2020, newValue) }
+    }
+
+    var eoiExitBitmap3: UInt64 {
+        get { vmread64(0x2022) }
+        set { vmwrite64(0x2022, newValue) }
+    }
+
+    var eptpListAddress: UInt64 {
+        get { vmread64(0x2024) }
+        set { vmwrite64(0x2024, newValue) }
+    }
+
+    var vmreadBitmapAddress: UInt64 {
+        get { vmread64(0x2026) }
+        set { vmwrite64(0x2026, newValue) }
+    }
+
+    var vmwriteBitmapAddress: UInt64 {
+        get { vmread64(0x2028) }
+        set { vmwrite64(0x2028, newValue) }
+    }
+
+    var vExceptionInfoAddress: UInt64 {
+        get { vmread64(0x202A) }
+        set { vmwrite64(0x202A, newValue) }
+    }
+
+    var xssExitingBitmap: UInt64 {
+        get { vmread64(0x202C) }
+        set { vmwrite64(0x202C, newValue) }
+    }
+
+    var enclsExitingBitmap: UInt64 {
+        get { vmread64(0x202E) }
+        set { vmwrite64(0x202E, newValue) }
+    }
+
+    var subPagePermissionTP: UInt64 {
+        get { vmread64(0x2030) }
+        set { vmwrite64(0x2030, newValue) }
+    }
+
+    var tscMultiplier: UInt64 {
+        get { vmread64(0x2032) }
+        set { vmwrite64(0x2032, newValue) }
+    }
+
+    // 64-Bit Read-Only Data Field
+    var guestPhysAddress: UInt64 { vmread64(0x2400) }
+
+    // 64-Bit Guest-State Fields
+    var vmcsLinkPointer: UInt64 {
+        get { vmread64(0x2800) }
+        set { vmwrite64(0x2800, newValue) }
+    }
+
+    var guestIA32DebugCtl: UInt64 {
+        get { vmread64(0x2802) }
+        set { vmwrite64(0x2802, newValue) }
+    }
+
+    var guestIA32PAT: UInt64 {
+        get { vmread64(0x2804) }
+        set { vmwrite64(0x2804, newValue) }
+    }
+
+    var guestIA32EFER: UInt64 {
+        get { vmread64(0x2806) }
+        set { vmwrite64(0x2806, newValue) }
+    }
+
+    var guestIA32PerfGlobalCtrl: UInt64 {
+        get { vmread64(0x2808) }
+        set { vmwrite64(0x2808, newValue) }
+    }
+
+    var guestPDPTE0: UInt64 {
+        get { vmread64(0x280A) }
+        set { vmwrite64(0x280A, newValue) }
+    }
+
+    var guestPDPTE1: UInt64 {
+        get { vmread64(0x280C) }
+        set { vmwrite64(0x280C, newValue) }
+    }
+
+    var guestPDPTE2: UInt64 {
+        get { vmread64(0x280E) }
+        set { vmwrite64(0x280E, newValue) }
+    }
+
+    var guestPDPTE3: UInt64 {
+        get { vmread64(0x2810) }
+        set { vmwrite64(0x2810, newValue) }
+    }
+
+    var guestIA32bndcfgs: UInt64 {
+        get { vmread64(0x2812) }
+        set { vmwrite64(0x2812, newValue) }
+    }
+
+    var guestIA32RtitCtl: UInt64 {
+        get { vmread64(0x2814) }
+        set { vmwrite64(0x2814, newValue) }
+    }
+
+    // 64-Bit Host-State Fields
+    var hostIA32PAT: UInt64 {
+        get { vmread64(0x2C00) }
+        set { vmwrite64(0x2C00, newValue) }
+    }
+
+    var hostIA32EFER: UInt64 {
+        get { vmread64(0x2C02) }
+        set { vmwrite64(0x2C02, newValue) }
+    }
+
+    var hostIA32PerfGlobalCtrl: UInt64 {
+        get { vmread64(0x2C04) }
+        set { vmwrite64(0x2C04, newValue) }
     }
 
     // 32Bit Control Fields
@@ -205,22 +447,38 @@ final class VMCS {
         get { vmread32(0x401E) }
         set { vmwrite32(0x401E, newValue) }
     }
-    
-    var pleGap: UInt32 {
-        get { vmread32(0x4020) }
-        set { vmwrite32(0x4020, newValue) }
+
+
+    private var supportsPLE: Bool {
+        if let flag = vmExecSecondary?.pauseLoopExiting.allowedToBeOne {
+            return flag
+        }
+        return false
+    }
+
+    var pleGap: UInt32? {
+        get { return supportsPLE ? vmread32(0x4020) : nil }
+        set {
+            if let newValue = newValue, supportsPLE {
+                vmwrite32(0x4020, newValue)
+            }
+        }
     }
     
-    var pleWindow: UInt32 {
-        get { vmread32(0x4022) }
-        set { vmwrite32(0x4022, newValue) }
+    var pleWindow: UInt32? {
+        get { return supportsPLE ? vmread32(0x4022) : nil }
+        set {
+            if let newValue = newValue, supportsPLE {
+                vmwrite32(0x4022, newValue)
+            }
+        }
     }
     
     // Read only Data fields
     var vmInstructionError: UInt32 { vmread32(0x4400) }
     var exitReason:         UInt32 { vmread32(0x4402) }
     var vmExitIntInfo:      UInt32 { vmread32(0x4404) }
-    var vmExitIntErorrCode: UInt32 { vmread32(0x4406) }
+    var vmExitIntErrorCode: UInt32 { vmread32(0x4406) }
     var idtVectorInfoField: UInt32 { vmread32(0x4408) }
     var idtVectorErrorCode: UInt32 { vmread32(0x440A) }
     var vmExitInstrLen:     UInt32 { vmread32(0x440C) }
@@ -337,7 +595,7 @@ final class VMCS {
 
     var hostIA32SysenterCS: UInt32 {
         get { vmread32(0x4C00) }
-        set { vmwrite32(0x4c00, newValue) }
+        set { vmwrite32(0x4C00, newValue) }
     }
 
     var cr0mask: UInt {
@@ -349,7 +607,7 @@ final class VMCS {
         get { UInt(vmread64(0x6002)) }
         set { vmwrite64(0x6002, UInt64(newValue)) }
     }
-        
+    
     var cr0ReadShadow: CPU.CR0Register {
         get { CPU.CR0Register(vmread64(0x6004)) }
         set { vmwrite64(0x6004, newValue.value) }
@@ -380,6 +638,7 @@ final class VMCS {
         set { vmwrite64(0x600E, UInt64(newValue)) }
     }
 
+    // Natural width Read-Only data fields
     var exitQualification: UInt { UInt(vmread64(0x6400)) }
     var ioRCX: UInt { UInt(vmread64(0x6402)) }
     var ioRSI: UInt { UInt(vmread64(0x6404)) }
@@ -484,8 +743,8 @@ final class VMCS {
     }
 
     var guestIA32SysenterEIP: UInt {
-        get { UInt(vmread64(0x6824)) }
-        set { vmwrite64(0x6824, UInt64(newValue)) }
+        get { UInt(vmread64(0x6826)) }
+        set { vmwrite64(0x6826, UInt64(newValue)) }
     }
     
     // Natural-Width Host-State Fields
@@ -534,7 +793,7 @@ final class VMCS {
         set { vmwrite64(0x6C10, UInt64(newValue)) }
     }
 
-    var hosttIA32SysenterEIP: UInt {
+    var hostIA32SysenterEIP: UInt {
         get { UInt(vmread64(0x6C12)) }
         set { vmwrite64(0x6C12, UInt64(newValue)) }
     }
@@ -548,6 +807,170 @@ final class VMCS {
         get { UInt(vmread64(0x6C16)) }
         set { vmwrite64(0x6C16, UInt64(newValue)) }
     }
+
+
+    func printVMCS() {
+        print("physicalAddress:", String(physicalAddress, radix: 16))
+        print("vpid:", String(vpid, radix: 16))
+        print("interruptNotificationVector:", String(interruptNotificationVector, radix: 16))
+        //print("eptpIndex:", String(eptpIndex, radix: 16))
+        print("guestESSelector:", String(guestESSelector, radix: 16))
+        print("guestCSSelector:", String(guestCSSelector, radix: 16))
+        print("guestSSSelector:", String(guestSSSelector, radix: 16))
+        print("guestDSSelector:", String(guestDSSelector, radix: 16))
+        print("guestFSSelector:", String(guestFSSelector, radix: 16))
+        print("guestGSSelector:", String(guestGSSelector, radix: 16))
+        print("guestLDTRSelector:", String(guestLDTRSelector, radix: 16))
+        print("guestTRSelector:", String(guestTRSelector, radix: 16))
+        print("guestInterruptStatus:", String(guestInterruptStatus, radix: 16))
+        print("pmlIndex:", String(pmlIndex, radix: 16))
+        print("hostESSelector:", String(hostESSelector, radix: 16))
+        print("hostCSSelector:", String(hostCSSelector, radix: 16))
+        print("hostSSSelector:", String(hostSSSelector, radix: 16))
+        print("hostDSSelector:", String(hostDSSelector, radix: 16))
+        print("hostFSSelector:", String(hostFSSelector, radix: 16))
+        print("hostGSSelector:", String(hostGSSelector, radix: 16))
+        print("hostTRSelector:", String(hostTRSelector, radix: 16))
+        print("ioBitmapAAddress:", String(ioBitmapAAddress, radix: 16))
+        print("ioBitmapBAddress:", String(ioBitmapBAddress, radix: 16))
+        print("msrBitmapAddress:", String(msrBitmapAddress, radix: 16))
+        print("vmExitMSRStoreAddress:", String(vmExitMSRStoreAddress, radix: 16))
+        print("vmExitMSRLoadAddress:", String(vmExitMSRLoadAddress, radix: 16))
+        print("vmEntryMSRLoadAddress:", String(vmEntryMSRLoadAddress, radix: 16))
+        //print("executiveVMCSPtr:", String(executiveVMCSPtr, radix: 16))
+        print("pmlAddress:", String(pmlAddress, radix: 16))
+        print("tscOffset:", String(tscOffset, radix: 16))
+        print("virtualAPICAddress:", String(virtualAPICAddress, radix: 16))
+        print("apicAccessAddress:", String(apicAccessAddress, radix: 16))
+        print("postedInterruptDescAddress:", String(postedInterruptDescAddress, radix: 16))
+        print("vmFunctionControls:", String(vmFunctionControls, radix: 16))
+        print("eptp:", String(eptp, radix: 16))
+        print("eoiExitBitmap0:", String(eoiExitBitmap0, radix: 16))
+        print("eoiExitBitmap1:", String(eoiExitBitmap1, radix: 16))
+        print("eoiExitBitmap2:", String(eoiExitBitmap2, radix: 16))
+        print("eoiExitBitmap3:", String(eoiExitBitmap3, radix: 16))
+        print("eptpListAddress:", String(eptpListAddress, radix: 16))
+        print("vmreadBitmapAddress:", String(vmreadBitmapAddress, radix: 16))
+        print("vmwriteBitmapAddress:", String(vmwriteBitmapAddress, radix: 16))
+        //print("vExceptionInfoAddress:", String(vExceptionInfoAddress, radix: 16))
+        //print("xssExitingBitmap:", String(xssExitingBitmap, radix: 16))
+        //print("enclsExitingBitmap:", String(enclsExitingBitmap, radix: 16))
+        //print("subPagePermissionTP:", String(subPagePermissionTP, radix: 16))
+        //print("tscMultiplier:", String(tscMultiplier, radix: 16))
+        print("guestPhysAddress:", String(guestPhysAddress, radix: 16))
+        print("vmcsLinkPointer:", String(vmcsLinkPointer, radix: 16))
+        print("guestIA32DebugCtl:", String(guestIA32DebugCtl, radix: 16))
+        print("guestIA32PAT:", String(guestIA32PAT, radix: 16))
+        print("guestIA32EFER:", String(guestIA32EFER, radix: 16))
+        print("guestIA32PerfGlobalCtrl:", String(guestIA32PerfGlobalCtrl, radix: 16))
+        print("guestPDPTE0:", String(guestPDPTE0, radix: 16))
+        print("guestPDPTE1:", String(guestPDPTE1, radix: 16))
+        print("guestPDPTE2:", String(guestPDPTE2, radix: 16))
+        print("guestPDPTE3:", String(guestPDPTE3, radix: 16))
+        print("guestIA32bndcfgs:", String(guestIA32bndcfgs, radix: 16))
+        //print("guestIA32RtitCtl:", String(guestIA32RtitCtl, radix: 16))
+        print("hostIA32PAT:", String(hostIA32PAT, radix: 16))
+        print("hostIA32EFER:", String(hostIA32EFER, radix: 16))
+        print("hostIA32PerfGlobalCtrl:", String(hostIA32PerfGlobalCtrl, radix: 16))
+        print("pinBasedVMExecControls:", String(pinBasedVMExecControls, radix: 16))
+        print("primaryProcVMExecControls:", String(primaryProcVMExecControls, radix: 16))
+        print("exceptionBitmap:", String(exceptionBitmap, radix: 16))
+        print("pagefaultErrorCodeMask:", String(pagefaultErrorCodeMask, radix: 16))
+        print("pagefaultErrorCodeMatch:", String(pagefaultErrorCodeMatch, radix: 16))
+        print("cr3TargetCount:", String(cr3TargetCount, radix: 16))
+        print("vmExitControls:", String(vmExitControls, radix: 16))
+        print("vmExitMSRStoreCount:", String(vmExitMSRStoreCount, radix: 16))
+        print("vmExitMSRLoadCount:", String(vmExitMSRLoadCount, radix: 16))
+        print("vmEntryControls:", String(vmEntryControls, radix: 16))
+        print("vmEntryMSRLoadCount:", String(vmEntryMSRLoadCount, radix: 16))
+        print("vmEntryInterruptInfo:", String(vmEntryInterruptInfo, radix: 16))
+        print("vmEntryExceptionErrorCode:", String(vmEntryExceptionErrorCode, radix: 16))
+        print("vmEntryInstructionLength:", String(vmEntryInstructionLength, radix: 16))
+        print("tprThreshold:", String(tprThreshold, radix: 16))
+        print("secondaryProcVMExecControls:", String(secondaryProcVMExecControls, radix: 16))
+        print("supportsPLE:", supportsPLE)
+        print("pleGap:", pleGap == nil ? "Unsupported" : String(pleGap!, radix: 16))
+        print("pleWindow:", pleWindow == nil ? "Unsupported" : String(pleWindow!, radix: 16))
+        print("vmInstructionError:", String(vmInstructionError, radix: 16))
+        print("exitReason:", String(exitReason, radix: 16))
+        print("vmExitIntInfo:", String(vmExitIntInfo, radix: 16))
+        print("vmExitIntErrorCode:", String(vmExitIntErrorCode, radix: 16))
+        print("idtVectorInfoField:", String(idtVectorInfoField, radix: 16))
+        print("idtVectorErrorCode:", String(idtVectorErrorCode, radix: 16))
+        print("vmExitInstrLen:", String(vmExitInstrLen, radix: 16))
+        print("vmExitInstrInfo:", String(vmExitInstrInfo, radix: 16))
+        print("guestESLimit:", String(guestESLimit, radix: 16))
+        print("guestCSLimit:", String(guestCSLimit, radix: 16))
+        print("guestSSLimit:", String(guestSSLimit, radix: 16))
+        print("guestDSLimit:", String(guestDSLimit, radix: 16))
+        print("guestFSLimit:", String(guestFSLimit, radix: 16))
+        print("guestGSLimit:", String(guestGSLimit, radix: 16))
+        print("guestLDTRLimit:", String(guestLDTRLimit, radix: 16))
+        print("guestTRLimit:", String(guestTRLimit, radix: 16))
+        print("guestGDTRLimit:", String(guestGDTRLimit, radix: 16))
+        print("guestIDTRLimit:", String(guestIDTRLimit, radix: 16))
+        print("guestESAccessRights:", String(guestESAccessRights, radix: 16))
+        print("guestCSAccessRights:", String(guestCSAccessRights, radix: 16))
+        print("guestSSAccessRights:", String(guestSSAccessRights, radix: 16))
+        print("guestDSAccessRights:", String(guestDSAccessRights, radix: 16))
+        print("guestFSAccessRights:", String(guestFSAccessRights, radix: 16))
+        print("guestGSAccessRights:", String(guestGSAccessRights, radix: 16))
+        print("guestLDTRAccessRights:", String(guestLDTRAccessRights, radix: 16))
+        print("guestTRAccessRights:", String(guestTRAccessRights, radix: 16))
+        print("guestInterruptibilityState:", String(guestInterruptibilityState, radix: 16))
+        print("guestActivityState:", String(guestActivityState, radix: 16))
+        //print("guestSMBASE:", String(guestSMBASE, radix: 16))
+        print("guestIA32SysenterCS:", String(guestIA32SysenterCS, radix: 16))
+        print("vmxPreemptionTimerValue:", String(vmxPreemptionTimerValue, radix: 16))
+        print("hostIA32SysenterCS:", String(hostIA32SysenterCS, radix: 16))
+        print("cr0mask:", String(cr0mask, radix: 16))
+        print("cr4mask:", String(cr4mask, radix: 16))
+        print("cr0ReadShadow:", String(cr0ReadShadow.bits.toUInt64(), radix: 16), cr0ReadShadow)
+        print("cr4ReadShadow:", String(cr4ReadShadow.bits.toUInt64(), radix: 16), cr4ReadShadow)
+        print("cr3TargetValue0:", String(cr3TargetValue0, radix: 16))
+        print("cr3TargetValue1:", String(cr3TargetValue1, radix: 16))
+        print("cr3TargetValue2:", String(cr3TargetValue2, radix: 16))
+        print("cr3TargetValue3:", String(cr3TargetValue3, radix: 16))
+        print("exitQualification:", String(exitQualification, radix: 16))
+        //print("ioRCX:", String(ioRCX, radix: 16))
+        //print("ioRSI:", String(ioRSI, radix: 16))
+        //print("ioRDI:", String(ioRDI, radix: 16))
+        //print("ioRIP:", String(ioRIP, radix: 16))
+        print("guestLinearAddress:", String(guestLinearAddress, radix: 16))
+        print("guestCR0:", String(guestCR0.bits.toUInt64(), radix: 16), guestCR0)
+        print("guestCR3:", String(guestCR3.bits.toUInt64(), radix: 16), guestCR3)
+        print("guestCR4:", String(guestCR4.bits.toUInt64(), radix: 16), guestCR4)
+        print("guestESBase:", String(guestESBase, radix: 16))
+        print("guestCSBase:", String(guestCSBase, radix: 16))
+        print("guestSSBase:", String(guestSSBase, radix: 16))
+        print("guestDSBase:", String(guestDSBase, radix: 16))
+        print("guestFSBase:", String(guestFSBase, radix: 16))
+        print("guestGSBase:", String(guestGSBase, radix: 16))
+        print("guestLDTRBase:", String(guestLDTRBase, radix: 16))
+        print("guestTRBase:", String(guestTRBase, radix: 16))
+        print("guestGDTRBase:", String(guestGDTRBase, radix: 16))
+        print("guestIDTRBase:", String(guestIDTRBase, radix: 16))
+        print("guestDR7:", String(guestDR7, radix: 16))
+        print("guestRSP:", String(guestRSP, radix: 16))
+        print("guestRIP:", String(guestRIP, radix: 16))
+        print("guestRflags:", String(guestRflags, radix: 16))
+        print("guestPendingDebugExceptions:", String(guestPendingDebugExceptions, radix: 16))
+        print("guestIA32SysenterESP:", String(guestIA32SysenterESP, radix: 16))
+        print("guestIA32SysenterEIP:", String(guestIA32SysenterEIP, radix: 16))
+        print("hostCR0:", String(hostCR0.bits.toUInt64(), radix: 16), hostCR0)
+        print("hostCR3:", String(hostCR3.bits.toUInt64(), radix: 16), hostCR3)
+        print("hostCR4:", String(hostCR4.bits.toUInt64(), radix: 16), hostCR4)
+        print("hostFSBase:", String(hostFSBase, radix: 16))
+        print("hostGSBase:", String(hostGSBase, radix: 16))
+        print("hostTRBase:", String(hostTRBase, radix: 16))
+        print("hostGDTRBase:", String(hostGDTRBase, radix: 16))
+        print("hostIDTRBase:", String(hostIDTRBase, radix: 16))
+        print("hostIA32SysenterESP:", String(hostIA32SysenterESP, radix: 16))
+        print("hostIA32SysenterEIP:", String(hostIA32SysenterEIP, radix: 16))
+        print("hostRSP:", String(hostRSP, radix: 16))
+        print("hostRIP:", String(hostRIP, radix: 16))
+    }
+
     
     private func vmread16(_ index: UInt32) -> UInt16 {
         var data: UInt64 = 0
@@ -564,7 +987,8 @@ final class VMCS {
         var data: UInt64 = 0
         let error = vmread(index, &data)
         guard error == 0 else {
-            let msg = "vmread32( \(String(index, radix: 16)): \(error)"
+            let vmxError = VMXError(error)
+            let msg = "vmread32( \(String(index, radix: 16)): \(error), \(vmxError)"
             fatalError(msg)
         }
         return UInt32(data)
@@ -575,7 +999,8 @@ final class VMCS {
         var data: UInt64 = 0
         let error = vmread(index, &data)
         guard error == 0 else {
-            let msg = "vmread64( \(String(index, radix: 16)): \(error)"
+            let vmxError = VMXError(error)
+            let msg = "vmread64( \(String(index, radix: 16)): \(error), \(vmxError)"
             fatalError(msg)
         }
         return data
@@ -585,7 +1010,8 @@ final class VMCS {
     private func vmwrite16(_ index: UInt32, _ data: UInt16)  {
         let error = vmwrite(index, UInt64(data))
         guard error == 0 else {
-            let msg = "vmwrite16( \(String(index, radix: 16)): \(error)"
+            let vmxError = VMXError(error)
+            let msg = "vmwrite16( \(String(index, radix: 16)): \(error), \(vmxError)"
             fatalError(msg)
         }
     }
@@ -594,7 +1020,8 @@ final class VMCS {
     private func vmwrite32(_ index: UInt32, _ data: UInt32) {
         let error = vmwrite(index, UInt64(data))
         guard error == 0 else {
-            let msg = "vmwrite32( \(String(index, radix: 16)): \(error)"
+            let vmxError = VMXError(error)
+            let msg = "vmwrite32( \(String(index, radix: 16)): \(error), \(vmxError)"
             fatalError(msg)
         }
     }
@@ -603,10 +1030,8 @@ final class VMCS {
     private func vmwrite64(_ index: UInt32, _ data: UInt64) {
         let error = vmwrite(index, data)
         guard error == 0 else {
-            var msg = "vmwrite64( \(String(index, radix: 16)): \(error)\n"
-            var errorCode: UInt64 = 0
-            let ret = vmread(0x4400, &errorCode)
-            msg += "errorCode: \(String(errorCode, radix: 16)), ret = \(ret)"
+            let vmxError = VMXError(error)
+            let msg = "vmwrite64( \(String(index, radix: 16)): \(error), \(vmxError)"
             fatalError(msg)
         }
     }

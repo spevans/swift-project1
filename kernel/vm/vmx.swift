@@ -83,6 +83,10 @@ func enableVMX() -> VMXError {
 
     let vmxInfo = VMXBasicInfo()
     print(vmxInfo)
+
+    let vmxMiscInfo = VMXMiscInfo()
+    print("VMX: MiscInfo:", vmxMiscInfo)
+
     var fc = CPU.IA32FeatureControl()
     if !fc.lock || !fc.enableVMXOutsideSMX {
         fc.enableVMXOutsideSMX = true
@@ -198,6 +202,47 @@ func testVMX() {
     addMapping(start: 0x4000, size: PAGE_SIZE, physStart: physAddress,
         readWrite: false, noExec: false)
 
+
+    // VM Execution control fields
+    let vmxBasicInfo = VMXBasicInfo()
+    if vmxBasicInfo.vmxControlsCanBeCleared == false {
+        print("VMX: vmxControlsCanBeCleared == false")
+        vmcs.pinBasedVMExecControls = VMXPinBasedControls().defaultValue
+        vmcs.primaryProcVMExecControls = VMXPrimaryProcessorBasedControls().defaultValue
+        vmcs.vmEntryControls = VMXEntryControls().defaultValue
+        vmcs.vmExitControls = VMXExitControls().defaultValue
+    } else {
+        vmcs.pinBasedVMExecControls = VMXTruePinBasedControls().defaultValue
+        vmcs.primaryProcVMExecControls = VMXTruePrimaryProcessorBasedControls().defaultValue
+        vmcs.vmEntryControls = VMXTrueEntryControls().defaultValue
+        vmcs.vmExitControls = VMXTrueExitControls().defaultValue
+    }
+    if VMXPrimaryProcessorBasedControls().activateSecondaryControls.allowedToBeOne {
+        let x = VMXSecondaryProcessorBasedControls()
+        print("VMX: VMXSecondaryProcessorBasedControls: low: \(String(x.low, radix: 16)), high: \(String(x.high, radix: 16)))")
+        vmcs.secondaryProcVMExecControls = x.defaultValue //UInt32(2 | 128)
+    }
+
+    vmcs.cr3TargetCount = 0
+    vmcs.vmExitMSRStoreCount = 0
+    vmcs.vmExitMSRStoreAddress = 0
+    vmcs.vmExitMSRLoadCount = 0
+    vmcs.vmExitMSRLoadAddress = 0
+    vmcs.vmEntryMSRLoadCount = 0
+    vmcs.vmEntryMSRLoadAddress = 0
+
+    vmcs.ioBitmapAAddress = 0
+    vmcs.ioBitmapBAddress = 0
+    vmcs.msrBitmapAddress = 0
+    vmcs.virtualAPICAddress = 0
+
+
+    print("VMX: pinBasedVMExecControls", String(vmcs.pinBasedVMExecControls, radix: 16))
+    print("VMX: primaryProcVMExecControls:", String(vmcs.primaryProcVMExecControls, radix: 16))
+    print("VMX: secondaryProcVMExecControls:", String(vmcs.secondaryProcVMExecControls, radix: 16))
+    print("VMX: vmEntryControls:", String(vmcs.vmEntryControls, radix: 16))
+    print("VMX: vmExitControls:", String(vmcs.vmExitControls, radix: 16))
+
     // Setup guest state
     // segments first
     vmcs.guestCSSelector = 0xf000
@@ -255,7 +300,7 @@ func testVMX() {
     let idt = currentIDT()
     vmcs.guestIDTRBase = UInt(bitPattern: idt.base)
 
-//    let vmxFixedBits = VMXFixedBits()
+    let vmxFixedBits = VMXFixedBits()
 
     var cr0 = CPU.CR0Register(0)
     cr0.notWriteThrough = true
@@ -267,7 +312,7 @@ func testVMX() {
     hwcr0.cacheDisable = false
     hwcr0.numericError = true
 
-    vmcs.guestCR0 = hwcr0
+    vmcs.guestCR0 = vmxFixedBits.updateCR0(bits: hwcr0)
     vmcs.cr0ReadShadow = cr0
     vmcs.guestCR3 = CPU.CR3Register(0)
 
@@ -276,7 +321,7 @@ func testVMX() {
     hwcr4.vmxe = true
 
     vmcs.cr4ReadShadow = cr4
-    vmcs.guestCR4 = hwcr4
+    vmcs.guestCR4 = vmxFixedBits.updateCR4(bits: hwcr4)
 
     vmcs.hostCR0 = CPU.CR0Register()
     vmcs.hostCR3 = CPU.CR3Register()
@@ -287,8 +332,12 @@ func testVMX() {
     vmcs.hostFSSelector = UInt16(DATA_SELECTOR)
     vmcs.hostGSSelector = UInt16(DATA_SELECTOR)
     vmcs.hostSSSelector = UInt16(DATA_SELECTOR)
+    vmcs.hostIA32SysenterESP = 0
+    vmcs.hostIA32SysenterEIP = 0
 
-    //vmcs.hostRIP = unsafeBitCast(vmreturn,  to: UInt.self)
+
+    vmcs.printVMCS()
+
     print("Calling vmentry")
     let ret = vmentry(&vmcs.vcpu)
     print("ret:", ret)
