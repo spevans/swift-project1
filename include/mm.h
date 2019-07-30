@@ -11,9 +11,8 @@
 #ifndef __MM_H__
 #define __MM_H__
 
-#include <stddef.h>
-#include "fbcon.h"
-#include "efi.h"
+#include <stdint.h>
+
 
 #define KERNEL_VIRTUAL_BASE     0xffffffff80100000UL    // 1GB
 #define PHYSICAL_MEM_BASE       0xffff800000000000UL    // 128TB
@@ -48,33 +47,6 @@ struct bios_boot_params {
 } __attribute__((packed));
 
 
-struct efi_boot_params {
-        char signature[8];      // ASCIIZ string 'EFI'
-        size_t size;            // Size of entire table including embedded data and signature
-        void * _Nonnull kernel_phys_addr;
-        void * _Nonnull memory_map;
-        uint64_t memory_map_size;
-        uint64_t memory_map_desc_size;
-        struct frame_buffer fb;
-        uint64_t nr_efi_config_entries;
-        const efi_config_table_t * _Nonnull efi_config_table;
-        const Elf64_Sym * _Nonnull symbol_table;
-        uint64_t symbol_table_size;
-        const char * _Nonnull string_table;
-        uint64_t string_table_size;
-}  __attribute__((packed));
-
-
-// Used by dladdr()
-typedef struct {
-    const char * _Nullable dli_fname;        /* File name of defining object.  */
-    void * _Nullable dli_fbase;              /* Load address of that object.  */
-    const char * _Nullable dli_sname;        /* Name of nearest symbol.  */
-    void * _Nullable dli_saddr;              /* Exact value of nearest symbol.  */
-} Dl_info;
-
-
-int dladdr(void * _Nullable addr, Dl_info * _Nonnull info);
 void * _Nullable alloc_pages(size_t count);
 void free_pages(void * _Nonnull pages, size_t count);
 void * _Nullable malloc(size_t size);

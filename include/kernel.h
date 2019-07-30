@@ -16,6 +16,7 @@
 #include <stdarg.h>
 #include "klibc.h"
 #include "acpi.h"
+#include "swift.h"
 
 // Export as [symbol]_addr as a unitptr_t to be manipulated as a UInt
 #define EXPORTED_SYMBOL_AS_UINTPTR(x)               \

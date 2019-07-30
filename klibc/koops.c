@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include "klibc.h"
 #include "x86defs.h"
+#include "swift.h"
 
 
 extern void *_kernel_stack;

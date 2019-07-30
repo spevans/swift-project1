@@ -28,4 +28,33 @@ class KlibTests: XCTestCase {
 
         rs.showReservedSpaces()
     }
+
+
+    func testBitArray8() {
+        var ba = BitArray64()
+        XCTAssertEqual(ba.toUInt64(), 0)
+        ba[7] = 1
+        XCTAssertEqual(ba.toUInt64(), 128)
+        XCTAssertEqual(ba.toUInt32(), 128)
+        XCTAssertEqual(ba.toUInt16(), 128)
+        XCTAssertEqual(ba.toUInt8(), 128)
+    }
+
+    func testBitArray64() {
+        var ba = BitArray64()
+        XCTAssertEqual(ba.toUInt64(), 0)
+        XCTAssertEqual(ba[63], 0)
+        ba[63] = 1
+        XCTAssertEqual(ba[63], 1)
+        XCTAssertEqual(ba.toUInt64(), 9223372036854775808)
+        XCTAssertEqual(ba.toUInt32(), 0)
+        XCTAssertEqual(ba.toUInt16(), 0)
+        XCTAssertEqual(ba.toUInt8(), 0)
+    }
+
+    static var allTests = [
+        ("testReservatonManager", testReservationManager),
+        ("testBitArray8", testBitArray8),
+        ("testBitArray64", testBitArray64),
+    ]
 }

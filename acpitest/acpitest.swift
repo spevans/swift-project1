@@ -38,7 +38,7 @@ class acpitest: XCTestCase {
          "macbook31-SSDT7.aml",
          "macbook31-SSDT8.aml"
         ],
-        [ "qemu-QEMU-DSDT.aml"]
+        [ "QEMU-DSDT.aml"]
     ]
 
 
@@ -94,6 +94,70 @@ class acpitest: XCTestCase {
     }
 
 
+    func testFiles() {
+
+        func checkObjects(_ acpi: ACPI) {
+            acpi.globalObjects.dumpDevices()
+            acpi.globalObjects.runBody(root: "\\") { (name, object) in
+                if let method = object as? AMLMethod, method.flags.argCount == 0 {
+                    print(name, ":\t", type(of: object), "args: \(method.flags.argCount)")
+                    do {
+                        if name == "\\_SB.PCI0._CRS" {
+                            return
+                        }
+                        print("Invoking:", name)
+                        _ = try acpi.invokeMethod(name: name)
+                    } catch {
+                        fatalError("Cant invoke '\(name)': \(error)")
+                    }
+                }
+            }
+
+
+            guard let gpic = acpi.globalObjects.get("\\GPIC") else {
+                return
+            }
+            guard let value = gpic.object as? AMLDataRefObject else {
+                return
+            }
+            print(gpic, value)
+
+            _ = try? acpi.invokeMethod(name: "\\_PIC", 1)
+            guard let newValue = gpic.object as? AMLDataRefObject else {
+                return
+            }
+            print(newValue)
+
+        }
+
+
+        func loadData(_ fileSet: Int) -> ACPI {
+            guard let testDir = testBundle().resourcePath else {
+                fatalError("Cant get resourcePath")
+            }
+
+            let acpi = ACPI()
+            for file in files[fileSet] {
+                //print("Filename:", file)
+                let data = openOrQuit(filename: testDir + "/" + file)
+                data.withUnsafeBytes({
+                    acpi.parseEntry(rawSDTPtr: UnsafeRawPointer($0), vendor: "Foo", product: "Bar")
+                })
+            }
+            _ = acpi.parseAMLTables()
+            return acpi
+        }
+
+        var acpis: [ACPI] = Array()
+        for fileSet in 0...2 {
+            print("Testing fileSet:", fileSet)
+            let acpi = loadData(fileSet)
+            //checkObjects(acpi)
+            acpis.append(acpi)
+        }
+    }
+
+
     func testPackage_S5() {
         let s5 = globalObjects.get("\\_S5")
         XCTAssertNotNil(s5)
@@ -104,7 +168,7 @@ class acpitest: XCTestCase {
         }
         XCTAssertNotNil(package)
         XCTAssertEqual(package.elements.count, 3)
-        let data = package.elements.flatMap { ($0 as? AMLIntegerData)?.value }
+        let data = package.elements.compactMap { ($0 as? AMLIntegerData)?.value }
         XCTAssertEqual(data, [7, 7, 0])
     }
 

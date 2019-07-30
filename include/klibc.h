@@ -18,6 +18,7 @@
 #include <inttypes.h>
 #include "x86funcs.h"
 #include "mm.h"
+#include "efi.h"
 
 
 typedef int64_t ssize_t;

@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <elf.h>
+#include "fbcon.h"
+
 
 typedef void *efi_handle_t;
 typedef uint8_t efi_boolean;
@@ -12,7 +14,7 @@ typedef uint64_t efi_uintn;
 typedef uint64_t efi_physical_address;
 typedef uint64_t efi_virtual_address;
 
-int uprintf(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+int uprintf(const char * _Nonnull fmt, ...) __attribute__ ((format (printf, 1, 2)));
 
 #define EFIERR(a)           (0x8000000000000000 | a)
 static inline int
@@ -20,11 +22,11 @@ efi_is_error(uint64_t err) {
         return err & 0x8000000000000000;
 }
 
-
 static inline uint64_t
 efi_err_num(uint64_t err) {
         return err & 0x8000000000000000-1;
 }
+
 
 typedef enum {
         EFI_SUCCESS             = 0,
@@ -129,6 +131,7 @@ typedef enum {
         EFI_MEMORY_RUNTIME = 1ULL << 63,
 } efi_memory_attribute;
 
+
 typedef struct {
         uint32_t type;
         efi_physical_address physical_start;
@@ -143,22 +146,38 @@ typedef struct {
 #include "efi/console.h"
 #include "efi/api.h"
 
+struct efi_boot_params {
+        char signature[8];      // ASCIIZ string 'EFI'
+        size_t size;            // Size of entire table including embedded data and signature
+        void * _Nonnull kernel_phys_addr;
+        void * _Nonnull memory_map;
+        uint64_t memory_map_size;
+        uint64_t memory_map_desc_size;
+        struct frame_buffer fb;
+        uint64_t nr_efi_config_entries;
+        const efi_config_table_t * _Nonnull efi_config_table;
+        const Elf64_Sym * _Nonnull symbol_table;
+        uint64_t symbol_table_size;
+        const char * _Nonnull string_table;
+        uint64_t string_table_size;
+}  __attribute__((packed));
+
 // ELF functions used for the ELF kernel.
 
 struct elf_file {
-        void *file_data; // mmap()'d input ELF file
+        void * _Nonnull file_data; // mmap()'d input ELF file
         size_t file_len;
-        Elf64_Ehdr *elf_hdr;
-        Elf64_Shdr *section_headers;
-        Elf64_Phdr *program_headers;
-        Elf64_Shdr *sh_string_table;
-        Elf64_Shdr *string_table;
-        Elf64_Shdr *symbol_table;
+        Elf64_Ehdr * _Nonnull elf_hdr;
+        Elf64_Shdr * _Nonnull section_headers;
+        Elf64_Phdr * _Nonnull program_headers;
+        Elf64_Shdr * _Nonnull sh_string_table;
+        Elf64_Shdr * _Nullable string_table;
+        Elf64_Shdr * _Nullable symbol_table;
 };
 
-efi_status_t elf_init_file(struct elf_file *kernel_image);
-Elf64_Phdr *elf_program_header(struct elf_file *file, size_t idx);
-void *elf_program_data(struct elf_file *file, Elf64_Phdr *header);
-Elf64_Shdr *elf_section_header(struct elf_file *file, size_t idx);
+efi_status_t elf_init_file(struct elf_file * _Nonnull kernel_image);
+Elf64_Phdr * _Nullable elf_program_header(struct elf_file * _Nonnull file, size_t idx);
+void * _Nonnull elf_program_data(struct elf_file * _Nonnull file, Elf64_Phdr * _Nonnull header);
+Elf64_Shdr * _Nullable elf_section_header(struct elf_file * _Nonnull file, size_t idx);
 
 #endif  // __EFI_H__

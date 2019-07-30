@@ -79,10 +79,6 @@
 // FIXME: Pointers are not properly supported but could possibly be by using
 //        the CVarArg protocol which converts select items to an Int
 
-#if TEST
-import Darwin
-#endif
-
 
 // A simpler iterator for both an array or arguments and a
 // fixed list. This is used for the Array otherwise the
@@ -144,7 +140,7 @@ extension String: UnicodeOutputStream {
     }
 }
 
-#if KERNEL
+#if !TEST
 @inline(never)
 func printf(_ format: StaticString, _ arg1: Any) {
     var output = _tty()
@@ -179,8 +175,6 @@ func serialPrintf(_ format: StaticString, _ items: Any...) {
     _printf(to: &output, format: format, itemsIterator: &iterator)
 }
 
-#endif
-
 
 // Specialised versions of kprintf() than can be used when malloc() should not
 // be called. The arguments are Int/UInt not CVarArg as the latter will involve
@@ -199,6 +193,9 @@ func kprintf(_ format: StaticString, _ arg1: UInt) {
         kprintf1arg(ptr, Int(bitPattern: arg1))
     }
 }
+
+#endif  // !TEST
+
 
 // Calling printf with just a format string and no arguments is inefficient,
 // espectially since the only formatting characters supported would be '%%'
