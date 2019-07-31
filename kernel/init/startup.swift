@@ -51,7 +51,14 @@ final class System {
         print("enabling vmx")
         _ = enableVMX()
         print("testVMX")
-        testVMX()
+        let result = testVMX()
+        switch result {
+        case .success(let vmexitReason):
+            print("testVMX() success:", vmexitReason)
+
+        case .failure(let vmxError):
+            print("textVMX() error:", vmxError)
+        }
         disableVMX()
         // gitBuildVersion defined in kernel/init/version.swift, created
         // by kernel/Makefile

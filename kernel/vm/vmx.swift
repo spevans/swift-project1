@@ -55,20 +55,88 @@ enum VMXError: Error, Equatable {
     }
 }
 
-/*
-struct VMXExit: Error {
-    let exitReason: UInt32
+enum VMXExitReason: UInt16 {
+    case exceptionOrNMI = 0
+    case externalINT = 1
+    case tripleFault = 2
+    case initSignal = 3
+    case startupIPI = 4
+    case ioSMI = 5
+    case otherSMI = 6
+    case intWindow = 7
+    case nmiWindow = 8
+    case taskSwitch = 9
+    case cpuid = 10
+    case getsec = 11
+    case hlt = 12
+    case invd = 13
+    case invlpg = 14
+    case rdpmc = 15
+    case rdtsc = 16
+    case rsm = 17
+    case vmcall = 18
+    case vmclear = 19
+    case vmlaunch = 20
+    case vmptrld = 21
+    case vmptrst = 22
+    case vmread = 23
+    case vmresume = 24
+    case vmwrite = 25
+    case vmxoff = 26
+    case vmxon = 27
+    case crAccess = 28
+    case drAccess = 29
+    case ioInstruction = 30
+    case rdmsr = 31
+    case wrmsr = 32
+    case vmentryFailInvalidGuestState = 33
+    case vmentryFailMSRLoading = 34
+    case mwait = 36
+    case monitorTrapFlag = 37
+    case monitor = 39
+    case pause = 40
+    case vmentryFaileMCE = 41
+    case tprBelowThreshold = 43
+    case apicAccess = 44
+    case virtualisedEOI = 45
+    case accessToGDTRorIDTR = 46
+    case accessToLDTRorTR = 47
+    case eptViolation = 48
+    case eptMisconfiguration = 49
+    case invept = 50
+    case rdtscp = 51
+    case vmxPreemptionTimerExpired = 52
+    case invvpid = 53
+    case wbinvd = 54
+    case xsetbv = 55
+    case apicWrite = 56
+    case rdrand = 57
+    case invpcid  = 58
+    case vmfunc = 59
+    case envls = 60
+    case rdseed = 61
+    case pmlFull = 62
+    case xsaves = 63
+    case xrstors = 64
+    case subPagePermissionEvent = 66
+    case umwait = 67
+    case tpause = 68
+}
 
-    init() {
-        let result = VMRead32(at: 0x4402)
-        switch result {
-        case .success(let value):
-            exitReason = value
-        case .failure(let error):
-            fatalError("Cant read exit reason: \(error)")
-        }
+
+struct VMXExit: Error {
+    let value: BitArray32
+
+    var exitReason: VMXExitReason { VMXExitReason(rawValue: UInt16(value[0...15]))! }
+    var vmExitInEnclaveMode: Bool { Bool(value[27]) }
+    var pendingMTFvmExit: Bool { Bool(value[28]) }
+    var vmExitFromVMXrootOperation: Bool { Bool(value[29]) }
+    var vmEntryFailure: Bool { Bool(value[31]) }
+
+    init(_ result: UInt32) {
+        value = BitArray32(result)
     }
-}*/
+}
 
 
 func enableVMX() -> VMXError {
@@ -161,14 +229,14 @@ func disableVMX() {
 }
 
 
-func testVMX() {
+func testVMX() -> Result<VMXExit, VMXError> {
     guard globalVmcs != nil else {
         print("VMX not enabled")
-        return
+        return .failure(.vmFailInvalid)
     }
     guard guestVmcs == nil else {
         print("guestVMCS already setup")
-        return
+        return .failure(.vmFailInvalid)
     }
     let vmcs = VMCS()
     let ok = vmcs.vmClear()
@@ -218,7 +286,11 @@ func testVMX() {
         vmcs.vmExitControls = VMXTrueExitControls().defaultValue
     }
     if VMXPrimaryProcessorBasedControls().activateSecondaryControls.allowedToBeOne {
+        if let proc = vmcs.primaryProcVMExecControls {
+            vmcs.primaryProcVMExecControls = proc | 0x80000000
+        }
         let x = VMXSecondaryProcessorBasedControls()
+        print("VMX unrestricted guest:", x.unrestrictedGuest.allowedToBeOne)
         print("VMX: VMXSecondaryProcessorBasedControls: low: \(String(x.low, radix: 16)), high: \(String(x.high, radix: 16)))")
         vmcs.secondaryProcVMExecControls = x.defaultValue //UInt32(2 | 128)
     }
@@ -235,13 +307,6 @@ func testVMX() {
     vmcs.ioBitmapBAddress = 0
     vmcs.msrBitmapAddress = 0
     vmcs.virtualAPICAddress = 0
-
-
-    print("VMX: pinBasedVMExecControls", String(vmcs.pinBasedVMExecControls, radix: 16))
-    print("VMX: primaryProcVMExecControls:", String(vmcs.primaryProcVMExecControls, radix: 16))
-    print("VMX: secondaryProcVMExecControls:", String(vmcs.secondaryProcVMExecControls, radix: 16))
-    print("VMX: vmEntryControls:", String(vmcs.vmEntryControls, radix: 16))
-    print("VMX: vmExitControls:", String(vmcs.vmExitControls, radix: 16))
 
     // Setup guest state
     // segments first
@@ -343,7 +408,7 @@ func testVMX() {
     print("ret:", ret)
     let vmxError = VMXError(UInt64(ret))
     print("vmxError:", vmxError)
-    print("ExitReason:", vmcs.exitReason)
+    print("ExitReason:", vmcs.exitReason!)
     print("Guest Registers:")
     print("RAX:", String(vmcs.vcpu.rax, radix: 16), terminator: " ")
     print("RBX:", String(vmcs.vcpu.rbx, radix: 16), terminator: " ")
@@ -360,6 +425,13 @@ func testVMX() {
     print("RDI:", String(vmcs.vcpu.rdi, radix: 16), terminator: " ")
     print("RSI:", String(vmcs.vcpu.rsi, radix: 16), terminator: " ")
     print("RBP:", String(vmcs.vcpu.rbp, radix: 16), terminator: " ")
-    print("RSP:", String(vmcs.guestRSP, radix: 16))
-    print("RIP:", String(vmcs.guestRIP, radix: 16))
+    print("RSP:", String(vmcs.guestRSP!, radix: 16))
+    print("RIP:", String(vmcs.guestRIP!, radix: 16))
+
+    if vmxError == .vmSucceed {
+        let vmxExit = VMXExit(vmcs.exitReason!)
+        return .success(vmxExit)
+    } else {
+        return .failure(vmxError)
+    }
 }
