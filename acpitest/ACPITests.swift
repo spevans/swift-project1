@@ -1,0 +1,192 @@
+//
+//  ACPITests.swift
+//  acpi tests
+//
+//  Created by Simon Evans on 31/07/2017.
+//  Copyright © 2017 Simon Evans. All rights reserved.
+//
+
+import XCTest
+
+fileprivate func createACPI(files: [String]) -> (ACPI, UnsafeMutableRawPointer) {
+    let testDir = testBundle().resourcePath!
+    let acpi = ACPI()
+
+    var dataBlocks: [Data] = []
+    var total = 0
+    for file in files {
+        print("Processing:", file)
+        let data = openOrQuit(filename: testDir + "/" + file)
+        dataBlocks.append(data)
+        total += data.count
+    }
+
+    let allData = UnsafeMutableRawPointer.allocate(byteCount: total, alignment: 1)
+    var offset = 0
+    for data in dataBlocks {
+        let ptr = allData.advanced(by: offset)
+        data.withUnsafeBytes {
+            ptr.copyMemory(from: $0.baseAddress!, byteCount: data.count)
+        }
+        acpi.parseEntry(rawSDTPtr: ptr, vendor: "Foo", product: "Bar")
+        offset += data.count
+    }
+
+    _ = acpi.parseAMLTables()
+    return (acpi, allData)
+}
+
+
+class ACPITests: XCTestCase {
+    static var acpi: ACPI!
+    static var allData: UnsafeMutableRawPointer?
+
+    static private let files = [
+         "macbook31-APIC.aml",
+         "macbook31-FACP.aml",
+         "macbook31-MCFG.aml",
+         "macbook31-ASF!.aml",
+         "macbook31-FACS1.aml",
+         "macbook31-SBST.aml",
+         "macbook31-HPET.aml",
+         "macbook31-FACS2.aml",
+         "macbook31-ECDT.aml",
+         "macbook31-DSDT.aml",
+         "macbook31-SSDT1.aml",
+         "macbook31-SSDT2.aml",
+         "macbook31-SSDT3.aml",
+         "macbook31-SSDT4.aml",
+         "macbook31-SSDT5.aml",
+         "macbook31-SSDT6.aml",
+         "macbook31-SSDT7.aml",
+         "macbook31-SSDT8.aml"
+    ]
+
+
+    override class func setUp() {
+        super.setUp()
+        (acpi, allData) = createACPI(files: files)
+    }
+
+    override class func tearDown() {
+        super.tearDown()
+        acpi = nil
+        if let d = allData {
+            d.deallocate()
+            allData = nil
+        }
+    }
+
+
+    func testPackage_S5() {
+        let s5 = ACPITests.acpi.globalObjects.get("\\_S5")
+        XCTAssertNotNil(s5)
+        XCTAssertNotNil(s5!.object)
+        guard let package = (s5!.object as? AMLDefName)?.value as? AMLDefPackage else {
+            XCTFail("namedObjects[0] is not an AMLDefPackage")
+            return
+        }
+        XCTAssertNotNil(package)
+        XCTAssertEqual(package.elements.count, 3)
+        let data = package.elements.compactMap { ($0 as? AMLIntegerData)?.value }
+        XCTAssertEqual(data, [7, 7, 0])
+    }
+
+
+    func testMethod_PIC() {
+        guard let gpic = ACPITests.acpi.globalObjects.getDataRefObject("\\GPIC") as? AMLIntegerData else {
+            XCTFail("Cant find object \\_PIC")
+            return
+        }
+        XCTAssertNotNil(gpic)
+        XCTAssertEqual(gpic.value, 0)
+        let invocation = try? AMLMethodInvocation(method: AMLNameString("\\_PIC"),
+                                                  AMLByteConst(1)) // APIC
+        XCTAssertNotNil(invocation)
+        var context = ACPI.AMLExecutionContext(scope: invocation!.method,
+                                               args: [], globalObjects: ACPITests.acpi.globalObjects)
+        _ = try? invocation?.execute(context: &context)
+
+        guard let gpic2 = ACPITests.acpi.globalObjects.getDataRefObject("\\GPIC") as? AMLIntegerData else {
+            XCTFail("Cant find object \\_PIC")
+            return
+        }
+        XCTAssertEqual(gpic2.value, 1)
+    }
+
+
+    func testMethod_OSI() {
+        do {
+            let result = try ACPITests.acpi.invokeMethod(name: "\\_OSI", "Linux") as? AMLIntegerData
+            XCTAssertNotNil(result)
+            XCTAssertEqual(result!.value, 0)
+
+            let result2 = try ACPITests.acpi.invokeMethod(name: "\\_OSI", "Darwin") as? AMLIntegerData
+            XCTAssertNotNil(result2)
+            XCTAssertEqual(result2!.value, 0xffffffff)
+        } catch {
+            XCTFail(String(describing: error))
+            return
+        }
+    }
+
+    func testMethod_SB_INI() {
+        do {
+            guard let mi = try? AMLMethodInvocation(method: AMLNameString("\\_SB._INI")) else {
+                XCTFail("Cant create method invocation")
+                return
+            }
+            var context = ACPI.AMLExecutionContext(scope: mi.method,
+                                                   args: [], globalObjects: ACPITests.acpi.globalObjects)
+            _ = try? mi.execute(context: &context)
+            guard let osys = ACPITests.acpi.globalObjects.getDataRefObject("\\OSYS") else {
+                XCTFail("Cant find object \\OSYS")
+                return
+            }
+
+            context = ACPI.AMLExecutionContext(scope: AMLNameString("\\"),
+                                               args: [],
+                                               globalObjects: ACPITests.acpi.globalObjects)
+            let x = osys.evaluate(context: &context) as? AMLIntegerData
+            XCTAssertNotNil(x)
+            XCTAssertEqual(x!.value, 10000)
+
+            let ret = try ACPITests.acpi.invokeMethod(name: "\\OSDW") as? AMLIntegerData
+            XCTAssertNotNil(ret)
+            XCTAssertEqual(ret!.value, 1)
+        } catch {
+            XCTFail(String(describing: error))
+            return
+        }
+    }
+
+    func testQEMUDevices() {
+        // Add some dummy external values
+        let (acpi, allData) = createACPI(files: ["QEMU-DSDT.aml"])
+        defer { allData.deallocate() }
+        acpi.globalObjects.add("\\_SB.PCI0.P0S", AMLDefName(name: AMLNameString("P0S"), value: AMLIntegerData(0x44556677)))
+        acpi.globalObjects.add("\\_SB.PCI0.P0E", AMLDefName(name: AMLNameString("P0E"), value: AMLIntegerData(0xAABBCCDD)))
+        acpi.globalObjects.add("\\_SB.PCI0.P1S", AMLDefName(name: AMLNameString("P1S"), value: AMLIntegerData(0x00010000)))
+        acpi.globalObjects.add("\\_SB.PCI0.P1E", AMLDefName(name: AMLNameString("P1E"), value: AMLIntegerData(0x0002FFFF)))
+        acpi.globalObjects.add("\\_SB.PCI0.P1L", AMLDefName(name: AMLNameString("P1L"), value: AMLIntegerData(0x00020000)))
+        acpi.globalObjects.add("\\_SB.PCI0.P1V", AMLDefName(name: AMLNameString("P1V"), value: AMLIntegerData(1)))
+
+        let devices = acpi.globalObjects.getDevices()
+        XCTAssertEqual(devices.count, 17)
+        var deviceResourceSettings: [(String, String, [AMLResourceSetting])] = []
+
+        acpi.globalObjects.pnpDevices() { fullName, pnpName, crs in
+            print("Found PNP device", pnpName, ":", fullName)
+            deviceResourceSettings.append((fullName, pnpName, crs))
+        }
+
+        XCTAssertEqual(deviceResourceSettings.count, 14)
+
+        guard let kbd = deviceResourceSettings.filter( { $0.0.hasSuffix(".KBD") } ).first else {
+            XCTFail("Cant find KBD")
+            return
+        }
+        XCTAssertEqual(kbd.2.count, 3)
+    }
+}
+

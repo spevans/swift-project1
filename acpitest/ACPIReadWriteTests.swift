@@ -1,5 +1,5 @@
 //
-//  AcpiReadWriteTests.swift
+//  ACPIReadWriteTests.swift
 //  acpitest
 //
 //  Created by Simon Evans on 16/11/2017.
@@ -8,7 +8,7 @@
 
 import XCTest
 
-class AcpiReadWriteTests: XCTestCase {
+class ACPIReadWriteTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
