@@ -69,12 +69,14 @@ public func yield() -> Int {
 
 final class Task: CustomStringConvertible {
     let name: String
-    let stack: UnsafeMutableRawPointer
+    let stackPage: PhysPageRange
     var state: UnsafeMutablePointer<exception_regs>
     let pid: UInt
     var rsp: UnsafeMutablePointer<UInt>
 
     var description: String {
+        let stack = stackPage.rawPointer
+
         var r = "\(name)\nStack: \(stack) state: \(state)\n"
  /*       r += String.sprintf("RAX: %16.16lx ", state.pointee.rax)
         r += String.sprintf("RBX: %16.16lx ", state.pointee.rbx)
@@ -105,7 +107,8 @@ final class Task: CustomStringConvertible {
         pid = nextPID
         nextPID += 1
         let addr = unsafeBitCast(entry, to: UInt64.self)
-        stack = alloc(pages: stackPages)
+        stackPage = alloc(pages: stackPages)
+        let stack = stackPage.rawPointer
         let stateOffset = stackSize - MemoryLayout<exception_regs>.size
         rsp = stack.advanced(by: stateOffset - MemoryLayout<UInt>.size).bindMemory(to: UInt.self, capacity: 1)
         state = stack.advanced(by: stateOffset).bindMemory(to: exception_regs.self, capacity: 1)

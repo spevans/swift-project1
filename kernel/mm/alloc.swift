@@ -13,8 +13,7 @@
 // Linked list of free (4K) pages - Use physical address 0 as 'nil' and marks
 // the end of the list
 private struct FreePageListEntry {
-    let regionStart: PhysPageAddress
-    var pageCount: Int
+    var region: PhysPageRange
     var next: FreePageListEntryPtr?
 }
 
@@ -27,16 +26,15 @@ private func initFreeList() -> FreePageListEntryPtr? {
     let pageCount = Int((_heap_end_addr - _heap_start_addr) / PAGE_SIZE)
     let ptr = FreePageListEntryPtr(bitPattern: _heap_start_addr)
     ptr?.pointee = FreePageListEntry(
-        regionStart: PhysPageAddress(heap_phys, pageSize: PAGE_SIZE),
-        pageCount: pageCount,
+        region: PhysPageRange(heap_phys, pageSize: PAGE_SIZE, pageCount: pageCount),
         next: nil
     )
     // Use single argument versions of kprintf() which has specialisation for
     // 1 Int or UInt arg. see printf.swift.
     kprintf("init_free_list: heap_start: %p ", _heap_start_addr)
     kprintf("heap_end: %p ", _heap_end_addr)
-    kprintf("heap_phys: %p ", heap_phys.value);
-    kprintf("pageCount: %llu\n", pageCount);
+    kprintf("heap_phys: %p ", heap_phys.value)
+    kprintf("pageCount: %llu\n", pageCount)
 
     return ptr
 }
@@ -46,33 +44,34 @@ private func initFreeList() -> FreePageListEntryPtr? {
 // Pages are just allocated straight out of a region that is incremented.
 // Needs to be converted to a linked list to allow pages to be freed.
 @_cdecl("alloc_pages")
-public func alloc_pages(pages: Int) -> VirtualAddress {
-    return alloc(pages: pages).address
+public func alloc_pages(pages: Int) -> UnsafeMutableRawPointer {
+    return alloc(pages: pages).rawPointer
 }
 
 
-public func alloc(pages: Int) -> UnsafeMutableRawPointer {
+func alloc(pages: Int) -> PhysPageRange {
     precondition(pages > 0)
 
     var head = freePageListHead
     var prev: FreePageListEntryPtr? = nil
     while let ptr = head {
         let entry = ptr.pointee
-        if entry.pageCount == pages {
+        let region = entry.region
+        let pageCount = region.pageCount
+        if pageCount == pages {
             // Region is same size as requested so remove from list
-            let result = entry.regionStart
+            let result = region
             if prev == nil {
                 freePageListHead = entry.next
             } else {
                 prev!.pointee.next = entry.next
             }
-            return UnsafeMutableRawPointer(bitPattern: result.vaddr)!
+            return result
         }
-        if entry.pageCount > pages {
-            let newPageCount = entry.pageCount - pages
-            let result = entry.regionStart.advanced(by: newPageCount)
-            ptr.pointee.pageCount = newPageCount
-            return UnsafeMutableRawPointer(bitPattern: result.vaddr)!
+        if pageCount > pages {
+            let (newRegion, result) = region.splitRegion(withFirstRegionCount: pageCount - pages)
+            ptr.pointee.region = newRegion
+            return result
         }
         prev = ptr
         head = entry.next
@@ -86,13 +85,17 @@ public func alloc(pages: Int) -> UnsafeMutableRawPointer {
 @_cdecl("free_pages")
 public func freePages(at address: VirtualAddress, count: Int) {
     let paddr = virtualToPhys(address: address)
-    addPagesToFreeList(physPage: PhysPageAddress(paddr, pageSize: PAGE_SIZE), pageCount: count)
+    addPagesToFreeList(physPage: PhysPageRange(paddr, pageSize: PAGE_SIZE, pageCount: count))
 }
 
 
-private func addPagesToFreeList(physPage: PhysPageAddress, pageCount: Int) {
+func freePages(pages: PhysPageRange) {
+    addPagesToFreeList(physPage: pages)
+}
+
+private func addPagesToFreeList(physPage: PhysPageRange) {
     let ptr = FreePageListEntryPtr(bitPattern: physPage.vaddr)!
-    let entry = FreePageListEntry(regionStart: physPage, pageCount: pageCount, next: freePageListHead)
+    let entry = FreePageListEntry(region: physPage, next: freePageListHead)
     ptr.pointee = entry
     freePageListHead = ptr
 }
@@ -100,8 +103,8 @@ private func addPagesToFreeList(physPage: PhysPageAddress, pageCount: Int) {
 
 func addPagesToFreePageList(_ ranges: [MemoryRange]) {
     for range in ranges {
-        let startPage = range.start.pageAddress(pageSize: PAGE_SIZE, roundUp: true)
-        let pageCount = startPage.address.distance(to: range.endAddress + 1) / PAGE_SIZE
-        addPagesToFreeList(physPage: startPage, pageCount: Int(pageCount))
+        for pages in range.physPageRanges {
+            addPagesToFreeList(physPage: pages)
+        }
     }
 }

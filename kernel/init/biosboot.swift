@@ -148,7 +148,7 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
                         let range1size = memEntry.start.distance(to: kernelPhysAddress)
                         if range1size > 0 {
                             ranges.append(MemoryRange(type: memEntry.type,
-                                    start: memEntry.start, size: range1size))
+                                    start: memEntry.start, size: UInt(range1size)))
                         }
 
                         ranges.append(MemoryRange(type: .Kernel,
@@ -157,7 +157,7 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
                         let range2size = kernelPhysEnd.distance(to: range2end)
                         if range2size > 0 {
                             ranges.append(MemoryRange(type: memEntry.type,
-                                    start: kernelPhysEnd, size: range2size))
+                                    start: kernelPhysEnd, size: UInt(range2size)))
                         }
                     } else {
                         ranges.append(memEntry)
@@ -177,7 +177,7 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
                 if addr < entry.start {
                     let size = addr.distance(to: entry.start)
                     ranges.append(MemoryRange(type: MemoryType.Hole, start: addr,
-                            size: size))
+                            size: UInt(size)))
                 }
                 addr = entry.start.advanced(by: entry.size)
             }

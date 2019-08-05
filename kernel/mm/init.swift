@@ -137,7 +137,7 @@ func setupMM(bootParams: BootParams) {
 
     if let symbolTablePtr = bootParams.symbolTablePtr,
         bootParams.symbolTableSize > 0 && bootParams.stringTableSize > 0 {
-            let symtabPhys = (stackPhys + stackHeapSize + PAGE_SIZE).pageAddress(pageSize: PAGE_SIZE, roundUp: true).address
+            let symtabPhys = (stackPhys + stackHeapSize + PAGE_SIZE).pageAddress(pageSize: PAGE_SIZE, roundUp: true)
             addMapping(start: symbolTablePtr.address,
                 size: UInt(bootParams.symbolTableSize + bootParams.stringTableSize),
                 physStart: symtabPhys, readWrite: true, noExec: true)
@@ -214,12 +214,12 @@ private func getPageAtIndex(_ dirPage: PageTableDirectory, _ idx: Int)
     -> PageTableDirectory {
     if !pagePresent(dirPage[idx]) {
         let newPage = alloc(pages: 1)
-        memset(newPage, 0, Int(PAGE_SIZE))
-        let paddr = virtualToPhys(address: newPage.address)
+        newPage.rawBufferPointer.initializeMemory(as: UInt8.self, repeating: 0)
+        let paddr = newPage.address
         let entry = makePDE(address: paddr, readWrite: true, userAccess: false,
             writeThrough: true, cacheDisable: false, noExec: false)
         dirPage[idx] = entry
-        return pageTableBuffer(virtualAddress: newPage.address)
+        return pageTableBuffer(virtualAddress: paddr.vaddr)
     }
 
     let paddr = PhysAddress(dirPage[idx] & 0x0000fffffffff000)

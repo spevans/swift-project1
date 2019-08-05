@@ -199,7 +199,8 @@ func enableVMX() -> VMXError {
     CPU.cr4 = cr4
 
     let newVMCS = VMCS()
-    print("VMX: Enabling @ \(String(newVMCS.address, radix: 16))")
+    let paddr = newVMCS.page.address
+    print("VMX: Enabling @ \(String(paddr.value, radix: 16))")
     let error = vmxon(UInt64(newVMCS.physicalAddress))
     let result = VMXError(error)
     if result != .vmSucceed {
@@ -260,13 +261,12 @@ func testVMX() -> Result<VMXExit, VMXError> {
 
     // Allocate a page for the 'physical' RAM for the VM
     let vmMemory = alloc(pages: 1)
-    vmMemory.initializeMemory(as: UInt8.self, repeating: 0,
-        count: Int(PAGE_SIZE))
-    vmMemory.copyMemory(from: &realModeTestProgram,
-        byteCount: realModeTestProgram.count)
+    vmMemory.rawBufferPointer.initializeMemory(as: UInt8.self, repeating: 0)
+    vmMemory.rawPointer.copyMemory(from: &realModeTestProgram,
+                                   byteCount: realModeTestProgram.count)
     // Map this page into address space (currently shared with the kernel)
     // @ 16K (0x4000)
-    let physAddress = PhysAddress(vmMemory.address - PHYSICAL_MEM_BASE)
+    let physAddress = vmMemory.address
     addMapping(start: 0x4000, size: PAGE_SIZE, physStart: physAddress,
         readWrite: false, noExec: false)
 

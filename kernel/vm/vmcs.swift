@@ -14,13 +14,12 @@ final class VMCS {
 
     let vmExecPrimary = VMXPrimaryProcessorBasedControls()
     let vmExecSecondary: VMXSecondaryProcessorBasedControls?
-    
-    let address: VirtualAddress
+    let page: PhysPageRange
     var vcpu: vcpu_info = vcpu_info()
 
     
     var physicalAddress: UInt64 {
-        let physAddr = PhysAddress(address - PHYSICAL_MEM_BASE)
+        let physAddr = page.address
         let mask = UInt(maskFromBitCount: Int(VMCS.vmxInfo.physAddressWidthMaxBits))
         let addr = physAddr.value & mask
         return UInt64(addr)
@@ -28,16 +27,19 @@ final class VMCS {
 
 
     init() {
-        address = alloc_pages(pages: 1)
-        UnsafeMutableRawPointer(bitPattern: address)!
-        .storeBytes(of: VMCS.vmxInfo.vmcsRevisionId, toByteOffset: 0,
-            as: UInt32.self)
+        page = alloc(pages: 1)
+        page.rawPointer.storeBytes(of: VMCS.vmxInfo.vmcsRevisionId, toByteOffset: 0,
+                                   as: UInt32.self)
 
         if vmExecPrimary.activateSecondaryControls.allowedToBeOne {
             vmExecSecondary = VMXSecondaryProcessorBasedControls()
         } else {
             vmExecSecondary = nil
         }
+    }
+
+    deinit {
+        freePages(pages: page)
     }
 
 
@@ -51,11 +53,6 @@ final class VMCS {
         let error = vmptrld(physicalAddress)
         return VMXError(error)
     }
-
-    deinit {
-        freePages(at: address, count: 1)
-    }
-
 
     var vpid: UInt16? {
         get { _vmread16(0x0) }

@@ -38,12 +38,17 @@ enum MemoryType: UInt32 {
 
 let kb: UInt = 1024
 let mb: UInt = 1048576
+let gb = kb * mb
 
 struct MemoryRange: CustomStringConvertible {
     let type: MemoryType
     let start: PhysAddress
     let size: UInt
     var endAddress: PhysAddress { return start.advanced(by: size - 1) }
+
+    var physPageRanges: [PhysPageRange] {
+        return PhysPageRange.createRanges(startAddress: start, size: size, pageSizes: [PAGE_SIZE])
+    }
 
     var description: String {
         let str = (size >= mb) ? String.sprintf(" %6uMB  ", size / mb) :
