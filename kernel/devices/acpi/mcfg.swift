@@ -47,10 +47,9 @@ struct MCFG: ACPITable {
 
 
     init(_ ptr: UnsafeRawPointer, vendor: String, product: String) {
-        let tablePtr = ptr.bindMemory(to: acpi_mcfg_table.self, capacity: 1)
+        let table = ptr.load(as: acpi_mcfg_table.self)
         // Multiple acpi_mcfg_config_entrys follow the table
-        let itemLen = Int(tablePtr.pointee.header.length)
-            - MemoryLayout<acpi_mcfg_table>.stride
+        let itemLen = Int(table.header.length) - MemoryLayout<acpi_mcfg_table>.stride
         let configEntrySize = MemoryLayout<acpi_mcfg_config_entry>.size
 
         assert(itemLen > 0)
@@ -62,20 +61,14 @@ struct MCFG: ACPITable {
         var items: [ConfigEntry] = []
         items.reserveCapacity(itemCnt)
 
-        tablePtr.advanced(by: 1).withMemoryRebound(
-            to: acpi_mcfg_config_entry.self,
-            capacity: itemCnt, { dataPtr in
-                let dataBuffer = UnsafeBufferPointer(start: dataPtr,
-                                                     count: itemCnt)
+        let configPtr = ptr.advanced(by: MemoryLayout<acpi_mcfg_table>.stride)
+        for idx in 0..<itemCnt {
+            let entry = configPtr.load(fromByteOffset: idx * MemoryLayout<acpi_mcfg_config_entry>.stride,
+                                       as: acpi_mcfg_config_entry.self)
+            items.append(ConfigEntry(entry: entry))
+        }
 
-                for idx in 0..<itemCnt {
-                    let entry = ConfigEntry(entry: dataBuffer[idx])
-                    items.append(entry)
-                }
-        })
-
-        if (vendor == "Apple Inc.") && (product == "MacBook3,1")
-        && (items[0].endBus == 0xff) {
+        if (vendor == "Apple Inc.") && (product == "MacBook3,1") && (items[0].endBus == 0xff) {
             items[0] = ConfigEntry(
                 baseAddress: items[0].baseAddress,
                 segmentGroup: items[0].segmentGroup,
@@ -83,7 +76,7 @@ struct MCFG: ACPITable {
                 endBus: 0x3f)
 
             print("ACPI: MCFG: Overrode endBus from 0xff to 0x3f for",
-                vendor, product)
+                  vendor, product)
         }
 
         allocations = items

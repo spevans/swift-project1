@@ -9,16 +9,13 @@
 struct FACS: ACPITable, CustomStringConvertible {
 
     private let table: acpi_facs_table
-    var description: String {
-        return "FACS: 0x\(String(table.hardware_signature, radix: 16))"
-    }
+    var description: String { "FACS: 0x\(String(table.hardware_signature, radix: 16))" }
 
 
     init(_ ptr: UnsafeRawPointer) {
-        let tablePtr = ptr.bindMemory(to: acpi_facs_table.self, capacity: 1)
-        guard tablePtr.pointee.length >= 64 else {
-            fatalError("ACPI: FACS table is too short \(tablePtr.pointee.length) bytes")
+        table = ptr.load(as: acpi_facs_table.self)
+        guard table.length >= MemoryLayout<acpi_facs_table>.size else {
+            fatalError("ACPI: FACS table is too short \(table.length) bytes")
         }
-        table = tablePtr.pointee
     }
 }

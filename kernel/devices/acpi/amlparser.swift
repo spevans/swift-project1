@@ -8,10 +8,10 @@
  */
 
 
-typealias AMLByteBuffer = UnsafeBufferPointer<UInt8>
+typealias AMLByteBuffer = UnsafeRawBufferPointer
 
 #if TEST
-private func hexDump(buffer: UnsafeBufferPointer<UInt8>) {
+private func hexDump(buffer: UnsafeRawBufferPointer) {
 
     func byteAsChar(value: UInt8) -> Character {
         if value >= 0x21 && value <= 0x7e {
@@ -132,13 +132,10 @@ struct AMLByteStream {
     }
 
     func dump() {
-        #if TEST
-        let length = bytesRemaining
-        buffer.baseAddress!.withMemoryRebound(to: UInt8.self, capacity: length, {
-            hexDump(buffer: UnsafeBufferPointer<UInt8>(start: $0.advanced(by: position),
-                                                       count: length))
-        })
-        #endif
+#if TEST
+        hexDump(buffer: UnsafeRawBufferPointer(start: buffer.baseAddress!.advanced(by: position),
+                                               count: bytesRemaining))
+#endif
     }
 
     mutating func substreamOf(length: Int) throws -> AMLByteStream {

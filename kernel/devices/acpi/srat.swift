@@ -18,8 +18,7 @@ struct SRAT: ACPITable, CustomStringConvertible {
         private let clockDomain: Int
 
         init(_ ptr: UnsafeRawPointer) {
-            let entry = ptr.bindMemory(to: srat_apic_affinity.self,
-                                       capacity: 1).pointee
+            let entry = ptr.load(as: srat_apic_affinity.self)
             proximityDomain = ByteArray4([entry.proximity_domain_0_7,
                                           entry.proximity_domain_8_15, entry.proximity_domain_16_23,
                                           entry.proximity_domain_24_31]).toInt()
@@ -36,8 +35,7 @@ struct SRAT: ACPITable, CustomStringConvertible {
         private let clockDomain: Int
 
         init(_ ptr: UnsafeRawPointer) {
-            let entry = ptr.bindMemory(to: srat_x2apic_affinity.self,
-                                       capacity: 1).pointee
+            let entry = ptr.load(as: srat_x2apic_affinity.self)
             proximityDomain = Int(entry.proximity_domain)
             x2apicId = Int(entry.x2apic_id)
             clockDomain = Int(entry.clock_domain)
@@ -52,8 +50,7 @@ struct SRAT: ACPITable, CustomStringConvertible {
         private let nonVolatile: Bool
 
         init(_ ptr: UnsafeRawPointer) {
-            let entry = ptr.bindMemory(to: srat_memory_affinity.self,
-                                       capacity: 1).pointee
+            let entry = ptr.load(as: srat_memory_affinity.self)
             proximityDomain = Int(entry.proximity_domain)
             baseAddress = DWordArray2([entry.base_address_low, entry.base_address_high]).rawValue
             length = DWordArray2([entry.length_low, entry.length_high]).rawValue
@@ -69,8 +66,7 @@ struct SRAT: ACPITable, CustomStringConvertible {
         private let clockDomain: Int
 
         init(_ ptr: UnsafeRawPointer) {
-            let entry = ptr.bindMemory(to: srat_gicc_affinity.self,
-                                       capacity: 1).pointee
+            let entry = ptr.load(as: srat_gicc_affinity.self)
             proximityDomain = Int(entry.proximity_domain)
             acpiProcessUid = Int(entry.acpi_processor_uid)
             clockDomain = Int(entry.clock_domain)

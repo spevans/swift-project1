@@ -8,24 +8,18 @@
 
 struct WAET: ACPITable, CustomStringConvertible {
 
-    private let tablePtr: UnsafePointer<acpi_waet_table>
+    private let deviceFlags: BitArray32
 
-    var isRTCGood: Bool {
-        return BitArray32(tablePtr.pointee.device_flags)[0] == 1
-    }
-    var isPMTimerGood: Bool {
-        return BitArray32(tablePtr.pointee.device_flags)[1] == 1
-    }
+    var isRTCGood: Bool { deviceFlags[0] == 1 }
+    var isPMTimerGood: Bool { deviceFlags[1] == 1 }
     var description: String { return "WAET: isRTCGood: \(isRTCGood) isPMTimerGood: \(isPMTimerGood)" }
 
 
     init(_ ptr: UnsafeRawPointer) {
-        tablePtr = ptr.bindMemory(to: acpi_waet_table.self, capacity: 1)
-        let table = tablePtr.pointee
-
-        guard Int(table.header.length) == MemoryLayout<acpi_waet_table>.size
-            else {
+        let table = ptr.load(as: acpi_waet_table.self)
+        guard Int(table.header.length) == MemoryLayout<acpi_waet_table>.size else {
             fatalError("ACPI: WAET: Table length is incorrect")
         }
+        deviceFlags = BitArray32(table.device_flags)
     }
 }

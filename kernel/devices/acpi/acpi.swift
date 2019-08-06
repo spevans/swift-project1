@@ -43,16 +43,17 @@ struct ACPI_SDT: CustomStringConvertible {
     }
 
 
-    init(ptr: UnsafePointer<acpi_sdt_header>) {
+    init(ptr: UnsafeRawPointer) {
         signature = String(ptr, maxLength: 4)
-        length = ptr.pointee.length
-        revision = ptr.pointee.revision
-        checksum = ptr.pointee.checksum
+        let header = ptr.load(as: acpi_sdt_header.self)
+        length = header.length
+        revision = header.revision
+        checksum = header.checksum
         oemId = String(ptr.advanced(by: 10), maxLength: 6)
         oemTableId = String(ptr.advanced(by: 16), maxLength: 8)
-        oemRev = ptr.pointee.oem_revision
+        oemRev = header.oem_revision
         creatorId = String(ptr.advanced(by: 28), maxLength: 4)
-        creatorRev = ptr.pointee.creator_rev
+        creatorRev = header.creator_rev
     }
 }
 
@@ -232,7 +233,6 @@ final class ACPI {
             let totalLength = Int(header.length)
             let amlCodeLength = totalLength - headerLength
             let amlCodePtr = rawSDTPtr.advanced(by: headerLength)
-                .bindMemory(to: UInt8.self, capacity: amlCodeLength)
             let amlByteBuffer = AMLByteBuffer(start: amlCodePtr,
                                               count: amlCodeLength)
             if header.signature == "DSDT" {
@@ -248,12 +248,10 @@ final class ACPI {
 
 
     private func tableSignature(ptr: UnsafeRawPointer) -> String {
-        let table = ptr.bindMemory(to: UInt8.self, capacity: 4)
         var signature = ""
         for idx in 0...3 {
-            let byte: UInt8 = table.advancedBy(bytes: idx).pointee
-            let ch = UnicodeScalar(byte)
-            ch.write(to: &signature)
+            let byte = ptr.load(fromByteOffset: idx, as: UInt8.self)
+            signature += String(UnicodeScalar(byte))
         }
         return signature
     }
@@ -261,16 +259,14 @@ final class ACPI {
 
     private func validateHeader(rawSDTPtr: UnsafeRawPointer) -> ACPI_SDT? {
         let headerLength = MemoryLayout<acpi_sdt_header>.size
-        let ptr = rawSDTPtr.bindMemory(to: acpi_sdt_header.self,
-                                       capacity: 1)
-        let header = ACPI_SDT(ptr: ptr)
+        let header = ACPI_SDT(ptr: rawSDTPtr)
         let totalLength = Int(header.length)
 
         guard totalLength > headerLength else {
             print("ACPI: Entry @ 0x\(asHex(rawSDTPtr.address)) has total length of\(totalLength)")
             return nil
         }
-        guard checksum(ptr, size: Int(ptr.pointee.length)) == 0 else {
+        guard checksum(rawSDTPtr, size: Int(header.length)) == 0 else {
             print("ACPI: \(header.signature) has bad chksum")
             return nil
         }
@@ -279,8 +275,7 @@ final class ACPI {
 
 
     private func checksum(_ rawPtr: UnsafeRawPointer, size: Int) -> UInt8 {
-        let ptr = rawPtr.bindMemory(to: UInt8.self, capacity: size)
-        let region = UnsafeBufferPointer(start: ptr, count: size)
+        let region = UnsafeRawBufferPointer(start: rawPtr, count: size)
         var csum: UInt8 = 0
         for x in region {
             csum = csum &+ x
@@ -296,12 +291,12 @@ final class ACPI {
 
 
     private func sdtEntries32(_ rawPtr: UnsafeRawPointer) -> UnsafeBufferPointer<UInt32>? {
-        let ptr = rawPtr.bindMemory(to: acpi_sdt_header.self, capacity: 1)
-        let entryCount = (Int(ptr.pointee.length) - MemoryLayout<acpi_sdt_header>.stride) / MemoryLayout<UInt32>.size
+        let length = rawPtr.load(fromByteOffset: 4, as: UInt32.self)
+        let entryCount = (Int(length) - MemoryLayout<acpi_sdt_header>.stride) / MemoryLayout<UInt32>.size
 
         if entryCount > 0 {
-            let entryPtr: UnsafePointer<UInt32> =
-                UnsafePointer(bitPattern: ptr.advanced(by: 1).address)!
+            let entryPtr = rawPtr.advanced(by: MemoryLayout<acpi_sdt_header>.stride)
+                .bindMemory(to: UInt32.self, capacity: entryCount)
             return UnsafeBufferPointer(start: entryPtr, count: entryCount)
         } else {
             return nil

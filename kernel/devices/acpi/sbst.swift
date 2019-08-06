@@ -9,11 +9,9 @@
 
 struct SBST: ACPITable, CustomStringConvertible {
 
-    private let tablePtr: UnsafePointer<acpi_sbst_table>
-
-    var warningLevelInmWh:  Int { return Int(tablePtr.pointee.warning_energy_level) }
-    var lowLevelInmWh:      Int { return Int(tablePtr.pointee.low_energy_level) }
-    var criticalLevelInmWh: Int { return Int(tablePtr.pointee.critical_energy_level) }
+    let warningLevelInmWh:  Int
+    let lowLevelInmWh:      Int
+    let criticalLevelInmWh: Int
 
     var description: String {
         return "SBST: battery warning: \(warningLevelInmWh)mWh"
@@ -22,10 +20,13 @@ struct SBST: ACPITable, CustomStringConvertible {
 
 
     init(_ ptr: UnsafeRawPointer) {
-        tablePtr = ptr.bindMemory(to: acpi_sbst_table.self, capacity: 1)
-        let length = Int(tablePtr.pointee.header.length)
+        let table = ptr.load(as: acpi_sbst_table.self)
+        let length = table.header.length
         guard length >= MemoryLayout<acpi_sbst_table>.size else {
             fatalError("ACPI: SBST table too short: \(length)")
         }
+        warningLevelInmWh = Int(table.warning_energy_level)
+        lowLevelInmWh = Int(table.low_energy_level)
+        criticalLevelInmWh = Int(table.critical_energy_level)
     }
 }

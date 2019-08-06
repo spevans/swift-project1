@@ -10,7 +10,7 @@
 
 struct FACP: ACPITable {
 
-    private let tablePtr: UnsafePointer<acpi_facp_table>
+    private let table: acpi_facp_table
 
     // IA-PC Boot Architecture Flags (bit)
     private let IAPC_LEGACY_DEVICES     = 0
@@ -21,36 +21,15 @@ struct FACP: ACPITable {
     private let IAPC_RTC_NOT_PRESENT    = 5
 
 
-    var hasLegacyDevices: Bool {
-        return tablePtr.pointee.iapc_boot_arch.bit(IAPC_LEGACY_DEVICES)
-    }
-
-    var has8042Controller: Bool {
-        return tablePtr.pointee.iapc_boot_arch.bit(IAPC_8042)
-    }
-
-    var isVgaPresent: Bool {
-        return tablePtr.pointee.iapc_boot_arch.bit(IAPC_VGA_NOT_PRESENT) == false
-    }
-
-    var isMsiSupported: Bool {
-        return tablePtr.pointee.iapc_boot_arch.bit(IAPC_MSI_NOT_SUPPORTED) == false
-    }
-
-    var canEnablePcieAspmControls: Bool {
-        return tablePtr.pointee.iapc_boot_arch.bit(IAPC_PCIE_ASPM) == false
-    }
-
-    var hasCmosRtc: Bool {
-        return tablePtr.pointee.iapc_boot_arch.bit(IAPC_RTC_NOT_PRESENT) == false
-    }
-
-    var rtcCenturyIndex: UInt8 {
-        return tablePtr.pointee.century
-    }
+    var hasLegacyDevices: Bool { table.iapc_boot_arch.bit(IAPC_LEGACY_DEVICES) }
+    var has8042Controller: Bool { table.iapc_boot_arch.bit(IAPC_8042)   }
+    var isVgaPresent: Bool { table.iapc_boot_arch.bit(IAPC_VGA_NOT_PRESENT) == false }
+    var isMsiSupported: Bool { table.iapc_boot_arch.bit(IAPC_MSI_NOT_SUPPORTED) == false }
+    var canEnablePcieAspmControls: Bool { table.iapc_boot_arch.bit(IAPC_PCIE_ASPM) == false }
+    var hasCmosRtc: Bool { table.iapc_boot_arch.bit(IAPC_RTC_NOT_PRESENT) == false  }
+    var rtcCenturyIndex: UInt8 { return table.century }
 
     var facsAddress: PhysAddress? {
-        let table = tablePtr.pointee
         if table.header.length >= 140 {
             return physicalAddress(xAddr: table.x_firmware_ctrl,
                                    addr: table.firmware_ctrl)
@@ -62,7 +41,6 @@ struct FACP: ACPITable {
     }
 
     var dsdtAddress: PhysAddress? {
-        let table = tablePtr.pointee
         if table.header.length >= 148 {
             return physicalAddress(xAddr: table.x_dsdt, addr: table.dsdt)
         }
@@ -74,6 +52,6 @@ struct FACP: ACPITable {
 
 
     init(_ ptr: UnsafeRawPointer) {
-        tablePtr = ptr.bindMemory(to: acpi_facp_table.self, capacity: 1)
+        table = ptr.load(as: acpi_facp_table.self)
     }
 }

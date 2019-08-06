@@ -52,54 +52,49 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
 
 
     init(_ ptr: UnsafeRawPointer) {
-        let tablePtr = ptr.bindMemory(to: acpi_madt_table.self, capacity: 1)
-        localIntControllerAddr = tablePtr.pointee.local_int_controller_addr
-        multipleApicFlags = tablePtr.pointee.multiple_apic_flags
+        let table = ptr.load(as: acpi_madt_table.self)
+        localIntControllerAddr = table.local_int_controller_addr
+        multipleApicFlags = table.multiple_apic_flags
 
         let tableSize = MemoryLayout<acpi_madt_table>.size
-        let dataLength = Int(tablePtr.pointee.header.length) - tableSize
+        let dataLength = Int(table.header.length) - tableSize
         guard dataLength >= 2 else {
             // needs at least a type/len pair
             fatalError("ACPI: MADT dataLength is less than 2")
         }
 
         // loop through controller structures
-        madtEntries = decodeEntries(ptr: tablePtr + 1, dataLength: dataLength)
+        madtEntries = decodeEntries(ptr: ptr.advanced(by: MemoryLayout<acpi_madt_table>.size), dataLength: dataLength)
     }
 
 
-    private func decodeEntries(ptr: UnsafePointer<acpi_madt_table>,
-        dataLength: Int) -> [MADTEntry] {
-        return ptr.withMemoryRebound(to: UInt8.self,
-            capacity: dataLength) {
-            var entries: [MADTEntry] = []
-            let controllers = UnsafeBufferPointer(start: $0,
-                count: dataLength)
-            var position = 0
-
-            while position < controllers.count {
-                let bytesRemaining = controllers.count - position
-                guard bytesRemaining > 2 else {
-                    fatalError("error: bytesRemaining: \(bytesRemaining) "
-                        + "count: \(controllers.count) position: \(position)")
-                }
-                let tableLen = Int(controllers[position + 1])
-                guard tableLen > 0 && tableLen <= controllers.count - position
+    private func decodeEntries(ptr: UnsafeRawPointer, dataLength: Int) -> [MADTEntry] {
+        var entries: [MADTEntry] = []
+        let controllers = UnsafeBufferPointer(start: ptr.bindMemory(to: UInt8.self, capacity: dataLength),
+                                              count: dataLength)
+        var position = 0
+        while position < controllers.count {
+            let bytesRemaining = controllers.count - position
+            guard bytesRemaining > 2 else {
+                fatalError("error: bytesRemaining: \(bytesRemaining) "
+                    + "count: \(controllers.count) position: \(position)")
+            }
+            let tableLen = Int(controllers[position + 1])
+            guard tableLen > 0 && tableLen <= controllers.count - position
                 else {
                     fatalError("error: tableLen: \(tableLen) "
                         + "position: \(position) "
                         + "controllers.count: \(controllers.count)")
-                }
-
-                let start: UnsafePointer<UInt8> = $0.advancedBy(bytes: position)
-                let tableData = UnsafeBufferPointer(start: start,
-                    count: tableLen)
-                let table = decodeTable(table: tableData)
-                entries.append(table)
-                position += tableLen
             }
-            return entries
+
+            let start: UnsafePointer<UInt8> = controllers.baseAddress!.advancedBy(bytes: position)
+            let tableData = UnsafeBufferPointer(start: start,
+                                                count: tableLen)
+            let table = decodeTable(table: tableData)
+            entries.append(table)
+            position += tableLen
         }
+        return entries
     }
 
 
