@@ -30,6 +30,10 @@ struct PhysAddress: CVarArg, Comparable, Hashable, CustomStringConvertible {
         return VirtualAddress(PHYSICAL_MEM_BASE + value);
     }
 
+    var rawPointer: UnsafeMutableRawPointer {
+        return UnsafeMutableRawPointer(bitPattern: vaddr)!
+    }
+
     func pageAddress(pageSize: UInt, roundUp: Bool = false) -> PhysAddress {
         if roundUp {
             return PhysAddress((value + pageSize - 1) & ~(pageSize - 1))

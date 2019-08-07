@@ -77,11 +77,13 @@ struct AMLDefDevice: AMLNamedObj {
             return .defaultStatus()
         }
         let sta = node.object
+        if let obj = sta as? AMLDefName, let v = obj.value as? AMLIntegerData {
+            return DeviceStatus(v.value)
+        }
         if let obj = sta as? AMLNamedObj, let v = obj.readValue(context: &context) as? AMLIntegerData {
             return DeviceStatus(v.value)
-        } else {
-            fatalError("Cant determine status of: \(sta))")
         }
+        fatalError("Cant determine status of: \(sta))")
     }
 
     func currentResourceSettings(context: inout ACPI.AMLExecutionContext) -> [AMLResourceSetting]? {
