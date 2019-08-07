@@ -45,10 +45,44 @@ struct AMLDefDataRegion: AMLNamedObj {
 
 
 struct AMLDefDevice: AMLNamedObj {
+
+    struct DeviceStatus {
+        private let bits: BitArray32
+        var present: Bool { bits[0] == 1 }
+        var enabled: Bool { bits[1] == 1 }
+        var showInUI: Bool { bits[2] == 1 }
+        var functioning: Bool { bits[3] == 1}
+        var batteryPresent: Bool { bits[4] == 1 }
+
+        init(_ value: AMLInteger) {
+            bits = BitArray32(UInt32(value))
+        }
+
+        // When no _STA is present a default status of everything enabled is assumed
+        static func defaultStatus() -> DeviceStatus {
+            return DeviceStatus(0x1f)
+        }
+    }
+
+
     // DeviceOp PkgLength NameString ObjectList
     let name: AMLNameString
     let value: AMLObjectList
 
+
+    func status(context: inout ACPI.AMLExecutionContext) -> DeviceStatus {
+        var fullName = context.scope.value
+        fullName.append("._STA")
+        guard let node = context.globalObjects.get(fullName) else {
+            return .defaultStatus()
+        }
+        let sta = node.object
+        if let obj = sta as? AMLNamedObj, let v = obj.readValue(context: &context) as? AMLIntegerData {
+            return DeviceStatus(v.value)
+        } else {
+            fatalError("Cant determine status of: \(sta))")
+        }
+    }
 
     func currentResourceSettings(context: inout ACPI.AMLExecutionContext) -> [AMLResourceSetting]? {
         var fullName = context.scope.value

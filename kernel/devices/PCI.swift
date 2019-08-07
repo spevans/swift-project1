@@ -38,6 +38,53 @@ extension PCIBus {
 
         return pciDeviceFunctions
     }
+
+
+    func initialiseACPIDevices(bus: Bus, acpi: ACPIGlobalObjects.ACPIObjectNode, fullName: String) {
+        print("PCI: Initialising:", self)
+        let name = fullName
+        let deviceManager = system.deviceManager
+
+        for node in acpi.childNodes {
+            let fullName = (name == "\\") ? name + node.name :
+                name + String(AMLNameString.pathSeparatorChar) + node.name
+
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullName),
+                                                   args: [],
+                                                   globalObjects: deviceManager.acpiTables.globalObjects)
+            if let device = node.object as? AMLDefDevice, let address = device.addressResource(context: &context) {
+                let status = device.status(context: &context)
+                if !(status.present && status.enabled) {
+                    continue
+                }
+                let device = UInt16(address >> 16)
+                let function = UInt16(address & 0xffff)
+                if let deviceFunction = PCIDeviceFunction(bus: self, device: UInt8(device), function: UInt8(function)) {
+                    switch (deviceFunction.vendor, deviceFunction.deviceId) {
+                        case (0x8086, 0x7000):
+                            if let pciDevice = PIIX(parentBus: bus, deviceFunction: deviceFunction,
+                                                    acpi: node, fullName: fullName) {
+                                bus.addDevice(pciDevice as Device)
+                        }
+                        default:
+                            if let pciDevice = UnknownPCIDevice(parentBus: bus, deviceFunction: deviceFunction,
+                                                                acpi: node, fullName: fullName) {
+                                if node.name.hasSuffix("ISA") {
+                                    print("PCI: Found ISA bus")
+                                    let isaBus = ISABus(parentBus: bus, acpi: node, fullName: fullName)
+                                    isaBus.initialiseDevices()
+                                    bus.addDevice(isaBus)
+                                } else {
+                                    bus.addDevice(pciDevice)
+                                }
+                        }
+                    }
+                }
+            } else {
+                bus.processNode(parentBus: bus, node, fullName)
+            }
+        }
+    }
 }
 
 protocol PCIDevice {
@@ -92,49 +139,7 @@ class PCIBusPIO: Bus, PCIBus, CustomStringConvertible {
 
 
     override func initialiseDevices() {
-        print("Initialising:", self)
-        let name = fullName
-        var adrMap: [UInt32: ACPIGlobalObjects.ACPIObjectNode] = [:]
-        let deviceManager = system.deviceManager
-
-        acpi.childNodes.forEach {
-            let child = $0
-            let fullName = (name == "\\") ? name + child.name :
-                name + String(AMLNameString.pathSeparatorChar) + child.name
-
-            var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullName),
-                                                   args: [],
-                                                   globalObjects: deviceManager.acpiTables.globalObjects)
-            if let device = child.object as? AMLDefDevice, let address = device.addressResource(context: &context) {
-                debugPrint("Found an _ADR: 0x\(String(address, radix: 16))")
-                adrMap[UInt32(address)] = child
-            } else {
-                processNode(parentBus: self, child, fullName)
-            }
-        }
-
-        for deviceFunction in scanBus() {
-            if let node = adrMap[deviceFunction.acpiADR] {
-                let fullName = (name == "\\") ? name + node.name :
-                    name + String(AMLNameString.pathSeparatorChar) + node.name
-                switch (deviceFunction.vendor, deviceFunction.deviceId) {
-                case (0x8086, 0x7000):
-                    if let pciDevice = PIIX(parentBus: self, deviceFunction: deviceFunction,
-                                            acpi: node, fullName: fullName) {
-                        addDevice(pciDevice as Device)
-                    }
-                default:
-                    if let pciDevice = UnknownPCIDevice(parentBus: self, deviceFunction: deviceFunction,
-                                                        acpi: node, fullName: fullName) {
-                        addDevice(pciDevice as Device)
-                    }
-                }
-            } else {
-                if let pciDevice = UnknownPCIDevice(parentBus: self, deviceFunction: deviceFunction) {
-                    addDevice(pciDevice as Device)
-                }
-            }
-        }
+        initialiseACPIDevices(bus: self, acpi: acpi, fullName: fullName)
     }
 
 
@@ -187,6 +192,11 @@ class PCIBusMMIO: Bus, PCIBus, CustomStringConvertible {
         let address = mmiobase.advanced(by: UInt(busID) << 20)
         baseAddress = address.vaddr
         super.init(parentBus: parentBus, acpi: acpi, fullName: fullName)
+    }
+
+
+    override func initialiseDevices() {
+        initialiseACPIDevices(bus: self, acpi: acpi, fullName: fullName)
     }
 
 

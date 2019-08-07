@@ -235,7 +235,7 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
         if let fieldElement = namedObject as? AMLNamedField {
             let resolvedScope = AMLNameString(fullPath).removeLastSeg()
             var tmpContext = ACPI.AMLExecutionContext(scope: resolvedScope,
-                                                      args: [],
+                                                      args: context.args,
                                                       globalObjects: context.globalObjects)
             return fieldElement.evaluate(context: &tmpContext)
             //fieldElement.setOpRegion(context: tmpContext)

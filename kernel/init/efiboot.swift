@@ -177,6 +177,9 @@ struct EFIBootParams: BootParams {
         private let guidSMBIOS3 = efi_guid_t(data1: 0xf2fd1544, data2: 0x9794,
             data3: 0x4a2c,
             data4: (0x99, 0x2e, 0xe5, 0xbb, 0xcf, 0x20, 0xe3, 0x94))
+        private let guidACPI20 = efi_guid_t(data1: 0x8868e871, data2: 0xe4f1,
+            data3: 0x11d3,
+            data4: (0xbc,0x22,0x00,0x80,0xc7,0x3c,0x88,0x81))
 
         let acpiPtr: UnsafePointer<rsdp1_header>?
         let smbiosPtr: UnsafePointer<smbios_header>?
@@ -202,6 +205,12 @@ struct EFIBootParams: BootParams {
                         ifMatches: guidACPI1) {
                         acpiTmpPtr = ptr.bindMemory(to: rsdp1_header.self,
                             capacity: 1)
+                        continue
+                    }
+
+                    if let ptr = EFITables.pointerFrom(entry: entry,
+                                                       ifMatches: guidACPI20) {
+                        acpiTmpPtr = ptr.bindMemory(to: rsdp1_header.self, capacity: 1)
                         continue
                     }
                 }

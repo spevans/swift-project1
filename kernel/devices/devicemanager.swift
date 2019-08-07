@@ -74,7 +74,7 @@ class Bus: Device {
                 print("Found ISA Bus:", fullName)
                 foundDevice = ISABus(parentBus: parentBus, acpi: node, fullName: fullName)
 
-            case "PNP0A03": // PCIBus
+            case "PNP0A03", "PNP0A08": // PCIBus, PCI Express
                 print("Found PCI Bus:", fullName)
                 foundDevice = PCI.createBus(parentBus: parentBus, acpi: node, fullName: fullName, busID: 0)
 

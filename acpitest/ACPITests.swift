@@ -160,6 +160,7 @@ class ACPITests: XCTestCase {
         }
     }
 
+
     func testQEMUDevices() {
         // Add some dummy external values
         let (acpi, allData) = createACPI(files: ["QEMU-DSDT.aml"])
@@ -187,6 +188,70 @@ class ACPITests: XCTestCase {
             return
         }
         XCTAssertEqual(kbd.2.count, 3)
+    }
+
+
+    func testVMWareDevices() {
+        struct Resources {
+            let ioPorts: [ClosedRange<UInt16>]
+            let interrupts: [UInt8]
+        }
+
+        func extractCRSSettings(_ resources: [AMLResourceSetting]) -> Resources {
+            var ioports: [ClosedRange<UInt16>] = []
+            var irqs: [UInt8] = []
+
+            for resource in resources {
+                if let ioPort = resource as? AMLIOPortSetting {
+                    ioports.append(ioPort.ioPorts())
+                } else if let irq = resource as? AMLIrqSetting {
+                    irqs.append(contentsOf: irq.interrupts())
+                } else {
+                    print("Ignoring resource:", resource)
+                }
+            }
+            return Resources(ioPorts: ioports, interrupts: irqs)
+        }
+
+        let (acpi, allData) = createACPI(files: [
+            "vmware-APIC.aml",
+            "vmware-FACP.aml",
+            "vmware-FACS2.aml",
+            "vmware-FACS1.aml",
+            "vmware-HPET.aml",
+            "vmware-SRAT.aml",
+            "vmware-BOOT.aml",
+            "vmware-MCFG.aml",
+            "vmware-WAET.aml",
+            "vmware-DSDT.aml",
+        ])
+        defer { allData.deallocate()}
+
+        let fullName = "\\_SB.PCI0.ISA"
+        guard let isa = acpi.globalObjects.get(fullName) else {
+            XCTFail("Cant find \(fullName)")
+            return
+        }
+
+        for node in isa.childNodes {
+            if let dev = node.object as? AMLDefDevice {
+
+                let fullNodeName = fullName + String(AMLNameString.pathSeparatorChar) + node.name
+                var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullNodeName),
+                                                       args: [],
+                                                       globalObjects: acpi.globalObjects)
+                if let pnpName = dev.pnpName(context: &context),
+                    let crs = dev.currentResourceSettings(context: &context) {
+                    print("Configuring \(fullNodeName) : \(pnpName)")
+                    let resources = extractCRSSettings(crs)
+                    print(resources)
+                }
+            }
+        }
+
+        acpi.globalObjects.walkNode(name: "\\_SB.PCI0.ISA", node: isa) { (path, node) in
+            print("ACPI: \(path)")
+        }
     }
 }
 

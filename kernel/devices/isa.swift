@@ -81,6 +81,10 @@ final class ISABus: Bus {
                 var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullNodeName),
                                                        args: [],
                                                        globalObjects: deviceManager.acpiTables.globalObjects)
+                let status = dev.status(context: &context)
+                if !(status.present && status.enabled) {
+                    continue
+                }
                 if let pnpName = dev.pnpName(context: &context),
                     let crs = dev.currentResourceSettings(context: &context) {
 

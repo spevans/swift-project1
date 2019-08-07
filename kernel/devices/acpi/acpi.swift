@@ -305,20 +305,25 @@ final class ACPI {
 
 
     private func findRSDT(_ rawPtr: UnsafeRawPointer) -> UnsafeRawPointer {
+        let sig = String(rawPtr, maxLength: 8)
+        guard sig == "RSD PTR " else {
+            fatalError("findRSRT invalid sig")
+        }
+
+        let rsdp1 = rawPtr.load(as: rsdp1_header.self)
         var rsdtAddr = RawAddress(0)
-
-        let rsdpPtr = rawPtr.bindMemory(to: rsdp1_header.self, capacity: 1)
-
-        if rsdpPtr.pointee.revision == 1 {
-            let rsdp2Ptr = rawPtr.bindMemory(to: rsdp2_header.self, capacity: 1)
-            rsdtAddr = RawAddress(rsdp2Ptr.pointee.xsdt_addr)
+        print("ACPI revision:", rsdp1.revision)
+        if rsdp1.revision == 2 {
+            // ACPI 2.0 RSDP
+            let rsdp2 = rawPtr.load(as: rsdp2_header.self)
+            rsdtAddr = RawAddress(rsdp2.xsdt_addr)
             if rsdtAddr == 0 {
-                rsdtAddr = RawAddress(rsdp2Ptr.pointee.rsdp1.rsdt_addr)
+                rsdtAddr = RawAddress(rsdp2.rsdp1.rsdt_addr)
             }
             //let csum = checksum(UnsafePointer<UInt8>(rsdp2Ptr),
             // size: strideof(RSDP2))
         } else {
-            rsdtAddr = RawAddress(rsdpPtr.pointee.rsdt_addr)
+            rsdtAddr = RawAddress(rsdp1.rsdt_addr)
             //let csum = checksum(UnsafePointer<UInt8>(rsdpPtr),
             //size: strideof(RSDP1))
         }
