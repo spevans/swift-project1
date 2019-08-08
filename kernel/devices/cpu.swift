@@ -103,6 +103,8 @@ struct CPUID: CustomStringConvertible {
         }
     }
 
+    var pageSizes: [UInt]
+
     var description: String {
         var str = String.sprintf("CPU: maxBI: %#x maxEI: %#x\n", maxBasicInput,
             maxExtendedInput)
@@ -168,6 +170,10 @@ struct CPUID: CustomStringConvertible {
             processorBrandString = brand
         } else {
             processorBrandString = ""
+        }
+        pageSizes = [ 4096, 2 * mb ]
+        if pages1G {
+            pageSizes.append(1 * gb)
         }
     }
 }

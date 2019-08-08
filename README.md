@@ -34,72 +34,39 @@ The next major tasks are:
 
 ## How to build it
 
-_The Xcode project is only used to build unit tests for some of the libraries and the ACPI
-TDD. It cannot build the kernel._
+Use Docker to build a container that includes the swift compiler with the modified stdlib using
+the Dockerfile in `Docker/Dockerfile`.
 
-Currently it only builds on Linux. It requires:
-
-* clang
-* nasm (known to work with 2.11.09rc1 but earlier should be ok)
-
-To build a .iso for a usbkey also requires:
-* xorriso
-* mtools
-
-sudo apt-get install nasm xorriso mtools
-
-A special version of the Swift compiler is required with options to disable the
-red zone and set the x86_64 memory model to *kernel*. A Swift stdlib compiled
-with these options is also required. A suitable compiler/library can be obtained
-[here](https://github.com/spevans/swift-kstdlib/). A snapshot can be downloaded
-from (https://github.com/spevans/swift-kstdlib/releases). Normally the latest
-one with the highest date is required.
-
-The version required is listed in the `Makedefs` file in the `KSWIFTDIR` variable eg:
 ```
-KSWIFTDIR := $(shell readlink -f ~/swift-kernel-20180113)
+# Build the docker container
+$ docker build Docker
 ```
 
-A normal Swift [snapshot](https://swift.org/download/#snapshots) is required to
-build the utilities that patch the image for booting.
-
-You should now have 2 compilers installed, one in `~/swift-kernel-<YYYYMMDD>`
-and the other wherever you installed the snapshot (I install it and symlink `~/swift` to it).
-
-Edit the `Makedefs` file and alter the `SWIFTDIR` and `KSWIFTDIR` variables as appropriate.
-
-then:
+To build the kernel and disk images from the command line:
 ```
-$ make
+$ docker run --rm -v `pwd`:`pwd` -w `pwd` -t swift-kstdlib make iso
 ```
+ or using Xcode, open `project1.xcodeproj`, select `kernel` in the target menu and then `Product → Build`
+or ⌘-B to build it.
+
+
+## How to run it
 
 To run under qemu with a copy of the console output being sent to a virtual
 serial port use:
-```
-$ qemu-system-x86_64 -hda output/boot-hd.img -serial stdio -D log -d cpu_reset,guest_errors,unimp -no-reboot
-```
+
+`./run_qemu.sh`
 
 There is a bochsrc to specify the HD image so it can be run with:
-```
-$ bochs -q  (then press 'c' to run)
-```
 
-To build a .ISO image suitable for booting one from a USB stick, use the `iso`
-target. This will also create a `kernel.efi` file that can be booted in GRUB
-```
-$ make iso
-```
+`bochs -q`
 
-
-To run with gdb and no console
-```
-$ qemu-system-x86_64 -S -s -nographic -cdrom output/boot-cd.iso -bios bios.bin  -D log -d cpu_reset,guest_errors,unimp -no-reboot
-```
+(then press `c` to run)
 
 ![Screenshot](doc/screenshot-2.png)
 
 
-Copyright (c) 2015 - 2018 Simon Evans
+Copyright (c) 2015 - 2019 Simon Evans
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
