@@ -90,7 +90,6 @@ struct AMLDefDevice: AMLNamedObj {
         var fullName = context.scope.value
         fullName.append("._CRS")    // need AMLNameString to allow add segs
         guard let node = context.globalObjects.get(fullName) else {
-            print("Cant find _CRS for \(name) [\(fullName)]")
             return nil
         }
         let crs = node.object
@@ -112,7 +111,7 @@ struct AMLDefDevice: AMLNamedObj {
         }
     }
 
-    func pnpName(context: inout ACPI.AMLExecutionContext) -> String? {
+    func hardwareId(context: inout ACPI.AMLExecutionContext) -> String? {
         var fullName = context.scope.value
         fullName.append("._HID")    // need AMLNameString to allow add segs
         guard let node = context.globalObjects.get(fullName) else {
@@ -122,6 +121,21 @@ struct AMLDefDevice: AMLNamedObj {
 
         if let hidName = hid as? AMLDefName {
             return (decodeHID(obj: hidName.value) as? AMLString)?.value
+        }
+        return nil
+    }
+
+
+    func pnpName(context: inout ACPI.AMLExecutionContext) -> String? {
+        var fullName = context.scope.value
+        fullName.append("._CID")    // need AMLNameString to allow add segs
+        guard let node = context.globalObjects.get(fullName) else {
+            return nil
+        }
+        let cid = node.object
+
+        if let cidName = cid as? AMLDefName {
+            return (decodeHID(obj: cidName.value) as? AMLString)?.value
         }
         return nil
     }

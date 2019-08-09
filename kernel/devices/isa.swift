@@ -16,12 +16,20 @@ protocol ISADevice {
 }
 
 
-final class UnknownISADevice: Device, ISADevice, CustomStringConvertible {
-    let description: String
+final class UnknownISADevice: UnknownDevice, ISADevice {
+    let pnpName: String
+    override var description: String { "ISA: Unknown device: " + pnpName }
+
+    override init?(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPIGlobalObjects.ACPIObjectNode? = nil,
+    acpiFullName: String? = nil) {
+        self.pnpName = pnpName ?? acpiFullName ?? "unknown"
+        super.init(parentBus: parentBus, pnpName: pnpName, acpiNode: acpiNode, acpiFullName: acpiFullName)
+    }
 
     init?(interruptManager: InterruptManager, pnpName: String,
-        resources: ISABus.Resources, facp: FACP?) {
-        description = "ISA: Unknown device: \(pnpName) \(resources)"
+          resources: ISABus.Resources, facp: FACP?) {
+        self.pnpName = pnpName
+        super.init()
     }
 }
 
@@ -36,27 +44,15 @@ final class ISABus: Bus {
         var description: String {
             var s = ""
             if !ioPorts.isEmpty {
-                var io = ""
-                for r in ioPorts {
-                    if io != "" { io.append(", ") }
-                    if r.count == 1 {
-                        io.append("0x\(String(r.first!, radix: 16))")
-                    } else {
-                        io.append("0x\(String(r.first!, radix: 16))-0x\(String(r.last!, radix: 16))")
-                    }
-                }
-                s = "io: "
-                s.append(io)
+                s = "io: " + ioPorts.map {
+                    $0.count == 1 ? "0x\(String($0.first!, radix: 16))"
+                    : "0x\(String($0.first!, radix: 16))-0x\(String($0.last!, radix: 16))"
+                }.joined(separator: ", ")
             }
             if !interrupts.isEmpty {
-                var irq = ""
-                for i in interrupts {
-                    if !irq.isEmpty { irq.append(", ") }
-                    irq.append(String(i))
-                }
-                if !s.isEmpty { s.append(" ") }
-                s.append("irq: ")
-                s.append(irq)
+                let irq = "irq: " + interrupts.map { String($0) }.joined(separator: ", ")
+                if !s.isEmpty { s += " " }
+                s += irq
             }
             return s
         }
@@ -64,71 +60,60 @@ final class ISABus: Bus {
 
     let rs = ReservedSpace(name: "IO Ports", start: 0, end: 0xfff)
 
+    override func unknownDevice(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPIGlobalObjects.ACPIObjectNode? = nil, acpiFullName: String? = nil) -> UnknownDevice? {
+        return UnknownISADevice(parentBus: parentBus, pnpName: pnpName, acpiNode: acpiNode, acpiFullName: acpiFullName)
+    }
 
-    override func initialiseDevices() {
-        let deviceManager = system.deviceManager
-        let im = deviceManager.interruptManager
+
+    override func initialiseDevices(name: String) {
+        print("ISA: InitialiseDevices called name:", name)
+
         // PS2 is split over 2 devices (keyboard, mouse) so need to gather these
         // up beforehard.
         var ps2keyboard: [AMLResourceSetting] = []
         var ps2mouse: [AMLResourceSetting] = []
 
-        print("ISA Bus:", fullName)
-        for node in acpi.childNodes {
-            if let dev = node.object as? AMLDefDevice {
+        acpi.childNodes.forEach {
+            let child = $0
+            guard let device = child.object as? AMLDefDevice else {
+                return
+            }
 
-                let fullNodeName = fullName + String(AMLNameString.pathSeparatorChar) + node.name
-                var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullNodeName),
-                                                       args: [],
-                                                       globalObjects: deviceManager.acpiTables.globalObjects)
-                let status = dev.status(context: &context)
-                if !(status.present && status.enabled) {
-                    continue
-                }
-                if let pnpName = dev.pnpName(context: &context),
-                    let crs = dev.currentResourceSettings(context: &context) {
+            let fullName = (name == "\\") ? name + child.name :
+                name + String(AMLNameString.pathSeparatorChar) + child.name
 
-                    //print("Configuring \(pnpName)")
-                    switch pnpName {
-                    case "PNP0303": ps2keyboard = crs
-                    case "PNP0F03", "PNP0F13": ps2mouse = crs
-                    case "PNP0100":
-                        if let timer = PIT8254(interruptManager: im, pnpName: "PNP0100",
-                            resources: extractCRSSettings(crs),
-                            facp: nil) {
-                            addDevice(timer)
-                            deviceManager.addDevice(timer)
-                        }
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullName),
+                                                   args: [],
+                                                   globalObjects: system.deviceManager.acpiTables.globalObjects)
 
-                    case "PNP0B00":
-                        if let cmos = CMOSRTC(interruptManager: im,
-                            pnpName: pnpName,
-                            resources: extractCRSSettings(crs),
-                            facp: deviceManager.acpiTables.facp
-                        ) {
-                            print(cmos)
-                            addDevice(cmos)
-                            deviceManager.addDevice(cmos)
-                            let date = cmos.readTime()
-                            print("Current datetime:", date)
-                        }
+            if let deviceId = device.hardwareId(context: &context) ?? device.pnpName(context: &context),
+                let crs = device.currentResourceSettings(context: &context) {
+
+                switch deviceId {
+                    case "PNP0303":
+                        ps2keyboard = crs
+                        return
+
+                    case "PNP0F03", "PNP0F13":
+                        ps2mouse = crs
+                        return
 
                     default:
-                        let resources = extractCRSSettings(crs)
-                        if let dev = UnknownISADevice(interruptManager: im,
-                            pnpName: pnpName, resources: resources, facp: nil) {
-                            addDevice(dev)
-                        }
-                    }
+                        break
                 }
             }
+
+            processNode(parentBus: self, child, fullName)
         }
+
         if !ps2keyboard.isEmpty {
+            let deviceManager = system.deviceManager
+            let im = deviceManager.interruptManager
+
             ps2keyboard.append(contentsOf: ps2mouse)
             if let device = KBD8042(interruptManager: im, pnpName: "PNP0303",
-                resources: extractCRSSettings(ps2keyboard), facp: nil) {
-                addDevice(device)
-                deviceManager.addDevice(device)
+                                    resources: ISABus.extractCRSSettings(ps2keyboard), facp: nil) {
+                self.addDevice(device)
                 // FIXME: KBD8042 should really be some port of BusDevice that adds its
                 // sub devices.
                 if let keyboard = device.keyboardDevice {
@@ -138,7 +123,8 @@ final class ISABus: Bus {
         }
     }
 
-    private func extractCRSSettings(_ resources: [AMLResourceSetting]) -> ISABus.Resources {
+
+    static func extractCRSSettings(_ resources: [AMLResourceSetting]) -> ISABus.Resources {
         var ioports: [ClosedRange<UInt16>] = []
         var irqs: [UInt8] = []
 

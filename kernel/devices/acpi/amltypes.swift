@@ -151,7 +151,16 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
 
     init(_ value: String) {
         self.value = value
-       // self.value = AMLString(value)
+    }
+
+
+    init(buffer: ArraySlice<AMLByteData>) {
+        precondition(buffer.count == 4)
+        var name = ""
+        for ch in buffer {
+            name.append(String(UnicodeScalar(ch)))
+        }
+        value = name
     }
 
 

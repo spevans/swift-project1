@@ -488,7 +488,7 @@ final class AMLParser {
         case .loadOp:       return try parseDefLoad()
         case .noopOp:       return AMLDefNoop()
         case .notifyOp:     return try parseDefNotify()
-        case .releaseOp:    return try AMLDefRelease(object: parseSuperName())
+        case .releaseOp:    return try AMLDefRelease(mutex: parseSuperName())
         case .resetOp:      return try AMLDefReset(object: parseSuperName())
         case .returnOp:     return try AMLDefReturn(object: parseTermArg())
         case .signalOp:     return try AMLDefSignal(object: parseSuperName())

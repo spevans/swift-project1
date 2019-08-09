@@ -12,11 +12,16 @@ class Device {
 
 
 class UnknownDevice: Device, CustomStringConvertible {
-    let description: String
+    let _description: String
+    var description: String { _description }
 
-    init(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPIGlobalObjects.ACPIObjectNode? = nil,
+    override init() {
+        _description = "Unknown Device:"
+    }
+
+    init?(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPIGlobalObjects.ACPIObjectNode? = nil,
          acpiFullName: String? = nil) {
-        description = "Unknown Device: \(pnpName ?? "") \(acpiFullName ?? "")"
+        _description = "Unknown Device: \(pnpName ?? "") \(acpiFullName ?? "")"
     }
 }
 
@@ -45,10 +50,22 @@ class Bus: Device {
         devices.append(device)
     }
 
+    func device(parentBus: Bus, pnpName: String, acpiNode: ACPIGlobalObjects.ACPIObjectNode? = nil, acpiFullName: String? = nil) -> Device? {
+        print("DevinceManager.device1")
+        return nil
+    }
 
-    func initialiseDevices() {
-        let name = "\\_SB"
-        processNode(parentBus: self, acpi, name)
+    func device(parentBus: Bus, address: UInt32, acpiNode: ACPIGlobalObjects.ACPIObjectNode, acpiFullName: String) -> Device? {
+        print("DevinceManager.device2")
+            return nil
+    }
+
+    func unknownDevice(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPIGlobalObjects.ACPIObjectNode? = nil, acpiFullName: String? = nil) -> UnknownDevice? {
+        return UnknownDevice(parentBus: parentBus, pnpName: pnpName, acpiNode: acpiNode, acpiFullName: acpiFullName)
+    }
+
+
+    func initialiseDevices(name: String) {
         acpi.childNodes.forEach {
             let child = $0
             let fullName = (name == "\\") ? name + child.name :
@@ -59,38 +76,72 @@ class Bus: Device {
 
     // FIXME: Rename processPNPDevices or somesuch
     func processNode(parentBus: Bus, _ node: ACPIGlobalObjects.ACPIObjectNode, _ name: String) {
-        let fullName = name
         guard let device = node.object as? AMLDefDevice else {
             return
         }
 
-        var foundDevice: Device? = nil
+        let fullName = name
         var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullName),
                                                args: [],
                                                globalObjects: system.deviceManager.acpiTables.globalObjects)
-        if let pnpName = device.pnpName(context: &context) {
+
+        let status = device.status(context: &context)
+        if !(status.present && status.enabled) {
+            return
+        }
+
+        var foundDevice: Device? = nil
+        let deviceId = device.hardwareId(context: &context) ?? device.pnpName(context: &context)
+
+        if let pnpName = deviceId, let crs = device.currentResourceSettings(context: &context) {
+            let deviceManager = system.deviceManager
+            let im = deviceManager.interruptManager
+
             switch pnpName {
-            case "PNP0A00": // ISABus
-                print("Found ISA Bus:", fullName)
-                foundDevice = ISABus(parentBus: parentBus, acpi: node, fullName: fullName)
 
-            case "PNP0A03", "PNP0A08": // PCIBus, PCI Express
-                print("Found PCI Bus:", fullName)
-                foundDevice = PCI.createBus(parentBus: parentBus, acpi: node, fullName: fullName, busID: 0)
+                case "PNP0A00": // ISABus
+                    foundDevice = ISABus(parentBus: parentBus, acpi: node, fullName: fullName)
 
-            default: // "PNP0A01", "PNP0A02", "PNP0A04", "PNP0A05", "PNP0A06":
-                foundDevice = UnknownDevice(parentBus: self, pnpName: pnpName,
-                                             acpiNode: node, acpiFullName: fullName)
+                case "PNP0A03", "PNP0A08": // PCIBus, PCI Express
+                    foundDevice = PCIBus.createBus(parentBus: parentBus, acpi: node, fullName: fullName, busID: 0)
+
+                case "PNP0100":
+                    if let timer = PIT8254(interruptManager: im, pnpName: "PNP0100",
+                                           resources: ISABus.extractCRSSettings(crs),
+                                           facp: nil) {
+                        deviceManager.addDevice(timer)
+                        foundDevice = timer
+                }
+
+                case "PNP0B00":
+                    if let cmos = CMOSRTC(interruptManager: im,
+                                          pnpName: pnpName,
+                                          resources: ISABus.extractCRSSettings(crs),
+                                          facp: deviceManager.acpiTables.facp
+                        ) {
+                        print(cmos)
+                        deviceManager.addDevice(cmos)
+                        foundDevice = cmos
+                }
+
+                default: // "PNP0A01", "PNP0A02", "PNP0A04", "PNP0A05", "PNP0A06":
+                    foundDevice = self.unknownDevice(parentBus: parentBus, pnpName: pnpName, acpiNode: node, acpiFullName: fullName) ??
+                        UnknownDevice(parentBus: parentBus, pnpName: pnpName, acpiNode: node, acpiFullName: fullName)
             }
         } else if let address = device.addressResource(context: &context) {
-            let name = "_ADR: 0x\(String(address, radix: 16))"
-            foundDevice = UnknownDevice(parentBus: self, pnpName: name, acpiNode: node, acpiFullName: fullName)
+            if let device = self.device(parentBus: self, address: UInt32(address), acpiNode: node, acpiFullName: fullName) {
+                foundDevice = device
+            } else {
+                foundDevice = UnknownDevice(parentBus: parentBus, pnpName: nil, acpiNode: node, acpiFullName: fullName)
+            }
         }
+
+        if let bus = foundDevice as? Bus {
+            bus.initialiseDevices(name: name)
+        }
+
         if let dev = foundDevice {
             parentBus.addDevice(dev)
-            if let bus = dev as? Bus {
-                bus.initialiseDevices()
-            }
         }
     }
 }
@@ -131,7 +182,7 @@ final class DeviceManager {
 
 
     func initialiseDevices() {
-        masterBus.initialiseDevices()
+        masterBus.initialiseDevices(name: "\\_SB")
 
         // Set the timer interrupt for 20Hz
         if let timer = timer {
@@ -161,6 +212,12 @@ final class DeviceManager {
     func dumpDeviceTree() {
         print(masterBus)
         dumpBus(masterBus, depth: 0)
+    }
+
+    func dumpDevices() {
+        for device in devices {
+            print("DEV:", device)
+        }
     }
 
 

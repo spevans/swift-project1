@@ -115,6 +115,7 @@ fileprivate func _keyboardInput() {
 
     let cmds = [
         "dumpbus": { system.deviceManager.dumpDeviceTree() },
+        "dumpdev": { system.deviceManager.dumpDevices() },
         "date": {
             if let cmos = system.deviceManager.rtc {
                 print(cmos.readTime())

@@ -27,7 +27,7 @@ default [memory model](http://eli.thegreenplace.net/2012/01/03/understanding-the
 is `small` which puts code into the first 2GB of memory using RIP-relative
 addressing. To compile code to work with RIP-relative addressing in the highest
 2GB (sometimes refereed to as `negative address space` as the top bit is set)
-required addding an `-mcmodel` option (like clang). This allows code to be
+required adding an `-mcmodel` option (like clang). This allows code to be
 compiled using `-mcmodel=kernel`. The only other compiler change was disabling
 negative pointer values not needing to be refcounted and used as tagged pointers
 for small values. In effect this needs to be swapped round since all pointers in

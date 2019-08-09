@@ -36,7 +36,9 @@ struct AMLDefAcquire: AMLType2Opcode {
     let timeout: AMLTimeout
 
     func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
+        // FIXME - implement
+        print("Acquiring Mutex:", mutex)
+        return AMLIntegerData(AMLBoolean(false))   // acquired
     }
 }
 

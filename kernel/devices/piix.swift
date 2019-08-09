@@ -23,7 +23,7 @@ final class PIIX: Device, PCIDevice, CustomStringConvertible {
         print("PIIX: Adding ISA bus")
 
         let isaBus = ISABus(parentBus: parentBus, acpi: acpi, fullName: fullName)
-        isaBus.initialiseDevices()
+        isaBus.initialiseDevices(name: fullName)
         parentBus.addDevice(isaBus)
     }
 }

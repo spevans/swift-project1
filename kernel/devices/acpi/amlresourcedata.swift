@@ -220,9 +220,9 @@ struct AMLWordAddressSpaceDescriptor: AMLResourceSetting {
         addressRangeMaximum = UInt16(withBytes: buffer[7], buffer[8])
         addressTranslationOffet = UInt16(withBytes: buffer[9], buffer[10])
         addressLength = UInt16(withBytes: buffer[11], buffer[12])
-        if buffer.count > 13 {
+        if buffer.count > 17 { // buffer may have extra data or be incomplete so check there is enough
             resourceSourceIndex = buffer[13]
-            fatalError("") //resourceSource = AMLNameString(value: "") // FIXME
+            resourceSource = AMLNameString(buffer: buffer[14...17])
         } else {
             resourceSourceIndex = nil
             resourceSource = nil
@@ -265,9 +265,9 @@ struct AMLDWordAddressSpaceDescriptor: AMLResourceSetting {
         addressRangeMaximum = UInt32(withBytes: buffer[11], buffer[12], buffer[13], buffer[14])
         addressTranslationOffet = UInt32(withBytes: buffer[15], buffer[16], buffer[17], buffer[18])
         addressLength = UInt32(withBytes: buffer[19], buffer[20], buffer[21], buffer[22])
-        if buffer.count > 23 {
+        if buffer.count > 27 {
             resourceSourceIndex = buffer[23]
-            fatalError("") //resourceSource = AMLNameString(value: "") // FIXME
+            resourceSource = AMLNameString(buffer: buffer[24...27])
         } else {
             resourceSourceIndex = nil
             resourceSource = nil
@@ -311,16 +311,15 @@ struct AMLQWordAddressSpaceDescriptor: AMLResourceSetting {
         addressRangeMaximum = UInt64(withBytes: Array(buffer[19...26]))
         addressTranslationOffet = UInt64(withBytes: Array(buffer[27...34]))
         addressLength = UInt64(withBytes: Array(buffer[35...42]))
-        if buffer.count > 43 {
+        if buffer.count > 47 {
             resourceSourceIndex = buffer[43]
-            fatalError("") //resourceSource = AMLNameString(value: "") // FIXME
+            resourceSource = AMLNameString(buffer: buffer[44...47])
         } else {
             resourceSourceIndex = nil
             resourceSource = nil
         }
     }
 }
-
 
 
 func decodeResourceData(_ buffer: AMLBuffer) -> [AMLResourceSetting] {

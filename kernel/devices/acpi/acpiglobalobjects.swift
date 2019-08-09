@@ -98,7 +98,7 @@ final class ACPIGlobalObjects {
 
 
     func add(_ name: String, _ object: AMLObject) {
-        print("Adding \(name) -> \(object.name.value) \(type(of: object))")
+     //   print("Adding \(name) -> \(object.name.value) \(type(of: object))")
         var parent = globalObjects
         var nameParts = removeRootChar(name: name).components(
             separatedBy: AMLNameString.pathSeparatorChar)
@@ -261,7 +261,7 @@ extension ACPIGlobalObjects {
             var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullName),
                                                    args: [],
                                                    globalObjects: self)
-            if let pnpName = device.pnpName(context: &context),
+            if let pnpName = device.hardwareId(context: &context),
                 let crs = device.currentResourceSettings(context: &context) {
                 closure(fullName, pnpName, crs)
             }
