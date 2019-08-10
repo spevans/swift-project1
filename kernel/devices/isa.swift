@@ -20,10 +20,9 @@ final class UnknownISADevice: UnknownDevice, ISADevice {
     let pnpName: String
     override var description: String { "ISA: Unknown device: " + pnpName }
 
-    override init?(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPIGlobalObjects.ACPIObjectNode? = nil,
-    acpiFullName: String? = nil) {
-        self.pnpName = pnpName ?? acpiFullName ?? "unknown"
-        super.init(parentBus: parentBus, pnpName: pnpName, acpiNode: acpiNode, acpiFullName: acpiFullName)
+    override init?(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPIGlobalObjects.ACPIObjectNode? = nil) {
+        self.pnpName = pnpName ?? acpiNode?.fullname() ?? "unknown"
+        super.init(parentBus: parentBus, pnpName: pnpName, acpiNode: acpiNode)
     }
 
     init?(interruptManager: InterruptManager, pnpName: String,
@@ -60,13 +59,13 @@ final class ISABus: Bus {
 
     let rs = ReservedSpace(name: "IO Ports", start: 0, end: 0xfff)
 
-    override func unknownDevice(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPIGlobalObjects.ACPIObjectNode? = nil, acpiFullName: String? = nil) -> UnknownDevice? {
-        return UnknownISADevice(parentBus: parentBus, pnpName: pnpName, acpiNode: acpiNode, acpiFullName: acpiFullName)
+    override func unknownDevice(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPIGlobalObjects.ACPIObjectNode? = nil) -> UnknownDevice? {
+        return UnknownISADevice(parentBus: parentBus, pnpName: pnpName, acpiNode: acpiNode)
     }
 
 
-    override func initialiseDevices(name: String) {
-        print("ISA: InitialiseDevices called name:", name)
+    override func initialiseDevices() {
+        print("ISA: InitialiseDevices called name:", acpi.fullname())
 
         // PS2 is split over 2 devices (keyboard, mouse) so need to gather these
         // up beforehard.
@@ -78,9 +77,6 @@ final class ISABus: Bus {
             guard child.object is AMLDefDevice else {
                 return
             }
-
-            let fullName = (name == "\\") ? name + child.name :
-                name + String(AMLNameString.pathSeparatorChar) + child.name
 
             if let deviceId = child.hardwareId() ?? child.pnpName(),
                 let crs = child.currentResourceSettings() {
@@ -99,7 +95,7 @@ final class ISABus: Bus {
                 }
             }
 
-            processNode(parentBus: self, child, fullName)
+            processNode(parentBus: self, child)
         }
 
         if !ps2keyboard.isEmpty {

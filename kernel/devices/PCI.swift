@@ -16,9 +16,9 @@ class PCIBus: Bus {
     func readConfigWords(device: UInt8, function: UInt8, offset: UInt) -> (UInt16, UInt16)  { fatalError("abstract function") }
     func readConfigBytes(device: UInt8, function: UInt8, offset: UInt) -> (UInt8, UInt8, UInt8, UInt8)  { fatalError("abstract function") }
 
-    init(parentBus: Bus, acpi: ACPIGlobalObjects.ACPIObjectNode, fullName: String, busId: UInt8) {
+    init(parentBus: Bus, acpi: ACPIGlobalObjects.ACPIObjectNode, busId: UInt8) {
         self.bus = busId
-        super.init(parentBus: parentBus, acpi: acpi, fullName: fullName)
+        super.init(parentBus: parentBus, acpi: acpi)
     }
 
     func scanBus() -> [PCIDeviceFunction] {
@@ -43,17 +43,17 @@ class PCIBus: Bus {
     }
 
 
-    override func device(parentBus: Bus, address: UInt32, acpiNode: ACPIGlobalObjects.ACPIObjectNode, acpiFullName: String) -> Device? {
+    override func device(parentBus: Bus, address: UInt32, acpiNode: ACPIGlobalObjects.ACPIObjectNode) -> Device? {
         guard let deviceFunction = PCIDeviceFunction(bus: self, address: address) else { return nil }
 
         switch (deviceFunction.vendor, deviceFunction.deviceId) {
             case (0x8086, 0x7000),
                 (0x8086, 0x7110):
-                if let pciDevice = PIIX(parentBus: parentBus, deviceFunction: deviceFunction, acpi: acpiNode, fullName: acpiFullName) {
+                if let pciDevice = PIIX(parentBus: parentBus, deviceFunction: deviceFunction, acpi: acpiNode) {
                     return pciDevice
             }
             default:
-                if let pciDevice = UnknownPCIDevice(parentBus: parentBus, deviceFunction: deviceFunction, acpi: acpiNode, fullName: acpiFullName) {
+                if let pciDevice = UnknownPCIDevice(parentBus: parentBus, deviceFunction: deviceFunction, acpi: acpiNode) {
                     return pciDevice
             }
         }
@@ -61,13 +61,12 @@ class PCIBus: Bus {
     }
 
 
-    static func createBus(parentBus: Bus, acpi: ACPIGlobalObjects.ACPIObjectNode,
-                             fullName: String, busID: UInt8) -> Bus {
+    static func createBus(parentBus: Bus, acpi: ACPIGlobalObjects.ACPIObjectNode, busID: UInt8) -> Bus {
            let mcfgTable = system.deviceManager.acpiTables.mcfg
            if let address = mcfgTable?.baseAddressFor(bus: busID) {
-               return PCIBusMMIO(parentBus: parentBus, acpi: acpi, fullName: fullName, mmiobase: address, busID: busID)
+               return PCIBusMMIO(parentBus: parentBus, acpi: acpi, mmiobase: address, busID: busID)
            } else {
-               return PCIBusPIO(parentBus: parentBus, acpi: acpi, fullName: fullName, busID: busID)
+               return PCIBusPIO(parentBus: parentBus, acpi: acpi, busID: busID)
            }
        }
 }
@@ -75,7 +74,7 @@ class PCIBus: Bus {
 
 protocol PCIDevice {
     init?(parentBus: Bus, deviceFunction: PCIDeviceFunction)
-    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpi: ACPIGlobalObjects.ACPIObjectNode, fullName: String)
+    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpi: ACPIGlobalObjects.ACPIObjectNode)
 }
 
 
@@ -98,19 +97,18 @@ final class UnknownPCIDevice: UnknownDevice, PCIDevice {
         super.init()
     }
 
-    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpi: ACPIGlobalObjects.ACPIObjectNode, fullName: String) {
+    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpi: ACPIGlobalObjects.ACPIObjectNode) {
         self.deviceFunction = deviceFunction
-        acpiName = fullName
+        acpiName = acpi.fullname()
         super.init()
     }
 
-    override init?(parentBus: Bus, pnpName: String?, acpiNode: ACPIGlobalObjects.ACPIObjectNode? = nil, acpiFullName: String? = nil) {
+    override init?(parentBus: Bus, pnpName: String?, acpiNode: ACPIGlobalObjects.ACPIObjectNode? = nil) {
         guard let acpiNode = acpiNode else { return nil }
-        guard let acpiFullName = acpiFullName else { return nil }
         guard let address = acpiNode.addressResource() else { return nil }
         guard let deviceFunction = PCIDeviceFunction(bus: parentBus as! PCIBus, address: UInt32(address)) else { return nil }
         self.deviceFunction = deviceFunction
-        acpiName = acpiFullName
+        acpiName = acpiNode.fullname()
         super.init()
     }
 }
@@ -126,9 +124,9 @@ class PCIBusPIO: PCIBus, CustomStringConvertible {
     }
 
 
-    init(parentBus: Bus, acpi: ACPIGlobalObjects.ACPIObjectNode, fullName: String, busID: UInt8) {
+    init(parentBus: Bus, acpi: ACPIGlobalObjects.ACPIObjectNode, busID: UInt8) {
         baseAddress = UInt32(busID) << 16 | 0x80000000;
-        super.init(parentBus: parentBus, acpi: acpi, fullName: fullName, busId: busID)
+        super.init(parentBus: parentBus, acpi: acpi, busId: busID)
     }
 
 
@@ -176,10 +174,10 @@ class PCIBusMMIO: PCIBus, CustomStringConvertible {
     }
 
 
-    init(parentBus: Bus, acpi: ACPIGlobalObjects.ACPIObjectNode, fullName: String, mmiobase: PhysAddress, busID: UInt8) {
+    init(parentBus: Bus, acpi: ACPIGlobalObjects.ACPIObjectNode, mmiobase: PhysAddress, busID: UInt8) {
         let address = mmiobase.advanced(by: UInt(busID) << 20)
         baseAddress = address.vaddr
-        super.init(parentBus: parentBus, acpi: acpi, fullName: fullName, busId: busID)
+        super.init(parentBus: parentBus, acpi: acpi, busId: busID)
     }
 
 //    override func unknownDevice(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPIGlobalObjects.ACPIObjectNode? = nil, acpiFullName: String? = nil) -> UnknownDevice? {
