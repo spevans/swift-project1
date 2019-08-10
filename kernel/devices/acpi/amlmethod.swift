@@ -29,7 +29,7 @@ extension ACPI {
         var localObjects: [AMLTermArg?] = Array(repeatElement(nil, count: 8))
 
 
-        init(scope: AMLNameString, args: AMLTermArgList,
+        init(scope: AMLNameString, args: AMLTermArgList  = [],
              globalObjects: ACPIGlobalObjects) {
             self.scope = scope
             self.args = args

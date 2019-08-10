@@ -75,19 +75,15 @@ final class ISABus: Bus {
 
         acpi.childNodes.forEach {
             let child = $0
-            guard let device = child.object as? AMLDefDevice else {
+            guard child.object is AMLDefDevice else {
                 return
             }
 
             let fullName = (name == "\\") ? name + child.name :
                 name + String(AMLNameString.pathSeparatorChar) + child.name
 
-            var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullName),
-                                                   args: [],
-                                                   globalObjects: system.deviceManager.acpiTables.globalObjects)
-
-            if let deviceId = device.hardwareId(context: &context) ?? device.pnpName(context: &context),
-                let crs = device.currentResourceSettings(context: &context) {
+            if let deviceId = child.hardwareId() ?? child.pnpName(),
+                let crs = child.currentResourceSettings() {
 
                 switch deviceId {
                     case "PNP0303":

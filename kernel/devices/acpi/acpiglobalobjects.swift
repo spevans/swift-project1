@@ -10,17 +10,19 @@
 final class ACPIGlobalObjects {
 
     final class ACPIObjectNode: Hashable {
-        private(set) var childNodes: [ACPIObjectNode]   // FIXME: Should be a dictionary of [name: ACPIObjectNode]
+        fileprivate(set) var childNodes: [ACPIObjectNode]   // FIXME: Should be a dictionary of [name: ACPIObjectNode]
         fileprivate(set) var object: AMLObject
+        unowned private let parent: ACPIObjectNode?
 
         var name: String { return object.name.value }
 
-        init(name: String, object: AMLObject, childNodes: [ACPIObjectNode]) {
+        init(name: String, object: AMLObject, childNodes: [ACPIObjectNode], parent: ACPIObjectNode?) {
             guard name == object.name.shortName.value else {
                 fatalError("ACPIObjectNode.init(): \(name) != \(object.name.shortName.value)")
             }
             self.object = object
             self.childNodes = childNodes
+            self.parent = parent
         }
 
 
@@ -46,35 +48,161 @@ final class ACPIGlobalObjects {
         fileprivate func addChildNode(_ node: ACPIObjectNode) {
             childNodes.append(node)
         }
+
+        func scope() -> String {
+            var node = self.parent
+            var scope = node?.name ?? ""
+            while let p = node?.parent {
+                scope = p.name + ((p.parent == nil) ? "" : ".") + scope
+                node = p
+            }
+            return scope
+        }
+
+
+        func fullname() -> String {
+            return (self.parent == nil) ? name : scope() + "." + name
+        }
+
+        func childNode(named: String) -> ACPIObjectNode? {
+            for child in childNodes {
+                if child.name == named {
+                    return child
+                }
+            }
+            return nil
+        }
+
+
+        func status() -> AMLDefDevice.DeviceStatus {
+            guard let node = childNode(named: "_STA") else {
+                return .defaultStatus()
+            }
+            let sta = node.object
+            if let obj = sta as? AMLDefName, let v = obj.value as? AMLIntegerData {
+                return AMLDefDevice.DeviceStatus(v.value)
+            }
+
+            if let obj = sta as? AMLNamedObj {
+                var context = ACPI.AMLExecutionContext(scope: AMLNameString(node.fullname()),
+                                                       globalObjects: system.deviceManager.acpiTables.globalObjects)
+
+                if let v = obj.readValue(context: &context) as? AMLIntegerData {
+                    return AMLDefDevice.DeviceStatus(v.value)
+                }
+            }
+            fatalError("Cant determine status of: \(sta))")
+        }
+
+
+        func currentResourceSettings() -> [AMLResourceSetting]? {
+            guard let node = childNode(named: "_CRS") else {
+                return nil
+            }
+            let crs = node.object
+
+            let buffer: AMLBuffer?
+            if let obj = crs as? AMLDefName {
+                buffer = obj.value as? AMLBuffer
+            } else {
+                guard let crsObject = crs as? AMLMethod else {
+                    fatalError("CRS object is an \(type(of: crs))")
+                }
+                var context = ACPI.AMLExecutionContext(scope: AMLNameString(node.fullname()),
+                                                       globalObjects: system.deviceManager.acpiTables.globalObjects)
+                buffer = crsObject.readValue(context: &context) as? AMLBuffer
+            }
+            if buffer != nil {
+                return decodeResourceData(buffer!)
+            } else {
+                return nil
+            }
+        }
+
+
+        func hardwareId() -> String? {
+            guard let node = childNode(named: "_HID") else {
+                return nil
+            }
+            let hid = node.object
+
+            if let hidName = hid as? AMLDefName {
+                return (decodeHID(obj: hidName.value) as? AMLString)?.value
+            }
+            return nil
+        }
+
+
+        func pnpName() -> String? {
+            guard let node = childNode(named: "_CID") else {
+                return nil
+            }
+            let cid = node.object
+
+            if let cidName = cid as? AMLDefName {
+                return (decodeHID(obj: cidName.value) as? AMLString)?.value
+            }
+            return nil
+        }
+
+
+        func addressResource() -> AMLInteger? {
+            guard let node = childNode(named: "_ADR") else {
+                return nil
+            }
+            if let adr = node.object as? AMLNamedObj {
+                var context = ACPI.AMLExecutionContext(scope: AMLNameString(node.fullname()),
+                                                       globalObjects: system.deviceManager.acpiTables.globalObjects)
+                if let v = adr.readValue(context: &context) as? AMLIntegerData {
+                    return v.value
+                }
+            }
+            if let adr = node.object as? AMLDefName, let v = adr.value as? AMLIntegerData {
+                return v.value
+            }
+            return nil
+        }
     }
 
     // Predefined objects
-    private var globalObjects = ACPIObjectNode(
-        name: "\\",
-        object: AMLDefName(name: AMLNameString("\\"), value: AMLIntegerData(0)),
-        childNodes: [
+    private var globalObjects: ACPIObjectNode = {
+        let parent = ACPIObjectNode(
+            name: "\\",
+            object: AMLDefName(name: AMLNameString("\\"), value: AMLIntegerData(0)),
+            childNodes: [],
+            parent: nil
+        )
+
+        let children = [
             ACPIObjectNode(name: "_OSI",
                            object: AMLMethod(name: AMLNameString("_OSI"),
                                              flags: AMLMethodFlags(flags: 1),
                                              parser: nil),
-                           childNodes: []),
+                           childNodes: [],
+                           parent: parent),
 
             ACPIObjectNode(name: "_GL",
                            object: AMLDefMutex(
                             name: AMLNameString("_GL"),
                             flags: AMLMutexFlags()),
-                           childNodes: []),
+                           childNodes: [],
+                           parent: parent),
 
             ACPIObjectNode(name: "_REV",
                            object: AMLDefName(name: AMLNameString("_REV"),
                                               value: AMLIntegerData(2)),
-                           childNodes: []),
+                           childNodes: [],
+                           parent: parent),
 
             ACPIObjectNode(name: "_OS",
                            object: AMLDefName(name: AMLNameString("_OS"),
                                               value: AMLString("Darwin")),
-                           childNodes: [])
-        ])
+                           childNodes: [],
+                           parent: parent)
+        ]
+        parent.childNodes = children
+        return parent
+    }()
 
 
     private func findNode(named: String, parent: ACPIObjectNode) -> ACPIObjectNode? {
@@ -98,7 +226,7 @@ final class ACPIGlobalObjects {
 
 
     func add(_ name: String, _ object: AMLObject) {
-     //   print("Adding \(name) -> \(object.name.value) \(type(of: object))")
+        print("Adding \(name) -> \(object.name.value) \(type(of: object))")
         var parent = globalObjects
         var nameParts = removeRootChar(name: name).components(
             separatedBy: AMLNameString.pathSeparatorChar)
@@ -114,7 +242,7 @@ final class ACPIGlobalObjects {
                 let tmpScope = AMLDefScope(name: AMLNameString(part), value: [])
                 let newNode = ACPIObjectNode(name: part,
                                              object: tmpScope,
-                                             childNodes: [])
+                                             childNodes: [], parent: parent)
                     parent.addChildNode(newNode)
                     parent = newNode
             }
@@ -231,40 +359,16 @@ final class ACPIGlobalObjects {
 // Device methods
 extension ACPIGlobalObjects {
 
-    func dumpDevices() {
-        let devices = getDevices()
-        for device in devices {
-            print(device)
-        }
-        print("Have \(devices.count) devices")
-        return
-    }
-
-
-    func getDevices() -> [(String, AMLDefDevice)] {
+    func getDevices() -> [(String, ACPIObjectNode)] {
         guard let sb = get("\\_SB") else {
             fatalError("No \\_SB system bus node")
         }
-        var devices: [(String, AMLDefDevice)] = []
+        var devices: [(String, ACPIObjectNode)] = []
         walkNode(name: "\\_SB", node: sb) { (path, node) in
-            if let device = node.object as? AMLDefDevice {
-                devices.append((path, device))
+            if node.object is AMLDefDevice {
+                devices.append((path, node))
             }
         }
         return devices
-    }
-
-
-    // Find all of the PNP devices and call a closure with the PNP name and resource settings
-    func pnpDevices(_ closure: (String, String, [AMLResourceSetting]) -> Void) {
-        getDevices().forEach { (fullName, device) in
-            var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullName),
-                                                   args: [],
-                                                   globalObjects: self)
-            if let pnpName = device.hardwareId(context: &context),
-                let crs = device.currentResourceSettings(context: &context) {
-                closure(fullName, pnpName, crs)
-            }
-        }
     }
 }

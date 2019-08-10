@@ -36,8 +36,6 @@
 		B933A7941F2F90C900FE6846 /* ACPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7761F2F8D6A00FE6846 /* ACPITests.swift */; };
 		B933A7951F2FBA8700FE6846 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7311F2F49C700FE6846 /* Extensions.swift */; };
 		B962BDAC1FD3116B00D42D70 /* amlresourcedata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */; };
-		B963DA1122FC8A0700E7F8B3 /* run_qemu.sh in Resources */ = {isa = PBXBuildFile; fileRef = B963DA0F22FC8A0600E7F8B3 /* run_qemu.sh */; };
-		B963DA1222FC8A0700E7F8B3 /* gdb-cmds in Resources */ = {isa = PBXBuildFile; fileRef = B963DA1022FC8A0600E7F8B3 /* gdb-cmds */; };
 		B9AF69D61FBDEB8B0049CB98 /* ACPIReadWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9AF69D51FBDEB8B0049CB98 /* ACPIReadWriteTests.swift */; };
 		B9C2AF2B1FD84CB300E6EFEB /* KlibTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF2A1FD84CB300E6EFEB /* KlibTests.swift */; };
 		B9C2AF2C1FD84D9000E6EFEB /* ReservationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */; };
@@ -640,10 +638,8 @@
 				B9F8320D1F38BD20009F24AE /* macbook31-ASF!.aml in Resources */,
 				B9F8320F1F38BD20009F24AE /* macbook31-DSDT.aml in Resources */,
 				B9F832111F38BD20009F24AE /* macbook31-ECDT.aml in Resources */,
-				B963DA1222FC8A0700E7F8B3 /* gdb-cmds in Resources */,
 				B9F832131F38BD20009F24AE /* macbook31-FACP.aml in Resources */,
 				B9F832151F38BD20009F24AE /* macbook31-FACS1.aml in Resources */,
-				B963DA1122FC8A0700E7F8B3 /* run_qemu.sh in Resources */,
 				B9F832171F38BD20009F24AE /* macbook31-FACS2.aml in Resources */,
 				B9F832191F38BD20009F24AE /* macbook31-HPET.aml in Resources */,
 				B9F8321B1F38BD20009F24AE /* macbook31-MCFG.aml in Resources */,

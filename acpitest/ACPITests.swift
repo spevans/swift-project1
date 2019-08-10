@@ -8,6 +8,26 @@
 
 import XCTest
 
+final class DeviceManager {
+    let acpiTables: ACPI
+    let systemBusRoot: ACPIGlobalObjects.ACPIObjectNode
+
+    init(acpiTables: ACPI, systemBusRoot: ACPIGlobalObjects.ACPIObjectNode) {
+        self.acpiTables = acpiTables
+        self.systemBusRoot = systemBusRoot
+    }
+}
+
+final class System {
+    let deviceManager: DeviceManager
+
+    init(deviceManager: DeviceManager) {
+        self.deviceManager = deviceManager
+    }
+}
+
+var system: System!
+
 fileprivate func createACPI(files: [String]) -> (ACPI, UnsafeMutableRawPointer) {
     let testDir = testBundle().resourcePath!
     let acpi = ACPI()
@@ -33,6 +53,14 @@ fileprivate func createACPI(files: [String]) -> (ACPI, UnsafeMutableRawPointer) 
     }
 
     _ = acpi.parseAMLTables()
+
+    guard let (sb, _) = acpi.globalObjects.getGlobalObject(currentScope: AMLNameString("\\"),
+                                                           name: AMLNameString("_SB")) else {
+        fatalError("No \\_SB system bus node")
+    }
+
+    system = System(deviceManager: DeviceManager(acpiTables: acpi, systemBusRoot: sb))
+
     return (acpi, allData)
 }
 
@@ -176,9 +204,31 @@ class ACPITests: XCTestCase {
         XCTAssertEqual(devices.count, 17)
         var deviceResourceSettings: [(String, String, [AMLResourceSetting])] = []
 
-        acpi.globalObjects.pnpDevices() { fullName, pnpName, crs in
+
+
+        // Find all of the PNP devices and call a closure with the PNP name and resource settings
+        func pnpDevices(_ closure: (String, String, [AMLResourceSetting]) -> Void) {
+            acpi.globalObjects.getDevices().forEach { (fullName, node) in
+                //let device = node as! AMLDefDevice
+                print(fullName)
+                if node.object is AMLDefDevice {
+                    if let pnpName = node.hardwareId() {
+                            if let crs = node.currentResourceSettings() {
+                                closure(fullName, pnpName, crs)
+                        }
+                    }
+                }
+            }
+        }
+
+
+        pnpDevices() { fullName, pnpName, crs in
             print("Found PNP device", pnpName, ":", fullName)
             deviceResourceSettings.append((fullName, pnpName, crs))
+            let node = acpi.globalObjects.get(fullName)
+            XCTAssertNotNil(node)
+            let f2 = node!.fullname()
+            XCTAssertEqual(fullName, f2)
         }
 
         XCTAssertEqual(deviceResourceSettings.count, 14)
@@ -234,14 +284,11 @@ class ACPITests: XCTestCase {
         }
 
         for node in isa.childNodes {
-            if let dev = node.object as? AMLDefDevice {
+            if node.object is AMLDefDevice {
 
                 let fullNodeName = fullName + String(AMLNameString.pathSeparatorChar) + node.name
-                var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullNodeName),
-                                                       args: [],
-                                                       globalObjects: acpi.globalObjects)
-                if let pnpName = dev.pnpName(context: &context),
-                    let crs = dev.currentResourceSettings(context: &context) {
+                if let pnpName = node.pnpName(),
+                    let crs = node.currentResourceSettings() {
                     print("Configuring \(fullNodeName) : \(pnpName)")
                     let resources = extractCRSSettings(crs)
                     print(resources)

@@ -107,11 +107,7 @@ final class UnknownPCIDevice: UnknownDevice, PCIDevice {
     override init?(parentBus: Bus, pnpName: String?, acpiNode: ACPIGlobalObjects.ACPIObjectNode? = nil, acpiFullName: String? = nil) {
         guard let acpiNode = acpiNode else { return nil }
         guard let acpiFullName = acpiFullName else { return nil }
-        var context = ACPI.AMLExecutionContext(scope: AMLNameString(acpiFullName),
-                                                      args: [],
-                                                      globalObjects: system.deviceManager.acpiTables.globalObjects)
-
-        guard let address = (acpiNode.object as! AMLDefDevice).addressResource(context: &context) else { return nil }
+        guard let address = acpiNode.addressResource() else { return nil }
         guard let deviceFunction = PCIDeviceFunction(bus: parentBus as! PCIBus, address: UInt32(address)) else { return nil }
         self.deviceFunction = deviceFunction
         acpiName = acpiFullName

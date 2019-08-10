@@ -76,24 +76,21 @@ class Bus: Device {
 
     // FIXME: Rename processPNPDevices or somesuch
     func processNode(parentBus: Bus, _ node: ACPIGlobalObjects.ACPIObjectNode, _ name: String) {
-        guard let device = node.object as? AMLDefDevice else {
+        guard node.object is AMLDefDevice else {
             return
         }
 
         let fullName = name
-        var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullName),
-                                               args: [],
-                                               globalObjects: system.deviceManager.acpiTables.globalObjects)
 
-        let status = device.status(context: &context)
+        let status = node.status()
         if !(status.present && status.enabled) {
             return
         }
 
         var foundDevice: Device? = nil
-        let deviceId = device.hardwareId(context: &context) ?? device.pnpName(context: &context)
+        let deviceId = node.hardwareId() ?? node.pnpName()
 
-        if let pnpName = deviceId, let crs = device.currentResourceSettings(context: &context) {
+        if let pnpName = deviceId, let crs = node.currentResourceSettings() {
             let deviceManager = system.deviceManager
             let im = deviceManager.interruptManager
 
@@ -128,7 +125,7 @@ class Bus: Device {
                     foundDevice = self.unknownDevice(parentBus: parentBus, pnpName: pnpName, acpiNode: node, acpiFullName: fullName) ??
                         UnknownDevice(parentBus: parentBus, pnpName: pnpName, acpiNode: node, acpiFullName: fullName)
             }
-        } else if let address = device.addressResource(context: &context) {
+        } else if let address = node.addressResource() {
             if let device = self.device(parentBus: self, address: UInt32(address), acpiNode: node, acpiFullName: fullName) {
                 foundDevice = device
             } else {
