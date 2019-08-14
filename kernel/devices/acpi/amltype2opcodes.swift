@@ -163,7 +163,6 @@ struct AMLDefCondRefOf: AMLType2Opcode {
             return AMLIntegerData(0)
         }
         // FIXME, do the store into the target
-        //target.value = obj
         print(String(describing: obj))
         return AMLIntegerData(1)
     }
@@ -822,16 +821,7 @@ struct AMLDefStore: AMLType2Opcode {
         let resolvedScope = AMLNameString(fullPath).removeLastSeg()
         var tmpContext = ACPI.AMLExecutionContext(scope: resolvedScope,
                                                   args: context.args)
-        if let no = dest.object as? AMLNamedObj {
-            no.updateValue(to: source, context: &tmpContext)
-        }
-        else if let no = dest.object as? AMLDataRefObject {
-            no.updateValue(to: source, context: &tmpContext)
-        } else if let no = dest.object as? AMLDefName {
-            no.value.updateValue(to: source, context: &tmpContext)
-        } else {
-            fatalError("Cant store \(source) into \(String(describing: dest.object))")
-        }
+        dest.updateValue(to: source, context: &tmpContext)
 
         return v
     }
@@ -1014,8 +1004,8 @@ struct AMLMethodInvocation: AMLType2Opcode {
                                                                 name: invocation.method) else {
             throw AMLError.invalidMethod(reason: "Cant find method: \(name)")
         }
-        guard let method = obj.object as? AMLMethod else {
-            throw AMLError.invalidMethod(reason: "\(name) [\(String(describing:obj.object))] is not an AMLMethod")
+        guard let method = obj as? AMLMethod else {
+            throw AMLError.invalidMethod(reason: "\(name) [\(String(describing:obj))] is not an AMLMethod")
         }
         let termList = try method.termList()
         let newArgs = invocation.args.map { $0.evaluate(context: &context) }

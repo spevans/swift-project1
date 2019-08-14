@@ -12,10 +12,10 @@ extension ACPI {
     struct AMLExecutionContext {
         let scope: AMLNameString
         let args: AMLTermArgList
-  //      let globalObjects = system.deviceManager.acpiTables.globalObjects!
+        var localObjects: [AMLTermArg?] = Array(repeatElement(nil, count: 8))
         var endOfMethod = false
-
         private var _returnValue: AMLTermArg? = nil
+
         var returnValue: AMLTermArg? {
             mutating get {
                 let ret = _returnValue
@@ -26,7 +26,6 @@ extension ACPI {
                 _returnValue = newValue
             }
         }
-        var localObjects: [AMLTermArg?] = Array(repeatElement(nil, count: 8))
 
 
         init(scope: AMLNameString, args: AMLTermArgList  = []) {

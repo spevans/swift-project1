@@ -20,7 +20,7 @@ final class UnknownISADevice: UnknownDevice, ISADevice {
     let pnpName: String
     override var description: String { "ISA: Unknown device: " + pnpName }
 
-    override init?(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPI.ACPIObjectNode? = nil) {
+    override init?(parentBus: Bus, pnpName: String? = nil, acpiNode: AMLDefDevice? = nil) {
         self.pnpName = pnpName ?? acpiNode?.fullname() ?? "unknown"
         super.init(parentBus: parentBus, pnpName: pnpName, acpiNode: acpiNode)
     }
@@ -59,7 +59,7 @@ final class ISABus: Bus {
 
     let rs = ReservedSpace(name: "IO Ports", start: 0, end: 0xfff)
 
-    override func unknownDevice(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPI.ACPIObjectNode? = nil) -> UnknownDevice? {
+    override func unknownDevice(parentBus: Bus, pnpName: String? = nil, acpiNode: AMLDefDevice? = nil) -> UnknownDevice? {
         return UnknownISADevice(parentBus: parentBus, pnpName: pnpName, acpiNode: acpiNode)
     }
 
@@ -72,11 +72,8 @@ final class ISABus: Bus {
         var ps2keyboard: [AMLResourceSetting] = []
         var ps2mouse: [AMLResourceSetting] = []
 
-        acpi.childNodes.forEach {
-            let child = $0
-            guard child.object is AMLDefDevice else {
-                return
-            }
+        acpi.childNodes.filter { $1 is AMLDefDevice }.forEach { (key, value) in
+            let child = value as! AMLDefDevice
 
             if let deviceId = child.hardwareId() ?? child.pnpName(),
                 let crs = child.currentResourceSettings() {

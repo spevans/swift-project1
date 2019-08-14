@@ -12,7 +12,7 @@ final class QEMUFWCFG: Device {
     let baseIOPort: UInt16
     private(set) var hasDMAInterface = false
 
-    init?(parentBus: Bus, acpiNode: ACPI.ACPIObjectNode) {
+    init?(parentBus: Bus, acpiNode: AMLDefDevice) {
         guard let crs = acpiNode.currentResourceSettings() else { return nil }
         let resources = ISABus.extractCRSSettings(crs)
         print(acpiNode.fullname(), "Resources:", resources)

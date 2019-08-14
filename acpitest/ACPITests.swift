@@ -72,7 +72,7 @@ extension ACPI.ACPIObjectNode {
         }
         var devices: [(String, ACPI.ACPIObjectNode)] = []
         walkNode(name: "\\_SB", node: sb) { (path, node) in
-            if node.object is AMLDefDevice {
+            if node is AMLDefDevice {
                 devices.append((path, node))
             }
         }
@@ -125,8 +125,11 @@ class ACPITests: XCTestCase {
     func testPackage_S5() {
         let s5 = ACPITests.acpi.globalObjects.get("\\_S5")
         XCTAssertNotNil(s5)
-        XCTAssertNotNil(s5!.object)
-        guard let package = (s5!.object as? AMLDefName)?.value as? AMLDefPackage else {
+        guard let defname = s5 as? AMLDefName else {
+            XCTFail("\\_S5 is not an AMLDefName")
+            return
+        }
+        guard let package = defname.value as? AMLDefPackage else {
             XCTFail("namedObjects[0] is not an AMLDefPackage")
             return
         }
@@ -181,13 +184,13 @@ class ACPITests: XCTestCase {
             }
             var context = ACPI.AMLExecutionContext(scope: mi.method)
             _ = try? mi.execute(context: &context)
-            guard let osys = ACPITests.acpi.globalObjects.getDataRefObject("\\OSYS") else {
+            guard let osys = ACPITests.acpi.globalObjects.get("\\OSYS") else {
                 XCTFail("Cant find object \\OSYS")
                 return
             }
 
             context = ACPI.AMLExecutionContext(scope: AMLNameString("\\"))
-            let x = osys.evaluate(context: &context) as? AMLIntegerData
+            let x = osys.readValue(context: &context) as? AMLIntegerData
             XCTAssertNotNil(x)
             XCTAssertEqual(x!.value, 10000)
 
@@ -219,28 +222,19 @@ class ACPITests: XCTestCase {
 
 
         // Find all of the PNP devices and call a closure with the PNP name and resource settings
-        func pnpDevices(_ closure: (String, String, [AMLResourceSetting]) -> Void) {
-            acpi.globalObjects.getDevices().forEach { (fullName, node) in
-                //let device = node as! AMLDefDevice
-                print(fullName)
-                if node.object is AMLDefDevice {
-                    if let pnpName = node.hardwareId() {
-                            if let crs = node.currentResourceSettings() {
-                                closure(fullName, pnpName, crs)
-                        }
+        devices.forEach { (fullName, node) in
+            if let node = node as? AMLDefDevice {
+                if let pnpName = node.hardwareId() {
+                    if let crs = node.currentResourceSettings() {
+                        print("Found PNP device", pnpName, ":", fullName)
+                        deviceResourceSettings.append((fullName, pnpName, crs))
+                        let node = acpi.globalObjects.get(fullName)
+                        XCTAssertNotNil(node)
+                        let f2 = node!.fullname()
+                        XCTAssertEqual(fullName, f2)
                     }
                 }
             }
-        }
-
-
-        pnpDevices() { fullName, pnpName, crs in
-            print("Found PNP device", pnpName, ":", fullName)
-            deviceResourceSettings.append((fullName, pnpName, crs))
-            let node = acpi.globalObjects.get(fullName)
-            XCTAssertNotNil(node)
-            let f2 = node!.fullname()
-            XCTAssertEqual(fullName, f2)
         }
 
         XCTAssertEqual(deviceResourceSettings.count, 14)
@@ -295,10 +289,10 @@ class ACPITests: XCTestCase {
             return
         }
 
-        for node in isa.childNodes {
-            if node.object is AMLDefDevice {
+        for (_, node) in isa.childNodes {
+            if let node = node as? AMLDefDevice {
 
-                let fullNodeName = fullName + String(AMLNameString.pathSeparatorChar) + node.name
+                let fullNodeName = node.fullname()
                 if let pnpName = node.pnpName(),
                     let crs = node.currentResourceSettings() {
                     print("Configuring \(fullNodeName) : \(pnpName)")

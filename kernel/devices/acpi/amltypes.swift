@@ -141,7 +141,7 @@ class AMLIntegerData: AMLDataObject, AMLTermArg, AMLTermObj {
 }
 
 
-struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
+struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg, Hashable {
 
     let value: String
     var isNameSeg: Bool { return (value.count <= 4) }
@@ -241,7 +241,7 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
             fatalError("Cant find node: \(value)")
         }
 
-        let namedObject = node.object
+        let namedObject = node
         if let fieldElement = namedObject as? AMLNamedField {
             let resolvedScope = AMLNameString(fullPath).removeLastSeg()
             var tmpContext = ACPI.AMLExecutionContext(scope: resolvedScope,
@@ -249,15 +249,14 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
             return fieldElement.evaluate(context: &tmpContext)
             //fieldElement.setOpRegion(context: tmpContext)
             //return AMLIntegerData(fieldElement.resultAsInteger ?? 0)
-        } else if let n = namedObject as? AMLNamedObj {
-            return n.readValue(context: &context)
-        } else if let termArg = namedObject as? AMLTermArg {
-            return termArg
         } else if let namedObj = namedObject as? AMLDefName {
-            return namedObj.value
+                return namedObj.value
         } else {
-            fatalError("namedObject: \(namedObject) could not execute")
+            return namedObject.readValue(context: &context)
         }
+        //else {
+        //    fatalError("namedObject: \(namedObject) could not execute")
+       // }
     }
 
 
@@ -391,25 +390,26 @@ struct AMLDebugObj: AMLSuperName, AMLDataRefObject, AMLTarget {
 }
 
 
-struct AMLNamedField: AMLFieldElement, AMLDataObject, AMLNamedObj {
+final class AMLNamedField: AMLNamedObj, AMLFieldElement, AMLDataObject {
     var isReadOnly: Bool = false
 
-    let name: AMLNameString
+//    let name: AMLNameString
     let bitOffset: UInt
     let bitWidth: UInt
     let fieldRef: AMLDefFieldRef
 
     init(name: AMLNameString, bitOffset: UInt, bitWidth: UInt, fieldRef: AMLDefFieldRef) throws {
-        guard name.isNameSeg else {
-            throw AMLError.invalidData(reason: "\(name) is not a NameSeg")
-        }
-        self.name = name
+//        guard name.isNameSeg else {
+//            throw AMLError.invalidData(reason: "\(name) is not a NameSeg")
+//        }
+ //       self.name = name
         self.bitOffset = bitOffset
         self.bitWidth = bitWidth
         self.fieldRef = fieldRef
+        super.init(name: name)
     }
 
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         let value = operandAsInteger(operand: to, context: &context)
         setOpRegion(context: context)
         let region = fieldRef.getRegionSpace(context: &context)
@@ -426,6 +426,10 @@ struct AMLNamedField: AMLFieldElement, AMLDataObject, AMLNamedObj {
     }
 
 
+    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        return evaluate(context: &context)
+    }
+
     private func setOpRegion(context: ACPI.AMLExecutionContext) {
         if fieldRef.opRegion == nil {
             guard let globalObjects = system.deviceManager.acpiTables.globalObjects,
@@ -434,7 +438,7 @@ struct AMLNamedField: AMLFieldElement, AMLDataObject, AMLNamedObj {
             }
             if let (opNode, _) = globalObjects.getGlobalObject(currentScope: context.scope,
                                                                           name: opRegionName) {
-                if let opRegion = opNode.object as? AMLDefOpRegion {
+                if let opRegion = opNode as? AMLDefOpRegion {
                     fieldRef.opRegion = opRegion
                     return
                 } else {
@@ -492,9 +496,14 @@ struct AMLDefAlias: AMLNameSpaceModifierObj {
 }
 
 
-struct AMLDefName: AMLNameSpaceModifierObj {
-    let name: AMLNameString
+final class AMLDefName: AMLNamedObj, AMLNameSpaceModifierObj {
+    //let name: AMLNameString
     let value: AMLDataRefObject
+
+    init(name: AMLNameString, value: AMLDataRefObject) {
+        self.value = value
+        super.init(name: name)
+    }
 
     func execute(context: inout ACPI.AMLExecutionContext) throws {
         let fullPath = resolveNameTo(scope: context.scope, path: name)
@@ -502,17 +511,30 @@ struct AMLDefName: AMLNameSpaceModifierObj {
         globalObjects.add(fullPath.value, self)
     }
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         return value
+    }
+
+    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+        value.updateValue(to: to, context: &context)
+    }
+
+    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        evaluate(context: &context)
     }
 }
 
 
-struct AMLDefScope: AMLNameSpaceModifierObj {
+final class AMLDefScope: AMLNamedObj, AMLNameSpaceModifierObj {
     // ScopeOp PkgLength NameString TermList
-    let name: AMLNameString
+
+    //let name: AMLNameString
     let value: AMLTermList
 
+    init(name: AMLNameString, value: AMLTermList) {
+        self.value = value
+        super.init(name: name)
+    }
 
     func execute(context: inout ACPI.AMLExecutionContext) throws {
         throw AMLError.unimplemented("\(type(of: self))")

@@ -19,7 +19,7 @@ class UnknownDevice: Device, CustomStringConvertible {
         _description = "Unknown Device:"
     }
 
-    init?(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPI.ACPIObjectNode? = nil) {
+    init?(parentBus: Bus, pnpName: String? = nil, acpiNode: AMLDefDevice? = nil) {
         let name = acpiNode?.fullname() ?? "nil"
         _description = "Unknown Device: \(pnpName ?? "") \(name)"
     }
@@ -39,37 +39,44 @@ class Bus: Device {
         self.parentBus = parentBus
     }
 
+
+    init(parentBus: Bus? = nil, acpi: AMLDefDevice) {
+        self.acpi = acpi
+        self.fullName = acpi.fullname()
+        self.parentBus = parentBus
+    }
+
+
     func addDevice(_ device: Device) {
         print("\(self): Adding", device)
         devices.append(device)
     }
 
-    func device(parentBus: Bus, pnpName: String, acpiNode: ACPI.ACPIObjectNode? = nil) -> Device? {
+    func device(parentBus: Bus, pnpName: String, acpiNode: AMLDefDevice? = nil) -> Device? {
         print("DevinceManager.device1")
         return nil
     }
 
-    func device(parentBus: Bus, address: UInt32, acpiNode: ACPI.ACPIObjectNode) -> Device? {
+    func device(parentBus: Bus, address: UInt32, acpiNode: AMLDefDevice) -> Device? {
         print("DevinceManager.device2")
             return nil
     }
 
-    func unknownDevice(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPI.ACPIObjectNode? = nil) -> UnknownDevice? {
+    func unknownDevice(parentBus: Bus, pnpName: String? = nil, acpiNode: AMLDefDevice? = nil) -> UnknownDevice? {
         return UnknownDevice(parentBus: parentBus, pnpName: pnpName, acpiNode: acpiNode)
     }
 
 
     func initialiseDevices() {
-        acpi.childNodes.forEach {
-            processNode(parentBus: self, $0)
+        for (_, value) in acpi.childNodes {
+            if let device = value as? AMLDefDevice {
+                processNode(parentBus: self, device)
+            }
         }
     }
 
     // FIXME: Rename processPNPDevices or somesuch
-    func processNode(parentBus: Bus, _ node: ACPI.ACPIObjectNode) {
-        guard node.object is AMLDefDevice else {
-            return
-        }
+    func processNode(parentBus: Bus, _ node: AMLDefDevice) {
 
         let status = node.status()
         if !(status.present && status.enabled) {
@@ -159,9 +166,12 @@ final class DeviceManager {
     init(acpiTables: ACPI) {
         acpiTables.parseAMLTables()
         guard let (sb, _) = acpiTables.globalObjects.getGlobalObject(currentScope: AMLNameString("\\"),
-                                                                        name: AMLNameString("_SB")) else {
+                                                                     name: AMLNameString("_SB")) else {
             fatalError("No \\_SB system bus node")
         }
+//        guard sb is AMLDefScope else {
+//            fatalError("\\_SB is not an AMLDefDevice it is an \(type(of: sb))")
+//        }
         self.systemBusRoot = sb
         self.acpiTables = acpiTables
         interruptManager = InterruptManager(acpiTables: acpiTables)

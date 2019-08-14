@@ -3,49 +3,35 @@
 //  project1
 //
 //  Created by Simon Evans on 25/11/2017.
-//  Copyright © 2017 Simon Evans. All rights reserved.
+//  Copyright © 2017 - 2019 Simon Evans. All rights reserved.
 //
 //  Named Object types
 
 
 // Named Objects
-protocol AMLNamedObj: AMLBuffPkgStrObj, AMLTermObj, AMLObject {
-    // FIXME: add the name in here
-    var name: AMLNameString { get }
-    func createNamedObject(context: inout ACPI.AMLExecutionContext) throws
-    func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext)
-}
-
-extension AMLNamedObj {
-    func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        fatalError("readValue for \(self) not implementd")
-    }
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        fatalError("updateValue denied")
-    }
-
-    func createNamedObject(context: inout ACPI.AMLExecutionContext) throws {
-        let fullPath = resolveNameTo(scope: context.scope, path: name)
-        let globalObjects = system.deviceManager.acpiTables.globalObjects!
-        globalObjects.add(fullPath.value, self)
-    }
-}
+typealias AMLNamedObj = ACPI.ACPIObjectNode
 
 
-struct AMLDefDataRegion: AMLNamedObj {
+final class AMLDefDataRegion: AMLNamedObj {
     var isReadOnly: Bool { return false }
 
 
     // DataRegionOp NameString TermArg TermArg TermArg
-    let name: AMLNameString
+    //let name: AMLNameString
     let arg1: AMLTermArg
     let arg2: AMLTermArg
     let arg3: AMLTermArg
+
+    init(name: AMLNameString, arg1: AMLTermArg, arg2: AMLTermArg, arg3: AMLTermArg) {
+        self.arg1 = arg1
+        self.arg2 = arg2
+        self.arg3 = arg3
+        super.init(name: name)
+    }
 }
 
 
-struct AMLDefDevice: AMLNamedObj {
+final class AMLDefDevice: AMLNamedObj {
 
     struct DeviceStatus {
         private let bits: BitArray32
@@ -67,15 +53,102 @@ struct AMLDefDevice: AMLNamedObj {
 
 
     // DeviceOp PkgLength NameString ObjectList
-    let name: AMLNameString
+    //let name: AMLNameString
     let value: AMLObjectList
+
+
+    init(name: AMLNameString, value: AMLObjectList) {
+        self.value = value
+        super.init(name: name)
+    }
+
+
+    func status() -> AMLDefDevice.DeviceStatus {
+        guard let sta = childNode(named: "_STA") else {
+            return .defaultStatus()
+        }
+        if let obj = sta as? AMLDefName, let v = obj.value as? AMLIntegerData {
+            return AMLDefDevice.DeviceStatus(v.value)
+        }
+
+        var context = ACPI.AMLExecutionContext(scope: AMLNameString(sta.fullname()))
+        if let v = sta.readValue(context: &context) as? AMLIntegerData {
+            return AMLDefDevice.DeviceStatus(v.value)
+        }
+        fatalError("Cant determine status of: \(sta))")
+    }
+
+
+    func currentResourceSettings() -> [AMLResourceSetting]? {
+        guard let crs = childNode(named: "_CRS") else {
+            return nil
+        }
+
+        let buffer: AMLBuffer?
+        if let obj = crs as? AMLDefName {
+            buffer = obj.value as? AMLBuffer
+        } else {
+            guard let crsObject = crs as? AMLMethod else {
+                fatalError("CRS object is an \(type(of: crs))")
+            }
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(crs.fullname()))
+            buffer = crsObject.readValue(context: &context) as? AMLBuffer
+        }
+        if buffer != nil {
+            return decodeResourceData(buffer!)
+        } else {
+            return nil
+        }
+    }
+
+
+    func hardwareId() -> String? {
+        guard let hid = childNode(named: "_HID") else {
+            return nil
+        }
+
+        if let hidName = hid as? AMLDefName {
+            return (decodeHID(obj: hidName.value) as? AMLString)?.value
+        }
+        return nil
+    }
+
+
+    func pnpName() -> String? {
+        guard let cid = childNode(named: "_CID") else {
+            return nil
+        }
+
+        if let cidName = cid as? AMLDefName {
+            return (decodeHID(obj: cidName.value) as? AMLString)?.value
+        }
+        return nil
+    }
+
+
+    func addressResource() -> AMLInteger? {
+        guard let adr = childNode(named: "_ADR") else {
+            return nil
+        }
+        if let adr = adr as? AMLDefName, let v = adr.value as? AMLIntegerData {
+            return v.value
+        }
+
+        var context = ACPI.AMLExecutionContext(scope: AMLNameString(adr.fullname()))
+        if let v = adr.readValue(context: &context) as? AMLIntegerData {
+            return v.value
+        }
+        return nil
+    }
+
 }
 
 
 typealias AMLObjectType = AMLByteData
-struct AMLDefExternal: AMLNamedObj {
+final class AMLDefExternal: AMLNamedObj {
     // ExternalOp NameString ObjectType ArgumentCount
-    let name: AMLNameString
+    // let name: AMLNameString
+
     let type: AMLObjectType
     let argCount: AMLByteData // (0 - 7)
 
@@ -84,19 +157,27 @@ struct AMLDefExternal: AMLNamedObj {
             let reason = "argCount must be 0-7, not \(argCount)"
             throw AMLError.invalidData(reason: reason)
         }
-        self.name = name
+
         self.type = type
         self.argCount = argCount
+        super.init(name: name)
     }
 }
 
 
-struct AMLDefIndexField: AMLNamedObj {
+final class AMLDefIndexField: AMLNamedObj {
     // IndexFieldOp PkgLength NameString NameString FieldFlags FieldList
-    let name: AMLNameString
+    //   let name: AMLNameString
     let dataName: AMLNameString
     let flags: AMLFieldFlags
     let fields: AMLFieldList
+
+    init(name: AMLNameString, dataName: AMLNameString, flags: AMLFieldFlags, fields: AMLFieldList) {
+        self.dataName = dataName
+        self.flags = flags
+        self.fields = fields
+        super.init(name: name)
+    }
 }
 
 
@@ -105,16 +186,16 @@ final class AMLMethod: AMLNamedObj {
         return false
     }
 
-    let name: AMLNameString
+    //let name: AMLNameString
     let flags: AMLMethodFlags
     private var parser: AMLParser!
     private var _termList: AMLTermList?
 
 
     init(name: AMLNameString, flags: AMLMethodFlags, parser: AMLParser?) {
-        self.name = name
         self.flags = flags
         self.parser = parser
+        super.init(name: name)
     }
 
     func termList() throws -> AMLTermList {
@@ -125,7 +206,7 @@ final class AMLMethod: AMLNamedObj {
         return _termList!
     }
 
-    func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         do {
             let termList = try self.termList()
             try context.execute(termList: termList)
@@ -138,9 +219,14 @@ final class AMLMethod: AMLNamedObj {
 
 
 
-struct AMLDefMutex: AMLNamedObj {
-    let name: AMLNameString
+final class AMLDefMutex: AMLNamedObj {
+    //let name: AMLNameString
     let flags: AMLMutexFlags
+
+    init(name: AMLNameString, flags: AMLMutexFlags) {
+        self.flags = flags
+        super.init(name: name)
+    }
 }
 
 enum AMLFieldAccessType: AMLByteData {
@@ -200,139 +286,191 @@ struct AMLFieldFlags {
     }
 }
 
-struct AMLDefBankField: AMLNamedObj {
+
+final class AMLDefBankField: AMLNamedObj {
     // BankFieldOp PkgLength NameString NameString BankValue FieldFlags FieldList
-    let name: AMLNameString
+    //let name: AMLNameString
     let bankValue: AMLTermArg // => Integer
     let flags: AMLFieldFlags
     let fields: AMLFieldList
 
-    func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+    init(name: AMLNameString, bankValue: AMLTermArg, flags: AMLFieldFlags, fields: AMLFieldList) {
+        self.bankValue = bankValue
+        self.flags = flags
+        self.fields = fields
+        super.init(name: name)
+    }
+
+
+    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         print("reading from \(self)")
         return AMLIntegerData(0)
     }
 
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         print("Updating \(self) to \(to)")
     }
 }
 
 
-struct AMLDefCreateBitField: AMLNamedObj {
+final class AMLDefCreateBitField: AMLNamedObj {
     // CreateBitFieldOp SourceBuff BitIndex NameString
     let sourceBuff: AMLTermArg
     let bitIndex: AMLInteger
-    let name: AMLNameString
 
-    func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+    init(sourceBuff: AMLTermArg, bitIndex: AMLInteger, name: AMLNameString) {
+        self.sourceBuff = sourceBuff
+        self.bitIndex = bitIndex
+        super.init(name: name)
+    }
+
+    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let buffer = sourceBuff.evaluate(context: &context)
         print("reading from \(buffer), bitIndex:", bitIndex)
         return AMLIntegerData(0)
     }
 
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         print("Updating \(sourceBuff)[\(bitIndex)] to \(to)")
     }
 }
 
 
-struct AMLDefCreateByteField: AMLNamedObj {
+final class AMLDefCreateByteField: AMLNamedObj {
     // CreateByteFieldOp SourceBuff ByteIndex NameString
     let sourceBuff: AMLTermArg
     let byteIndex: AMLInteger
-    let name: AMLNameString
+    //  let name: AMLNameString
 
-    func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+    init(sourceBuff: AMLTermArg, byteIndex: AMLInteger, name: AMLNameString) {
+        self.sourceBuff = sourceBuff
+        self.byteIndex = byteIndex
+        super.init(name: name)
+    }
+
+
+    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let buffer = sourceBuff.evaluate(context: &context)
         print("reading from \(buffer), byteIndex:", byteIndex)
         return AMLIntegerData(0)
     }
 
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         print("Updating \(sourceBuff)[\(byteIndex)] to \(to)")
     }
 }
 
-struct AMLDefCreateDWordField: AMLNamedObj {
+final class AMLDefCreateDWordField: AMLNamedObj {
     // CreateDWordFieldOp SourceBuff ByteIndex NameString
     let sourceBuff: AMLTermArg
     let byteIndex: AMLInteger
-    let name: AMLNameString
+    // let name: AMLNameString
 
-    func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+    init(sourceBuff: AMLTermArg, byteIndex: AMLInteger, name: AMLNameString) {
+        self.sourceBuff = sourceBuff
+        self.byteIndex = byteIndex
+        super.init(name: name)
+    }
+
+    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let buffer = sourceBuff.evaluate(context: &context)
         print("reading from \(buffer), byteIndex:", byteIndex)
         return AMLIntegerData(0)
     }
 
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         print("Updating \(sourceBuff)[\(byteIndex)] to \(to)")
     }
 }
 
 
-struct AMLDefCreateField: AMLNamedObj {
+final class AMLDefCreateField: AMLNamedObj {
     // CreateFieldOp SourceBuff BitIndex NumBits NameString
     let sourceBuff: AMLTermArg
     let bitIndex: AMLInteger
     let numBits: AMLInteger
-    let name: AMLNameString
 
-    func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+    init(sourceBuff: AMLTermArg, bitIndex: AMLInteger, numBits: AMLInteger, name: AMLNameString) {
+        self.sourceBuff = sourceBuff
+        self.bitIndex = bitIndex
+        self.numBits = numBits
+        super.init(name: name)
+    }
+
+
+    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let buffer = sourceBuff.evaluate(context: &context)
         print("reading from \(buffer), byteIndex:", bitIndex)
         return AMLIntegerData(0)
     }
 
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         print("Updating \(sourceBuff)[\(bitIndex)] to \(to)")
     }
 }
 
 
-struct AMLDefCreateQWordField: AMLNamedObj {
+final class AMLDefCreateQWordField: AMLNamedObj {
     // CreateQWordFieldOp SourceBuff ByteIndex NameString
     let sourceBuff: AMLTermArg
     let byteIndex: AMLInteger
-    let name: AMLNameString
 
-    func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+    init(sourceBuff: AMLTermArg, byteIndex: AMLInteger, name: AMLNameString) {
+        self.sourceBuff = sourceBuff
+        self.byteIndex = byteIndex
+        super.init(name: name)
+    }
+
+
+    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let buffer = sourceBuff.evaluate(context: &context)
         print("reading from \(buffer), byteIndex:", byteIndex)
         return AMLIntegerData(0)
     }
 
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         print("Updating \(sourceBuff)[\(byteIndex)] to \(to)")
     }
 }
 
 
-struct AMLDefCreateWordField: AMLNamedObj {
+final class AMLDefCreateWordField: AMLNamedObj {
     // CreateWordFieldOp SourceBuff ByteIndex NameString
     let sourceBuff: AMLTermArg
     let byteIndex: AMLInteger
-    let name: AMLNameString
 
-    func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+    init(sourceBuff: AMLTermArg, byteIndex: AMLInteger, name: AMLNameString) {
+        self.sourceBuff = sourceBuff
+        self.byteIndex = byteIndex
+        super.init(name: name)
+    }
+
+
+    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let buffer = sourceBuff.evaluate(context: &context)
         print("reading from \(buffer), byteIndex:", byteIndex)
         return AMLIntegerData(0)
     }
 
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         print("Updating \(sourceBuff)[\(byteIndex)] to \(to)")
     }
 }
 
 
-struct AMLDefField: AMLNamedObj {
+final class AMLDefField: AMLNamedObj {
     // FieldOp PkgLength NameString FieldFlags FieldList
-    let name: AMLNameString
     let flags: AMLFieldFlags
     let fields: AMLFieldList
 
-    func createNamedObject(context: inout ACPI.AMLExecutionContext) throws {
+    init(name: AMLNameString, flags: AMLFieldFlags, fields: AMLFieldList) {
+        self.flags = flags
+        self.fields = fields
+        super.init(name: name)
+    }
+
+
+    override func createNamedObject(context: inout ACPI.AMLExecutionContext) throws {
         //let fullPath = resolveNameTo(scope: context.scope, path: name)
         //context.globalObjects.add(fullPath._value, self)
     }
@@ -506,7 +644,7 @@ final class SystemMemorySpace<T: UnsignedInteger & FixedWidthInteger>: OpRegionS
 }
 
 
-class AMLDefFieldRef {
+final class AMLDefFieldRef {
     var amlDefField: AMLDefField? = nil
     var opRegion: AMLDefOpRegion? = nil
     var regionSpace: OpRegionSpace? = nil
@@ -628,12 +766,19 @@ enum AMLRegionSpace: AMLByteData {
 }
 
 
-struct AMLDefOpRegion: AMLNamedObj {
+final class AMLDefOpRegion: AMLNamedObj {
     // OpRegionOp NameString RegionSpace RegionOffset RegionLen
-    let name: AMLNameString
     let region: AMLRegionSpace
     let offset: AMLTermArg // => Integer
     let length: AMLTermArg // => Integer
+
+
+    init(name: AMLNameString, region: AMLRegionSpace, offset: AMLTermArg, length: AMLTermArg) {
+        self.region = region
+        self.offset = offset
+        self.length = length
+        super.init(name: name)
+    }
 
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
@@ -644,12 +789,19 @@ struct AMLDefOpRegion: AMLNamedObj {
 }
 
 
-struct AMLDefProcessor: AMLNamedObj {
+final class AMLDefProcessor: AMLNamedObj {
     // ProcessorOp PkgLength NameString ProcID PblkAddr PblkLen ObjectList
-    let name: AMLNameString
     let procId: AMLByteData
     let pblkAddr: AMLDWordData
     let pblkLen: AMLByteData
     let objects: AMLObjectList
+
+    init(name: AMLNameString, procId: AMLByteData, pblkAddr: AMLDWordData, pblkLen: AMLByteData, objects: AMLObjectList) {
+        self.procId = procId
+        self.pblkAddr = pblkAddr
+        self.pblkLen = pblkLen
+        self.objects = objects
+        super.init(name: name)
+    }
 }
 

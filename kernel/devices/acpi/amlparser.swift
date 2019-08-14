@@ -629,7 +629,7 @@ final class AMLParser {
             throw AMLError.invalidMethod(reason: r)
         }
 
-        guard let method = object.object as? AMLMethod else {
+        guard let method = object as? AMLMethod else {
             throw AMLError.invalidMethod(reason: "\(name.value) is not a Method")
         }
         var args: AMLTermArgList = []
@@ -756,10 +756,9 @@ final class AMLParser {
     private func determineIfMethodOrName(name: AMLNameString) throws -> Bool {
         if let (obj, _) = acpiGlobalObjects.getGlobalObject(currentScope: currentScope,
                                                             name: name),
-            let _ = obj.object as? AMLMethod {
-                    return true
-            }
-
+            obj is AMLMethod{
+                return true
+        }
         return false
     }
 
@@ -770,7 +769,7 @@ final class AMLParser {
     }
 
 
-    func addGlobalObject(name: AMLNameString, object: AMLObject) throws { // FIXME: object should be AMLNamedObhj or AMLDataRefObject
+    func addGlobalObject(name: AMLNameString, object: AMLNamedObj) throws { // FIXME: object should be AMLNamedObhj or AMLDataRefObject
         let nameStr = name.value
         guard let ch = nameStr.first,
             ch == AMLNameString.rootChar else {
