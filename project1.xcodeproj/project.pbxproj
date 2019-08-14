@@ -175,6 +175,8 @@
 		B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReservationManager.swift; sourceTree = "<group>"; };
 		B9C2AF2A1FD84CB300E6EFEB /* KlibTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KlibTests.swift; sourceTree = "<group>"; };
 		B9C2AF2D1FD9FA0A00E6EFEB /* devicemanager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = devicemanager.swift; sourceTree = "<group>"; };
+		B9C6DF0B22FF0629006BD245 /* qemufwcf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = qemufwcf.swift; sourceTree = "<group>"; };
+		B9C6DF0D22FF08E0006BD245 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 		B9EF911D1FC9CACA00D14A2F /* amltype1opcodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amltype1opcodes.swift; sourceTree = "<group>"; };
 		B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amltype2opcodes.swift; sourceTree = "<group>"; };
 		B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amlnamedobject.swift; sourceTree = "<group>"; };
@@ -260,6 +262,7 @@
 		B933A6B81F2F469900FE6846 /* kernel */ = {
 			isa = PBXGroup;
 			children = (
+				B9C6DF0D22FF08E0006BD245 /* Makefile */,
 				B95867F222E5D34F005FA3BF /* vm */,
 				B933A6BA1F2F46C000FE6846 /* init */,
 				B933A6BC1F2F46CB00FE6846 /* mm */,
@@ -287,6 +290,7 @@
 				B933A7151F2F497800FE6846 /* pic8259.swift */,
 				B933A7171F2F497800FE6846 /* pit8254.swift */,
 				B933A7161F2F497800FE6846 /* ps2keyboard.swift */,
+				B9C6DF0B22FF0629006BD245 /* qemufwcf.swift */,
 				B933A71A1F2F497800FE6846 /* tty.swift */,
 				B933A6DB1F2F491C00FE6846 /* acpi */,
 			);

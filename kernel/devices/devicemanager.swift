@@ -110,6 +110,9 @@ class Bus: Device {
                         foundDevice = cmos
                 }
 
+                case "QEMU0002":
+                    foundDevice = QEMUFWCFG(parentBus: self, acpiNode: node)
+
                 default: // "PNP0A01", "PNP0A02", "PNP0A04", "PNP0A05", "PNP0A06":
                     foundDevice = self.unknownDevice(parentBus: parentBus, pnpName: pnpName, acpiNode: node) ??
                         UnknownDevice(parentBus: parentBus, pnpName: pnpName, acpiNode: node)

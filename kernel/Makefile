@@ -56,6 +56,7 @@ _SWIFT_SRCS :=	init/startup.swift		\
 		devices/ps2keyboard.swift	\
 		devices/pit8254.swift		\
 		devices/pic8259.swift		\
+		devices/qemufwcf.swift		\
 		devices/apic.swift		\
 		devices/ioapic.swift		\
 		devices/cmos.swift		\
