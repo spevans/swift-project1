@@ -18,7 +18,7 @@ final class PIIX: Device, PCIDevice, CustomStringConvertible {
         self.deviceFunction = deviceFunction
     }
 
-    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpi: ACPIGlobalObjects.ACPIObjectNode) {
+    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpi: ACPI.ACPIObjectNode) {
         self.deviceFunction = deviceFunction
         print("PIIX: Adding ISA bus")
 

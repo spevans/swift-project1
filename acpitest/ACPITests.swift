@@ -10,9 +10,9 @@ import XCTest
 
 final class DeviceManager {
     let acpiTables: ACPI
-    let systemBusRoot: ACPIGlobalObjects.ACPIObjectNode
+    let systemBusRoot: ACPI.ACPIObjectNode
 
-    init(acpiTables: ACPI, systemBusRoot: ACPIGlobalObjects.ACPIObjectNode) {
+    init(acpiTables: ACPI, systemBusRoot: ACPI.ACPIObjectNode) {
         self.acpiTables = acpiTables
         self.systemBusRoot = systemBusRoot
     }

@@ -20,7 +20,7 @@ final class UnknownISADevice: UnknownDevice, ISADevice {
     let pnpName: String
     override var description: String { "ISA: Unknown device: " + pnpName }
 
-    override init?(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPIGlobalObjects.ACPIObjectNode? = nil) {
+    override init?(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPI.ACPIObjectNode? = nil) {
         self.pnpName = pnpName ?? acpiNode?.fullname() ?? "unknown"
         super.init(parentBus: parentBus, pnpName: pnpName, acpiNode: acpiNode)
     }
@@ -59,7 +59,7 @@ final class ISABus: Bus {
 
     let rs = ReservedSpace(name: "IO Ports", start: 0, end: 0xfff)
 
-    override func unknownDevice(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPIGlobalObjects.ACPIObjectNode? = nil) -> UnknownDevice? {
+    override func unknownDevice(parentBus: Bus, pnpName: String? = nil, acpiNode: ACPI.ACPIObjectNode? = nil) -> UnknownDevice? {
         return UnknownISADevice(parentBus: parentBus, pnpName: pnpName, acpiNode: acpiNode)
     }
 

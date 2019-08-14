@@ -169,10 +169,10 @@ final class AMLParser {
     }
     private var byteStream: AMLByteStream!
     private var currentScope: AMLNameString
-    let acpiGlobalObjects: ACPIGlobalObjects
+    let acpiGlobalObjects: ACPI.ACPIGlobalObjects
 
 
-    init(globalObjects: ACPIGlobalObjects) {
+    init(globalObjects: ACPI.ACPIGlobalObjects) {
         currentScope = AMLNameString(String(AMLNameString.rootChar))
         acpiGlobalObjects = globalObjects
     }
@@ -199,7 +199,7 @@ final class AMLParser {
 
     // Called by subParser
     private init(byteStream: AMLByteStream, scope: AMLNameString,
-                 globalObjects: ACPIGlobalObjects) {
+                 globalObjects: ACPI.ACPIGlobalObjects) {
         self.byteStream = byteStream
         self.currentScope = scope
         self.acpiGlobalObjects = globalObjects

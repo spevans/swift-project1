@@ -7,162 +7,168 @@
 //  ACPI Global Namespace
 
 
-final class ACPIGlobalObjects {
+extension ACPI {
+final class ACPIObjectNode: Hashable {
+    fileprivate(set) var childNodes: [ACPIObjectNode]   // FIXME: Should be a dictionary of [name: ACPIObjectNode]
+    fileprivate(set) var object: AMLObject
+    unowned private let parent: ACPIObjectNode?
 
-    final class ACPIObjectNode: Hashable {
-        fileprivate(set) var childNodes: [ACPIObjectNode]   // FIXME: Should be a dictionary of [name: ACPIObjectNode]
-        fileprivate(set) var object: AMLObject
-        unowned private let parent: ACPIObjectNode?
+    var name: String { return object.name.value }
 
-        var name: String { return object.name.value }
-
-        init(name: String, object: AMLObject, childNodes: [ACPIObjectNode], parent: ACPIObjectNode?) {
-            guard name == object.name.shortName.value else {
-                fatalError("ACPIObjectNode.init(): \(name) != \(object.name.shortName.value)")
-            }
-            self.object = object
-            self.childNodes = childNodes
-            self.parent = parent
+    init(name: String, object: AMLObject, childNodes: [ACPIObjectNode], parent: ACPIObjectNode?) {
+        guard name == object.name.shortName.value else {
+            fatalError("ACPIObjectNode.init(): \(name) != \(object.name.shortName.value)")
         }
+        self.object = object
+        self.childNodes = childNodes
+        self.parent = parent
+    }
 
 
-        static func == (lhs: ACPIGlobalObjects.ACPIObjectNode, rhs: ACPIGlobalObjects.ACPIObjectNode) -> Bool {
-            return lhs.name == rhs.name
-        }
+    static func == (lhs: ACPIObjectNode, rhs: ACPIObjectNode) -> Bool {
+        return lhs.name == rhs.name
+    }
 
-        func hash(into hasher: inout Hasher) {
-            hasher.combine(name)
-        }
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(name)
+    }
 
-        subscript(index: String) -> ACPIObjectNode? {
-            get {
-                for node in childNodes {
-                    if node.name == index {
-                        return node
-                    }
+    subscript(index: String) -> ACPIObjectNode? {
+        get {
+            for node in childNodes {
+                if node.name == index {
+                    return node
                 }
-                return nil
-            }
-        }
-
-        fileprivate func addChildNode(_ node: ACPIObjectNode) {
-            childNodes.append(node)
-        }
-
-        func scope() -> String {
-            var node = self.parent
-            var scope = node?.name ?? ""
-            while let p = node?.parent {
-                scope = p.name + ((p.parent == nil) ? "" : ".") + scope
-                node = p
-            }
-            return scope
-        }
-
-
-        func fullname() -> String {
-            return (self.parent == nil) ? name : scope() + "." + name
-        }
-
-        func childNode(named: String) -> ACPIObjectNode? {
-            for child in childNodes {
-                if child.name == named {
-                    return child
-                }
-            }
-            return nil
-        }
-
-
-        func status() -> AMLDefDevice.DeviceStatus {
-            guard let node = childNode(named: "_STA") else {
-                return .defaultStatus()
-            }
-            let sta = node.object
-            if let obj = sta as? AMLDefName, let v = obj.value as? AMLIntegerData {
-                return AMLDefDevice.DeviceStatus(v.value)
-            }
-
-            if let obj = sta as? AMLNamedObj {
-                var context = ACPI.AMLExecutionContext(scope: AMLNameString(node.fullname()),
-                                                       globalObjects: system.deviceManager.acpiTables.globalObjects)
-
-                if let v = obj.readValue(context: &context) as? AMLIntegerData {
-                    return AMLDefDevice.DeviceStatus(v.value)
-                }
-            }
-            fatalError("Cant determine status of: \(sta))")
-        }
-
-
-        func currentResourceSettings() -> [AMLResourceSetting]? {
-            guard let node = childNode(named: "_CRS") else {
-                return nil
-            }
-            let crs = node.object
-
-            let buffer: AMLBuffer?
-            if let obj = crs as? AMLDefName {
-                buffer = obj.value as? AMLBuffer
-            } else {
-                guard let crsObject = crs as? AMLMethod else {
-                    fatalError("CRS object is an \(type(of: crs))")
-                }
-                var context = ACPI.AMLExecutionContext(scope: AMLNameString(node.fullname()),
-                                                       globalObjects: system.deviceManager.acpiTables.globalObjects)
-                buffer = crsObject.readValue(context: &context) as? AMLBuffer
-            }
-            if buffer != nil {
-                return decodeResourceData(buffer!)
-            } else {
-                return nil
-            }
-        }
-
-
-        func hardwareId() -> String? {
-            guard let node = childNode(named: "_HID") else {
-                return nil
-            }
-            let hid = node.object
-
-            if let hidName = hid as? AMLDefName {
-                return (decodeHID(obj: hidName.value) as? AMLString)?.value
-            }
-            return nil
-        }
-
-
-        func pnpName() -> String? {
-            guard let node = childNode(named: "_CID") else {
-                return nil
-            }
-            let cid = node.object
-
-            if let cidName = cid as? AMLDefName {
-                return (decodeHID(obj: cidName.value) as? AMLString)?.value
-            }
-            return nil
-        }
-
-
-        func addressResource() -> AMLInteger? {
-            guard let node = childNode(named: "_ADR") else {
-                return nil
-            }
-            if let adr = node.object as? AMLNamedObj {
-                var context = ACPI.AMLExecutionContext(scope: AMLNameString(node.fullname()),
-                                                       globalObjects: system.deviceManager.acpiTables.globalObjects)
-                if let v = adr.readValue(context: &context) as? AMLIntegerData {
-                    return v.value
-                }
-            }
-            if let adr = node.object as? AMLDefName, let v = adr.value as? AMLIntegerData {
-                return v.value
             }
             return nil
         }
     }
+
+    fileprivate func addChildNode(_ node: ACPIObjectNode) {
+        childNodes.append(node)
+    }
+
+    func scope() -> String {
+        var node = self.parent
+        var scope = node?.name ?? ""
+        while let p = node?.parent {
+            scope = p.name + ((p.parent == nil) ? "" : ".") + scope
+            node = p
+        }
+        return scope
+    }
+
+
+    func fullname() -> String {
+        return (self.parent == nil) ? name : scope() + "." + name
+    }
+
+    func childNode(named: String) -> ACPIObjectNode? {
+        for child in childNodes {
+            if child.name == named {
+                return child
+            }
+        }
+        return nil
+    }
+
+
+    func status() -> AMLDefDevice.DeviceStatus {
+        guard let node = childNode(named: "_STA") else {
+            return .defaultStatus()
+        }
+        let sta = node.object
+        if let obj = sta as? AMLDefName, let v = obj.value as? AMLIntegerData {
+            return AMLDefDevice.DeviceStatus(v.value)
+        }
+
+        if let obj = sta as? AMLNamedObj {
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(node.fullname()),
+                                                   globalObjects: system.deviceManager.acpiTables.globalObjects)
+
+            if let v = obj.readValue(context: &context) as? AMLIntegerData {
+                return AMLDefDevice.DeviceStatus(v.value)
+            }
+        }
+        fatalError("Cant determine status of: \(sta))")
+    }
+
+
+    func currentResourceSettings() -> [AMLResourceSetting]? {
+        guard let node = childNode(named: "_CRS") else {
+            return nil
+        }
+        let crs = node.object
+
+        let buffer: AMLBuffer?
+        if let obj = crs as? AMLDefName {
+            buffer = obj.value as? AMLBuffer
+        } else {
+            guard let crsObject = crs as? AMLMethod else {
+                fatalError("CRS object is an \(type(of: crs))")
+            }
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(node.fullname()),
+                                                   globalObjects: system.deviceManager.acpiTables.globalObjects)
+            buffer = crsObject.readValue(context: &context) as? AMLBuffer
+        }
+        if buffer != nil {
+            return decodeResourceData(buffer!)
+        } else {
+            return nil
+        }
+    }
+
+
+    func hardwareId() -> String? {
+        guard let node = childNode(named: "_HID") else {
+            return nil
+        }
+        let hid = node.object
+
+        if let hidName = hid as? AMLDefName {
+            return (decodeHID(obj: hidName.value) as? AMLString)?.value
+        }
+        return nil
+    }
+
+
+    func pnpName() -> String? {
+        guard let node = childNode(named: "_CID") else {
+            return nil
+        }
+        let cid = node.object
+
+        if let cidName = cid as? AMLDefName {
+            return (decodeHID(obj: cidName.value) as? AMLString)?.value
+        }
+        return nil
+    }
+
+
+    func addressResource() -> AMLInteger? {
+        guard let node = childNode(named: "_ADR") else {
+            return nil
+        }
+        if let adr = node.object as? AMLNamedObj {
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(node.fullname()),
+                                                   globalObjects: system.deviceManager.acpiTables.globalObjects)
+            if let v = adr.readValue(context: &context) as? AMLIntegerData {
+                return v.value
+            }
+        }
+        if let adr = node.object as? AMLDefName, let v = adr.value as? AMLIntegerData {
+            return v.value
+        }
+        return nil
+    }
+}
+}
+
+extension ACPI {
+
+final class ACPIGlobalObjects {
+
+
 
     // Predefined objects
     private var globalObjects: ACPIObjectNode = {
@@ -336,28 +342,6 @@ final class ACPIGlobalObjects {
     }
 
 
-    func dumpObjects() {
-        walkNode(name: "\\", node: globalObjects) { (path, node) in
-            print("ACPI: \(path)")
-        }
-    }
-
-
-    func runBody(root: String, body: (String, AMLNamedObj) -> ()) {
-        guard let sb = get("\\") else {
-            fatalError("\\ not found")
-        }
-        walkNode(name: root, node: sb) { (path, node) in
-            if let obj = node.object as? AMLNamedObj {
-                body(path, obj)
-            }
-        }
-    }
-}
-
-
-// Device methods
-extension ACPIGlobalObjects {
 
     func getDevices() -> [(String, ACPIObjectNode)] {
         guard let sb = get("\\_SB") else {
@@ -371,4 +355,5 @@ extension ACPIGlobalObjects {
         }
         return devices
     }
+}
 }
