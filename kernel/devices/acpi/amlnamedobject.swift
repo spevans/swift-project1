@@ -27,7 +27,8 @@ extension AMLNamedObj {
 
     func createNamedObject(context: inout ACPI.AMLExecutionContext) throws {
         let fullPath = resolveNameTo(scope: context.scope, path: name)
-        context.globalObjects.add(fullPath.value, self)
+        let globalObjects = system.deviceManager.acpiTables.globalObjects!
+        globalObjects.add(fullPath.value, self)
     }
 }
 

@@ -134,11 +134,10 @@ final class ACPI {
     private(set) var mcfg: MCFG?
     private(set) var facp: FACP?
     private(set) var madt: MADT?
-    private(set) var globalObjects: ACPIGlobalObjects!
+    private(set) var globalObjects: ACPIObjectNode!
     private(set) var tables: [ACPITable] = []
     private var dsdt: AMLByteBuffer?
     private var ssdts: [AMLByteBuffer] = []
-
 
     init?(rsdp: UnsafeRawPointer, vendor: String, product: String) {
         let rsdp = RSDP(rsdp)
@@ -171,7 +170,7 @@ final class ACPI {
         }
         ssdts.insert(ptr, at: 0) // Put the DSDT first
 
-        let acpiGlobalObjects = ACPIGlobalObjects()
+        let acpiGlobalObjects = ACPI.ACPIObjectNode.createGlobalObjects()
         let parser = AMLParser(globalObjects: acpiGlobalObjects)
         do {
             for buffer in ssdts {

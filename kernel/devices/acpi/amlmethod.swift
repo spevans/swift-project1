@@ -12,7 +12,7 @@ extension ACPI {
     struct AMLExecutionContext {
         let scope: AMLNameString
         let args: AMLTermArgList
-        let globalObjects: ACPIGlobalObjects
+  //      let globalObjects = system.deviceManager.acpiTables.globalObjects!
         var endOfMethod = false
 
         private var _returnValue: AMLTermArg? = nil
@@ -29,15 +29,13 @@ extension ACPI {
         var localObjects: [AMLTermArg?] = Array(repeatElement(nil, count: 8))
 
 
-        init(scope: AMLNameString, args: AMLTermArgList  = [],
-             globalObjects: ACPIGlobalObjects) {
+        init(scope: AMLNameString, args: AMLTermArgList  = []) {
             self.scope = scope
             self.args = args
-            self.globalObjects = globalObjects
         }
 
         func withNewScope(_ newScope: AMLNameString) -> AMLExecutionContext {
-            return AMLExecutionContext(scope: newScope, args: [], globalObjects: globalObjects)
+            return AMLExecutionContext(scope: newScope)
         }
 
         mutating func execute(termList: AMLTermList) throws {
@@ -76,9 +74,7 @@ extension ACPI {
         }
         let mi = try AMLMethodInvocation(method: AMLNameString(name),
                                          args: methodArgs)
-        var context = AMLExecutionContext(scope: mi.method,
-                                          args: [],
-                                          globalObjects: globalObjects)
+        var context = AMLExecutionContext(scope: mi.method)
 
         return try mi.execute(context: &context)
     }

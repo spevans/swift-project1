@@ -169,10 +169,10 @@ final class AMLParser {
     }
     private var byteStream: AMLByteStream!
     private var currentScope: AMLNameString
-    let acpiGlobalObjects: ACPI.ACPIGlobalObjects
+    let acpiGlobalObjects: ACPI.ACPIObjectNode
 
 
-    init(globalObjects: ACPI.ACPIGlobalObjects) {
+    init(globalObjects: ACPI.ACPIObjectNode) {
         currentScope = AMLNameString(String(AMLNameString.rootChar))
         acpiGlobalObjects = globalObjects
     }
@@ -199,7 +199,7 @@ final class AMLParser {
 
     // Called by subParser
     private init(byteStream: AMLByteStream, scope: AMLNameString,
-                 globalObjects: ACPI.ACPIGlobalObjects) {
+                 globalObjects: ACPI.ACPIObjectNode) {
         self.byteStream = byteStream
         self.currentScope = scope
         self.acpiGlobalObjects = globalObjects
@@ -444,7 +444,7 @@ final class AMLParser {
 
     private func parseTermArgAsInteger() throws -> AMLInteger {
         let arg = try parseTermArg()
-        var context = ACPI.AMLExecutionContext(scope: currentScope, args: [], globalObjects: acpiGlobalObjects)
+        var context = ACPI.AMLExecutionContext(scope: currentScope)
         guard let integerData = arg.evaluate(context: &context) as? AMLIntegerData else {
             throw AMLError.invalidData(reason: "Cant convert \(type(of: arg)) to integer")
         }
@@ -975,7 +975,6 @@ final class AMLParser {
             throw AMLError.invalidData(reason: "Bad AMLRegionSpace: \(byte)")
         }
 
-        //var context = ACPI.AMLExecutionContext(scope: currentScope, args: [], globalObjects: acpiGlobalObjects)
         let offset = try parseTermArg()
         let length = try parseTermArg()
 

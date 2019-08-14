@@ -65,6 +65,22 @@ fileprivate func createACPI(files: [String]) -> (ACPI, UnsafeMutableRawPointer) 
 }
 
 
+extension ACPI.ACPIObjectNode {
+    func getDevices() -> [(String, ACPI.ACPIObjectNode)] {
+        guard let sb = get("\\_SB") else {
+            fatalError("No \\_SB system bus node")
+        }
+        var devices: [(String, ACPI.ACPIObjectNode)] = []
+        walkNode(name: "\\_SB", node: sb) { (path, node) in
+            if node.object is AMLDefDevice {
+                devices.append((path, node))
+            }
+        }
+        return devices
+    }
+}
+
+
 class ACPITests: XCTestCase {
     static var acpi: ACPI!
     static var allData: UnsafeMutableRawPointer?
@@ -131,8 +147,7 @@ class ACPITests: XCTestCase {
         let invocation = try? AMLMethodInvocation(method: AMLNameString("\\_PIC"),
                                                   AMLByteConst(1)) // APIC
         XCTAssertNotNil(invocation)
-        var context = ACPI.AMLExecutionContext(scope: invocation!.method,
-                                               args: [], globalObjects: ACPITests.acpi.globalObjects)
+        var context = ACPI.AMLExecutionContext(scope: invocation!.method)
         _ = try? invocation?.execute(context: &context)
 
         guard let gpic2 = ACPITests.acpi.globalObjects.getDataRefObject("\\GPIC") as? AMLIntegerData else {
@@ -164,17 +179,14 @@ class ACPITests: XCTestCase {
                 XCTFail("Cant create method invocation")
                 return
             }
-            var context = ACPI.AMLExecutionContext(scope: mi.method,
-                                                   args: [], globalObjects: ACPITests.acpi.globalObjects)
+            var context = ACPI.AMLExecutionContext(scope: mi.method)
             _ = try? mi.execute(context: &context)
             guard let osys = ACPITests.acpi.globalObjects.getDataRefObject("\\OSYS") else {
                 XCTFail("Cant find object \\OSYS")
                 return
             }
 
-            context = ACPI.AMLExecutionContext(scope: AMLNameString("\\"),
-                                               args: [],
-                                               globalObjects: ACPITests.acpi.globalObjects)
+            context = ACPI.AMLExecutionContext(scope: AMLNameString("\\"))
             let x = osys.evaluate(context: &context) as? AMLIntegerData
             XCTAssertNotNil(x)
             XCTAssertEqual(x!.value, 10000)

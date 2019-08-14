@@ -235,7 +235,8 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let scope = context.scope
-        guard let (node, fullPath) = context.globalObjects.getGlobalObject(currentScope: scope,
+        guard let globalObjects = system.deviceManager.acpiTables.globalObjects,
+            let (node, fullPath) = globalObjects.getGlobalObject(currentScope: scope,
                                                                            name: self) else {
             fatalError("Cant find node: \(value)")
         }
@@ -244,8 +245,7 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg {
         if let fieldElement = namedObject as? AMLNamedField {
             let resolvedScope = AMLNameString(fullPath).removeLastSeg()
             var tmpContext = ACPI.AMLExecutionContext(scope: resolvedScope,
-                                                      args: context.args,
-                                                      globalObjects: context.globalObjects)
+                                                      args: context.args)
             return fieldElement.evaluate(context: &tmpContext)
             //fieldElement.setOpRegion(context: tmpContext)
             //return AMLIntegerData(fieldElement.resultAsInteger ?? 0)
@@ -428,10 +428,11 @@ struct AMLNamedField: AMLFieldElement, AMLDataObject, AMLNamedObj {
 
     private func setOpRegion(context: ACPI.AMLExecutionContext) {
         if fieldRef.opRegion == nil {
-            guard let opRegionName = fieldRef.amlDefField?.name else {
+            guard let globalObjects = system.deviceManager.acpiTables.globalObjects,
+                let opRegionName = fieldRef.amlDefField?.name else {
                 fatalError("cant get opRegionanme")
             }
-            if let (opNode, _) = context.globalObjects.getGlobalObject(currentScope: context.scope,
+            if let (opNode, _) = globalObjects.getGlobalObject(currentScope: context.scope,
                                                                           name: opRegionName) {
                 if let opRegion = opNode.object as? AMLDefOpRegion {
                     fieldRef.opRegion = opRegion
@@ -497,7 +498,8 @@ struct AMLDefName: AMLNameSpaceModifierObj {
 
     func execute(context: inout ACPI.AMLExecutionContext) throws {
         let fullPath = resolveNameTo(scope: context.scope, path: name)
-        context.globalObjects.add(fullPath.value, self)
+        let globalObjects = system.deviceManager.acpiTables.globalObjects!
+        globalObjects.add(fullPath.value, self)
     }
 
     func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {

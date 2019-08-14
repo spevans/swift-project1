@@ -158,9 +158,9 @@ struct AMLDefCondRefOf: AMLType2Opcode {
         guard let n = name as? AMLNameString else {
             return AMLIntegerData(0)
         }
-        guard let (obj, _) = context.globalObjects.getGlobalObject(currentScope: context.scope,
-                                                                   name: n) else {
-                                                                    return AMLIntegerData(0)
+        let globalObjects = system.deviceManager.acpiTables.globalObjects!
+        guard let (obj, _) = globalObjects.getGlobalObject(currentScope: context.scope, name: n) else {
+            return AMLIntegerData(0)
         }
         // FIXME, do the store into the target
         //target.value = obj
@@ -803,9 +803,10 @@ struct AMLDefStore: AMLType2Opcode {
         guard let sname = name as? AMLNameString else {
             throw AMLError.invalidData(reason: "\(name) is not a string")
         }
-        guard let (dest, fullPath) = context.globalObjects.getGlobalObject(currentScope: context.scope,
-                                                                           name: sname) else {
-                                                                            fatalError("Cant find \(sname)")
+        guard let globalObjects = system.deviceManager.acpiTables.globalObjects,
+            let (dest, fullPath) = globalObjects.getGlobalObject(currentScope: context.scope,
+                                                                 name: sname) else {
+            fatalError("Cant find \(sname)")
         }
         // guard let target = dest.object as? AMLDataRefObject else {
         //     fatalError("dest not an AMLDataRefObject")
@@ -820,9 +821,7 @@ struct AMLDefStore: AMLType2Opcode {
         //  }
         let resolvedScope = AMLNameString(fullPath).removeLastSeg()
         var tmpContext = ACPI.AMLExecutionContext(scope: resolvedScope,
-                                                  args: context.args,
-                                                  globalObjects: context.globalObjects)
-
+                                                  args: context.args)
         if let no = dest.object as? AMLNamedObj {
             no.updateValue(to: source, context: &tmpContext)
         }
@@ -1010,8 +1009,9 @@ struct AMLMethodInvocation: AMLType2Opcode {
             return try ACPI._OSI_Method(invocation.args)
         }
 
-        guard let (obj, fullPath) = context.globalObjects.getGlobalObject(currentScope: context.scope,
-                                                                          name: invocation.method) else {
+        guard let globalObjects = system.deviceManager.acpiTables.globalObjects,
+            let (obj, fullPath) = globalObjects.getGlobalObject(currentScope: context.scope,
+                                                                name: invocation.method) else {
             throw AMLError.invalidMethod(reason: "Cant find method: \(name)")
         }
         guard let method = obj.object as? AMLMethod else {
@@ -1020,8 +1020,7 @@ struct AMLMethodInvocation: AMLType2Opcode {
         let termList = try method.termList()
         let newArgs = invocation.args.map { $0.evaluate(context: &context) }
         var newContext = ACPI.AMLExecutionContext(scope: AMLNameString(fullPath),
-                                                  args: newArgs,
-                                                  globalObjects: context.globalObjects)
+                                                  args: newArgs)
         try newContext.execute(termList: termList)
         context.returnValue = newContext.returnValue
         return context.returnValue
