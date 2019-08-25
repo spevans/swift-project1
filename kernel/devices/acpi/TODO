@@ -5,10 +5,11 @@ Simplify parseArgs etc and merge with Var args
 Scope modifiers dont need to store the objectList
 Store local names in the context not the globalObjects
 
-
 - Fix RegionSpace read/write at bitOffset
 - merge If/ElseIf/ElseIf/Else blocks
-- Fix dual invokeMethods, should only be one
 - AMLDefOpRegion Should probably be a class and try to allocate its own region at init()
 - Fix enums to have lowercase first letter
+- Implement Data conversion
+- Should AMLTermArg.evaluate() throw?
 
+DONE - Fix dual invokeMethods, should only be one

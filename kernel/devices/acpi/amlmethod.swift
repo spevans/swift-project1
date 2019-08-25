@@ -2,7 +2,7 @@
 //  kernel/devices/acpi/amlmethod.swift
 //
 //  Created by Simon Evans on 12/05/2017.
-//  Copyright © 2017 Simon Evans. All rights reserved.
+//  Copyright © 2017 - 2019 Simon Evans. All rights reserved.
 //
 //  ACPI method invocation
 
@@ -42,7 +42,7 @@ extension ACPI {
                 if let op = termObj as? AMLType2Opcode {
                     // FIXME, should something be done with the result or maybe it should
                     // only be returned in the context
-                    _ = try op.execute(context: &self)
+                    _ = op.evaluate(context: &self)
                 } else if let op = termObj as? AMLType1Opcode {
                     try op.execute(context: &self)
                 } else if let op = termObj as? AMLNamedObj {

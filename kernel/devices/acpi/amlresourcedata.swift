@@ -2,7 +2,7 @@
 //  kernel/devices/acpi/amlresourcedata.swift
 //
 //  Created by Simon Evans on 02/12/2017.
-//  Copyright © 2017 Simon Evans. All rights reserved.
+//  Copyright © 2017 - 2019 Simon Evans. All rights reserved.
 //
 //  Current Resource Settings (_CRS) decoding.
 

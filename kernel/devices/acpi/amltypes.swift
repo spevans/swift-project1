@@ -2,7 +2,7 @@
  * kernel/devices/acpi/amltypes.swift
  *
  * Created by Simon Evans on 05/07/2016.
- * Copyright © 2016, 2017 Simon Evans. All rights reserved.
+ * Copyright © 2016 - 2019 Simon Evans. All rights reserved.
  *
  * AML Type and Opcode definitions
  */
@@ -33,9 +33,6 @@ protocol AMLTermArg {
 extension AMLTermArg {
     func canBeConverted(to: AMLDataRefObject) -> Bool {
         return false
-    }
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return self
     }
 }
 
@@ -79,10 +76,6 @@ protocol AMLSuperName: AMLTarget {
 }
 
 extension AMLSuperName {
-   // func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-   //     fatalError("\(self) can not be read from")
-   // }
-
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         fatalError("\(self) can not be written to")
     }
@@ -114,11 +107,15 @@ typealias AMLObjectReference = AMLInteger
 
 
 class AMLIntegerData: AMLDataObject, AMLTermArg, AMLTermObj {
-    var value: AMLInteger
+    private(set) var value: AMLInteger
     let isReadOnly = false
 
     init(_ value: AMLInteger) {
         self.value = value
+    }
+
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        return self
     }
 
     func canBeConverted(to: AMLDataRefObject) -> Bool {
@@ -247,16 +244,11 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg, Hashable {
             var tmpContext = ACPI.AMLExecutionContext(scope: resolvedScope,
                                                       args: context.args)
             return fieldElement.evaluate(context: &tmpContext)
-            //fieldElement.setOpRegion(context: tmpContext)
-            //return AMLIntegerData(fieldElement.resultAsInteger ?? 0)
         } else if let namedObj = namedObject as? AMLDefName {
                 return namedObj.value
         } else {
             return namedObject.readValue(context: &context)
         }
-        //else {
-        //    fatalError("namedObject: \(namedObject) could not execute")
-       // }
     }
 
 
@@ -378,11 +370,15 @@ struct AMLLocalObj: AMLTermArg, AMLSimpleName, AMLBuffPkgStrObj, AMLTermObj {
 
 
 struct AMLDebugObj: AMLSuperName, AMLDataRefObject, AMLTarget {
-    func canBeConverted(to: AMLDataRefObject) -> Bool {
+    var isReadOnly: Bool  { return false }
+
+    func canBeConveArted(to: AMLDataRefObject) -> Bool {
         return false
     }
 
-    var isReadOnly: Bool  { return false }
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        return self
+    }
 
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         print("DEBUG:", to)
@@ -391,18 +387,12 @@ struct AMLDebugObj: AMLSuperName, AMLDataRefObject, AMLTarget {
 
 
 final class AMLNamedField: AMLNamedObj, AMLFieldElement, AMLDataObject {
-    var isReadOnly: Bool = false
-
-//    let name: AMLNameString
     let bitOffset: UInt
     let bitWidth: UInt
     let fieldRef: AMLDefFieldRef
+    var isReadOnly: Bool = false
 
     init(name: AMLNameString, bitOffset: UInt, bitWidth: UInt, fieldRef: AMLDefFieldRef) throws {
-//        guard name.isNameSeg else {
-//            throw AMLError.invalidData(reason: "\(name) is not a NameSeg")
-//        }
- //       self.name = name
         self.bitOffset = bitOffset
         self.bitWidth = bitWidth
         self.fieldRef = fieldRef
@@ -551,8 +541,13 @@ struct AMLEvent {
 
 // AMLType6Opcode
 struct AMLUserTermObj: AMLType6Opcode {
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        fatalError("Implement UserTerm")
+
+    }
+
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        fatalError("Here")
+        fatalError("Implement UserTerm")
     }
 }
 
@@ -578,10 +573,14 @@ func AMLQWordConst(_ v: AMLQWordData) -> AMLIntegerData {
 
 struct AMLString: AMLDataRefObject, AMLTermObj {
     var isReadOnly: Bool { return false }
-    var value: String
+    private(set) var value: String
 
     init(_ v: String) {
         value = v
+    }
+
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        return self
     }
 }
 
@@ -632,8 +631,11 @@ struct AMLRevisionOp: AMLConstObj {
 // AMLDataObject
 struct AMLDDBHandle: AMLDataRefObject {
     let isReadOnly = true
-
     let value: AMLInteger
+
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        return self
+    }
 }
 
 

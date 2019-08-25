@@ -2,13 +2,13 @@
 //  kernel/devices/acpi/acpigloblobjects.swift
 //
 //  Created by Simon Evans on 28/04/2017.
-//  Copyright © 2017 Simon Evans. All rights reserved.
+//  Copyright © 2017 - 2019 Simon Evans. All rights reserved.
 //
 //  ACPI Global Namespace
 
 
 extension ACPI {
-    class ACPIObjectNode: AMLBuffPkgStrObj, AMLTermObj, AMLObject, Hashable {
+    class ACPIObjectNode: AMLTermObj, AMLObject, Hashable {
         let name: AMLNameString
         fileprivate(set) var childNodes: [AMLNameString: ACPIObjectNode]
         unowned private(set) var parent: ACPIObjectNode?
@@ -19,13 +19,12 @@ extension ACPI {
             self.parent = parent
         }
 
-
         func readValue(context: inout AMLExecutionContext) -> AMLTermArg {
-            fatalError("readValue for \(self) not implementd")
+            fatalError("Requires concrete implementation")
         }
 
         func updateValue(to: AMLTermArg, context: inout AMLExecutionContext) {
-            fatalError("updateValue denied")
+            fatalError("Requires concrete implementation")
         }
 
         func createNamedObject(context: inout AMLExecutionContext) throws {

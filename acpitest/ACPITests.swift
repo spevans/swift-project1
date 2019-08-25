@@ -44,7 +44,7 @@ fileprivate func invokeMethod(name: String, _ args: Any...) throws -> AMLTermArg
                                      args: methodArgs)
     var context = ACPI.AMLExecutionContext(scope: mi.method)
 
-    return try mi.execute(context: &context)
+    return mi.evaluate(context: &context)
 }
 
 
@@ -172,7 +172,7 @@ class ACPITests: XCTestCase {
                                                   AMLByteConst(1)) // APIC
         XCTAssertNotNil(invocation)
         var context = ACPI.AMLExecutionContext(scope: invocation!.method)
-        _ = try? invocation?.execute(context: &context)
+        _ = invocation?.evaluate(context: &context)
 
         guard let gpic2 = ACPITests.acpi.globalObjects.getDataRefObject("\\GPIC") as? AMLIntegerData else {
             XCTFail("Cant find object \\_PIC")
@@ -204,7 +204,7 @@ class ACPITests: XCTestCase {
                 return
             }
             var context = ACPI.AMLExecutionContext(scope: mi.method)
-            _ = try? mi.execute(context: &context)
+            _ = mi.evaluate(context: &context)
             guard let osys = ACPITests.acpi.globalObjects.get("\\OSYS") else {
                 XCTFail("Cant find object \\OSYS")
                 return

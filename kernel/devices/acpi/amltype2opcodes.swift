@@ -2,12 +2,18 @@
 //  kernel/devices/acpi/amltype2ocodes.swift
 //
 //  Created by Simon Evans on 25/11/2017.
-//  Copyright © 2017 Simon Evans. All rights reserved.
+//  Copyright © 2017 - 2019 Simon Evans. All rights reserved.
 //
 //  ACPI Type 2 Opcodes
 
 protocol AMLType2Opcode: AMLTermObj, AMLTermArg {
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg
+}
+
+extension AMLType2Opcode {
+    // FIXME: This should be removed when implemented fully
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        fatalError("\(type(of: self)) is not implemented")
+    }
 }
 
 
@@ -35,7 +41,7 @@ struct AMLDefAcquire: AMLType2Opcode {
     let mutex: AMLMutexObject
     let timeout: AMLTimeout
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         // FIXME - implement
         print("Acquiring Mutex:", mutex)
         return AMLIntegerData(AMLBoolean(false))   // acquired
@@ -53,15 +59,9 @@ struct AMLDefAdd: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
-        let result = AMLIntegerData(op1 + op2)
+        let result = AMLIntegerData(op1 &+ op2)
+        target.updateValue(to: result, context: &context)
         return result
-    }
-
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        let value = evaluate(context: &context)
-        target.updateValue(to: value, context: &context)
-        return value
     }
 }
 
@@ -80,13 +80,6 @@ struct AMLDefAnd: AMLType2Opcode {
         target.updateValue(to: result, context: &context)
         return result
     }
-
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        let value = evaluate(context: &context)
-        target.updateValue(to: value, context: &context)
-        return value
-    }
 }
 
 
@@ -98,11 +91,9 @@ struct AMLBuffer: AMLBuffPkgStrObj, AMLType2Opcode, AMLComputationalData {
     let value: AMLByteList
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        guard let result = size.evaluate(context: &context) as? AMLIntegerData else {
-            fatalError("\(size) does not evaluate to an integer")
-        }
-        return result
+    // FIXME: Implement
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+       return self
     }
 }
 
@@ -116,8 +107,8 @@ struct AMLDefConcat: AMLType2Opcode {
     let target: AMLTarget
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        fatalError("\(type(of: self))")
     }
 }
 
@@ -131,7 +122,7 @@ struct AMLDefConcatRes: AMLType2Opcode {
     let target: AMLTarget
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         guard let buf1 = data1.evaluate(context: &context) as? AMLBuffer,
             let buf2 = data2.evaluate(context: &context) as? AMLBuffer else {
                 fatalError("cant evaulate to buffers")
@@ -145,10 +136,9 @@ struct AMLDefConcatRes: AMLType2Opcode {
     }
 }
 
-///ObjReference := TermArg => ObjectReference | String
+//ObjReference := TermArg => ObjectReference | String
 //ObjectReference :=  Integer
 struct AMLDefCondRefOf: AMLType2Opcode {
-
 
     // CondRefOfOp SuperName Target
     let name: AMLSuperName
@@ -162,14 +152,9 @@ struct AMLDefCondRefOf: AMLType2Opcode {
         guard let (obj, _) = globalObjects.getGlobalObject(currentScope: context.scope, name: n) else {
             return AMLIntegerData(0)
         }
-        // FIXME, do the store into the target
-        print(String(describing: obj))
+        let ref = AMLNameString(obj.fullname())
+        target.updateValue(to: ref, context: &context)
         return AMLIntegerData(1)
-    }
-
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
     }
 }
 
@@ -181,10 +166,8 @@ struct AMLDefCopyObject: AMLType2Opcode {
     let target: AMLSimpleName
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        let value = evaluate(context: &context)
-        target.updateValue(to: value, context: &context)
-        return value
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        fatalError("Implement DefCopyObject")
     }
 }
 
@@ -195,18 +178,14 @@ struct AMLDefDecrement: AMLType2Opcode {
     let target: AMLSuperName
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        guard let result = target.evaluate(context: &context) as? AMLIntegerData else {
+        guard let value = (target.evaluate(context: &context) as? AMLIntegerData)?.value else {
             fatalError("\target) is not an integer")
         }
-        return AMLIntegerData(result.value &- 1)
+        let result = AMLIntegerData(value &- 1)
+        target.updateValue(to: result, context: &context)
+        return result
     }
 
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        let value = evaluate(context: &context)
-        target.updateValue(to: value, context: &context)
-        return value
-    }
 }
 
 
@@ -214,14 +193,7 @@ struct AMLDefDerefOf: AMLType2Opcode, AMLType6Opcode {
     // DerefOfOp ObjReference
     let name: AMLSuperName
 
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
-
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        fatalError("Cant update \(self) to \(to)")
-    }
+    // FIXME: Implement
 }
 
 
@@ -243,17 +215,6 @@ struct AMLDefDivide: AMLType2Opcode {
             fatalError("divisor is 0")
         }
         let q = AMLIntegerData((d1 / d2))
-        return q
-    }
-
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        let d1 = operandAsInteger(operand: dividend, context: &context)
-        let d2 = operandAsInteger(operand: divisor, context: &context)
-        guard d2 != 0 else {
-            fatalError("divisor is 0")
-        }
-        let q = AMLIntegerData((d1 / d2))
         let r = AMLIntegerData((d1 % d2))
         quotient.updateValue(to: q, context: &context)
         remainder.updateValue(to: r, context: &context)
@@ -268,9 +229,12 @@ struct AMLDefFindSetLeftBit: AMLType2Opcode {
     let operand: AMLOperand
     let target: AMLTarget
 
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
+    func execute(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        let op = operandAsInteger(operand: operand, context: &context)
+        let value = (op == 0) ? AMLInteger(0) : AMLInteger(op.leadingZeroBitCount + 1)
+        let result = AMLIntegerData(value)
+        target.updateValue(to: result, context: &context)
+        return result
     }
 }
 
@@ -282,8 +246,12 @@ struct AMLDefFindSetRightBit: AMLType2Opcode {
     let target: AMLTarget
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
+    func execute(context: inout ACPI.AMLExecutionContext)  -> AMLTermArg {
+        let op = operandAsInteger(operand: operand, context: &context)
+        let value = (op == 0) ? AMLInteger(0) : AMLInteger(op.trailingZeroBitCount + 1)
+        let result = AMLIntegerData(value)
+        target.updateValue(to: result, context: &context)
+        return result
     }
 }
 
@@ -296,8 +264,22 @@ struct AMLDefFromBCD: AMLType2Opcode {
     let target: AMLTarget
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        let bcdValue = operandAsInteger(operand: value, context: &context)
+        var tmpBcdValue = bcdValue
+        var newValue: AMLInteger = 0
+        var idx: AMLInteger = 1
+
+        while tmpBcdValue != 0 {
+            let bcd = tmpBcdValue & 0xf
+            guard bcd < 10 else { fatalError("BCD value \(String(bcdValue, radix: 16)) contains nonBCD \(bcd)") }
+            newValue += AMLInteger(idx * bcd)
+            idx *= 10
+            tmpBcdValue >>= 4
+        }
+        let result = AMLIntegerData(newValue)
+        target.updateValue(to: result, context: &context)
+        return result
     }
 }
 
@@ -309,17 +291,12 @@ struct AMLDefIncrement: AMLType2Opcode {
 
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        guard let result = target.evaluate(context: &context) as? AMLIntegerData else {
+        guard let value = (target.evaluate(context: &context) as? AMLIntegerData)?.value else {
             fatalError("\target) is not an integer")
         }
-        return AMLIntegerData(result.value &+ 1)
-    }
-
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        let value = evaluate(context: &context)
-        target.updateValue(to: value, context: &context)
-        return value
+        let result = AMLIntegerData(value &+ 1)
+        target.updateValue(to: result, context: &context)
+        return result
     }
 }
 
@@ -332,9 +309,7 @@ struct AMLDefIndex: AMLType2Opcode, AMLType6Opcode {
     let target: AMLTarget
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         fatalError("Cant update \(self) to \(to)")
@@ -354,11 +329,6 @@ struct AMLDefLAnd: AMLType2Opcode {
         let value = AMLBoolean(op1 != 0 && op2 != 0)
         return AMLIntegerData(value)
     }
-
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        return evaluate(context: &context)
-    }
 }
 
 
@@ -373,11 +343,6 @@ struct AMLDefLEqual: AMLType2Opcode {
         let op2 = operandAsInteger(operand: operand2, context: &context)
         let value = AMLBoolean(op1 == op2)
         return AMLIntegerData(value)
-    }
-
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        return evaluate(context: &context)
     }
 }
 
@@ -394,11 +359,6 @@ struct AMLDefLGreater: AMLType2Opcode {
         let value = AMLBoolean(op1 < op2)
         return AMLIntegerData(value)
     }
-
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        return evaluate(context: &context)
-    }
 }
 
 
@@ -413,11 +373,6 @@ struct AMLDefLGreaterEqual: AMLType2Opcode {
         let value = AMLBoolean(op1 >= op2)
         return AMLIntegerData(value)
     }
-
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        return evaluate(context: &context)
-    }
 }
 
 
@@ -431,11 +386,6 @@ struct AMLDefLLess: AMLType2Opcode {
         let op2 = operandAsInteger(operand: operand2, context: &context)
         let value = AMLBoolean(op1 < op2)
         return AMLIntegerData(value)
-    }
-
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        return evaluate(context: &context)
     }
 }
 
@@ -452,10 +402,6 @@ struct AMLDefLLessEqual: AMLType2Opcode {
         let value = AMLBoolean(op1 <= op2)
         return AMLIntegerData(value)
     }
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        return evaluate(context: &context)
-    }
 }
 
 
@@ -468,11 +414,6 @@ struct AMLDefLNot: AMLType2Opcode {
         let value = AMLBoolean(op == 0)
         return AMLIntegerData(value)
     }
-
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        return evaluate(context: &context)
-    }
 }
 
 
@@ -482,10 +423,7 @@ struct AMLDefLNotEqual: AMLType2Opcode {
     let operand1: AMLTermArg
     let operand2: AMLTermArg
 
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -500,9 +438,7 @@ struct AMLDefLoadTable: AMLType2Opcode {
     let arg6: AMLTermArg
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -516,11 +452,6 @@ struct AMLDefLOr: AMLType2Opcode {
         let op2 = operandAsInteger(operand: operand2, context: &context)
         let value = AMLBoolean(op1 != 0 || op2 != 0)
         return AMLIntegerData(value)
-    }
-
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        return evaluate(context: &context)
     }
 }
 
@@ -545,9 +476,7 @@ struct AMLDefMatch: AMLType2Opcode {
     let startIndex: AMLTermArg // => Integer
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -560,9 +489,7 @@ struct AMLDefMid: AMLType2Opcode {
     let target: AMLTarget
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -574,9 +501,7 @@ struct AMLDefMod: AMLType2Opcode {
     let target: AMLTarget
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -588,9 +513,7 @@ struct AMLDefMultiply: AMLType2Opcode {
     let target: AMLTarget
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -602,9 +525,7 @@ struct AMLDefNAnd: AMLType2Opcode {
     let target: AMLTarget
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -616,9 +537,7 @@ struct AMLDefNOr: AMLType2Opcode {
     let target: AMLTarget
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -633,9 +552,7 @@ struct AMLDefNot: AMLType2Opcode {
     }
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -645,9 +562,7 @@ struct AMLDefObjectType: AMLType2Opcode {
     let object: AMLSuperName
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -662,12 +577,6 @@ struct AMLDefOr: AMLType2Opcode {
         let op2 = operandAsInteger(operand: operand2, context: &context)
         return AMLIntegerData(op1 | op2)
     }
-
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        return evaluate(context: &context)
-    }
-
 }
 
 
@@ -689,10 +598,7 @@ struct AMLDefPackage: AMLBuffPkgStrObj, AMLType2Opcode, AMLDataObject, AMLTermAr
     let asInteger: AMLInteger? = nil
     let resultAsInteger: AMLInteger? = nil
 
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -703,10 +609,6 @@ struct AMLDefRefOf: AMLType2Opcode, AMLType6Opcode {
     // RefOfOp SuperName
     let name: AMLSuperName
 
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
 
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         fatalError("cant update \(self) to \(to)")
@@ -725,12 +627,7 @@ struct AMLDefShiftLeft: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op = operandAsInteger(operand: operand, context: &context)
         let shiftCount = operandAsInteger(operand: count, context: &context)
-        let value = op << shiftCount
-        return AMLIntegerData(value)
-    }
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        let result = evaluate(context: &context)
+        let result = AMLIntegerData(op << shiftCount)
         target.updateValue(to: result, context: &context)
         return result
     }
@@ -747,12 +644,7 @@ struct AMLDefShiftRight: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op = operandAsInteger(operand: operand, context: &context)
         let shiftCount = operandAsInteger(operand: count, context: &context)
-        let value = op >> shiftCount
-        return AMLIntegerData(value)
-    }
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        let result = evaluate(context: &context)
+        let result = AMLIntegerData(op >> shiftCount)
         target.updateValue(to: result, context: &context)
         return result
     }
@@ -764,10 +656,7 @@ struct AMLDefSizeOf: AMLType2Opcode {
     // SizeOfOp SuperName
     let name: AMLSuperName
 
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws  -> AMLTermArg{
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -777,7 +666,7 @@ struct AMLDefStore: AMLType2Opcode {
     let arg: AMLTermArg
     let name: AMLSuperName
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         var source = arg
         if let args2 = arg as? AMLArgObj {
             guard args2.argIdx < context.args.count else {
@@ -800,7 +689,8 @@ struct AMLDefStore: AMLType2Opcode {
 
         }
         guard let sname = name as? AMLNameString else {
-            throw AMLError.invalidData(reason: "\(name) is not a string")
+            //throw AMLError.invalidData(reason: "\(name) is not a string")
+            fatalError("\(name) is not a string")
         }
         guard let globalObjects = system.deviceManager.acpiTables.globalObjects,
             let (dest, fullPath) = globalObjects.getGlobalObject(currentScope: context.scope,
@@ -839,13 +729,8 @@ struct AMLDefSubtract: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
-        let value = op1 &- op2
-        return AMLIntegerData(value)
-    }
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        let result = evaluate(context: &context)
-        //target.updateValue(to: result, context: &context)
+        let result = AMLIntegerData(op1 &- op2)
+        target.updateValue(to: result, context: &context)
         return result
     }
 }
@@ -854,9 +739,8 @@ struct AMLDefSubtract: AMLType2Opcode {
 struct AMLDefTimer: AMLType2Opcode {
 
     // TimerOp
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+
+    // FIXME: Implement
 }
 
 
@@ -868,8 +752,21 @@ struct AMLDefToBCD: AMLType2Opcode {
     var description: String { return "ToBCD(\(operand), \(target)" }
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        var value = operandAsInteger(operand: operand, context: &context)
+        var bcdValue = AMLInteger(0)
+        var idx = 0
+
+        while value != 0 {
+            let x = value % 10
+            bcdValue |= (x << idx)
+            idx += 4
+            value /= 10
+        }
+
+        let result = AMLIntegerData(bcdValue)
+        target.updateValue(to: result, context: &context)
+        return result
     }
 }
 
@@ -881,10 +778,7 @@ struct AMLDefToBuffer: AMLType2Opcode {
     let target: AMLTarget
     var description: String { return "ToBuffer(\(operand), \(target)" }
 
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -894,9 +788,7 @@ struct AMLDefToDecimalString: AMLType2Opcode {
     let operand: AMLOperand
     let target: AMLTarget
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -907,9 +799,7 @@ struct AMLDefToHexString: AMLType2Opcode {
     let target: AMLTarget
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -920,9 +810,7 @@ struct AMLDefToInteger: AMLType2Opcode {
     let target: AMLTarget
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -934,9 +822,7 @@ struct AMLDefToString: AMLType2Opcode {
     let target: AMLTarget
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -946,9 +832,7 @@ struct AMLDefWait: AMLType2Opcode {
     let operand: AMLOperand
 
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
+    // FIXME: Implement
 }
 
 
@@ -962,13 +846,9 @@ struct AMLDefXor: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
-        let value = op1 ^ op2
-        return AMLIntegerData(value)
-    }
-
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws  -> AMLTermArg{
-        throw AMLError.unimplemented("\(type(of: self))")
+        let result = AMLIntegerData(op1 ^ op2)
+        target.updateValue(to: result, context: &context)
+        return result
     }
 }
 
@@ -1002,7 +882,7 @@ struct AMLMethodInvocation: AMLType2Opcode {
         guard let globalObjects = system.deviceManager.acpiTables.globalObjects,
             let (obj, fullPath) = globalObjects.getGlobalObject(currentScope: context.scope,
                                                                 name: invocation.method) else {
-            throw AMLError.invalidMethod(reason: "Cant find method: \(name)")
+                throw AMLError.invalidMethod(reason: "Cant find method: \(name)")
         }
         guard let method = obj as? AMLMethod else {
             throw AMLError.invalidMethod(reason: "\(name) [\(String(describing:obj))] is not an AMLMethod")
@@ -1016,26 +896,17 @@ struct AMLMethodInvocation: AMLType2Opcode {
         return context.returnValue
     }
 
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
-        let returnValue = try _invokeMethod(invocation: self, context: &context)
-
-        context.returnValue = returnValue
-        guard let retval = returnValue else {
-            return AMLIntegerData(0)
-        }
-        return retval
-    }
-
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         do {
             if let result = try _invokeMethod(invocation: self, context: &context) {
+                context.returnValue = result
                 return result
+            } else {
+                return AMLIntegerData(0)
             }
         } catch {
             fatalError("cant evaluate: \(self): \(error)")
         }
-        fatalError("Failed to evaluate \(self)")
     }
 }
 

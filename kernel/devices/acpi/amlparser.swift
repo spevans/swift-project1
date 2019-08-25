@@ -2,7 +2,7 @@
  * kernel/devices/acpi/amlparser.swift
  *
  * Created by Simon Evans on 05/07/2016.
- * Copyright © 2016, 2017 Simon Evans. All rights reserved.
+ * Copyright © 2016 - 2019 Simon Evans. All rights reserved.
  *
  * AML Parser
  */

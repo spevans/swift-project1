@@ -2,7 +2,7 @@
 //  kernel/devices/acpi/amltype1opcodes.swift
 //
 //  Created by Simon Evans on 25/11/2017.
-//  Copyright © 2017 Simon Evans. All rights reserved.
+//  Copyright © 2017 - 2019 Simon Evans. All rights reserved.
 //
 //  ACPI Type 1 Opcodes
 
