@@ -60,25 +60,6 @@ extension ACPI {
     }
 
 
-    func invokeMethod(name: String, _ args: Any...) throws -> AMLTermArg? {
-        var methodArgs: AMLTermArgList = []
-        for arg in args {
-            if let arg = arg as? String {
-                methodArgs.append(AMLString(arg))
-            } else if let arg = arg as? AMLInteger {
-                methodArgs.append(AMLIntegerData(AMLInteger(arg)))
-            } else {
-                throw AMLError.invalidData(reason: "Bad data: \(arg)")
-            }
-        }
-        let mi = try AMLMethodInvocation(method: AMLNameString(name),
-                                         args: methodArgs)
-        var context = AMLExecutionContext(scope: mi.method)
-
-        return try mi.execute(context: &context)
-    }
-
-
     static func _OSI_Method(_ args: AMLTermArgList) throws -> AMLTermArg {
         guard args.count == 1 else {
             throw AMLError.invalidData(reason: "_OSI: Should only be 1 arg")

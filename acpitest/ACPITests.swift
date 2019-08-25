@@ -28,6 +28,27 @@ final class System {
 
 var system: System!
 
+
+fileprivate func invokeMethod(name: String, _ args: Any...) throws -> AMLTermArg? {
+    var methodArgs: AMLTermArgList = []
+    for arg in args {
+        if let arg = arg as? String {
+            methodArgs.append(AMLString(arg))
+        } else if let arg = arg as? AMLInteger {
+            methodArgs.append(AMLIntegerData(AMLInteger(arg)))
+        } else {
+            throw AMLError.invalidData(reason: "Bad data: \(arg)")
+        }
+    }
+    let mi = try AMLMethodInvocation(method: AMLNameString(name),
+                                     args: methodArgs)
+    var context = ACPI.AMLExecutionContext(scope: mi.method)
+
+    return try mi.execute(context: &context)
+}
+
+
+
 fileprivate func createACPI(files: [String]) -> (ACPI, UnsafeMutableRawPointer) {
     let testDir = testBundle().resourcePath!
     let acpi = ACPI()
@@ -163,11 +184,11 @@ class ACPITests: XCTestCase {
 
     func testMethod_OSI() {
         do {
-            let result = try ACPITests.acpi.invokeMethod(name: "\\_OSI", "Linux") as? AMLIntegerData
+            let result = try invokeMethod(name: "\\_OSI", "Linux") as? AMLIntegerData
             XCTAssertNotNil(result)
             XCTAssertEqual(result!.value, 0)
 
-            let result2 = try ACPITests.acpi.invokeMethod(name: "\\_OSI", "Darwin") as? AMLIntegerData
+            let result2 = try invokeMethod(name: "\\_OSI", "Darwin") as? AMLIntegerData
             XCTAssertNotNil(result2)
             XCTAssertEqual(result2!.value, 0xffffffff)
         } catch {
@@ -194,7 +215,7 @@ class ACPITests: XCTestCase {
             XCTAssertNotNil(x)
             XCTAssertEqual(x!.value, 10000)
 
-            let ret = try ACPITests.acpi.invokeMethod(name: "\\OSDW") as? AMLIntegerData
+            let ret = try invokeMethod(name: "\\OSDW") as? AMLIntegerData
             XCTAssertNotNil(ret)
             XCTAssertEqual(ret!.value, 1)
         } catch {
