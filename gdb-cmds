@@ -1,0 +1,15 @@
+set step-mode on
+set disassemble-next-line on
+display/i $pc
+set architecture i386:x86-64
+set disassembly-flavor intel
+
+define trem
+target remote localhost:1234
+end
+
+set substitute-path /home/spse/swift-kernel-lib /Users/spse/Files/src/swift-kernel-lib
+set substitute-path /home/spse/src/project1 /Users/spse/Files/src/project1
+file output/kernel.elf
+break abort
+break debugger_hook

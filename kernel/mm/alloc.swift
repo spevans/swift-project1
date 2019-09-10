@@ -24,18 +24,20 @@ private var freePageListHead = initFreeList()
 private func initFreeList() -> FreePageListEntryPtr? {
     let heap_phys = virtualToPhys(address: _heap_start_addr)
     let pageCount = Int((_heap_end_addr - _heap_start_addr) / PAGE_SIZE)
-    let ptr = FreePageListEntryPtr(bitPattern: _heap_start_addr)
-    ptr?.pointee = FreePageListEntry(
-        region: PhysPageRange(heap_phys, pageSize: PAGE_SIZE, pageCount: pageCount),
-        next: nil
-    )
-    // Use single argument versions of kprintf() which has specialisation for
-    // 1 Int or UInt arg. see printf.swift.
     kprintf("init_free_list: heap_start: %p ", _heap_start_addr)
     kprintf("heap_end: %p ", _heap_end_addr)
     kprintf("heap_phys: %p ", heap_phys.value)
     kprintf("pageCount: %llu\n", pageCount)
 
+    guard let ptr = FreePageListEntryPtr(bitPattern: _heap_start_addr) else {
+        koops("Cant init free list")
+    }
+    ptr.pointee = FreePageListEntry(
+        region: PhysPageRange(heap_phys, pageSize: PAGE_SIZE, pageCount: pageCount),
+        next: nil
+    )
+    // Use single argument versions of kprintf() which has specialisation for
+    // 1 Int or UInt arg. see printf.swift.
     return ptr
 }
 
@@ -54,10 +56,12 @@ func alloc(pages: Int) -> PhysPageRange {
 
     var head = freePageListHead
     var prev: FreePageListEntryPtr? = nil
+
     while let ptr = head {
         let entry = ptr.pointee
         let region = entry.region
         let pageCount = region.pageCount
+
         if pageCount == pages {
             // Region is same size as requested so remove from list
             let result = region

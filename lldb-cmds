@@ -1,0 +1,7 @@
+command script import debugtools/dump_swift_string.py
+settings set target.source-map /home/spse/swift-kernel-lib /Users/spse/Files/src/swift-kernel-lib
+settings set target.source-map /home/spse/src/project1 /Users/spse/Files/src/project1
+file output/kernel.elf
+set set stop-disassembly-display always
+b debugger_hook
+b stop

@@ -1,0 +1,24 @@
+
+Debugging:
+
+readelf --debug-dump=line <elf file>
+
+use -ggdb for C/C++ sources
+dont not use and -g options for swift sources as
+
+1. GDB doesnt understand swift anyway
+2. Linking swift debug and c debug, even if both are the same DWARF type means that only the swift files
+   show up in `info sources`. Even though an ELF file which is mixed will show both with the above readelf
+   command
+
+3. Currently build with --debug-swift-stdlib to get the debug (none optimized) runtime to link with all of the
+   extra c++ string functions.
+should show what source files are known about.
+
+
+qemu can only be used with GDB
+vmware can be used with both GDB and LLDB - LLDB better as it understands Swift source code
+
+Wehn using with GDB, dont compile with -g on Swift soruces as GDB gets confused by the DWARF info.
+
+VMWare better emulator but the remote debugging can sometime cause it to hang on exit.

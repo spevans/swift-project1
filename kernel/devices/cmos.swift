@@ -70,7 +70,7 @@ final class CMOSRTC: Device, ISADevice, CustomStringConvertible {
         }
 
         let regB = statusRegB
-        let hour24mode = (regB & 0x2) == 0x2
+        //let hour24mode = (regB & 0x2) == 0x2
         let bcdMode = (regB & 0x4) == 0x0
 
         func convertValue(_ value: UInt8) -> Int {

@@ -34,13 +34,15 @@ final class System {
         bootParams = parse(bootParamsAddr: VirtualAddress(bootParamsAddr))
         setupMM(bootParams: bootParams)
 
-        symbolLookupInit(bootParams: bootParams)
         // SystemTables() needs the MM setup so that the memory can be mapped
         systemTables = SystemTables(bootParams: bootParams)
         let freeMemoryRanges = bootParams.memoryRanges.filter {
             $0.type == MemoryType.Conventional
         }
         addPagesToFreePageList(freeMemoryRanges)
+        // symbolLookupInit uses a sort() so may require more free memory, do it after all the free
+        // RAM has been added to the free list.
+        symbolLookupInit(bootParams: bootParams)
         deviceManager = DeviceManager(acpiTables: systemTables.acpiTables)
     }
 

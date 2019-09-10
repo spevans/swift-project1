@@ -8,7 +8,7 @@ GITVER := $(shell git rev-parse HEAD)
 SWIFT := swift
 
 # The path to the kernel-lib swift compiler
-KSWIFTDIR := $(shell readlink -f ~/kstdlib-20190620)
+KSWIFTDIR := $(shell echo ~/kstdlib-20190906)
 KSWIFT := $(KSWIFTDIR)/usr/bin/swift
 KSWIFTC := $(KSWIFTDIR)/usr/bin/swiftc
 KSWIFTLIBDIR := $(KSWIFTDIR)/usr/lib/swift_static/linux

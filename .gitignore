@@ -5,6 +5,7 @@
 *.swp
 *.orig
 *~
+\#*
 
 modules
 output

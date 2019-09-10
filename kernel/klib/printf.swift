@@ -179,6 +179,7 @@ func serialPrintf(_ format: StaticString, _ items: Any...) {
 // Specialised versions of kprintf() than can be used when malloc() should not
 // be called. The arguments are Int/UInt not CVarArg as the latter will involve
 // metadata cache lookup that then calls malloc().
+@inline(__always)
 func kprintf(_ format: StaticString, _ arg1: Int) {
     _ = format.utf8Start.withMemoryRebound(to: Int8.self, capacity: format.utf8CodeUnitCount) {
         (ptr: UnsafePointer<Int8>) -> Int32 in
@@ -187,6 +188,7 @@ func kprintf(_ format: StaticString, _ arg1: Int) {
 }
 
 
+@inline(__always)
 func kprintf(_ format: StaticString, _ arg1: UInt) {
     _ = format.utf8Start.withMemoryRebound(to: Int8.self, capacity: format.utf8CodeUnitCount) {
         (ptr: UnsafePointer<Int8>) -> Int32 in

@@ -18,7 +18,7 @@ typealias TextCoord = text_coord
 
 
 // kprint via the C early_tty.c driver
-@inline(never)
+@inline(__always)
 func kprint(_ string: StaticString) {
     precondition(string.isASCII)
     string.utf8Start.withMemoryRebound(to: Int8.self, capacity: string.utf8CodeUnitCount) {

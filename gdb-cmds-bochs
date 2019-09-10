@@ -1,0 +1,6 @@
+set kaslr-memory-search 0
+handle SIGUSR1 noprint
+target remote tcp::1234
+br *0x10000
+continue
+set architecture i386:x86-64

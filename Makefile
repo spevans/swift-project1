@@ -53,5 +53,5 @@ output/boot-cd.iso: kernel
 
 
 clean:
-	rm -rf output/* build DerivedData
+	rm -rf output/*
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir clean; done
