@@ -358,7 +358,12 @@ struct AMLLocalObj: AMLTermArg, AMLSimpleName, AMLBuffPkgStrObj, AMLTermObj {
     }
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let v = context.localObjects[argIdx]!
+        if (argIdx < 0 || argIdx >= context.localObjects.count) {
+            fatalError("\(argIdx) out of bounds, count = \(context.localObjects.count)")
+        }
+        guard let v = context.localObjects[argIdx] else {
+            fatalError("AMLLocalObj: Cant get localObject for argIndex \(argIdx)")
+        }
         let r = v.evaluate(context: &context)
         return r
     }

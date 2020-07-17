@@ -47,6 +47,26 @@
 		B9EF91231FC9D14600D14A2F /* amltype2opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */; };
 		B9EF91261FC9D6EA00D14A2F /* amlnamedobject.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */; };
 		B9F22F892325009300A6C92B /* NOTES in Resources */ = {isa = PBXBuildFile; fileRef = B9F22F872325009300A6C92B /* NOTES */; };
+		B9F5D2CE24C1F58D00A6114C /* vmware11-wsmt.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BA24C1F58C00A6114C /* vmware11-wsmt.aml */; };
+		B9F5D2CF24C1F58D00A6114C /* vmware11-hpet.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BB24C1F58C00A6114C /* vmware11-hpet.dsl */; };
+		B9F5D2D024C1F58D00A6114C /* vmware11-mcfg.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BC24C1F58D00A6114C /* vmware11-mcfg.aml */; };
+		B9F5D2D124C1F58D00A6114C /* vmware11-srat.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BD24C1F58D00A6114C /* vmware11-srat.dsl */; };
+		B9F5D2D224C1F58D00A6114C /* vmware11-hpet.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BE24C1F58D00A6114C /* vmware11-hpet.aml */; };
+		B9F5D2D324C1F58D00A6114C /* vmware11-wsmt.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BF24C1F58D00A6114C /* vmware11-wsmt.dsl */; };
+		B9F5D2D424C1F58D00A6114C /* vmware11-waet.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C024C1F58D00A6114C /* vmware11-waet.aml */; };
+		B9F5D2D524C1F58D00A6114C /* vmware11-mcfg.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C124C1F58D00A6114C /* vmware11-mcfg.dsl */; };
+		B9F5D2D624C1F58D00A6114C /* vmware11-srat.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C224C1F58D00A6114C /* vmware11-srat.aml */; };
+		B9F5D2D724C1F58D00A6114C /* vmware11-dmar.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C324C1F58D00A6114C /* vmware11-dmar.dsl */; };
+		B9F5D2D824C1F58D00A6114C /* vmware11-apic.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C424C1F58D00A6114C /* vmware11-apic.aml */; };
+		B9F5D2D924C1F58D00A6114C /* vmware11-dmar.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C524C1F58D00A6114C /* vmware11-dmar.aml */; };
+		B9F5D2DA24C1F58D00A6114C /* vmware11-facs.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C624C1F58D00A6114C /* vmware11-facs.aml */; };
+		B9F5D2DB24C1F58D00A6114C /* vmware11-waet.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C724C1F58D00A6114C /* vmware11-waet.dsl */; };
+		B9F5D2DC24C1F58D00A6114C /* vmware11-dsdt.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C824C1F58D00A6114C /* vmware11-dsdt.aml */; };
+		B9F5D2DD24C1F58D00A6114C /* vmware11-facp.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C924C1F58D00A6114C /* vmware11-facp.dsl */; };
+		B9F5D2DE24C1F58D00A6114C /* vmware11-apic.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2CA24C1F58D00A6114C /* vmware11-apic.dsl */; };
+		B9F5D2DF24C1F58D00A6114C /* vmware11-facp.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2CB24C1F58D00A6114C /* vmware11-facp.aml */; };
+		B9F5D2E024C1F58D00A6114C /* vmware11-facs.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2CC24C1F58D00A6114C /* vmware11-facs.dsl */; };
+		B9F5D2E124C1F58D00A6114C /* vmware11-dsdt.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2CD24C1F58D00A6114C /* vmware11-dsdt.dsl */; };
 		B9F831F71F38BD20009F24AE /* vmware-APIC.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831951F38BC34009F24AE /* vmware-APIC.aml */; };
 		B9F831F91F38BD20009F24AE /* vmware-BOOT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831911F38BC34009F24AE /* vmware-BOOT.aml */; };
 		B9F831FB1F38BD20009F24AE /* vmware-DSDT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831851F38BC33009F24AE /* vmware-DSDT.aml */; };
@@ -190,6 +210,26 @@
 		B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amltype2opcodes.swift; sourceTree = "<group>"; };
 		B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amlnamedobject.swift; sourceTree = "<group>"; };
 		B9F22F872325009300A6C92B /* NOTES */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = NOTES; sourceTree = "<group>"; };
+		B9F5D2BA24C1F58C00A6114C /* vmware11-wsmt.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-wsmt.aml"; sourceTree = "<group>"; };
+		B9F5D2BB24C1F58C00A6114C /* vmware11-hpet.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-hpet.dsl"; sourceTree = "<group>"; };
+		B9F5D2BC24C1F58D00A6114C /* vmware11-mcfg.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-mcfg.aml"; sourceTree = "<group>"; };
+		B9F5D2BD24C1F58D00A6114C /* vmware11-srat.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-srat.dsl"; sourceTree = "<group>"; };
+		B9F5D2BE24C1F58D00A6114C /* vmware11-hpet.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-hpet.aml"; sourceTree = "<group>"; };
+		B9F5D2BF24C1F58D00A6114C /* vmware11-wsmt.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-wsmt.dsl"; sourceTree = "<group>"; };
+		B9F5D2C024C1F58D00A6114C /* vmware11-waet.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-waet.aml"; sourceTree = "<group>"; };
+		B9F5D2C124C1F58D00A6114C /* vmware11-mcfg.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-mcfg.dsl"; sourceTree = "<group>"; };
+		B9F5D2C224C1F58D00A6114C /* vmware11-srat.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-srat.aml"; sourceTree = "<group>"; };
+		B9F5D2C324C1F58D00A6114C /* vmware11-dmar.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-dmar.dsl"; sourceTree = "<group>"; };
+		B9F5D2C424C1F58D00A6114C /* vmware11-apic.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-apic.aml"; sourceTree = "<group>"; };
+		B9F5D2C524C1F58D00A6114C /* vmware11-dmar.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-dmar.aml"; sourceTree = "<group>"; };
+		B9F5D2C624C1F58D00A6114C /* vmware11-facs.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-facs.aml"; sourceTree = "<group>"; };
+		B9F5D2C724C1F58D00A6114C /* vmware11-waet.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-waet.dsl"; sourceTree = "<group>"; };
+		B9F5D2C824C1F58D00A6114C /* vmware11-dsdt.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-dsdt.aml"; sourceTree = "<group>"; };
+		B9F5D2C924C1F58D00A6114C /* vmware11-facp.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-facp.dsl"; sourceTree = "<group>"; };
+		B9F5D2CA24C1F58D00A6114C /* vmware11-apic.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-apic.dsl"; sourceTree = "<group>"; };
+		B9F5D2CB24C1F58D00A6114C /* vmware11-facp.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-facp.aml"; sourceTree = "<group>"; };
+		B9F5D2CC24C1F58D00A6114C /* vmware11-facs.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-facs.dsl"; sourceTree = "<group>"; };
+		B9F5D2CD24C1F58D00A6114C /* vmware11-dsdt.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-dsdt.dsl"; sourceTree = "<group>"; };
 		B9F831801F38BBA9009F24AE /* DSDT.asl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = DSDT.asl; path = acpitest/test_files/DSDT.asl; sourceTree = SOURCE_ROOT; };
 		B9F831821F38BC33009F24AE /* vmware-SRAT.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware-SRAT.dsl"; sourceTree = "<group>"; };
 		B9F831831F38BC33009F24AE /* vmware-HPET.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware-HPET.aml"; sourceTree = "<group>"; };
@@ -471,9 +511,37 @@
 			path = acpitest;
 			sourceTree = "<group>";
 		};
+		B9F5D29124C1F4EC00A6114C /* vmware11 */ = {
+			isa = PBXGroup;
+			children = (
+				B9F5D2C424C1F58D00A6114C /* vmware11-apic.aml */,
+				B9F5D2CA24C1F58D00A6114C /* vmware11-apic.dsl */,
+				B9F5D2C524C1F58D00A6114C /* vmware11-dmar.aml */,
+				B9F5D2C324C1F58D00A6114C /* vmware11-dmar.dsl */,
+				B9F5D2C824C1F58D00A6114C /* vmware11-dsdt.aml */,
+				B9F5D2CD24C1F58D00A6114C /* vmware11-dsdt.dsl */,
+				B9F5D2CB24C1F58D00A6114C /* vmware11-facp.aml */,
+				B9F5D2C924C1F58D00A6114C /* vmware11-facp.dsl */,
+				B9F5D2C624C1F58D00A6114C /* vmware11-facs.aml */,
+				B9F5D2CC24C1F58D00A6114C /* vmware11-facs.dsl */,
+				B9F5D2BE24C1F58D00A6114C /* vmware11-hpet.aml */,
+				B9F5D2BB24C1F58C00A6114C /* vmware11-hpet.dsl */,
+				B9F5D2BC24C1F58D00A6114C /* vmware11-mcfg.aml */,
+				B9F5D2C124C1F58D00A6114C /* vmware11-mcfg.dsl */,
+				B9F5D2C224C1F58D00A6114C /* vmware11-srat.aml */,
+				B9F5D2BD24C1F58D00A6114C /* vmware11-srat.dsl */,
+				B9F5D2C024C1F58D00A6114C /* vmware11-waet.aml */,
+				B9F5D2C724C1F58D00A6114C /* vmware11-waet.dsl */,
+				B9F5D2BA24C1F58C00A6114C /* vmware11-wsmt.aml */,
+				B9F5D2BF24C1F58D00A6114C /* vmware11-wsmt.dsl */,
+			);
+			path = vmware11;
+			sourceTree = "<group>";
+		};
 		B9F8317C1F38B9C0009F24AE /* test_files */ = {
 			isa = PBXGroup;
 			children = (
+				B9F5D29124C1F4EC00A6114C /* vmware11 */,
 				B9F831801F38BBA9009F24AE /* DSDT.asl */,
 				B9F8317F1F38BA01009F24AE /* vmware */,
 				B9F8317E1F38B9F6009F24AE /* macbook31 */,
@@ -644,8 +712,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				B93620762326A4A0009A2215 /* Docker in Resources */,
+				B9F5D2CE24C1F58D00A6114C /* vmware11-wsmt.aml in Resources */,
+				B9F5D2DC24C1F58D00A6114C /* vmware11-dsdt.aml in Resources */,
 				B9F831F71F38BD20009F24AE /* vmware-APIC.aml in Resources */,
 				B9F831F91F38BD20009F24AE /* vmware-BOOT.aml in Resources */,
+				B9F5D2DB24C1F58D00A6114C /* vmware11-waet.dsl in Resources */,
 				B9F831FB1F38BD20009F24AE /* vmware-DSDT.aml in Resources */,
 				B9F831FD1F38BD20009F24AE /* vmware-FACP.aml in Resources */,
 				B9F831FF1F38BD20009F24AE /* vmware-FACS1.aml in Resources */,
@@ -654,28 +725,45 @@
 				B9F832051F38BD20009F24AE /* vmware-MCFG.aml in Resources */,
 				B9F832071F38BD20009F24AE /* vmware-SRAT.aml in Resources */,
 				B9DEE4FA2323BBC40010F7A0 /* gdb-cmds in Resources */,
+				B9F5D2CF24C1F58D00A6114C /* vmware11-hpet.dsl in Resources */,
 				B9F832091F38BD20009F24AE /* vmware-WAET.aml in Resources */,
 				B9F8320B1F38BD20009F24AE /* macbook31-APIC.aml in Resources */,
 				B9F8320D1F38BD20009F24AE /* macbook31-ASF!.aml in Resources */,
+				B9F5D2D624C1F58D00A6114C /* vmware11-srat.aml in Resources */,
 				B9F8320F1F38BD20009F24AE /* macbook31-DSDT.aml in Resources */,
+				B9F5D2DF24C1F58D00A6114C /* vmware11-facp.aml in Resources */,
 				B9F22F892325009300A6C92B /* NOTES in Resources */,
 				B9DEE4F42323BA960010F7A0 /* lldb-cmds in Resources */,
 				B9F832111F38BD20009F24AE /* macbook31-ECDT.aml in Resources */,
 				B9F832131F38BD20009F24AE /* macbook31-FACP.aml in Resources */,
+				B9F5D2E024C1F58D00A6114C /* vmware11-facs.dsl in Resources */,
 				B9F832151F38BD20009F24AE /* macbook31-FACS1.aml in Resources */,
+				B9F5D2DD24C1F58D00A6114C /* vmware11-facp.dsl in Resources */,
 				B9F832171F38BD20009F24AE /* macbook31-FACS2.aml in Resources */,
 				B9F832191F38BD20009F24AE /* macbook31-HPET.aml in Resources */,
 				B9F8321B1F38BD20009F24AE /* macbook31-MCFG.aml in Resources */,
 				B9F8321D1F38BD20009F24AE /* macbook31-SBST.aml in Resources */,
+				B9F5D2D724C1F58D00A6114C /* vmware11-dmar.dsl in Resources */,
 				B9DEE4F92323BBC40010F7A0 /* bochsrc in Resources */,
+				B9F5D2D124C1F58D00A6114C /* vmware11-srat.dsl in Resources */,
+				B9F5D2DE24C1F58D00A6114C /* vmware11-apic.dsl in Resources */,
 				B9F8321F1F38BD20009F24AE /* macbook31-SSDT1.aml in Resources */,
+				B9F5D2D424C1F58D00A6114C /* vmware11-waet.aml in Resources */,
+				B9F5D2E124C1F58D00A6114C /* vmware11-dsdt.dsl in Resources */,
 				B9F832211F38BD20009F24AE /* macbook31-SSDT2.aml in Resources */,
+				B9F5D2D024C1F58D00A6114C /* vmware11-mcfg.aml in Resources */,
+				B9F5D2D924C1F58D00A6114C /* vmware11-dmar.aml in Resources */,
 				B9F832231F38BD20009F24AE /* macbook31-SSDT3.aml in Resources */,
 				B9F832251F38BD20009F24AE /* macbook31-SSDT4.aml in Resources */,
+				B9F5D2D524C1F58D00A6114C /* vmware11-mcfg.dsl in Resources */,
 				B9F832271F38BD20009F24AE /* macbook31-SSDT5.aml in Resources */,
 				B9F832291F38BD20009F24AE /* macbook31-SSDT6.aml in Resources */,
+				B9F5D2D824C1F58D00A6114C /* vmware11-apic.aml in Resources */,
 				B9F8322B1F38BD20009F24AE /* macbook31-SSDT7.aml in Resources */,
+				B9F5D2D224C1F58D00A6114C /* vmware11-hpet.aml in Resources */,
 				B9F8322D1F38BD20009F24AE /* macbook31-SSDT8.aml in Resources */,
+				B9F5D2DA24C1F58D00A6114C /* vmware11-facs.aml in Resources */,
+				B9F5D2D324C1F58D00A6114C /* vmware11-wsmt.dsl in Resources */,
 				B9F8322F1F38BD20009F24AE /* QEMU-DSDT.aml in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

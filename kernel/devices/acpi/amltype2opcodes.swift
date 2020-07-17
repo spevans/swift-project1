@@ -500,8 +500,16 @@ struct AMLDefMod: AMLType2Opcode {
     let divisor: AMLDivisor
     let target: AMLTarget
 
-
-    // FIXME: Implement
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        let d1 = operandAsInteger(operand: dividend, context: &context)
+        let d2 = operandAsInteger(operand: divisor, context: &context)
+        guard d2 != 0 else {
+            fatalError("divisor is 0")
+        }
+        let result = AMLIntegerData(d1 % d2)
+        target.updateValue(to: result, context: &context)
+        return result
+    }
 }
 
 
@@ -512,8 +520,13 @@ struct AMLDefMultiply: AMLType2Opcode {
     let operand2: AMLOperand
     let target: AMLTarget
 
-
-    // FIXME: Implement
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        let op1 = operandAsInteger(operand: operand1, context: &context)
+        let op2 = operandAsInteger(operand: operand2, context: &context)
+        let result = AMLIntegerData(op1 &* op2)
+        target.updateValue(to: result, context: &context)
+        return result
+    }
 }
 
 
@@ -524,8 +537,13 @@ struct AMLDefNAnd: AMLType2Opcode {
     let operand2: AMLOperand
     let target: AMLTarget
 
-
-    // FIXME: Implement
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        let op1 = operandAsInteger(operand: operand1, context: &context)
+        let op2 = operandAsInteger(operand: operand2, context: &context)
+        let result = AMLIntegerData( ~(op1 & op2))
+        target.updateValue(to: result, context: &context)
+        return result
+    }
 }
 
 
@@ -536,8 +554,13 @@ struct AMLDefNOr: AMLType2Opcode {
     let operand2: AMLOperand
     let target: AMLTarget
 
-
-    // FIXME: Implement
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        let op1 = operandAsInteger(operand: operand1, context: &context)
+        let op2 = operandAsInteger(operand: operand2, context: &context)
+        let result = AMLIntegerData( ~(op1 | op2))
+        target.updateValue(to: result, context: &context)
+        return result
+    }
 }
 
 
@@ -548,11 +571,10 @@ struct AMLDefNot: AMLType2Opcode {
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op = operandAsInteger(operand: operand, context: &context)
-        return AMLIntegerData(~op)
+        let result = AMLIntegerData(~op)
+        target.updateValue(to: result, context: &context)
+        return result
     }
-
-
-    // FIXME: Implement
 }
 
 
@@ -575,7 +597,9 @@ struct AMLDefOr: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
-        return AMLIntegerData(op1 | op2)
+        let result = AMLIntegerData(op1 | op2)
+        target.updateValue(to: result, context: &context)
+        return result
     }
 }
 

@@ -328,6 +328,58 @@ class ACPITests: XCTestCase {
         }
     }
 
+    func testVMWare11Devices() {
+           struct Resources {
+               let ioPorts: [ClosedRange<UInt16>]
+               let interrupts: [UInt8]
+           }
+
+           func extractCRSSettings(_ resources: [AMLResourceSetting]) -> Resources {
+               var ioports: [ClosedRange<UInt16>] = []
+               var irqs: [UInt8] = []
+
+               for resource in resources {
+                   if let ioPort = resource as? AMLIOPortSetting {
+                       ioports.append(ioPort.ioPorts())
+                   } else if let irq = resource as? AMLIrqSetting {
+                       irqs.append(contentsOf: irq.interrupts())
+                   } else {
+                       print("Ignoring resource:", resource)
+                   }
+               }
+               return Resources(ioPorts: ioports, interrupts: irqs)
+           }
+
+           let (acpi, allData) = createACPI(files: [
+               "vmware11-APIC.aml",
+               "vmware11-dmar.aml",
+               "vmware11-facp.aml",
+               "vmware11-facs.aml",
+               "vmware11-hpet.aml",
+               "vmware11-srat.aml",
+               "vmware11-wsmt.aml",
+               "vmware11-mcfg.aml",
+               "vmware11-waet.aml",
+               "vmware11-dsdt.aml",
+           ])
+           defer { allData.deallocate()}
+
+           let fullName = "\\_SB.PCI0.DMAR"
+           guard let dmar = acpi.globalObjects.get(fullName) else {
+               XCTFail("Cant find \(fullName)")
+               return
+           }
+
+        guard let device = dmar as? AMLDefDevice else {
+            XCTFail("DMAR is not an AMLDefDevice")
+            return
+        }
+
+        let status = device.status()
+        XCTAssertFalse(status.present)
+        XCTAssertFalse(status.enabled)
+       }
+
     func testResourceDecode() {
         let data: [UInt8] = [136, 14, 0, 2, 12, 0, 0, 0, 0, 0, 127, 0, 0, 0, 128, 0, 0, 135, 24, 0, 0, 12,
                              3, 0, 0, 0, 0, 0, 0, 10, 0, 255, 255, 11, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 135,
