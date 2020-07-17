@@ -14,6 +14,7 @@ do
     case $arg in
     --efi)
         BOOT="-bios ovmf.bios -cdrom output/boot-cd.iso"
+	ACCEL=""
         ;;
 
     -d)
