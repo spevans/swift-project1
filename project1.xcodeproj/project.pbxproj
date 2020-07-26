@@ -149,7 +149,6 @@
 		B933A7181F2F497800FE6846 /* apic.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = apic.swift; sourceTree = "<group>"; };
 		B933A7191F2F497800FE6846 /* ioapic.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ioapic.swift; sourceTree = "<group>"; };
 		B933A71A1F2F497800FE6846 /* tty.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = tty.swift; sourceTree = "<group>"; };
-		B933A71B1F2F497800FE6846 /* PCI.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PCI.swift; sourceTree = "<group>"; };
 		B933A7261F2F499000FE6846 /* interrupt.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = interrupt.swift; sourceTree = "<group>"; };
 		B933A7271F2F499000FE6846 /* entry.asm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm.asm; path = entry.asm; sourceTree = "<group>"; };
 		B933A7281F2F499000FE6846 /* exceptions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = exceptions.swift; sourceTree = "<group>"; };
@@ -196,6 +195,7 @@
 		B9A2C1B91F30EF94003D4D92 /* linker.script */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = linker.script; sourceTree = "<group>"; };
 		B9A2C1BA1F30EF94003D4D92 /* Makefile */ = {isa = PBXFileReference; explicitFileType = sourcecode.make; fileEncoding = 4; path = Makefile; sourceTree = "<group>"; };
 		B9A2C1BB1F30EF94003D4D92 /* Makedefs */ = {isa = PBXFileReference; explicitFileType = sourcecode.make; fileEncoding = 4; path = Makedefs; sourceTree = "<group>"; };
+		B9A2FB9824CEBCB800B3DB75 /* pci */ = {isa = PBXFileReference; lastKnownFileType = folder; path = pci; sourceTree = "<group>"; };
 		B9AF69D51FBDEB8B0049CB98 /* ACPIReadWriteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPIReadWriteTests.swift; sourceTree = "<group>"; };
 		B9C2AF261FD818D000E6EFEB /* isa.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = isa.swift; sourceTree = "<group>"; };
 		B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReservationManager.swift; sourceTree = "<group>"; };
@@ -327,9 +327,9 @@
 		B933A6B91F2F46B900FE6846 /* devices */ = {
 			isa = PBXGroup;
 			children = (
+				B9A2FB9824CEBCB800B3DB75 /* pci */,
 				B933A7121F2F497800FE6846 /* Makefile */,
 				B9C2AF2D1FD9FA0A00E6EFEB /* devicemanager.swift */,
-				B933A71B1F2F497800FE6846 /* PCI.swift */,
 				B9C2AF261FD818D000E6EFEB /* isa.swift */,
 				B97A313F1FE55E2200E651DC /* piix.swift */,
 				B933A7181F2F497800FE6846 /* apic.swift */,

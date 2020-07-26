@@ -46,10 +46,12 @@ _SWIFT_SRCS :=	init/startup.swift		\
 		devices/acpi/amlutils.swift	\
 		devices/acpi/amlmethod.swift	\
 		devices/acpi/acpiglobalobjects.swift \
+		devices/pci/access.swift	\
+		devices/pci/bus.swift		\
+		devices/pci/device.swift	\
 		devices/devicemanager.swift	\
 		devices/cpu.swift		\
 		devices/isa.swift		\
-		devices/PCI.swift		\
 		devices/piix.swift		\
 		devices/tty.swift		\
 		devices/kbd8042.swift		\

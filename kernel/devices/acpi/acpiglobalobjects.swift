@@ -57,6 +57,15 @@ extension ACPI {
             node.parent = self
         }
 
+
+        func removeChildNode(_ name: AMLNameString) {
+            if childNodes[name] == nil {
+                fatalError("Cant remove unknown child node: \(name)")
+            }
+            childNodes.removeValue(forKey: name)
+        }
+
+
         func scope() -> String {
             var node = self.parent
             var scope = node?.name.value ?? ""
@@ -121,7 +130,6 @@ extension ACPI {
                 return name
             }
 
-            //print("Adding \(name) -> \(object.name.value) \(type(of: object))")
             var parent = self
             var nameParts = removeRootChar(name: name).components(
                 separatedBy: AMLNameString.pathSeparatorChar)
@@ -174,6 +182,21 @@ extension ACPI {
                     return o.value
                 }
             }
+            return nil
+        }
+
+
+        func integerValue() -> AMLInteger? {
+            guard let name = self as? AMLDefName else { return nil }
+            if let v = name.value as? AMLIntegerData {
+                return v.value
+            }
+
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(self.fullname()))
+            if let v = name.value.evaluate(context: &context) as? AMLIntegerData {
+                return v.value
+            }
+
             return nil
         }
 

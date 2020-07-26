@@ -38,6 +38,12 @@ extension ACPI {
         }
 
         mutating func execute(termList: AMLTermList) throws {
+            var dynamicNamedObjects: [AMLNamedObj] = []
+            defer {
+                for object in dynamicNamedObjects.reversed() {
+                    object.parent!.removeChildNode(object.name)
+                }
+            }
             for termObj in termList {
                 if let op = termObj as? AMLType2Opcode {
                     // FIXME, should something be done with the result or maybe it should
@@ -47,10 +53,24 @@ extension ACPI {
                     try op.execute(context: &self)
                 } else if let op = termObj as? AMLNamedObj {
                     try op.createNamedObject(context: &self)
+                    dynamicNamedObjects.append(op)
                 } else if let op = termObj as? AMLNameSpaceModifierObj {
                     try op.execute(context: &self)
+                } else if let defFields = termObj as? AMLDefField {
+                    // AMLDefField isnt a named object but rather holds a list of AMLNamedObj
+                    for object in defFields.fields {
+                        try object.createNamedObject(context: &self)
+                        dynamicNamedObjects.append(object)
+                    }
+                }
+                else if let indexFields = termObj as? AMLDefIndexField {
+                    // AMLDefIndexField isnt a named object but rather holds a list of AMLNamedObj
+                    for object in indexFields.fields {
+                        try object.createNamedObject(context: &self)
+                        dynamicNamedObjects.append(object)
+                    }
                 } else {
-                    fatalError("Unknown op: \(type(of: termObj))")
+                    fatalError("Unknown op: \(termObj) in scope \(self.scope)")
                 }
                 if endOfMethod {
                     return

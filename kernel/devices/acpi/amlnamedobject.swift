@@ -127,20 +127,13 @@ final class AMLDefDevice: AMLNamedObj {
 
 
     func addressResource() -> AMLInteger? {
-        guard let adr = childNode(named: "_ADR") else {
+        guard let adr = childNode(named: "_ADR") as? AMLDefName else {
+            print("Cant find _ADR in", self.fullname())
             return nil
         }
-        if let adr = adr as? AMLDefName, let v = adr.value as? AMLIntegerData {
-            return v.value
-        }
 
-        var context = ACPI.AMLExecutionContext(scope: AMLNameString(adr.fullname()))
-        if let v = adr.readValue(context: &context) as? AMLIntegerData {
-            return v.value
-        }
-        return nil
+        return adr.integerValue()
     }
-
 }
 
 
@@ -165,18 +158,18 @@ final class AMLDefExternal: AMLNamedObj {
 }
 
 
-final class AMLDefIndexField: AMLNamedObj {
+struct AMLDefIndexField: AMLTermObj {
     // IndexFieldOp PkgLength NameString NameString FieldFlags FieldList
-    //   let name: AMLNameString
+    let indexName: AMLNameString
     let dataName: AMLNameString
     let flags: AMLFieldFlags
-    let fields: AMLFieldList
+    let fields: [AMLNamedObj]
 
-    init(name: AMLNameString, dataName: AMLNameString, flags: AMLFieldFlags, fields: AMLFieldList) {
+    init(indexName: AMLNameString, dataName: AMLNameString, flags: AMLFieldFlags, fields: [AMLNamedObj]) {
+        self.indexName = indexName
         self.dataName = dataName
         self.flags = flags
         self.fields = fields
-        super.init(name: name)
     }
 }
 
@@ -229,13 +222,25 @@ final class AMLDefMutex: AMLNamedObj {
     }
 }
 
-enum AMLFieldAccessType: AMLByteData {
+enum AMLFieldAccessType: AMLByteData, CustomStringConvertible {
     case AnyAcc     = 0
     case ByteAcc    = 1
     case WordAcc    = 2
     case DWordAcc   = 3
     case QWordAcc   = 4
     case BufferAcc  = 5 //
+
+    var description: String {
+        switch self {
+            case .AnyAcc: return "AnyWidth"
+            case .ByteAcc: return "Byte"
+            case .WordAcc: return "Word"
+            case .DWordAcc: return "DWord"
+            case .QWordAcc: return "QWord"
+            case .BufferAcc: return "Buffer"
+        }
+    }
+
 
     init?(_ value: AMLByteData) {
         let type = value & 0xf
@@ -266,12 +271,21 @@ enum AMLUpdateRule: AMLByteData {
     }
 }
 
-struct AMLFieldFlags {
+struct AMLFieldFlags: CustomStringConvertible {
     // let value: AMLByteData
     let fieldAccessType: AMLFieldAccessType
-    var lockRule: AMLLockRule
-    var updateRule: AMLUpdateRule
+    let lockRule: AMLLockRule
+    let updateRule: AMLUpdateRule
 
+    var description: String {
+        return "\(fieldAccessType), \(lockRule), \(updateRule)"
+    }
+
+    init(fieldAccessType: AMLFieldAccessType, lockRule: AMLLockRule, updateRule: AMLUpdateRule) {
+        self.fieldAccessType = fieldAccessType
+        self.lockRule = lockRule
+        self.updateRule = updateRule
+    }
 
     init(flags value: AMLByteData) {
         guard let _fieldAccessType = AMLFieldAccessType(value) else {
@@ -391,6 +405,7 @@ final class AMLDefCreateField: AMLNamedObj {
     let numBits: AMLInteger
 
     init(sourceBuff: AMLTermArg, bitIndex: AMLInteger, numBits: AMLInteger, name: AMLNameString) {
+        precondition(numBits > 0)
         self.sourceBuff = sourceBuff
         self.bitIndex = bitIndex
         self.numBits = numBits
@@ -458,83 +473,50 @@ final class AMLDefCreateWordField: AMLNamedObj {
 }
 
 
-final class AMLDefField: AMLNamedObj {
+struct AMLDefField: AMLTermObj {
     // FieldOp PkgLength NameString FieldFlags FieldList
+    let regionName: AMLNameString
     let flags: AMLFieldFlags
-    let fields: AMLFieldList
+    let fields: [AMLNamedObj]
 
-    init(name: AMLNameString, flags: AMLFieldFlags, fields: AMLFieldList) {
+    init(regionName: AMLNameString, flags: AMLFieldFlags, fields: [AMLNamedObj]) {
+        self.regionName = regionName
         self.flags = flags
         self.fields = fields
-        super.init(name: name)
-    }
-
-
-    override func createNamedObject(context: inout ACPI.AMLExecutionContext) throws {
-        //let fullPath = resolveNameTo(scope: context.scope, path: name)
-        //context.globalObjects.add(fullPath._value, self)
     }
 }
 
 
 protocol OpRegionSpace {
-    init(offset: AMLInteger, length: AMLInteger, flags: AMLFieldFlags)
-    func read(bitOffset: Int, width: Int) -> AMLInteger
-    func write(bitOffset: Int, width: Int, value: AMLInteger)
+    var length: Int { get }
+
+    func read(bitOffset: Int, width: Int, flags: AMLFieldFlags) -> AMLInteger
+    func write(bitOffset: Int, width: Int, value: AMLInteger, flags: AMLFieldFlags)
+    func read(atIndex: Int, flags: AMLFieldFlags) -> AMLInteger
+    func write(atIndex: Int, value: AMLInteger, flags: AMLFieldFlags)
 }
 
 
-final class EmbeddedControlRegionSpace: OpRegionSpace, CustomStringConvertible {
-    private var array: Array<UInt8>
-    private let flags: AMLFieldFlags
+extension OpRegionSpace {
 
-    var description: String {
-        return "EmbeddedControlRegionSpace"
-    }
-
-    init(offset: AMLInteger, length: AMLInteger, flags: AMLFieldFlags) {
-        self.flags = flags
-        array = Array(repeating: 0, count: Int(length))
-    }
-
-    func read(bitOffset: Int, width: Int) -> AMLInteger {
-        return 0
-    }
-
-    func write(bitOffset: Int, width: Int, value: AMLInteger) {
-
-    }
-}
-
-
-final class SystemMemorySpace<T: UnsignedInteger & FixedWidthInteger>: OpRegionSpace, CustomStringConvertible {
-    private var array: Array<T>
-    private let flags: AMLFieldFlags
-
-    var description: String {
-        var str = "SystemMemory:"
-        str.append(String(describing: T.self))
-        str.append(": ")
-        for v in array {
-            str.append("[\(String(v, radix: 16))]")
+    private func elementBitWidth(flags: AMLFieldFlags) -> Int  {
+        switch flags.fieldAccessType {
+            case .AnyAcc, .ByteAcc: return 8
+            case .WordAcc: return 16
+            case .DWordAcc: return 32
+            case .QWordAcc: return 64
+            case .BufferAcc: return 0
         }
-        return str
-    }
-
-    init(offset: AMLInteger, length: AMLInteger, flags: AMLFieldFlags) {
-        precondition(length > 0)
-        let count = (Int(length) + MemoryLayout<T>.size - 1) / MemoryLayout<T>.size
-        self.flags = flags
-        array = Array(repeating: 0, count: count)
     }
 
     // LittleEndian read
-    func read(bitOffset: Int, width: Int) -> AMLInteger {
+    func read(bitOffset: Int, width: Int, flags: AMLFieldFlags) -> AMLInteger {
         precondition(bitOffset >= 0)
         precondition(width >= 1)
-        precondition((bitOffset + width) <= (array.count * 8 * MemoryLayout<T>.size))
 
-        let elementBits = 8 * MemoryLayout<T>.size
+        let elementBits = elementBitWidth(flags: flags)
+        precondition((bitOffset + width) <= (length * elementBits))
+
         var _width = width
         var index = bitOffset / elementBits
         var startBit = bitOffset % elementBits
@@ -545,8 +527,10 @@ final class SystemMemorySpace<T: UnsignedInteger & FixedWidthInteger>: OpRegionS
         repeat {
             let endBit = min(elementBits - 1, _width + startBit - 1)
             let bitCount = (endBit + 1 - startBit)
-            let valueMask = AMLInteger(createMask(startBit, endBit))
-            result |= readElement(index: index, bitShift: bitShift, valueMask: valueMask)
+            let valueMask = createMask(startBit, endBit) << bitShift
+
+            let value = read(atIndex: index, flags: flags) << bitShift
+            result |= (value & valueMask)
 
             startBit = 0
             elementShift += elementBits
@@ -559,34 +543,18 @@ final class SystemMemorySpace<T: UnsignedInteger & FixedWidthInteger>: OpRegionS
         return result
     }
 
-
-    private func readElement(index: Int, bitShift: Int, valueMask: AMLInteger) -> AMLInteger {
-        var v = AMLInteger(array[index])
-
-        var mask = valueMask
-        if bitShift < 0 {
-            v >>= abs(bitShift)
-            mask >>= abs(bitShift)
-        } else if bitShift > 0{
-            v <<= bitShift
-            mask <<= bitShift
-        }
-
-        return v & mask
-    }
-
-
     // LittleEndian write
-    func write(bitOffset: Int, width: Int, value: AMLInteger) {
+    func write(bitOffset: Int, width: Int, value: AMLInteger, flags: AMLFieldFlags) {
         precondition(bitOffset >= 0)
         precondition(width >= 1)
-        precondition((bitOffset + width) <= (array.count * 8 * MemoryLayout<T>.size))
+
+        let elementBits = elementBitWidth(flags: flags)
+        precondition((bitOffset + width) <= (length * elementBits))
 
         if value > (1 << width) {
             let max = (1 << width) - 1
             fatalError("Value [\(value)] cant fit in \(width) bits [max = \(max)]")
         }
-        let elementBits = 8 * MemoryLayout<T>.size
 
         var _width = width
         var elementValue = value
@@ -599,7 +567,26 @@ final class SystemMemorySpace<T: UnsignedInteger & FixedWidthInteger>: OpRegionS
             let bitCount = (endBit + 1 - startBit)
             let valueMask: AMLInteger = bitCount == AMLInteger.bitWidth ? AMLInteger.max : (1 << bitCount) - 1
 
-            writeElement(index: index, mask: elementMask, value: T(truncatingIfNeeded: elementValue & valueMask) << startBit)
+            let value = (elementValue & valueMask) << startBit
+            let valueToWrite: AMLInteger
+
+            if elementMask == AMLInteger.max {
+                valueToWrite = value
+            } else {
+                switch flags.updateRule {
+                    case .Preserve:
+                        let curValue = read(atIndex: index, flags: flags) & ~elementMask
+                        valueToWrite = curValue | value
+
+                    case .WriteAsOnes:
+                        valueToWrite = value | ~elementMask
+
+                    case .WriteAsZeros:
+                        valueToWrite = value
+                }
+            }
+            write(atIndex: index, value: valueToWrite, flags: flags)
+
             elementValue = elementValue >> bitCount
             startBit = 0
             _width -= bitCount
@@ -608,148 +595,21 @@ final class SystemMemorySpace<T: UnsignedInteger & FixedWidthInteger>: OpRegionS
         } while _width > 0
 
         #if TEST
-            // testing check
-            let readBack = read(bitOffset: bitOffset, width: width)
-            if readBack != value {
-                fatalError("read after write failed [value=\(value) readBack=\(readBack)]")
-            }
+        // testing check
+        let readBack = read(bitOffset: bitOffset, width: width, flags: flags)
+        if readBack != value {
+            fatalError("read after write failed [value=\(value) readBack=\(readBack)]")
+        }
         #endif
     }
 
-
-    private func writeElement(index: Int, mask: T, value: T) {
-        if mask == T.max {
-            array[index] = value
-            return
-        }
-
-        switch flags.updateRule {
-        case .Preserve:
-            let curValue = array[index] & ~mask
-            array[index] = curValue | value
-
-        case .WriteAsOnes:
-            array[index] = value | ~mask
-
-        case .WriteAsZeros:
-            array[index] = value
-        }
-    }
-
-    private func createMask(_ startBit: Int, _ endBit: Int) -> T {
-        let endMask: T = (endBit + 1 == T.bitWidth) ? T.max : T((1 << (T(endBit) + 1)) - 1)
-        let startMask: T = ~((1 << T(startBit)) - 1)
-        return startMask & endMask
+    private func createMask(_ startBit: Int, _ endBit: Int) -> AMLInteger {
+        let bits = endBit - startBit + 1
+        guard bits < AMLInteger.bitWidth else { return AMLInteger.max }
+        let mask: AMLInteger = (1 << AMLInteger(bits)) - 1
+        return mask << AMLInteger(startBit)
     }
 }
-
-
-final class AMLDefFieldRef {
-    var amlDefField: AMLDefField? = nil
-    var opRegion: AMLDefOpRegion? = nil
-    var regionSpace: OpRegionSpace? = nil
-
-    init() {
-    }
-
-
-    func getRegionSpace(context: inout ACPI.AMLExecutionContext) -> OpRegionSpace {
-        if let rs = regionSpace {
-            return rs
-        }
-        guard let field = amlDefField, let region = opRegion else {
-            fatalError("field/region not defined")
-        }
-
-        let offset = (region.offset.evaluate(context: &context) as! AMLIntegerData).value
-        let length = (region.length.evaluate(context: &context) as! AMLIntegerData).value
-
-        switch region.region {
-
-        case .systemMemory:
-            switch field.flags.fieldAccessType {
-            case .AnyAcc, .ByteAcc:
-                regionSpace = SystemMemorySpace<UInt8>(offset: offset, length: length, flags: field.flags)
-
-            case .WordAcc:
-                regionSpace = SystemMemorySpace<UInt16>(offset: offset, length: length, flags: field.flags)
-
-            case .DWordAcc:
-                regionSpace = SystemMemorySpace<UInt32>(offset: offset, length: length, flags: field.flags)
-
-            case .QWordAcc:
-                regionSpace = SystemMemorySpace<UInt64>(offset: offset, length: length, flags: field.flags)
-
-            case .BufferAcc:
-                fatalError("Buffer ACC not supported")
-            }
-
-        case .systemIO:
-            switch field.flags.fieldAccessType {
-            case .AnyAcc, .ByteAcc:
-                regionSpace = SystemMemorySpace<UInt8>(offset: offset, length: length, flags: field.flags)
-
-            case .WordAcc:
-                regionSpace = SystemMemorySpace<UInt16>(offset: offset, length: length, flags: field.flags)
-
-            case .DWordAcc:
-                regionSpace = SystemMemorySpace<UInt32>(offset: offset, length: length, flags: field.flags)
-
-            case .QWordAcc:
-                regionSpace = SystemMemorySpace<UInt64>(offset: offset, length: length, flags: field.flags)
-
-            case .BufferAcc:
-                fatalError("SystemIO Buffer ACC not supported")
-            }
-
-        case .pciConfig:
-            switch field.flags.fieldAccessType {
-            case .AnyAcc, .ByteAcc:
-                regionSpace = SystemMemorySpace<UInt8>(offset: offset, length: length, flags: field.flags)
-
-            case .WordAcc:
-                regionSpace = SystemMemorySpace<UInt16>(offset: offset, length: length, flags: field.flags)
-
-            case .DWordAcc:
-                regionSpace = SystemMemorySpace<UInt32>(offset: offset, length: length, flags: field.flags)
-
-            case .QWordAcc:
-                regionSpace = SystemMemorySpace<UInt64>(offset: offset, length: length, flags: field.flags)
-
-            case .BufferAcc:
-                fatalError("PCI config Buffer ACC not supported")
-            }
-
-        case .embeddedControl:
-            switch field.flags.fieldAccessType {
-            case .ByteAcc:
-                //regionSpace = EmbeddedControlRegionSpace(offset: region.offset, length: region.length, flags: field.flags)
-                // FIXME - should be embedded control
-                regionSpace = SystemMemorySpace<UInt8>(offset: offset, length: length, flags: field.flags)
-
-            default:
-                fatalError("EmbeddedControl Region Space does not support access of type \(field.flags.fieldAccessType)")
-            }
-
-        case .smbus:
-            fatalError("\(region) region not implemented")
-        case .systemCMOS:
-            fatalError("\(region) region not implemented")
-        case .pciBarTarget:
-            fatalError("\(region) region not implemented")
-        case .ipmi:
-            fatalError("\(region) region not implemented")
-        case .generalPurposeIO:
-            fatalError("\(region) region not implemented")
-        case .genericSerialBus:
-            fatalError("\(region) region not implemented")
-        case .oemDefined:
-            fatalError("\(region) region not implemented")
-        }
-        return regionSpace!
-    }
-}
-
 
 enum AMLRegionSpace: AMLByteData {
     case systemMemory = 0x00
@@ -765,19 +625,306 @@ enum AMLRegionSpace: AMLByteData {
     case oemDefined = 0x80 // .. 0xff fixme
 }
 
+struct EmbeddedControlRegionSpace: OpRegionSpace, CustomStringConvertible {
+    let flags: AMLFieldFlags
+    let offset: AMLInteger
+    let length: Int
 
-final class AMLDefOpRegion: AMLNamedObj {
+    var description: String {
+        return "EmbeddedControlRegionSpace"
+    }
+
+    init(offset: AMLInteger, length: AMLInteger) {
+        self.offset = offset
+        self.length = Int(length)
+        fatalError("EmbeddedControlRegionSpace not implemented")
+    }
+
+    func read(bitOffset: Int, width: Int, flags: AMLFieldFlags) -> AMLInteger {
+        fatalError("EmbeddedControlRegionSpace.read not implemented")
+    }
+
+    func write(bitOffset: Int, width: Int, value: AMLInteger, flags: AMLFieldFlags) {
+        fatalError("EmbeddedControlRegionSpace.wite not implemented")
+    }
+
+    func read(atIndex: Int, flags: AMLFieldFlags) -> AMLInteger {
+        fatalError("EmbeddedControlRegionSpace.read not implemented")
+    }
+
+    func write(atIndex: Int, value: AMLInteger, flags: AMLFieldFlags) {
+        fatalError("EmbeddedControlRegionSpace.wite not implemented")
+    }
+}
+
+
+struct SystemMemorySpace: OpRegionSpace, CustomStringConvertible {
+    private var data: UnsafeMutableRawPointer
+    let offset: UInt
+    let length: Int
+
+    var description: String {
+        return "SystemMemory: offset: 0x\(String(offset, radix: 16)), length: \(length)"
+    }
+
+
+    init(offset: AMLInteger, length: AMLInteger) {
+        precondition(length > 0)
+        self.offset = UInt(offset)
+        self.length = Int(length)
+#if TEST
+        data = UnsafeMutableRawPointer.allocate(byteCount: (self.length + 7 ) % 8, alignment: 8)
+#else
+        data = PhysAddress(self.offset).rawPointer
+#endif
+    }
+
+
+    func read(atIndex index: Int, flags: AMLFieldFlags) -> AMLInteger {
+        switch flags.fieldAccessType {
+            case .AnyAcc, .ByteAcc:
+                return AMLInteger(data.load(fromByteOffset: index, as: UInt8.self))
+
+            case .WordAcc:
+                return AMLInteger(data.load(fromByteOffset: index * 2, as: UInt16.self))
+
+            case .DWordAcc:
+                return AMLInteger(data.load(fromByteOffset: index * 4, as: UInt32.self))
+
+            case .QWordAcc:
+                return AMLInteger(data.load(fromByteOffset: index * 8, as: UInt64.self))
+
+            case .BufferAcc: fatalError("Buffer access used in a SystemRegion for reading")
+        }
+    }
+
+    func write(atIndex index: Int, value: AMLInteger, flags: AMLFieldFlags) {
+        switch flags.fieldAccessType {
+            case .AnyAcc, .ByteAcc:
+                data.storeBytes(of: UInt8(truncatingIfNeeded: value), toByteOffset: index, as: UInt8.self)
+
+            case .WordAcc:
+                data.storeBytes(of: UInt16(truncatingIfNeeded: value), toByteOffset: index * 2, as: UInt16.self)
+
+            case .DWordAcc:
+                data.storeBytes(of: UInt32(truncatingIfNeeded: value), toByteOffset: index * 4, as: UInt32.self)
+
+            case .QWordAcc:
+                data.storeBytes(of: UInt64(truncatingIfNeeded: value), toByteOffset: index * 8, as: UInt64.self)
+
+            case .BufferAcc: fatalError("Buffer access used in a SystemRegion for reading")
+        }
+    }
+}
+
+
+struct SystemIO: OpRegionSpace, CustomStringConvertible {
+    let port: UInt16
+    let length: Int
+
+    var description: String {
+        return "SystemMemory: port: 0x\(String(port, radix: 16)), length: \(length)"
+    }
+
+
+    init(port: AMLInteger, length: AMLInteger) {
+        precondition(length > 0)
+        precondition(port + length <= UInt16.max)
+        self.port = UInt16(port)
+        self.length = Int(length)
+    }
+
+
+    func read(atIndex index: Int, flags: AMLFieldFlags) -> AMLInteger {
+        var offset = UInt16(index)
+        let result: AMLInteger
+
+        switch flags.fieldAccessType {
+            case .AnyAcc, .ByteAcc:
+                result = AMLInteger(inb(port + offset))
+
+            case .WordAcc:
+                offset *= 2
+                result = AMLInteger(inw(port + offset))
+
+            case .DWordAcc:
+                offset *= 4
+                result = AMLInteger(inl(port + offset))
+
+            default:
+                fatalError("\(flags.fieldAccessType) access not allowed in a SystemIO region")
+        }
+        //print("Read \(flags.fieldAccessType) from port 0x\(String(port + offset, radix: 16)) -> 0x\(String(result, radix: 16))")
+        return result
+    }
+
+
+    func write(atIndex index: Int, value: AMLInteger, flags: AMLFieldFlags) {
+        var offset = UInt16(index)
+
+        switch flags.fieldAccessType {
+            case .AnyAcc, .ByteAcc:
+                outb(port + offset, UInt8(truncatingIfNeeded: value))
+
+            case .WordAcc:
+                offset *= 2
+                outw(port + offset, UInt16(truncatingIfNeeded: value))
+
+            case .DWordAcc:
+                offset *= 4
+                outl(port + offset, UInt32(truncatingIfNeeded: value))
+
+            default:
+                fatalError("\(flags.fieldAccessType) access not allowed in a SystemIO region")
+        }
+        //print("Wrote \(flags.fieldAccessType) 0x\(String(value, radix: 16)) to port 0x\(String(port + offset, radix: 16))")
+    }
+}
+
+
+private struct PCIConfigRegionSpace: OpRegionSpace, CustomStringConvertible {
+    let config: PCIConfigSpace
+    let offset: UInt
+    let length: Int
+
+    var description: String {
+        return "PCIConfigSpace: offset: 0x\(String(offset, radix: 16)), length: \(length)"
+    }
+
+    init(config: PCIConfigSpace, offset: AMLInteger, length: AMLInteger) {
+        precondition(length > 0)
+        precondition(offset + length <= 256)
+
+        self.config = config
+        self.offset = UInt(offset)
+        self.length = Int(length)
+        print("PCIConfig space, config: \(config)")
+    }
+
+
+    func read(atIndex index: Int, flags: AMLFieldFlags) -> AMLInteger {
+        switch flags.fieldAccessType {
+            case .AnyAcc, .ByteAcc:
+                return AMLInteger(config.readConfigByte(atOffset: offset + UInt(index)))
+
+            case .WordAcc:
+                return AMLInteger(config.readConfigWord(atOffset: offset + UInt(index)))
+
+            case .DWordAcc:
+                return AMLInteger(config.readConfigDword(atOffset: offset + UInt(index)))
+
+            default:
+                fatalError("\(flags.fieldAccessType) access not allowed in a PCIConfig region")
+        }
+    }
+
+    func write(atIndex index: Int, value: AMLInteger, flags: AMLFieldFlags) {
+        switch flags.fieldAccessType {
+            case .AnyAcc, .ByteAcc:
+                config.writeConfigByte(atOffset: offset + UInt(index), value: UInt8(truncatingIfNeeded: value))
+
+            case .WordAcc:
+                config.writeConfigWord(atOffset: offset + UInt(index), value: UInt16(truncatingIfNeeded: value))
+
+            case .DWordAcc:
+                config.writeConfigDword(atOffset: offset + UInt(index), value: UInt32(truncatingIfNeeded: value))
+
+            default:
+                fatalError("\(flags.fieldAccessType) access not allowed in a PCIConfig region")
+
+        }
+    }
+}
+
+
+final class AMLDefOpRegion: AMLNamedObj, CustomStringConvertible {
     // OpRegionOp NameString RegionSpace RegionOffset RegionLen
-    let region: AMLRegionSpace
+    let regionSpaceType: AMLRegionSpace
     let offset: AMLTermArg // => Integer
     let length: AMLTermArg // => Integer
+    private var regionSpace: OpRegionSpace?
 
 
+    var description: String {
+        let _offset: String
+        if let o = offset as? AMLIntegerData {
+            _offset = "0x" + String(o.value, radix: 16)
+        } else {
+            _offset = String(describing: offset)
+        }
+
+        let _length: String
+        if let l = length as? AMLIntegerData {
+            _length = l.value.description
+        } else {
+            _length = String(describing: length)
+        }
+
+        let rs = regionSpace != nil ? String(describing: regionSpace!) : "nil"
+        return "regionType: \(regionSpaceType)\noffset: \(_offset)\nlength: \(_length)\nregionSpace: \(rs)"
+    }
+
+
+    // FIXME .regionSpace can be initialised here if offset and length are both AMLIntegerData
     init(name: AMLNameString, region: AMLRegionSpace, offset: AMLTermArg, length: AMLTermArg) {
-        self.region = region
+        self.regionSpaceType = region
         self.offset = offset
         self.length = length
         super.init(name: name)
+    }
+
+
+    func getRegionSpace(context: inout ACPI.AMLExecutionContext) -> OpRegionSpace {
+        if let rs = regionSpace {
+            return rs
+        }
+
+        let regionOffset = (offset.evaluate(context: &context) as! AMLIntegerData).value
+        let regionLength = (length.evaluate(context: &context) as! AMLIntegerData).value
+
+        switch regionSpaceType {
+
+            case .systemMemory:
+                regionSpace = SystemMemorySpace(offset: regionOffset, length: regionLength)
+
+            case .systemIO:
+                regionSpace = SystemIO(port: regionOffset, length: regionLength)
+
+            case .pciConfig:
+                guard let dev = self.parent as? AMLDefDevice else {
+                    fatalError("\(parent!.fullname()) is not am AMLDefDevice")
+                }
+
+                guard let adr = dev.addressResource() else {
+                    fatalError("Cant get addressResource for \(dev.fullname())")
+                }
+
+                var busId: UInt8 = 0
+                var p: ACPI.ACPIObjectNode? = dev
+                while let node = p {
+                    if let bbnNode = node.childNode(named: "_BBN") as? AMLDefName, let bbnValue = bbnNode.integerValue() {
+                        busId = UInt8(bbnValue)
+                        break
+                    }
+                    p = node.parent
+                }
+
+                let configSpace = PCIConfigSpace(busID: busId, address: UInt32(adr))
+                regionSpace = PCIConfigRegionSpace(config: configSpace, offset: regionOffset, length: regionLength)
+
+            case .embeddedControl:
+                regionSpace = EmbeddedControlRegionSpace(offset: regionOffset, length: regionLength)
+
+            case .smbus: fallthrough
+            case .systemCMOS: fallthrough
+            case .pciBarTarget: fallthrough
+            case .ipmi: fallthrough
+            case .generalPurposeIO: fallthrough
+            case .genericSerialBus: fallthrough
+            case .oemDefined:
+                fatalError("\(regionSpaceType) region not implemented")
+        }
+        return regionSpace!
     }
 
 

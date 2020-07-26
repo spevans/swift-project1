@@ -80,6 +80,7 @@ class Bus: Device {
 
         let status = node.status()
         if !(status.present && status.enabled) {
+            //print("DEV: Ignoring", node.fullname(), "as status present:", status.present, "enabled:", status.enabled)
             return
         }
 
@@ -96,7 +97,8 @@ class Bus: Device {
                     foundDevice = ISABus(parentBus: parentBus, acpi: node)
 
                 case "PNP0A03", "PNP0A08": // PCIBus, PCI Express
-                    foundDevice = PCIBus.createBus(parentBus: parentBus, acpi: node, busID: 0)
+                    // FIXME, get the correct busID etc
+                    foundDevice = PCIBus(parentBus: parentBus, acpi: node, busId: 0)
 
                 case "PNP0100":
                     if let timer = PIT8254(interruptManager: im, pnpName: "PNP0100",
@@ -120,9 +122,17 @@ class Bus: Device {
                 case "QEMU0002":
                     foundDevice = QEMUFWCFG(parentBus: self, acpiNode: node)
 
+
                 default: // "PNP0A01", "PNP0A02", "PNP0A04", "PNP0A05", "PNP0A06":
                     foundDevice = self.unknownDevice(parentBus: parentBus, pnpName: pnpName, acpiNode: node) ??
                         UnknownDevice(parentBus: parentBus, pnpName: pnpName, acpiNode: node)
+            }
+        } else if deviceId == "PNP0A05" || deviceId == "PNP0A06" {
+            // ISA Generic Contrainer device, can have sub devices
+            for (_, value) in node.childNodes {
+                if let device = value as? AMLDefDevice {
+                    self.processNode(parentBus: self, device)
+                }
             }
         } else if let address = node.addressResource() {
             if let device = self.device(parentBus: self, address: UInt32(address), acpiNode: node) {

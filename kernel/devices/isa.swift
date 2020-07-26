@@ -18,16 +18,19 @@ protocol ISADevice {
 
 final class UnknownISADevice: UnknownDevice, ISADevice {
     let pnpName: String
-    override var description: String { "ISA: Unknown device: " + pnpName }
+    let resources: ISABus.Resources
+    override var description: String { "ISA: Unknown device: \(pnpName) \(resources)" }
 
     override init?(parentBus: Bus, pnpName: String? = nil, acpiNode: AMLDefDevice? = nil) {
         self.pnpName = pnpName ?? acpiNode?.fullname() ?? "unknown"
+        self.resources = ISABus.extractCRSSettings(acpiNode?.currentResourceSettings() ?? [])
         super.init(parentBus: parentBus, pnpName: pnpName, acpiNode: acpiNode)
     }
 
     init?(interruptManager: InterruptManager, pnpName: String,
           resources: ISABus.Resources, facp: FACP?) {
         self.pnpName = pnpName
+        self.resources = resources
         super.init()
     }
 }
@@ -91,7 +94,6 @@ final class ISABus: Bus {
                         break
                 }
             }
-
             processNode(parentBus: self, child)
         }
 

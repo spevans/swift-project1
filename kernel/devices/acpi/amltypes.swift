@@ -90,15 +90,18 @@ protocol AMLSimpleName: AMLSuperName {}
 protocol AMLType6Opcode: AMLSuperName, AMLBuffPkgStrObj {}
 protocol AMLDataObject: AMLDataRefObject {}
 protocol AMLComputationalData: AMLDataObject {}
-protocol AMLFieldElement {}
-protocol AMLConnectField: AMLFieldElement {}
-protocol AMLConstObj: AMLComputationalData {}
+protocol AMLConstObj: AMLComputationalData {
+    var value: AMLIntegerData { get }
+}
 
 extension AMLConstObj {
     var isReadOnly: Bool { return true }
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        return value
+    }
 }
 
-typealias AMLFieldList = [AMLFieldElement]
+typealias AMLFieldList = [(AMLNameString, AMLFieldSettings)]
 typealias AMLPredicate = AMLTermArg // => Integer
 typealias AMLDDBHandleObject = AMLSuperName
 typealias AMLMutexObject = AMLSuperName
@@ -123,7 +126,7 @@ class AMLIntegerData: AMLDataObject, AMLTermArg, AMLTermObj {
             return true
         }
         if let _to = to as? AMLNamedField {
-            return _to.bitWidth <= AMLInteger.bitWidth
+            return _to.fieldSettings.bitWidth <= AMLInteger.bitWidth
         }
 
         return false
@@ -181,7 +184,7 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg, Hashable {
     }
 
     func canBeConverted(to: AMLDataRefObject) -> Bool {
-        if to is AMLFieldElement {
+        if to is AMLNamedField {
             return true
         }
         return false
@@ -391,32 +394,158 @@ struct AMLDebugObj: AMLSuperName, AMLDataRefObject, AMLTarget {
 }
 
 
-final class AMLNamedField: AMLNamedObj, AMLFieldElement, AMLDataObject {
+// FIXME, use accessField, extendedAccessField correctly
+struct AMLFieldSettings {
     let bitOffset: UInt
     let bitWidth: UInt
-    let fieldRef: AMLDefFieldRef
-    var isReadOnly: Bool = false
+    let fieldFlags: AMLFieldFlags
+    let accessField: AMLAccessField
+    let extendedAccessField: AMLExtendedAccessField?
+}
 
-    init(name: AMLNameString, bitOffset: UInt, bitWidth: UInt, fieldRef: AMLDefFieldRef) throws {
-        self.bitOffset = bitOffset
-        self.bitWidth = bitWidth
-        self.fieldRef = fieldRef
+
+final class AMLNamedField: AMLNamedObj, AMLDataObject, CustomStringConvertible {
+
+    enum RegionReference {
+        case regionSpace(OpRegionSpace)
+        case opRegion(AMLDefOpRegion)
+        case name(AMLNameString)
+    }
+
+    var region: RegionReference
+    let fieldSettings: AMLFieldSettings
+    var isReadOnly: Bool { false }
+
+
+    var description: String {
+        return "\(self.name): bitOffset: \(fieldSettings.bitOffset) bitWidth: \(fieldSettings.bitWidth)"
+            + " fieldFlags: \(fieldSettings.fieldFlags)"
+    }
+
+    init(name: AMLNameString, regionName: AMLNameString, fieldSettings: AMLFieldSettings) {
+        self.region = .name(regionName)
+        self.fieldSettings = fieldSettings
         super.init(name: name)
+    }
+
+    init(name: AMLNameString, opRegion: AMLDefOpRegion, fieldSettings: AMLFieldSettings) {
+        self.region = .opRegion(opRegion)
+        self.fieldSettings = fieldSettings
+        super.init(name: name)
+    }
+
+
+    private func getRegionSpace(context: inout ACPI.AMLExecutionContext) -> OpRegionSpace {
+        let space: OpRegionSpace
+
+        switch region {
+            case let .regionSpace(opRegionSpace):
+                space = opRegionSpace
+
+            case let .opRegion(opRegion):
+                space = opRegion.getRegionSpace(context: &context)
+                region = .regionSpace(space)
+
+            case let .name(regionName):
+                guard let globalObjects = system.deviceManager.acpiTables.globalObjects else {
+                    fatalError("cant get opRegionanme for \(self.fullname()) in scope for \(context.scope)")
+                }
+                guard let (opNode, _) = globalObjects.getGlobalObject(currentScope: context.scope, name: regionName),
+                    let opRegion = opNode as? AMLDefOpRegion else {
+                        fatalError("Cant find \(regionName) in \(context.scope)")
+                }
+                space = opRegion.getRegionSpace(context: &context)
+                region = .regionSpace(space)
+        }
+        return space
+    }
+
+
+    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+        let value = operandAsInteger(operand: to, context: &context)
+        getRegionSpace(context: &context).write(bitOffset: Int(fieldSettings.bitOffset),
+                                               width: Int(fieldSettings.bitWidth),
+                                               value: value,
+                                               flags: fieldSettings.fieldFlags)
+    }
+
+
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        let value = getRegionSpace(context: &context).read(bitOffset: Int(fieldSettings.bitOffset),
+                                                          width: Int(fieldSettings.bitWidth),
+                                                          flags: fieldSettings.fieldFlags)
+        return AMLIntegerData(value)
+    }
+
+
+    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        return evaluate(context: &context)
+    }
+}
+
+
+final class AMLNamedIndexField: AMLNamedObj, AMLDataObject, OpRegionSpace, CustomStringConvertible {
+
+    enum FieldReference {
+        case namedField(AMLNamedField)
+        case name(AMLNameString)
+    }
+
+    private var indexField: FieldReference
+    private var dataField: FieldReference
+    let fieldSettings: AMLFieldSettings
+    var isReadOnly: Bool { false }
+    var length: Int { Int(( fieldSettings.bitOffset + fieldSettings.bitWidth + 7) / 8) }
+
+    var description: String {
+        return "idx: \(indexField) data: \(dataField) \(self.name): bitOffset: \(fieldSettings.bitOffset)"
+            + " fieldFlags: \(fieldSettings.fieldFlags)"
+    }
+
+
+    init(name: AMLNameString, indexField: AMLNameString, dataField: AMLNameString, fieldSettings: AMLFieldSettings) {
+        self.indexField = .name(indexField)
+        self.dataField = .name(dataField)
+        self.fieldSettings = fieldSettings
+        super.init(name: name)
+    }
+
+
+    private func getField(_ field: inout FieldReference) -> AMLNamedField {
+        let namedField: AMLNamedField
+        switch field {
+            case let .namedField(obj):
+                namedField = obj
+
+            case let .name(fieldName):
+                let scope = self.parent?.fullname() ?? "\\"
+                guard
+                    let globalObjects = system.deviceManager.acpiTables.globalObjects,
+                    let (node, _) = globalObjects.getGlobalObject(currentScope: AMLNameString(scope), name: fieldName) else {
+                    fatalError("cant get field \(fieldName) for IndexField \(self.fullname())")
+                }
+                guard let obj = node as? AMLNamedField else {
+                    fatalError("\(node.fullname()) is not an AMLNamedField")
+                }
+                field = .namedField(obj)
+                namedField = obj
+        }
+        return namedField
     }
 
     override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         let value = operandAsInteger(operand: to, context: &context)
-        setOpRegion(context: context)
-        let region = fieldRef.getRegionSpace(context: &context)
-        region.write(bitOffset: Int(bitOffset),
-                     width: Int(bitWidth),
-                     value: value)
+        self.write(bitOffset: Int(fieldSettings.bitOffset),
+                   width: Int(fieldSettings.bitWidth),
+                   value: value,
+                   flags: fieldSettings.fieldFlags)
     }
 
+
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        setOpRegion(context: context)
-        let region = fieldRef.getRegionSpace(context: &context)
-        let value = region.read(bitOffset: Int(bitOffset), width: Int(bitWidth))
+        let value = self.read(bitOffset: Int(fieldSettings.bitOffset),
+                          width: Int(fieldSettings.bitWidth),
+                          flags: fieldSettings.fieldFlags)
         return AMLIntegerData(value)
     }
 
@@ -425,45 +554,38 @@ final class AMLNamedField: AMLNamedObj, AMLFieldElement, AMLDataObject {
         return evaluate(context: &context)
     }
 
-    private func setOpRegion(context: ACPI.AMLExecutionContext) {
-        if fieldRef.opRegion == nil {
-            guard let globalObjects = system.deviceManager.acpiTables.globalObjects,
-                let opRegionName = fieldRef.amlDefField?.name else {
-                fatalError("cant get opRegionanme")
-            }
-            if let (opNode, _) = globalObjects.getGlobalObject(currentScope: context.scope,
-                                                                          name: opRegionName) {
-                if let opRegion = opNode as? AMLDefOpRegion {
-                    fieldRef.opRegion = opRegion
-                    return
-                } else {
-                    print("opNode", opNode)
-                }
 
-            } else {
-                fatalError("Cant find \(opRegionName) in \(context.scope)")
-            }
-            fatalError("No valid opRegion found")
-        }
+    func read(atIndex index: Int, flags: AMLFieldFlags) -> AMLInteger {
+        var context = ACPI.AMLExecutionContext(scope: AMLNameString(self.fullname()))
+        let _indexField = getField(&indexField)
+        let _datafield = getField(&dataField)
+        print(_indexField)
+        print(_datafield)
+
+        // FIXME, ensure index is correct wrt register access width
+        _indexField.updateValue(to: AMLIntegerData(AMLInteger(index)), context: &context)
+        let data = _datafield.readValue(context: &context) as! AMLIntegerData
+        return data.value
     }
-}
 
 
-struct AMLReservedField: AMLFieldElement {
-    let pkglen: AMLPkgLength
+    func write(atIndex index: Int, value: AMLInteger, flags: AMLFieldFlags) {
+        var context = ACPI.AMLExecutionContext(scope: AMLNameString(self.fullname()))
+        let _indexField = getField(&indexField)
+        let _datafield = getField(&dataField)
+        print(_indexField)
+        print(_datafield)
+
+        // FIXME, ensure index is correct wrt register access width
+        _indexField.updateValue(to: AMLIntegerData(AMLInteger(index)), context: &context)
+        _datafield.updateValue(to: AMLIntegerData(value), context: &context)
+    }
 }
 
 
 struct AMLAccessType {
     let value: AMLByteData
 }
-
-
-struct AMLAccessField: AMLFieldElement {
-    let type: AMLAccessType
-    let attrib: AMLByteData
-}
-
 
 enum AMLExtendedAccessAttrib: AMLByteData {
     case attribBytes = 0x0B
@@ -472,10 +594,22 @@ enum AMLExtendedAccessAttrib: AMLByteData {
 }
 
 
-struct AMLExtendedAccessField: AMLFieldElement {
+// Field Elements
+struct AMLReservedField {
+    let pkglen: AMLPkgLength
+}
+
+
+struct AMLAccessField {
+    let type: AMLAccessType
+    let attrib: AMLByteData
+}
+
+
+struct AMLExtendedAccessField {
     let type: AMLAccessType
     let attrib: AMLExtendedAccessAttrib
-    let length: AMLIntegerData
+    let length: AMLInteger
 }
 
 
@@ -592,44 +726,38 @@ struct AMLString: AMLDataRefObject, AMLTermObj {
 
 struct AMLZeroOp: AMLConstObj {
     // ZeroOp
+    var value: AMLIntegerData { AMLIntegerData(0) }
+
     func canBeConverted(to: AMLDataRefObject) -> Bool {
         return true
-    }
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return AMLIntegerData(0)
     }
 }
 
 
 struct AMLOneOp: AMLConstObj {
     // OneOp
+    var value: AMLIntegerData { AMLIntegerData(1) }
+
     func canBeConverted(to: AMLDataRefObject) -> Bool {
         return true
-    }
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return AMLIntegerData(1)
     }
 }
 
 
 struct AMLOnesOp: AMLConstObj {
     // OnesOp
+    var value: AMLIntegerData { AMLIntegerData(0xff) }
+
     func canBeConverted(to: AMLDataRefObject) -> Bool {
         return true
-    }
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return AMLIntegerData(0xff)
     }
 }
 
 
 struct AMLRevisionOp: AMLConstObj {
     // RevisionOp - AML interpreter supports revision 2
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return AMLIntegerData(2)
-    }
+
+    var value: AMLIntegerData { AMLIntegerData(2) }
 }
 
 

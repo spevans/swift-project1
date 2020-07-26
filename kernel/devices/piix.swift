@@ -11,7 +11,7 @@
 
 
 final class PIIX: Device, PCIDevice, CustomStringConvertible {
-    private let deviceFunction: PCIDeviceFunction
+    let deviceFunction: PCIDeviceFunction
     var description: String { return deviceFunction.description + ": PIIX" }
 
     init?(parentBus: Bus, deviceFunction: PCIDeviceFunction) {
