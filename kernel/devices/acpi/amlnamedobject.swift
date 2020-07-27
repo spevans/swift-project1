@@ -339,13 +339,13 @@ final class AMLDefCreateBitField: AMLNamedObj {
     }
 
     override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let buffer = sourceBuff.evaluate(context: &context)
-        print("reading from \(buffer), bitIndex:", bitIndex)
+        //let buffer = sourceBuff.evaluate(context: &context) as! AMLBuffer
+        //print(type(of: self), "reading from \(buffer), bitIndex:", bitIndex)
         return AMLIntegerData(0)
     }
 
     override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        print("Updating \(sourceBuff)[\(bitIndex)] to \(to)")
+        //print(type(of: self), "Updating \(sourceBuff)[\(bitIndex)] to \(to)")
     }
 }
 
@@ -364,15 +364,18 @@ final class AMLDefCreateByteField: AMLNamedObj {
 
 
     override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let buffer = sourceBuff.evaluate(context: &context)
-        print("reading from \(buffer), byteIndex:", byteIndex)
-        return AMLIntegerData(0)
+        let buffer = sourceBuff.evaluate(context: &context) as! AMLBuffer
+        return AMLIntegerData(AMLInteger(buffer.read(atIndex: byteIndex)))
     }
 
     override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        print("Updating \(sourceBuff)[\(byteIndex)] to \(to)")
+        //print(self.name.value, "updateValue, context:", context)
+        var buffer = sourceBuff.evaluate(context: &context) as! AMLBuffer
+        let byte = (to.evaluate(context: &context) as! AMLIntegerData).value
+        buffer.write(atIndex: byteIndex, value: AMLByteData(byte))
     }
 }
+
 
 final class AMLDefCreateDWordField: AMLNamedObj {
     // CreateDWordFieldOp SourceBuff ByteIndex NameString
@@ -387,13 +390,13 @@ final class AMLDefCreateDWordField: AMLNamedObj {
     }
 
     override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let buffer = sourceBuff.evaluate(context: &context)
-        print("reading from \(buffer), byteIndex:", byteIndex)
+        //let buffer = sourceBuff.evaluate(context: &context)
+        //print(type(of: self), "reading from \(buffer), byteIndex:", byteIndex)
         return AMLIntegerData(0)
     }
 
     override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        print("Updating \(sourceBuff)[\(byteIndex)] to \(to)")
+        //print(type(of: self), "Updating \(sourceBuff)[\(byteIndex)] to \(to)")
     }
 }
 
@@ -414,13 +417,13 @@ final class AMLDefCreateField: AMLNamedObj {
 
 
     override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let buffer = sourceBuff.evaluate(context: &context)
-        print("reading from \(buffer), byteIndex:", bitIndex)
+        //let buffer = sourceBuff.evaluate(context: &context)
+        //print(type(of: self), "reading from \(buffer), byteIndex:", bitIndex)
         return AMLIntegerData(0)
     }
 
     override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        print("Updating \(sourceBuff)[\(bitIndex)] to \(to)")
+        //print(type(of: self), "Updating \(sourceBuff)[\(bitIndex)] to \(to)")
     }
 }
 
@@ -438,13 +441,13 @@ final class AMLDefCreateQWordField: AMLNamedObj {
 
 
     override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let buffer = sourceBuff.evaluate(context: &context)
-        print("reading from \(buffer), byteIndex:", byteIndex)
+        //let buffer = sourceBuff.evaluate(context: &context)
+        //print(type(of: self), "reading from \(buffer), byteIndex:", byteIndex)
         return AMLIntegerData(0)
     }
 
     override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        print("Updating \(sourceBuff)[\(byteIndex)] to \(to)")
+        //print(type(of: self), "Updating \(sourceBuff)[\(byteIndex)] to \(to)")
     }
 }
 
@@ -462,13 +465,13 @@ final class AMLDefCreateWordField: AMLNamedObj {
 
 
     override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let buffer = sourceBuff.evaluate(context: &context)
-        print("reading from \(buffer), byteIndex:", byteIndex)
+        //let buffer = sourceBuff.evaluate(context: &context)
+        //print(type(of: self), "reading from \(buffer), byteIndex:", byteIndex)
         return AMLIntegerData(0)
     }
 
     override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        print("Updating \(sourceBuff)[\(byteIndex)] to \(to)")
+        //print(type(of: self), "Updating \(sourceBuff)[\(byteIndex)] to \(to)")
     }
 }
 

@@ -12,7 +12,7 @@ extension ACPI {
     struct AMLExecutionContext {
         let scope: AMLNameString
         let args: AMLTermArgList
-        var localObjects: [AMLTermArg?] = Array(repeatElement(nil, count: 8))
+        var localObjects: [AMLTermArg?]
         var endOfMethod = false
         private var _returnValue: AMLTermArg? = nil
 
@@ -28,14 +28,24 @@ extension ACPI {
         }
 
 
-        init(scope: AMLNameString, args: AMLTermArgList  = []) {
+        init(scope: AMLNameString, args: AMLTermArgList = []) {
             self.scope = scope
             self.args = args
+            self.localObjects = Array(repeatElement(nil, count: 8))
         }
 
-        func withNewScope(_ newScope: AMLNameString) -> AMLExecutionContext {
-            return AMLExecutionContext(scope: newScope)
+
+        private init(scope: AMLNameString, args: AMLTermArgList, localObjects: [AMLTermArg?]) {
+            self.scope = scope
+            self.args = args
+            self.localObjects = localObjects
         }
+
+
+        func withNewScope(_ newScope: AMLNameString) -> AMLExecutionContext {
+            return AMLExecutionContext(scope: newScope, args: self.args, localObjects: self.localObjects)
+        }
+
 
         mutating func execute(termList: AMLTermList) throws {
             var dynamicNamedObjects: [AMLNamedObj] = []

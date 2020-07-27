@@ -830,7 +830,7 @@ final class AMLParser {
         let parser = try subParser()
         let bufSize = try parser.parseTermArg()
         let bytes = parser.byteStream.bytesToEnd()
-        return AMLBuffer(size: bufSize, value: bytes)
+        return AMLBuffer(size: bufSize, data: bytes)
     }
 
 

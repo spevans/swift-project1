@@ -83,17 +83,26 @@ struct AMLDefAnd: AMLType2Opcode {
 }
 
 
-struct AMLBuffer: AMLBuffPkgStrObj, AMLType2Opcode, AMLComputationalData {
+struct AMLBuffer: AMLBuffPkgStrObj, AMLType2Opcode, AMLComputationalData, CustomStringConvertible {
     var isReadOnly: Bool { return true }
+    var description: String { "AMLBuffer, length: \(data.count)" }
 
     // BufferOp PkgLength BufferSize ByteList
     let size: AMLTermArg // => Integer
-    let value: AMLByteList
+    private(set) var data: AMLByteList
 
 
     // FIXME: Implement
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
        return self
+    }
+
+    func read(atIndex index: AMLInteger) -> AMLByteData {
+        return AMLByteData(data[Int(index)])
+    }
+
+    mutating func write(atIndex index: AMLInteger, value: AMLByteData) {
+        data[Int(index)] = value
     }
 }
 
@@ -128,9 +137,9 @@ struct AMLDefConcatRes: AMLType2Opcode {
                 fatalError("cant evaulate to buffers")
         }
         // Fixme, iterate validating the individual entries and add an endtag
-        let result = Array(buf1.value[0..<buf1.value.count-2]) + buf2.value
+        let result = Array(buf1.data[0..<buf1.data.count-2]) + buf2.data
 
-        let newBuffer = AMLBuffer(size: AMLIntegerData(AMLInteger(result.count)), value: result)
+        let newBuffer = AMLBuffer(size: AMLIntegerData(AMLInteger(result.count)), data: result)
         target.updateValue(to: newBuffer, context: &context)
         return newBuffer
     }
@@ -733,8 +742,7 @@ struct AMLDefStore: AMLType2Opcode {
         //      fatalError("\(source) can not be converted to \(target)")
         //  }
         let resolvedScope = AMLNameString(fullPath).removeLastSeg()
-        var tmpContext = ACPI.AMLExecutionContext(scope: resolvedScope,
-                                                  args: context.args)
+        var tmpContext = context.withNewScope(resolvedScope)
         dest.updateValue(to: source, context: &tmpContext)
 
         return v

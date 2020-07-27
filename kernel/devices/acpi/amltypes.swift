@@ -244,8 +244,7 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg, Hashable {
         let namedObject = node
         if let fieldElement = namedObject as? AMLNamedField {
             let resolvedScope = AMLNameString(fullPath).removeLastSeg()
-            var tmpContext = ACPI.AMLExecutionContext(scope: resolvedScope,
-                                                      args: context.args)
+            var tmpContext = context.withNewScope(resolvedScope)
             return fieldElement.evaluate(context: &tmpContext)
         } else if let namedObj = namedObject as? AMLDefName {
                 return namedObj.value
@@ -365,13 +364,14 @@ struct AMLLocalObj: AMLTermArg, AMLSimpleName, AMLBuffPkgStrObj, AMLTermObj {
             fatalError("\(argIdx) out of bounds, count = \(context.localObjects.count)")
         }
         guard let v = context.localObjects[argIdx] else {
-            fatalError("AMLLocalObj: Cant get localObject for argIndex \(argIdx)")
+            fatalError("AMLLocalObj: Cant get localObject for argIndex \(argIdx), context: \(context)")
         }
         let r = v.evaluate(context: &context)
         return r
     }
 
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+        //print("AMLLocalObj updating \(self.argIdx) to: \(to) context = \(context)")
         context.localObjects[argIdx] = to
     }
 }
@@ -457,12 +457,15 @@ final class AMLNamedField: AMLNamedObj, AMLDataObject, CustomStringConvertible {
                 space = opRegion.getRegionSpace(context: &context)
                 region = .regionSpace(space)
         }
+        //print("region space:", region)
         return space
     }
 
 
     override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         let value = operandAsInteger(operand: to, context: &context)
+
+        //print("\(self.name): writing 0x\(String(value, radix: 16)) to bitOffset: \(fieldSettings.bitOffset)")
         getRegionSpace(context: &context).write(bitOffset: Int(fieldSettings.bitOffset),
                                                width: Int(fieldSettings.bitWidth),
                                                value: value,
@@ -474,6 +477,7 @@ final class AMLNamedField: AMLNamedObj, AMLDataObject, CustomStringConvertible {
         let value = getRegionSpace(context: &context).read(bitOffset: Int(fieldSettings.bitOffset),
                                                           width: Int(fieldSettings.bitWidth),
                                                           flags: fieldSettings.fieldFlags)
+        //print("\(self.name): read 0x\(String(value, radix: 16)) from bitOffset: \(fieldSettings.bitOffset)")
         return AMLIntegerData(value)
     }
 
@@ -562,6 +566,7 @@ final class AMLNamedIndexField: AMLNamedObj, AMLDataObject, OpRegionSpace, Custo
         print(_indexField)
         print(_datafield)
 
+        //print("NamedIndexField read(0x\(String(index, radix: 16))) \(self.fullname()) indexField \(_indexField) dataField: \(dataField)")
         // FIXME, ensure index is correct wrt register access width
         _indexField.updateValue(to: AMLIntegerData(AMLInteger(index)), context: &context)
         let data = _datafield.readValue(context: &context) as! AMLIntegerData
@@ -577,6 +582,7 @@ final class AMLNamedIndexField: AMLNamedObj, AMLDataObject, OpRegionSpace, Custo
         print(_datafield)
 
         // FIXME, ensure index is correct wrt register access width
+        print("NamedIndexField write\(index),\(value) \(self.fullname()) indexField \(_indexField) dataField: \(dataField)")
         _indexField.updateValue(to: AMLIntegerData(AMLInteger(index)), context: &context)
         _datafield.updateValue(to: AMLIntegerData(value), context: &context)
     }

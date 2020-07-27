@@ -331,8 +331,8 @@ func decodeResourceData(_ buffer: AMLBuffer) -> [AMLResourceSetting] {
     var settings: [AMLResourceSetting] = []
 
     var idx = 0
-    while idx < buffer.value.count {
-        let header = BitArray8(buffer.value[idx])
+    while idx < buffer.data.count {
+        let header = BitArray8(buffer.data[idx])
         idx += 1
         let setting: AMLResourceSetting
         let length: Int
@@ -344,10 +344,10 @@ func decodeResourceData(_ buffer: AMLBuffer) -> [AMLResourceSetting] {
                 fatalError("Invalid AMLLargeItemName: \(itemName)")
             }
 
-            assert(idx + 2 < buffer.value.count)
-            length = Int(UInt16(withBytes: buffer.value[idx], buffer.value[idx+1]))
+            assert(idx + 2 < buffer.data.count)
+            length = Int(UInt16(withBytes: buffer.data[idx], buffer.data[idx+1]))
             idx += 2
-            let buf = AMLByteList(buffer.value[idx..<idx + length])
+            let buf = AMLByteList(buffer.data[idx..<idx + length])
 
             switch type {
             case .memoryRangeDescriptor32Bit:               setting = AMLMemoryRangeDescriptor(buf)
@@ -366,7 +366,7 @@ func decodeResourceData(_ buffer: AMLBuffer) -> [AMLResourceSetting] {
                 fatalError("Invalid AMLSmallItemnName: \(itemName)")
             }
             length = Int(header[0...2])
-            let buf = AMLByteList(buffer.value[idx..<idx + length])
+            let buf = AMLByteList(buffer.data[idx..<idx + length])
 
             switch type {
             case .irqFormatDescriptor:  setting = AMLIrqSetting(buf)
