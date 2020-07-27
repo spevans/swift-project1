@@ -21,138 +21,142 @@ class ACPIReadWriteTests: XCTestCase {
     }
 
     func testRegionSpaceUInt8() {
-        let regionSpace = SystemMemorySpace<UInt8>(offset: 0, length: 64, flags: AMLFieldFlags(flags: 0))
+        let flags = AMLFieldFlags(fieldAccessType: .ByteAcc, lockRule: .NoLock, updateRule: .Preserve)
+        let regionSpace = SystemMemorySpace(offset: 0, length: 64)
         for x in 0...55 {
             var v: AMLInteger = 0xff
 
-            regionSpace.write(bitOffset: x, width: 8, value: v)
+            regionSpace.write(bitOffset: x, width: 8, value: v, flags: flags)
             //print(regionSpace)
-            var readBack = regionSpace.read(bitOffset: x, width: 8)
+            var readBack = regionSpace.read(bitOffset: x, width: 8, flags: flags)
             XCTAssertEqual(readBack, v)
-            regionSpace.write(bitOffset: 0, width: 64, value: 0)
+            regionSpace.write(bitOffset: 0, width: 64, value: 0, flags: flags)
 
             v = 0xaa
-            regionSpace.write(bitOffset: x, width: 8, value: v)
+            regionSpace.write(bitOffset: x, width: 8, value: v, flags: flags)
             //print(regionSpace)
-            readBack = regionSpace.read(bitOffset: x, width: 8)
+            readBack = regionSpace.read(bitOffset: x, width: 8, flags: flags)
             XCTAssertEqual(readBack, v)
-            regionSpace.write(bitOffset: 0, width: 64, value: 0)
+            regionSpace.write(bitOffset: 0, width: 64, value: 0, flags: flags)
 
             v = 0x55
-            regionSpace.write(bitOffset: x, width: 8, value: v)
+            regionSpace.write(bitOffset: x, width: 8, value: v, flags: flags)
             //print(regionSpace)
-            readBack = regionSpace.read(bitOffset: x, width: 8)
+            readBack = regionSpace.read(bitOffset: x, width: 8, flags: flags)
             XCTAssertEqual(readBack, v)
-            regionSpace.write(bitOffset: 0, width: 64, value: 0)
+            regionSpace.write(bitOffset: 0, width: 64, value: 0, flags: flags)
 
             v = 10000
-            regionSpace.write(bitOffset: x, width: 16, value: v)
+            regionSpace.write(bitOffset: x, width: 16, value: v, flags: flags)
             //print(regionSpace)
-            readBack = regionSpace.read(bitOffset: x, width: 16)
+            readBack = regionSpace.read(bitOffset: x, width: 16, flags: flags)
             XCTAssertEqual(readBack, v)
-            regionSpace.write(bitOffset: 0, width: 64, value: 0)
+            regionSpace.write(bitOffset: 0, width: 64, value: 0, flags: flags)
         }
     }
 
     func testRegionSpaceUInt16() {
-        let regionSpace = SystemMemorySpace<UInt16>(offset: 0, length: 64, flags: AMLFieldFlags(flags: 0))
+        let flags = AMLFieldFlags(fieldAccessType: .WordAcc, lockRule: .NoLock, updateRule: .Preserve)
+        let regionSpace = SystemMemorySpace(offset: 0, length: 64)
         for x in 0...55 {
             var v: AMLInteger = 0xff
 
-            regionSpace.write(bitOffset: x, width: 8, value: v)
+            regionSpace.write(bitOffset: x, width: 8, value: v, flags: flags)
             //print(regionSpace)
-            var readBack = regionSpace.read(bitOffset: x, width: 8)
+            var readBack = regionSpace.read(bitOffset: x, width: 8, flags: flags)
             XCTAssertEqual(readBack, v)
-            regionSpace.write(bitOffset: 0, width: 64, value: 0)
+            regionSpace.write(bitOffset: 0, width: 64, value: 0, flags: flags)
 
             v = 0xaa
-            regionSpace.write(bitOffset: x, width: 8, value: v)
+            regionSpace.write(bitOffset: x, width: 8, value: v, flags: flags)
             //print(regionSpace)
-            readBack = regionSpace.read(bitOffset: x, width: 8)
+            readBack = regionSpace.read(bitOffset: x, width: 8, flags: flags)
             XCTAssertEqual(readBack, v)
-            regionSpace.write(bitOffset: 0, width: 64, value: 0)
+            regionSpace.write(bitOffset: 0, width: 64, value: 0, flags: flags)
 
             v = 0x55
-            regionSpace.write(bitOffset: x, width: 8, value: v)
+            regionSpace.write(bitOffset: x, width: 8, value: v, flags: flags)
             //print(regionSpace)
-            readBack = regionSpace.read(bitOffset: x, width: 8)
+            readBack = regionSpace.read(bitOffset: x, width: 8, flags: flags)
             XCTAssertEqual(readBack, v)
-            regionSpace.write(bitOffset: 0, width: 64, value: 0)
+            regionSpace.write(bitOffset: 0, width: 64, value: 0, flags: flags)
 
             v = 10000
-            regionSpace.write(bitOffset: x, width: 16, value: v)
+            regionSpace.write(bitOffset: x, width: 16, value: v, flags: flags)
             //print(regionSpace)
-            readBack = regionSpace.read(bitOffset: x, width: 16)
+            readBack = regionSpace.read(bitOffset: x, width: 16, flags: flags)
             XCTAssertEqual(readBack, v)
-            regionSpace.write(bitOffset: 0, width: 64, value: 0)
+            regionSpace.write(bitOffset: 0, width: 64, value: 0, flags: flags)
         }
     }
 
     func testRegionSpaceUInt32() {
-        let regionSpace = SystemMemorySpace<UInt16>(offset: 0, length: 64, flags: AMLFieldFlags(flags: 0))
+        let flags = AMLFieldFlags(fieldAccessType: .DWordAcc, lockRule: .NoLock, updateRule: .Preserve)
+        let regionSpace = SystemMemorySpace(offset: 0, length: 64)
         for x in 0...55 {
             var v: AMLInteger = 0xff
 
-            regionSpace.write(bitOffset: x, width: 8, value: v)
+            regionSpace.write(bitOffset: x, width: 8, value: v, flags: flags)
             //print(regionSpace)
-            var readBack = regionSpace.read(bitOffset: x, width: 8)
+            var readBack = regionSpace.read(bitOffset: x, width: 8, flags: flags)
             XCTAssertEqual(readBack, v)
-            regionSpace.write(bitOffset: 0, width: 64, value: 0)
+            regionSpace.write(bitOffset: 0, width: 64, value: 0, flags: flags)
 
             v = 0xaa
-            regionSpace.write(bitOffset: x, width: 8, value: v)
+            regionSpace.write(bitOffset: x, width: 8, value: v, flags: flags)
             //print(regionSpace)
-            readBack = regionSpace.read(bitOffset: x, width: 8)
+            readBack = regionSpace.read(bitOffset: x, width: 8, flags: flags)
             XCTAssertEqual(readBack, v)
-            regionSpace.write(bitOffset: 0, width: 64, value: 0)
+            regionSpace.write(bitOffset: 0, width: 64, value: 0, flags: flags)
 
             v = 0x55
-            regionSpace.write(bitOffset: x, width: 8, value: v)
+            regionSpace.write(bitOffset: x, width: 8, value: v, flags: flags)
             //print(regionSpace)
-            readBack = regionSpace.read(bitOffset: x, width: 8)
+            readBack = regionSpace.read(bitOffset: x, width: 8, flags: flags)
             XCTAssertEqual(readBack, v)
-            regionSpace.write(bitOffset: 0, width: 64, value: 0)
+            regionSpace.write(bitOffset: 0, width: 64, value: 0, flags: flags)
 
             v = 10000
-            regionSpace.write(bitOffset: x, width: 16, value: v)
+            regionSpace.write(bitOffset: x, width: 16, value: v, flags: flags)
             //print(regionSpace)
-            readBack = regionSpace.read(bitOffset: x, width: 16)
+            readBack = regionSpace.read(bitOffset: x, width: 16, flags: flags)
             XCTAssertEqual(readBack, v)
-            regionSpace.write(bitOffset: 0, width: 64, value: 0)
+            regionSpace.write(bitOffset: 0, width: 64, value: 0, flags: flags)
         }
     }
 
     func testRegionSpaceUInt64() {
-        let regionSpace = SystemMemorySpace<UInt64>(offset: 0, length: 64, flags: AMLFieldFlags(flags: 0))
+        let flags = AMLFieldFlags(fieldAccessType: .QWordAcc, lockRule: .NoLock, updateRule: .Preserve)
+        let regionSpace = SystemMemorySpace(offset: 0, length: 64)
         for x in 0...55 {
             var v: AMLInteger = 0xff
 
-            regionSpace.write(bitOffset: x, width: 8, value: v)
+            regionSpace.write(bitOffset: x, width: 8, value: v, flags: flags)
             //print(regionSpace)
-            var readBack = regionSpace.read(bitOffset: x, width: 8)
+            var readBack = regionSpace.read(bitOffset: x, width: 8, flags: flags)
             XCTAssertEqual(readBack, v)
-            regionSpace.write(bitOffset: 0, width: 64, value: 0)
+            regionSpace.write(bitOffset: 0, width: 64, value: 0, flags: flags)
 
             v = 0xaa
-            regionSpace.write(bitOffset: x, width: 8, value: v)
+            regionSpace.write(bitOffset: x, width: 8, value: v, flags: flags)
             //print(regionSpace)
-            readBack = regionSpace.read(bitOffset: x, width: 8)
+            readBack = regionSpace.read(bitOffset: x, width: 8, flags: flags)
             XCTAssertEqual(readBack, v)
-            regionSpace.write(bitOffset: 0, width: 64, value: 0)
+            regionSpace.write(bitOffset: 0, width: 64, value: 0, flags: flags)
 
             v = 0x55
-            regionSpace.write(bitOffset: x, width: 8, value: v)
+            regionSpace.write(bitOffset: x, width: 8, value: v, flags: flags)
             //print(regionSpace)
-            readBack = regionSpace.read(bitOffset: x, width: 8)
+            readBack = regionSpace.read(bitOffset: x, width: 8, flags: flags)
             XCTAssertEqual(readBack, v)
-            regionSpace.write(bitOffset: 0, width: 64, value: 0)
+            regionSpace.write(bitOffset: 0, width: 64, value: 0, flags: flags)
 
             v = 10000
-            regionSpace.write(bitOffset: x, width: 16, value: v)
+            regionSpace.write(bitOffset: x, width: 16, value: v, flags: flags)
             //print(regionSpace)
-            readBack = regionSpace.read(bitOffset: x, width: 16)
+            readBack = regionSpace.read(bitOffset: x, width: 16, flags: flags)
             XCTAssertEqual(readBack, v)
-            regionSpace.write(bitOffset: 0, width: 64, value: 0)
+            regionSpace.write(bitOffset: 0, width: 64, value: 0, flags: flags)
         }
     }
 }

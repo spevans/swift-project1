@@ -12,6 +12,11 @@ public typealias RawAddress = UInt  // 64bit address
 public typealias VirtualAddress = RawAddress
 
 
+#if TEST
+private let physicalMemory = UnsafeMutableRawPointer.allocate(byteCount: 0x100_000, alignment: 8)   // 1MB
+#endif
+
+
 struct PhysAddress: CVarArg, Comparable, Hashable, CustomStringConvertible {
     let value: RawAddress
 
@@ -31,7 +36,12 @@ struct PhysAddress: CVarArg, Comparable, Hashable, CustomStringConvertible {
     }
 
     var rawPointer: UnsafeMutableRawPointer {
+#if TEST
+        precondition(value < 0x100_000)
+        return physicalMemory.advanced(by: Int(value))
+#else
         return UnsafeMutableRawPointer(bitPattern: vaddr)!
+#endif
     }
 
     func pageAddress(pageSize: UInt, roundUp: Bool = false) -> PhysAddress {

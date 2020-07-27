@@ -673,7 +673,7 @@ struct SystemMemorySpace: OpRegionSpace, CustomStringConvertible {
         self.offset = UInt(offset)
         self.length = Int(length)
 #if TEST
-        data = UnsafeMutableRawPointer.allocate(byteCount: (self.length + 7 ) % 8, alignment: 8)
+        data = UnsafeMutableRawPointer.allocate(byteCount: self.length, alignment: 8)
 #else
         data = PhysAddress(self.offset).rawPointer
 #endif

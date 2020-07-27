@@ -48,6 +48,27 @@ fileprivate func invokeMethod(name: String, _ args: Any...) throws -> AMLTermArg
 }
 
 
+fileprivate struct Resources {
+    let ioPorts: [ClosedRange<UInt16>]
+    let interrupts: [UInt8]
+}
+
+fileprivate func extractCRSSettings(_ resources: [AMLResourceSetting]) -> Resources {
+    var ioports: [ClosedRange<UInt16>] = []
+    var irqs: [UInt8] = []
+
+    for resource in resources {
+        if let ioPort = resource as? AMLIOPortSetting {
+            ioports.append(ioPort.ioPorts())
+        } else if let irq = resource as? AMLIrqSetting {
+            irqs.append(contentsOf: irq.interrupts())
+        } else {
+            print("Ignoring resource:", resource)
+        }
+    }
+    return Resources(ioPorts: ioports, interrupts: irqs)
+}
+
 
 fileprivate func createACPI(files: [String]) -> (ACPI, UnsafeMutableRawPointer) {
     let testDir = testBundle().resourcePath!
@@ -77,7 +98,7 @@ fileprivate func createACPI(files: [String]) -> (ACPI, UnsafeMutableRawPointer) 
 
     guard let (sb, _) = acpi.globalObjects.getGlobalObject(currentScope: AMLNameString("\\"),
                                                            name: AMLNameString("_SB")) else {
-        fatalError("No \\_SB system bus node")
+                                                            fatalError("No \\_SB system bus node")
     }
 
     system = System(deviceManager: DeviceManager(acpiTables: acpi, systemBusRoot: sb))
@@ -103,39 +124,39 @@ extension ACPI.ACPIObjectNode {
 
 
 class ACPITests: XCTestCase {
-    static var acpi: ACPI!
     static var allData: UnsafeMutableRawPointer?
+    static var _acpi: ACPI?
 
-    static private let files = [
-         "macbook31-APIC.aml",
-         "macbook31-FACP.aml",
-         "macbook31-MCFG.aml",
-         "macbook31-ASF!.aml",
-         "macbook31-FACS1.aml",
-         "macbook31-SBST.aml",
-         "macbook31-HPET.aml",
-         "macbook31-FACS2.aml",
-         "macbook31-ECDT.aml",
-         "macbook31-DSDT.aml",
-         "macbook31-SSDT1.aml",
-         "macbook31-SSDT2.aml",
-         "macbook31-SSDT3.aml",
-         "macbook31-SSDT4.aml",
-         "macbook31-SSDT5.aml",
-         "macbook31-SSDT6.aml",
-         "macbook31-SSDT7.aml",
-         "macbook31-SSDT8.aml"
-    ]
-
-
-    override class func setUp() {
-        super.setUp()
-        (acpi, allData) = createACPI(files: files)
+    private static func macbookACPI() -> ACPI {
+        if let acpi = _acpi { return acpi }
+        let files = [
+               "macbook31-APIC.aml",
+               "macbook31-FACP.aml",
+               "macbook31-MCFG.aml",
+               "macbook31-ASF!.aml",
+               "macbook31-FACS1.aml",
+               "macbook31-SBST.aml",
+               "macbook31-HPET.aml",
+               "macbook31-FACS2.aml",
+               "macbook31-ECDT.aml",
+               "macbook31-DSDT.aml",
+               "macbook31-SSDT1.aml",
+               "macbook31-SSDT2.aml",
+               "macbook31-SSDT3.aml",
+               "macbook31-SSDT4.aml",
+               "macbook31-SSDT5.aml",
+               "macbook31-SSDT6.aml",
+               "macbook31-SSDT7.aml",
+               "macbook31-SSDT8.aml"
+           ]
+        (_acpi, allData) = createACPI(files: files)
+        return _acpi!
     }
+
 
     override class func tearDown() {
         super.tearDown()
-        acpi = nil
+        _acpi = nil
         if let d = allData {
             d.deallocate()
             allData = nil
@@ -144,7 +165,12 @@ class ACPITests: XCTestCase {
 
 
     func testPackage_S5() {
-        let s5 = ACPITests.acpi.globalObjects.get("\\_S5")
+        let acpi = ACPITests.macbookACPI()
+        acpi.globalObjects.walkNode { (path, node) in
+            print("ACPI:", path)
+        }
+
+        let s5 = acpi.globalObjects.get("\\_S5")
         XCTAssertNotNil(s5)
         guard let defname = s5 as? AMLDefName else {
             XCTFail("\\_S5 is not an AMLDefName")
@@ -162,7 +188,8 @@ class ACPITests: XCTestCase {
 
 
     func testMethod_PIC() {
-        guard let gpic = ACPITests.acpi.globalObjects.getDataRefObject("\\GPIC") as? AMLIntegerData else {
+        let acpi = ACPITests.macbookACPI()
+        guard let gpic = acpi.globalObjects.getDataRefObject("\\GPIC") as? AMLIntegerData else {
             XCTFail("Cant find object \\_PIC")
             return
         }
@@ -174,7 +201,7 @@ class ACPITests: XCTestCase {
         var context = ACPI.AMLExecutionContext(scope: invocation!.method)
         _ = invocation?.evaluate(context: &context)
 
-        guard let gpic2 = ACPITests.acpi.globalObjects.getDataRefObject("\\GPIC") as? AMLIntegerData else {
+        guard let gpic2 = acpi.globalObjects.getDataRefObject("\\GPIC") as? AMLIntegerData else {
             XCTFail("Cant find object \\_PIC")
             return
         }
@@ -198,6 +225,8 @@ class ACPITests: XCTestCase {
     }
 
     func testMethod_SB_INI() {
+        let acpi = ACPITests.macbookACPI()
+
         do {
             guard let mi = try? AMLMethodInvocation(method: AMLNameString("\\_SB._INI")) else {
                 XCTFail("Cant create method invocation")
@@ -205,7 +234,7 @@ class ACPITests: XCTestCase {
             }
             var context = ACPI.AMLExecutionContext(scope: mi.method)
             _ = mi.evaluate(context: &context)
-            guard let osys = ACPITests.acpi.globalObjects.get("\\OSYS") else {
+            guard let osys = acpi.globalObjects.get("\\OSYS") else {
                 XCTFail("Cant find object \\OSYS")
                 return
             }
@@ -269,26 +298,7 @@ class ACPITests: XCTestCase {
 
 
     func testVMWareDevices() {
-        struct Resources {
-            let ioPorts: [ClosedRange<UInt16>]
-            let interrupts: [UInt8]
-        }
 
-        func extractCRSSettings(_ resources: [AMLResourceSetting]) -> Resources {
-            var ioports: [ClosedRange<UInt16>] = []
-            var irqs: [UInt8] = []
-
-            for resource in resources {
-                if let ioPort = resource as? AMLIOPortSetting {
-                    ioports.append(ioPort.ioPorts())
-                } else if let irq = resource as? AMLIrqSetting {
-                    irqs.append(contentsOf: irq.interrupts())
-                } else {
-                    print("Ignoring resource:", resource)
-                }
-            }
-            return Resources(ioPorts: ioports, interrupts: irqs)
-        }
 
         let (acpi, allData) = createACPI(files: [
             "vmware-APIC.aml",
@@ -329,46 +339,26 @@ class ACPITests: XCTestCase {
     }
 
     func testVMWare11Devices() {
-           struct Resources {
-               let ioPorts: [ClosedRange<UInt16>]
-               let interrupts: [UInt8]
-           }
 
-           func extractCRSSettings(_ resources: [AMLResourceSetting]) -> Resources {
-               var ioports: [ClosedRange<UInt16>] = []
-               var irqs: [UInt8] = []
+        let (acpi, allData) = createACPI(files: [
+            "vmware11-APIC.aml",
+            "vmware11-dmar.aml",
+            "vmware11-facp.aml",
+            "vmware11-facs.aml",
+            "vmware11-hpet.aml",
+            "vmware11-srat.aml",
+            "vmware11-wsmt.aml",
+            "vmware11-mcfg.aml",
+            "vmware11-waet.aml",
+            "vmware11-dsdt.aml",
+        ])
+        defer { allData.deallocate()}
 
-               for resource in resources {
-                   if let ioPort = resource as? AMLIOPortSetting {
-                       ioports.append(ioPort.ioPorts())
-                   } else if let irq = resource as? AMLIrqSetting {
-                       irqs.append(contentsOf: irq.interrupts())
-                   } else {
-                       print("Ignoring resource:", resource)
-                   }
-               }
-               return Resources(ioPorts: ioports, interrupts: irqs)
-           }
-
-           let (acpi, allData) = createACPI(files: [
-               "vmware11-APIC.aml",
-               "vmware11-dmar.aml",
-               "vmware11-facp.aml",
-               "vmware11-facs.aml",
-               "vmware11-hpet.aml",
-               "vmware11-srat.aml",
-               "vmware11-wsmt.aml",
-               "vmware11-mcfg.aml",
-               "vmware11-waet.aml",
-               "vmware11-dsdt.aml",
-           ])
-           defer { allData.deallocate()}
-
-           let fullName = "\\_SB.PCI0.DMAR"
-           guard let dmar = acpi.globalObjects.get(fullName) else {
-               XCTFail("Cant find \(fullName)")
-               return
-           }
+        let fullName = "\\_SB.PCI0.DMAR"
+        guard let dmar = acpi.globalObjects.get(fullName) else {
+            XCTFail("Cant find \(fullName)")
+            return
+        }
 
         guard let device = dmar as? AMLDefDevice else {
             XCTFail("DMAR is not an AMLDefDevice")
@@ -376,38 +366,16 @@ class ACPITests: XCTestCase {
         }
 
         let status = device.status()
-        XCTAssertFalse(status.present)
-        XCTAssertFalse(status.enabled)
-       }
+        XCTAssertTrue(status.present)
+        XCTAssertTrue(status.enabled)
 
-    func testResourceDecode() {
-        let data: [UInt8] = [136, 14, 0, 2, 12, 0, 0, 0, 0, 0, 127, 0, 0, 0, 128, 0, 0, 135, 24, 0, 0, 12,
-                             3, 0, 0, 0, 0, 0, 0, 10, 0, 255, 255, 11, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 135,
-                             24, 0, 0, 12, 3, 0, 0, 0, 0, 0, 0, 12, 0, 255, 63, 12, 0, 0, 0, 0, 0, 0, 64,
-                             0, 0, 0, 135, 24, 0, 0, 12, 3, 0, 0, 0, 0, 0, 64, 12, 0, 255, 127, 12, 0, 0,
-                             0, 0, 0, 0, 64, 0, 0, 0, 135, 24, 0, 0, 12, 3, 0, 0, 0, 0, 0, 128, 12, 0, 255,
-                             191, 12, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 135, 24, 0, 0, 12, 3, 0, 0, 0, 0, 0,
-                             192, 12, 0, 255, 255, 12, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 135, 24, 0, 0, 12,
-                             3, 0, 0, 0, 0, 0, 0, 13, 0, 255, 63, 13, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 135,
-                             24, 0, 0, 12, 3, 0, 0, 0, 0, 0, 64, 13, 0, 255, 127, 13, 0, 0, 0, 0, 0, 0,
-                             64, 0, 0, 0, 135, 24, 0, 0, 12, 3, 0, 0, 0, 0, 0, 128, 13, 0, 255, 191, 13,
-                             0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 135, 24, 0, 0, 12, 3, 0, 0, 0, 0, 0, 192, 13,
-                             0, 255, 255, 13, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 135, 24, 0, 0, 12, 3, 0, 0,
-                             0, 0, 0, 0, 14, 0, 255, 63, 14, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 135, 24, 0, 0,
-                             12, 3, 0, 0, 0, 0, 0, 64, 14, 0, 255, 127, 14, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0,
-                             135, 24, 0, 0, 12, 3, 0, 0, 0, 0, 0, 128, 14, 0, 255, 191, 14, 0, 0, 0, 0, 0,
-                             0, 64, 0, 0, 0, 135, 24, 0, 0, 12, 3, 0, 0, 0, 0, 0, 192, 14, 0, 255, 255, 14,
-                             0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 135, 24, 0, 0, 12, 3, 0, 0, 0, 0, 0, 0, 0, 240,
-                             255, 255, 191, 254, 0, 0, 0, 0, 0, 0, 192, 14, 0, 135, 24, 0, 0, 12, 3, 0, 0,
-                             0, 0, 0, 0, 0, 255, 255, 255, 223, 255, 0, 0, 0, 0, 0, 0, 224, 0, 0, 138, 43,
-                             0, 0, 12, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 71, 1, 248, 12, 248, 12,
-                             1, 8, 136, 14, 0, 1, 12, 3, 0, 0, 0, 0, 247, 12, 0, 0, 248, 12, 0, 136, 14, 0,
-                             1, 12, 3, 0, 0, 0, 13, 255, 254, 0, 0, 0, 242, 0, 121, 0]
-        let resourceData = AMLBuffer(size: AMLIntegerData(UInt64(data.count)), value: data)
 
-        let result = decodeResourceData(resourceData)
-        print(result)
+        if let com3 = acpi.globalObjects.get("\\_SB.PCI0.ISA.CO02") as? AMLDefDevice {
+            let sta = com3.status()
+            XCTAssertNotNil(sta)
+        } else {
+            XCTFail("Cant find \\_SB.PIC0.ISA.SIO.CO02")
+        }
     }
 }
 

@@ -246,6 +246,13 @@ extension ACPI {
                 walkNode(name: fullName, node: child, body)
             }
         }
+
+        func walkNode( _ body: (String, ACPIObjectNode) -> Void) {
+            body(self.fullname(), self)
+            for (_, child) in self.childNodes {
+                child.walkNode(body)
+            }
+        }
     }
 }
 

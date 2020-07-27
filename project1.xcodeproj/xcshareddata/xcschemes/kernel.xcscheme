@@ -37,6 +37,11 @@
                BlueprintName = "tests"
                ReferencedContainer = "container:project1.xcodeproj">
             </BuildableReference>
+            <SkippedTests>
+               <Test
+                  Identifier = "ACPITests/testVMWareDevices()">
+               </Test>
+            </SkippedTests>
          </TestableReference>
       </Testables>
    </TestAction>
