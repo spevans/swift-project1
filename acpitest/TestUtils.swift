@@ -85,24 +85,24 @@ struct PCIConfigSpace {
         self.address = address
     }
 
-    func readConfigByte(atOffset offset: UInt) -> UInt8 {
+    func readConfigByte(atByteOffset offset: UInt) -> UInt8 {
         return 0
     }
 
-    func readConfigWord(atOffset offset: UInt) -> UInt16 {
+    func readConfigWord(atByteOffset offset: UInt) -> UInt16 {
         return 0
     }
 
-    func readConfigDword(atOffset offset: UInt) -> UInt32 {
+    func readConfigDword(atByteOffset offset: UInt) -> UInt32 {
         return 0
     }
 
-    func writeConfigDword(atOffset offset: UInt, value: UInt32) {
+    func writeConfigDword(atByteOffset offset: UInt, value: UInt32) {
     }
 
-    func writeConfigWord(atOffset offset: UInt, value: UInt16) {
+    func writeConfigWord(atByteOffset offset: UInt, value: UInt16) {
     }
 
-    func writeConfigByte(atOffset offset: UInt, value: UInt8) {
+    func writeConfigByte(atByteOffset offset: UInt, value: UInt8) {
     }
 }

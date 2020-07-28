@@ -376,6 +376,16 @@ class ACPITests: XCTestCase {
         } else {
             XCTFail("Cant find \\_SB.PIC0.ISA.SIO.CO02")
         }
+
+
+        if let pci0 = acpi.globalObjects.get("\\_SB.PCI0") as? AMLDefDevice {
+            let resources = pci0.currentResourceSettings()
+            XCTAssertNotNil(resources)
+            print(resources!)
+        } else {
+            XCTFail("Cant get \\_SB.PCI0._CRS")
+        }
+
     }
 }
 

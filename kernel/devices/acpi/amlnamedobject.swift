@@ -806,31 +806,34 @@ private struct PCIConfigRegionSpace: OpRegionSpace, CustomStringConvertible {
 
 
     func read(atIndex index: Int, flags: AMLFieldFlags) -> AMLInteger {
+        //print("PCIConfigRegionSpace.read offset: \(offset) index: 0x\(String(index, radix: 16)) accesstype: \(flags.fieldAccessType)")
         switch flags.fieldAccessType {
             case .AnyAcc, .ByteAcc:
-                return AMLInteger(config.readConfigByte(atOffset: offset + UInt(index)))
+                return AMLInteger(config.readConfigByte(atByteOffset: offset + UInt(index)))
 
             case .WordAcc:
-                return AMLInteger(config.readConfigWord(atOffset: offset + UInt(index)))
+                return AMLInteger(config.readConfigWord(atByteOffset: offset + UInt(index * 2)))
 
             case .DWordAcc:
-                return AMLInteger(config.readConfigDword(atOffset: offset + UInt(index)))
+                return AMLInteger(config.readConfigDword(atByteOffset: offset + UInt(index * 4)))
 
             default:
                 fatalError("\(flags.fieldAccessType) access not allowed in a PCIConfig region")
         }
     }
 
+
     func write(atIndex index: Int, value: AMLInteger, flags: AMLFieldFlags) {
+        //print("PCIConfigRegionSpace.write offset: \(offset) index: 0x\(String(index, radix: 16)) value: 0x\(String(value, radix: 16)) accesstype: \(flags.fieldAccessType)")
         switch flags.fieldAccessType {
             case .AnyAcc, .ByteAcc:
-                config.writeConfigByte(atOffset: offset + UInt(index), value: UInt8(truncatingIfNeeded: value))
+                config.writeConfigByte(atByteOffset: offset + UInt(index), value: UInt8(truncatingIfNeeded: value))
 
             case .WordAcc:
-                config.writeConfigWord(atOffset: offset + UInt(index), value: UInt16(truncatingIfNeeded: value))
+                config.writeConfigWord(atByteOffset: offset + UInt(index * 2), value: UInt16(truncatingIfNeeded: value))
 
             case .DWordAcc:
-                config.writeConfigDword(atOffset: offset + UInt(index), value: UInt32(truncatingIfNeeded: value))
+                config.writeConfigDword(atByteOffset: offset + UInt(index * 4), value: UInt32(truncatingIfNeeded: value))
 
             default:
                 fatalError("\(flags.fieldAccessType) access not allowed in a PCIConfig region")

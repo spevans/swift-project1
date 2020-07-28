@@ -24,11 +24,11 @@ struct PCIDeviceFunction: CustomStringConvertible {
 
     var device:         UInt8  { configSpace.device }
     var function:       UInt8  { configSpace.function }
-    var vendor:         UInt16 { configSpace.readConfigWord(atOffset: 0) }
-    var deviceId:       UInt16 { configSpace.readConfigWord(atOffset: 1) }
-    var classCode:      UInt8  { configSpace.readConfigByte(atOffset: 0xB) }
-    var subClassCode:   UInt8  { configSpace.readConfigByte(atOffset: 0xa) }
-    var headerType:     UInt8  { configSpace.readConfigByte(atOffset: 0xe) }
+    var vendor:         UInt16 { configSpace.readConfigWord(atByteOffset: 0x0) }
+    var deviceId:       UInt16 { configSpace.readConfigWord(atByteOffset: 0x2) }
+    var classCode:      UInt8  { configSpace.readConfigByte(atByteOffset: 0xb) }
+    var subClassCode:   UInt8  { configSpace.readConfigByte(atByteOffset: 0xa) }
+    var headerType:     UInt8  { configSpace.readConfigByte(atByteOffset: 0xe) }
     var hasSubFunction: Bool   { (headerType & 0x80) == 0x80 }
     var acpiADR:        UInt32 { UInt32(withWords: UInt16(configSpace.function), UInt16(device)) }
     var isValidDevice:  Bool   { vendor != 0xffff }

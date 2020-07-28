@@ -10,12 +10,12 @@
 
 
 protocol PCIConfigAccessProtocol {
+    func readConfigByte(device: UInt8, function: UInt8, offset: UInt) -> UInt8
+    func readConfigWord(device: UInt8, function: UInt8, offset: UInt) -> UInt16
     func readConfigDword(device: UInt8, function: UInt8, offset: UInt) -> UInt32
-    func readConfigWords(device: UInt8, function: UInt8, offset: UInt) -> (UInt16, UInt16)
-    func readConfigBytes(device: UInt8, function: UInt8, offset: UInt) -> (UInt8, UInt8, UInt8, UInt8)
-    func writeConfigDword(device: UInt8, function: UInt8, offset: UInt, value: UInt32)
-    func writeConfigWord(device: UInt8, function: UInt8, offset: UInt, value: UInt16)
     func writeConfigByte(device: UInt8, function: UInt8, offset: UInt, value: UInt8)
+    func writeConfigWord(device: UInt8, function: UInt8, offset: UInt, value: UInt16)
+    func writeConfigDword(device: UInt8, function: UInt8, offset: UInt, value: UInt32)
 }
 
 
@@ -54,43 +54,44 @@ struct PCIConfigSpace {
         return PCIConfigSpace(access: pciConfigAccess, device: newDevice, function: newFunction)
     }
 
-    func readConfigDword(atOffset offset: UInt) -> UInt32 {
+
+    // Reading
+    func readConfigByte(atByteOffset offset: UInt) -> UInt8 {
+        return pciConfigAccess.readConfigByte(device: device, function: function, offset: offset)
+    }
+
+    func readConfigWord(atByteOffset offset: UInt) -> UInt16 {
+        if offset & UInt(0x1) != 0 {
+            fatalError("PCIConfigSpace.readConfigWord(device: \(String(device, radix: 16)), function: \(String(function, radix: 16)), offset: \(String(offset, radix: 16))")
+        }
+        return pciConfigAccess.readConfigWord(device: device, function: function, offset: offset)
+    }
+
+    func readConfigDword(atByteOffset offset: UInt) -> UInt32 {
+        if offset & UInt(0x3) != 0 {
+            fatalError("PCIConfigSpace.readConfigDword(device: \(String(device, radix: 16)), function: \(String(function, radix: 16)), offset: \(String(offset, radix: 16))")
+        }
         return pciConfigAccess.readConfigDword(device: device, function: function, offset: offset)
     }
 
-    func readConfigWords(_ offset: UInt) -> (UInt16, UInt16) {
-        return pciConfigAccess.readConfigWords(device: device, function: function,  offset: offset)
+
+    // Writing
+    func writeConfigByte(atByteOffset offset: UInt, value: UInt8) {
+        pciConfigAccess.writeConfigByte(device: device, function: function, offset: offset, value: value)
     }
 
-    func readConfigWord(atOffset offset: UInt) -> UInt16 {
-        let words = readConfigWords(offset & ~1)
-        return (offset & 1) == 1 ? words.1 : words.0
-    }
-
-    func readConfigBytes(_ offset: UInt) -> (UInt8, UInt8, UInt8, UInt8) {
-        return pciConfigAccess.readConfigBytes(device: device, function: function, offset: offset)
-    }
-
-    func readConfigByte(atOffset offset: UInt) -> UInt8 {
-        let bytes = readConfigBytes(offset & ~3)
-        switch offset & 3 {
-            case 0: return bytes.0
-            case 1: return bytes.1
-            case 2: return bytes.2
-            default: return bytes.3
+    func writeConfigWord(atByteOffset offset: UInt, value: UInt16) {
+        if offset & UInt(0x1) != 0 {
+            fatalError("PCIConfigSpace.writeConfigWord(device: \(String(device, radix: 16)), function: \(String(function, radix: 16)), offset: \(String(offset, radix: 16))")
         }
-    }
-
-    func writeConfigDword(atOffset offset: UInt, value: UInt32) {
-        pciConfigAccess.writeConfigDword(device: device, function: function, offset: offset, value: value)
-    }
-
-    func writeConfigWord(atOffset offset: UInt, value: UInt16) {
         pciConfigAccess.writeConfigWord(device: device, function: function, offset: offset, value: value)
     }
 
-    func writeConfigByte(atOffset offset: UInt, value: UInt8) {
-        pciConfigAccess.writeConfigByte(device: device, function: function, offset: offset, value: value)
+    func writeConfigDword(atByteOffset offset: UInt, value: UInt32) {
+        if offset & UInt(0x3) != 0 {
+            fatalError("PCIConfigSpace.writeConfigDword(device: \(String(device, radix: 16)), function: \(String(function, radix: 16)), offset: \(String(offset, radix: 16))")
+        }
+        pciConfigAccess.writeConfigDword(device: device, function: function, offset: offset, value: value)
     }
 }
 
@@ -107,56 +108,48 @@ extension PCIConfigSpace {
             baseAddress = address.vaddr
         }
 
-
         private func configAddress(device: UInt8, function: UInt8, offset: UInt) -> UnsafeMutableRawPointer {
             let address = baseAddress | UInt(device) << 15 | UInt(function) << 12 | (offset & 0xfff)
             return UnsafeMutableRawPointer(bitPattern: address)!
         }
 
 
-        func readConfigDword(device: UInt8, function: UInt8, offset: UInt)
-            -> UInt32 {
-
-                let address = baseAddress | UInt(device) << 15 | UInt(function) << 12 | (offset & 0xfff)
-                return UnsafePointer<UInt32>(bitPattern: address)!.pointee
+        // Reading
+        func readConfigByte(device: UInt8, function: UInt8, offset: UInt) -> UInt8 {
+            let address = configAddress(device: device, function: function, offset: offset)
+            return address.load(as: UInt8.self)
         }
 
-
-        func readConfigWords(device: UInt8, function: UInt8, offset: UInt)
-            -> (UInt16, UInt16) {
-
-                let data = readConfigDword(device: device, function: function, offset: offset)
-                let word1 = UInt16(truncatingIfNeeded: data)
-                let word2 = UInt16(truncatingIfNeeded: (data >> 16))
-
-                return (word1, word2)
+        func readConfigWord(device: UInt8, function: UInt8, offset: UInt) -> UInt16 {
+            precondition(offset & 0x1 == 0)
+            let address = configAddress(device: device, function: function, offset: offset)
+            return address.load(as: UInt16.self)
         }
 
-
-        func readConfigBytes(device: UInt8, function: UInt8, offset: UInt)
-            -> (UInt8, UInt8, UInt8, UInt8) {
-
-                let data = readConfigDword(device: device, function: function, offset: offset)
-                let byte1 = UInt8(truncatingIfNeeded: data)
-                let byte2 = UInt8(truncatingIfNeeded: (data >> 8))
-                let byte3 = UInt8(truncatingIfNeeded: (data >> 16))
-                let byte4 = UInt8(truncatingIfNeeded: (data >> 24))
-
-                return (byte1, byte2, byte3, byte4)
+        func readConfigDword(device: UInt8, function: UInt8, offset: UInt) -> UInt32 {
+            precondition(offset & 0x3 == 0)
+            let address = configAddress(device: device, function: function, offset: offset)
+            return address.load(as: UInt32.self)
         }
 
+        // Writing
         func writeConfigByte(device: UInt8, function: UInt8, offset: UInt, value: UInt8) {
             let address = configAddress(device: device, function: function, offset: offset)
+            print("PCIMMIO.writeConfigByte 0x\(String(address.address, radix: 16)) = \(value)")
             address.storeBytes(of: value, as: UInt8.self)
         }
 
         func writeConfigWord(device: UInt8, function: UInt8, offset: UInt, value: UInt16) {
+            precondition(offset & 0x1 == 0)
             let address = configAddress(device: device, function: function, offset: offset)
+            print("PCIMMIO.writeConfigByte 0x\(String(address.address, radix: 16)) = \(value)")
             address.storeBytes(of: value, as: UInt16.self)
         }
 
         func writeConfigDword(device: UInt8, function: UInt8, offset: UInt, value: UInt32) {
+            precondition(offset & 0x3 == 0)
             let address = configAddress(device: device, function: function, offset: offset)
+            print("PCIMMIO.writeConfigByte 0x\(String(address.address, radix: 16)) = \(value)")
             address.storeBytes(of: value, as: UInt32.self)
         }
     }
@@ -176,50 +169,59 @@ extension PCIConfigSpace {
             baseAddress = UInt32(busID) << 16 | 0x80000000;
         }
 
+        private func setConfigAddress(device: UInt8, function: UInt8, offset: UInt) {
+            let address = baseAddress | UInt32(device) << 11 | UInt32(function) << 8 | UInt32(offset & 0xfc)
+            outl(PCI_CONFIG_ADDRESS, address)
+        }
+
+
+        // Reading
+        func readConfigByte(device: UInt8, function: UInt8, offset: UInt) -> UInt8 {
+            return noInterrupt {
+                setConfigAddress(device: device, function: function, offset: offset)
+                return inb(PCI_CONFIG_DATA + UInt16(offset & 0x3))
+            }
+        }
+
+        func readConfigWord(device: UInt8, function: UInt8, offset: UInt) -> UInt16 {
+            precondition(offset & 0x1 == 0)
+            return noInterrupt {
+                setConfigAddress(device: device, function: function, offset: offset)
+                return inw(PCI_CONFIG_DATA + UInt16(offset & 0x2))
+            }
+        }
 
         func readConfigDword(device: UInt8, function: UInt8, offset: UInt) -> UInt32 {
-            let address = baseAddress | UInt32(device) << 11 | UInt32(function) << 8
-                | UInt32(offset & 0xfc)
-            outl(PCI_CONFIG_ADDRESS, address)
-            let data = inl(PCI_CONFIG_DATA)
-
-            return data
+            precondition(offset & 0x3 == 0)
+            return noInterrupt {
+                setConfigAddress(device: device, function: function, offset: offset)
+                return inl(PCI_CONFIG_DATA)
+            }
         }
 
 
-        func readConfigWords(device: UInt8, function: UInt8, offset: UInt)
-            -> (UInt16, UInt16) {
-
-                let data = readConfigDword(device: device, function: function, offset: offset)
-                let word1 = UInt16(truncatingIfNeeded: data)
-                let word2 = UInt16(truncatingIfNeeded: (data >> 16))
-
-                return (word1, word2)
-        }
-
-
-        func readConfigBytes(device: UInt8, function: UInt8, offset: UInt)
-            -> (UInt8, UInt8, UInt8, UInt8) {
-
-                let data = readConfigDword(device: device, function: function, offset: offset)
-                let byte1 = UInt8(truncatingIfNeeded: data)
-                let byte2 = UInt8(truncatingIfNeeded: (data >> 8))
-                let byte3 = UInt8(truncatingIfNeeded: (data >> 16))
-                let byte4 = UInt8(truncatingIfNeeded: (data >> 24))
-
-                return (byte1, byte2, byte3, byte4)
-        }
-
+        // Writing
         func writeConfigByte(device: UInt8, function: UInt8, offset: UInt, value: UInt8) {
-            fatalError("\(self).writeConfigByte called")
+            return noInterrupt {
+                setConfigAddress(device: device, function: function, offset: offset)
+                return outb(PCI_CONFIG_DATA + UInt16(offset & 0x3), value)
+            }
         }
 
         func writeConfigWord(device: UInt8, function: UInt8, offset: UInt, value: UInt16) {
-            fatalError("\(self).writeConfigWord called")
+            precondition(offset & 0x1 == 0)
+            return noInterrupt {
+                setConfigAddress(device: device, function: function, offset: offset)
+                return outw(PCI_CONFIG_DATA + UInt16(offset & 0x2), value)
+            }
         }
 
         func writeConfigDword(device: UInt8, function: UInt8, offset: UInt, value: UInt32) {
-            fatalError("\(self).writeConfigDword called")
+            precondition(offset & 0x3 == 0)
+            return noInterrupt {
+                setConfigAddress(device: device, function: function, offset: offset)
+                return outl(PCI_CONFIG_DATA, value)
+            }
         }
     }
 }
