@@ -12,7 +12,9 @@
  */
 
 
-private let stackPages = 2
+// FIXME: The stack allocated for a task should be in a defined region away from the heap
+// There should also be a better guard page setup to capture stack overflow and underflow
+private let stackPages = 3
 private let stackSize = stackPages * Int(PAGE_SIZE)
 private var tasks: [Task] = []
 private var currentTask = 0
