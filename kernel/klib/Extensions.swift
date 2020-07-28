@@ -50,6 +50,14 @@ extension String {
 
         return result
     }
+
+
+    func parseUInt() -> UInt? {
+        if self.hasPrefix("0x") {
+            return UInt(self.suffix(from: self.index(self.startIndex, offsetBy: 2)), radix: 16)
+        }
+        return UInt(self)
+    }
 }
 
 
@@ -89,9 +97,8 @@ extension UnsafeBufferPointer {
 
 #if KERNEL
     func dumpBytes(count: Int) {
-        self.baseAddress!.withMemoryRebound(to: UInt8.self, capacity: count, {
-                hexDump(buffer: UnsafeBufferPointer<UInt8>(start: $0, count: count))
-            })
+        let buffer = UnsafeRawBufferPointer(start: self.baseAddress!, count: count)
+        hexDump(buffer: buffer)
     }
 #endif
 }
@@ -122,7 +129,7 @@ public func asHex<T : UnsignedInteger>(_ x: T) -> String {
 
 
 #if KERNEL
-private func hexDump(buffer: UnsafeBufferPointer<UInt8>) {
+func hexDump(buffer: UnsafeRawBufferPointer, offset: UInt = 0) {
 
     func byteAsChar(value: UInt8) -> Character {
         if value >= 0x21 && value <= 0x7e {
@@ -139,7 +146,7 @@ private func hexDump(buffer: UnsafeBufferPointer<UInt8>) {
                 print(chars)
                 chars = ""
             }
-            printf("%6.6X: ", idx)
+            printf("%8.8X: ", UInt(idx) + offset)
         }
         printf("%2.2x ", buffer[idx])
         chars.append(byteAsChar(value: buffer[idx]))

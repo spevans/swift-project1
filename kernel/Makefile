@@ -66,6 +66,7 @@ _SWIFT_SRCS :=	init/startup.swift		\
 		traps/interrupt.swift		\
 		traps/IDT.swift			\
 		tasks/tasks.swift		\
+		tasks/shell.swift		\
 		vm/vmx.swift			\
 		vm/vmcs.swift
 

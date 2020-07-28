@@ -50,18 +50,7 @@ final class System {
         CPU.getInfo()
         TTY.sharedInstance.setTTY(frameBufferInfo: bootParams.frameBufferInfo)
         deviceManager.initialiseDevices()
-        print("enabling vmx")
-        _ = enableVMX()
-        print("testVMX")
-        let result = testVMX()
-        switch result {
-        case .success(let vmexitReason):
-            print("testVMX() success:", vmexitReason)
 
-        case .failure(let vmxError):
-            print("textVMX() error:", vmxError)
-        }
-        disableVMX()
         // gitBuildVersion defined in kernel/init/version.swift, created
         // by kernel/Makefile
         print("Version: \(gitBuildVersion)\n")
@@ -99,46 +88,10 @@ fileprivate func keyboardInput() {
     // Try reading from the keyboard otherwise just pause forever
     // (used for testing on macbook where there is no PS/2 keyboard)
 
-    _keyboardInput()
+    commandShell()
     print("No keyboard!")
 
     while true {
         hlt()
-    }
-}
-
-
-// If a keyboard is present, wait and read from it, looping indefinitely
-fileprivate func _keyboardInput() {
-    guard let kbd = system.deviceManager.keyboard else {
-        print("No keyboard found")
-        return
-    }
-
-    let cmds = [
-        "dumpbus": { system.deviceManager.dumpDeviceTree() },
-        "dumpdev": { system.deviceManager.dumpDevices() },
-        "date": {
-            if let cmos = system.deviceManager.rtc {
-                print(cmos.readTime())
-            } else {
-                print("Cant find a RTC")
-            }
-        },
-        "showcpu": {
-            CPU.getInfo()
-        },
-        "vmxon": { _ = enableVMX() },
-        "vmxoff": { disableVMX() },
-    ]
-
-    let tty = TTY.sharedInstance
-    while true {
-        let line = tty.readLine(prompt: "> ", keyboard: kbd)
-        if let f = cmds[line] {
-            f()
-        } else {
-            print("Unknown command:", line)
-        }
     }
 }

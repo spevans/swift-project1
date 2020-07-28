@@ -37,6 +37,7 @@
 		B933A7951F2FBA8700FE6846 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7311F2F49C700FE6846 /* Extensions.swift */; };
 		B93620762326A4A0009A2215 /* Docker in Resources */ = {isa = PBXBuildFile; fileRef = B93620752326A4A0009A2215 /* Docker */; };
 		B962BDAC1FD3116B00D42D70 /* amlresourcedata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */; };
+		B97C3A8124D0D10F00E3602C /* shell.swift in Sources */ = {isa = PBXBuildFile; fileRef = B97C3A8024D0D10F00E3602C /* shell.swift */; };
 		B9AF69D61FBDEB8B0049CB98 /* ACPIReadWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9AF69D51FBDEB8B0049CB98 /* ACPIReadWriteTests.swift */; };
 		B9C2AF2B1FD84CB300E6EFEB /* KlibTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF2A1FD84CB300E6EFEB /* KlibTests.swift */; };
 		B9C2AF2C1FD84D9000E6EFEB /* ReservationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */; };
@@ -185,6 +186,7 @@
 		B963DA1322FD85BC00E7F8B3 /* cmos.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = cmos.swift; sourceTree = "<group>"; };
 		B9793D4E200A571B0013E03B /* symbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = symbols.swift; sourceTree = "<group>"; };
 		B97A313F1FE55E2200E651DC /* piix.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = piix.swift; sourceTree = "<group>"; };
+		B97C3A8024D0D10F00E3602C /* shell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = shell.swift; sourceTree = "<group>"; };
 		B9A2C1B01F30ECF9003D4D92 /* TODO */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = TODO; sourceTree = "<group>"; };
 		B9A2C1B11F30ECF9003D4D92 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		B9A2C1B31F30EEC7003D4D92 /* boot */ = {isa = PBXFileReference; lastKnownFileType = folder; path = boot; sourceTree = "<group>"; };
@@ -394,6 +396,7 @@
 			isa = PBXGroup;
 			children = (
 				B933A7441F2F4A2E00FE6846 /* tasks.swift */,
+				B97C3A8024D0D10F00E3602C /* shell.swift */,
 			);
 			path = tasks;
 			sourceTree = "<group>";
@@ -813,6 +816,7 @@
 				B933A7851F2F8F1100FE6846 /* facp.swift in Sources */,
 				B9EF91261FC9D6EA00D14A2F /* amlnamedobject.swift in Sources */,
 				B933A7861F2F8F1100FE6846 /* facs.swift in Sources */,
+				B97C3A8124D0D10F00E3602C /* shell.swift in Sources */,
 				B933A7871F2F8F1100FE6846 /* hpet.swift in Sources */,
 				B9EF91231FC9D14600D14A2F /* amltype2opcodes.swift in Sources */,
 				B933A7881F2F8F1100FE6846 /* madt.swift in Sources */,
