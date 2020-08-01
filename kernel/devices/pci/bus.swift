@@ -19,7 +19,7 @@ final class PCIBus: Bus, PCIDevice, CustomStringConvertible {
     init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpi: AMLDefDevice? = nil) {
         busID = deviceFunction.secondaryBusNumber
         self.deviceFunction = deviceFunction
-        pciConfigSpace = PCIConfigSpace(busID: busID, address: 0)
+        pciConfigSpace = PCIConfigSpace(busID: busID, device: 0, function: 0)
         super.init(parentBus: parentBus, acpi: acpi)
     }
 

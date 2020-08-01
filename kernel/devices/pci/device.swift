@@ -63,11 +63,6 @@ struct PCIDeviceFunction: CustomStringConvertible {
     }
 
 
-    init?(busId: UInt8, address: UInt32) {
-        self.init(busId: busId, device: UInt8(address >> 16), function: UInt8(truncatingIfNeeded: address))
-    }
-
-
     func subFunctions() -> [PCIDeviceFunction]? {
         guard hasSubFunction else { return nil }
 
@@ -117,7 +112,10 @@ final class UnknownPCIDevice: UnknownDevice, PCIDevice {
             print("UnknownPCIDevice, no _ADR for \(acpiNode.fullname())")
             return nil
         }
-        guard let deviceFunction = PCIDeviceFunction(busId: (parentBus as! PCIBus).busID, address: UInt32(address)) else {
+
+        let device = UInt8(address >> 16)
+        let function = UInt8(truncatingIfNeeded: address)
+        guard let deviceFunction = PCIDeviceFunction(busId: (parentBus as! PCIBus).busID, device: device, function: function) else {
             print("UnknownPCIDevice, no valid PCIDeviceFunction for address \(String(address, radix: 16))")
             return nil
         }

@@ -111,7 +111,9 @@ class Bus: Device {
                         }
                         p = _node.parent
                     }
-                    if let deviceFunction = PCIDeviceFunction(busId: busId, address: UInt32(adr)) {
+                    let device = UInt8(address >> 16)
+                    let function = UInt8(truncatingIfNeeded: address)
+                    if let deviceFunction = PCIDeviceFunction(busId: busId, device: device, function: function) {
                         foundDevice = PCIBus(parentBus: self, deviceFunction: deviceFunction, acpi: node)
                     }
 
