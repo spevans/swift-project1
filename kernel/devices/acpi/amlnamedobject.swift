@@ -110,6 +110,13 @@ final class AMLDefDevice: AMLNamedObj {
         if let hidName = hid as? AMLDefName {
             return (decodeHID(obj: hidName.value) as? AMLString)?.value
         }
+
+        if let hidMethod = hid as? AMLMethod {
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(hid.fullname()))
+            if let _hid = hidMethod.readValue(context: &context) as? AMLIntegerData {
+                return (decodeHID(obj: _hid) as? AMLString)?.value
+            }
+        }
         return nil
     }
 
@@ -122,6 +129,14 @@ final class AMLDefDevice: AMLNamedObj {
         if let cidName = cid as? AMLDefName {
             return (decodeHID(obj: cidName.value) as? AMLString)?.value
         }
+
+        if let cidMethod = cid as? AMLMethod {
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(cid.fullname()))
+            if let _cid = cidMethod.readValue(context: &context) as? AMLIntegerData {
+                return (decodeHID(obj: _cid) as? AMLString)?.value
+            }
+        }
+
         return nil
     }
 
@@ -801,7 +816,6 @@ private struct PCIConfigRegionSpace: OpRegionSpace, CustomStringConvertible {
         self.config = config
         self.offset = UInt(offset)
         self.length = Int(length)
-        print("PCIConfig space, config: \(config)")
     }
 
 

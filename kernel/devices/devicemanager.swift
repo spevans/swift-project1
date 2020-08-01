@@ -30,12 +30,12 @@ class Bus: Device {
     private(set) var devices: [Device] = []
     unowned let parentBus: Bus?
     let fullName: String
-    let acpi: ACPI.ACPIObjectNode
+    let acpi: ACPI.ACPIObjectNode?
 
 
-    init(parentBus: Bus? = nil, acpi: ACPI.ACPIObjectNode) {
+    init(parentBus: Bus? = nil, acpi: ACPI.ACPIObjectNode? = nil) {
         self.acpi = acpi
-        self.fullName = acpi.fullname()
+        self.fullName = acpi?.fullname() ?? "Unknown"
         self.parentBus = parentBus
     }
 
@@ -48,18 +48,15 @@ class Bus: Device {
 
 
     func addDevice(_ device: Device) {
-        print("\(self): Adding", device)
         devices.append(device)
     }
 
     func device(parentBus: Bus, pnpName: String, acpiNode: AMLDefDevice? = nil) -> Device? {
-        print("DevinceManager.device1")
         return nil
     }
 
     func device(parentBus: Bus, address: UInt32, acpiNode: AMLDefDevice) -> Device? {
-        print("DevinceManager.device2")
-            return nil
+        return nil
     }
 
     func unknownDevice(parentBus: Bus, pnpName: String? = nil, acpiNode: AMLDefDevice? = nil) -> UnknownDevice? {
@@ -68,6 +65,7 @@ class Bus: Device {
 
 
     func initialiseDevices() {
+        guard let acpi = self.acpi else { return }
         for (_, value) in acpi.childNodes {
             if let device = value as? AMLDefDevice {
                 processNode(parentBus: self, device)
@@ -97,8 +95,26 @@ class Bus: Device {
                     foundDevice = ISABus(parentBus: parentBus, acpi: node)
 
                 case "PNP0A03", "PNP0A08": // PCIBus, PCI Express
-                    // FIXME, get the correct busID etc
-                    foundDevice = PCIBus(parentBus: parentBus, acpi: node, busId: 0)
+                    let _address = node.addressResource()
+                    if _address == nil {
+                        print("Cant get addressResource for \(node.fullname())")
+                    }
+                    // FIXME, is it ok to default _ADR and _BBN to 0?
+                    let address = _address ?? 0
+
+                    var busId: UInt8 = 0
+                    var p: ACPI.ACPIObjectNode? = node
+                    while let _node = p {
+                        if let bbnNode = _node.childNode(named: "_BBN") as? AMLDefName, let bbnValue = bbnNode.integerValue() {
+                            busId = UInt8(bbnValue)
+                            break
+                        }
+                        p = _node.parent
+                    }
+                    if let deviceFunction = PCIDeviceFunction(busId: busId, address: UInt32(adr)) {
+                        foundDevice = PCIBus(parentBus: self, deviceFunction: deviceFunction, acpi: node)
+                    }
+
 
                 case "PNP0100":
                     if let timer = PIT8254(interruptManager: im, pnpName: "PNP0100",
@@ -142,12 +158,12 @@ class Bus: Device {
             }
         }
 
-        if let bus = foundDevice as? Bus {
-            bus.initialiseDevices()
-        }
-
         if let dev = foundDevice {
             parentBus.addDevice(dev)
+        }
+
+        if let bus = foundDevice as? Bus {
+            bus.initialiseDevices()
         }
     }
 }

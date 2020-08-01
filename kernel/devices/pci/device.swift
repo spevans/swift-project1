@@ -10,8 +10,7 @@
 
 
 protocol PCIDevice {
-    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction)
-    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpi: AMLDefDevice)
+    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpi: AMLDefDevice?)
 
     var deviceFunction: PCIDeviceFunction { get }
 }
@@ -19,7 +18,7 @@ protocol PCIDevice {
 
 struct PCIDeviceFunction: CustomStringConvertible {
 
-    private let bus: PCIBus
+    private let busId: UInt8
     private let configSpace: PCIConfigSpace
 
     var device:         UInt8  { configSpace.device }
@@ -33,36 +32,48 @@ struct PCIDeviceFunction: CustomStringConvertible {
     var acpiADR:        UInt32 { UInt32(withWords: UInt16(configSpace.function), UInt16(device)) }
     var isValidDevice:  Bool   { vendor != 0xffff }
 
+
+    var primaryBusNumber: UInt8 { configSpace.readConfigByte(atByteOffset: 0x18) }
+    var secondaryBusNumber: UInt8 { configSpace.readConfigByte(atByteOffset: 0x19) }
+
+
     var description: String {
         let fmt: StaticString =  "%2.2X:%2.2X/%u: %4.4X:%4.4X [%2.2X%2.2X] HT: %2.2X %@"
-        return String.sprintf(fmt, bus.busID, device, function, vendor, deviceId,
+        return String.sprintf(fmt, busId, device, function, vendor, deviceId,
                               classCode, subClassCode, headerType, configSpace.pciConfigAccess)
     }
 
 
     init?(bus: PCIBus, device: UInt8, function: UInt8) {
-        self.bus = bus
+        self.busId = bus.busID
         self.configSpace =  bus.pciConfigSpace.configSpaceFor(device: device, function: function)
         if (vendor == 0xFFFF) {
             return nil
         }
     }
 
-    init?(bus: PCIBus, address: UInt32) {
-        self.bus = bus
-        self.configSpace = PCIConfigSpace(busID: bus.busID, address: address)
+
+    init?(busId: UInt8, device: UInt8, function: UInt8) {
+        self.busId = busId
+        self.configSpace = PCIConfigSpace(busID: busId, device: device, function: function)
 
         if (vendor == 0xFFFF) {
             return nil
         }
     }
 
+
+    init?(busId: UInt8, address: UInt32) {
+        self.init(busId: busId, device: UInt8(address >> 16), function: UInt8(truncatingIfNeeded: address))
+    }
+
+
     func subFunctions() -> [PCIDeviceFunction]? {
         guard hasSubFunction else { return nil }
 
         var functions: [PCIDeviceFunction] = []
         for fidx: UInt8 in 1..<8 {
-            if let dev = PCIDeviceFunction(bus: bus, device: device, function: fidx) {
+            if let dev = PCIDeviceFunction(busId: busId, device: device, function: fidx) {
                 functions.append(dev)
             }
         }
@@ -91,9 +102,9 @@ final class UnknownPCIDevice: UnknownDevice, PCIDevice {
         super.init()
     }
 
-    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpi: AMLDefDevice) {
+    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpi: AMLDefDevice? = nil) {
         self.deviceFunction = deviceFunction
-        acpiName = acpi.fullname()
+        acpiName = acpi?.fullname()
         super.init()
     }
 
@@ -106,7 +117,7 @@ final class UnknownPCIDevice: UnknownDevice, PCIDevice {
             print("UnknownPCIDevice, no _ADR for \(acpiNode.fullname())")
             return nil
         }
-        guard let deviceFunction = PCIDeviceFunction(bus: parentBus as! PCIBus, address: UInt32(address)) else {
+        guard let deviceFunction = PCIDeviceFunction(busId: (parentBus as! PCIBus).busID, address: UInt32(address)) else {
             print("UnknownPCIDevice, no valid PCIDeviceFunction for address \(String(address, radix: 16))")
             return nil
         }

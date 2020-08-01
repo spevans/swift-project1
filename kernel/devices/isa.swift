@@ -68,8 +68,9 @@ final class ISABus: Bus {
 
 
     override func initialiseDevices() {
-        print("ISA: InitialiseDevices called name:", acpi.fullname())
+        print("ISA: InitialiseDevices called name:", self.fullName)
 
+        guard let acpi = self.acpi else { return }
         // PS2 is split over 2 devices (keyboard, mouse) so need to gather these
         // up beforehard.
         var ps2keyboard: [AMLResourceSetting] = []
@@ -78,11 +79,10 @@ final class ISABus: Bus {
         acpi.childNodes.filter { $1 is AMLDefDevice }.forEach { (key, value) in
             let child = value as! AMLDefDevice
 
-            if let deviceId = child.hardwareId() ?? child.pnpName(),
+            if let deviceId = child.pnpName() ?? child.hardwareId(),
                 let crs = child.currentResourceSettings() {
-
                 switch deviceId {
-                    case "PNP0303":
+                    case "PNP0303", "PNP030B":
                         ps2keyboard = crs
                         return
 

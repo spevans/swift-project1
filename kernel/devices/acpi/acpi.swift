@@ -208,6 +208,9 @@ final class ACPI {
         case "MCFG":
             mcfg = MCFG(rawSDTPtr, vendor: vendor, product: product)
             tables.append(mcfg!)
+            for entry in mcfg!.allocations {
+                print("MCFG:", entry)
+            }
 
         case "FACP":
             facp = FACP(rawSDTPtr)

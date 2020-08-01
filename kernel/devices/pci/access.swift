@@ -38,7 +38,10 @@ struct PCIConfigSpace {
     }
 
     init(busID: UInt8, address: UInt32) {
-        self.init(busID: busID, device: UInt8(address >> 16), function: UInt8(address & 0xff))
+        // Convert ACPI _ADR  to device / function
+        let device = UInt8(address >> 16)
+        let function = UInt8(address & 0xff)
+        self.init(busID: busID, device: device, function: function)
     }
 
     private init(access: PCIConfigAccessProtocol, device: UInt8, function: UInt8) {
