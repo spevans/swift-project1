@@ -69,6 +69,33 @@ There is a bochsrc to specify the HD image so it can be run with:
 
 ![Screenshot](doc/screenshot-2.png)
 
+## Build using Docker
+
+**Note: This method can be used to build with *Docker for Mac***
+
+The docker image is based on ubuntu:16.04 and contains packages needed to build the repo.
+
+```
+$ docker run --rm -v <absolute-path-to-repo>:/root/swift-project1 -v <absolute-path-to-normal-swift3>:/root/swift -v <absolute-path-to-swift-kernel>:/root/swift-kernel-20170407 abhishekmunie/swift-project1
+```
+
+To run under qemu with a copy of the console output being sent to a virtual
+serial port use:
+```
+$ qemu-system-x86_64 -hda output/boot-hd.img -serial stdio -D log -d int,cpu_reset,guest_errors,unimp -no-reboot
+```
+
+To build a .ISO image suitable for booting one from a USB stick, use the `iso`
+target. This will also create a `kernel.efi` file that can be booted in GRUB
+```
+$ docker run --rm -v <absolute-path-to-repo>:/root/swift-project1 abhishekmunie/swift-project1 make iso
+```
+
+To clean repository
+```
+$ docker run --rm -v <absolute-path-to-repo>:/root/swift-project1 abhishekmunie/swift-project1 make clean
+```
+
 
 Copyright (c) 2015 - 2020 Simon Evans
 
