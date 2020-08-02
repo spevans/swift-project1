@@ -14,13 +14,13 @@ final class PCIBus: Bus, PCIDevice, CustomStringConvertible {
     let deviceFunction: PCIDeviceFunction       // The device side of the bridge
     let pciConfigSpace: PCIConfigSpace          // The bus side of the bridge
 
-    var description: String { "BUS: \(pciConfigSpace.pciConfigAccess) busId: \(busID) \(deviceFunction.description) \(acpi?.fullname() ?? "")" }
+    var description: String { "BUS: \(pciConfigSpace.pciConfigAccess) busId: \(busID) \(deviceFunction.description) \(acpiDevice?.fullname() ?? "")" }
 
-    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpi: AMLDefDevice? = nil) {
+    init(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpiDevice: AMLDefDevice? = nil) {
         busID = deviceFunction.secondaryBusId
         self.deviceFunction = deviceFunction
         pciConfigSpace = PCIConfigSpace(busID: busID, device: 0, function: 0)
-        super.init(parentBus: parentBus, acpi: acpi)
+        super.init(parentBus: parentBus, acpiDevice: acpiDevice)
     }
 
 
@@ -87,25 +87,25 @@ final class PCIBus: Bus, PCIDevice, CustomStringConvertible {
     }
 
 
-    override func device(parentBus: Bus, address: UInt32, acpiNode: AMLDefDevice) -> Device? {
+    override func device(parentBus: Bus, address: UInt32, acpiDevice: AMLDefDevice? = nil) -> Device? {
         guard let deviceFunction = PCIDeviceFunction(bus: self, device: UInt8(address >> 16), function: UInt8(address & 0xffff)) else {
             return nil
         }
-        return device(parentBus: parentBus, deviceFunction: deviceFunction, acpiNode: acpiNode)
+        return device(parentBus: parentBus, deviceFunction: deviceFunction, acpiDevice: acpiDevice)
     }
 
 
-    func device(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpiNode: AMLDefDevice? =  nil) -> Device? {
+    func device(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpiDevice: AMLDefDevice? = nil) -> Device? {
 
         if deviceFunction.isBus {
-            return PCIBus(parentBus: self, deviceFunction: deviceFunction, acpi: acpiNode)
+            return PCIBus(parentBus: self, deviceFunction: deviceFunction, acpiDevice: acpiDevice)
         }
 
 
         switch (deviceFunction.vendor, deviceFunction.deviceId) {
             case (0x8086, 0x7000),
                 (0x8086, 0x7110):
-                if let pciDevice = PIIX(parentBus: parentBus, deviceFunction: deviceFunction, acpi: acpiNode) {
+                if let pciDevice = PIIX(parentBus: parentBus, deviceFunction: deviceFunction, acpiDevice: acpiDevice) {
                     return pciDevice
             }
 
@@ -113,7 +113,7 @@ final class PCIBus: Bus, PCIDevice, CustomStringConvertible {
                 return nil
 
             default:
-                if let pciDevice = UnknownPCIDevice(parentBus: parentBus, deviceFunction: deviceFunction, acpi: acpiNode) {
+                if let pciDevice = UnknownPCIDevice(parentBus: parentBus, deviceFunction: deviceFunction, acpiDevice: acpiDevice) {
                     return pciDevice
             }
         }

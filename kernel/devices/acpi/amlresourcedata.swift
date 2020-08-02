@@ -91,6 +91,16 @@ struct AMLDmaSetting: AMLResourceSetting {
         channelMask = BitArray8(buffer[0])
         flags = BitArray8(buffer[1])
     }
+
+    func channels() -> [UInt8] {
+        var _channels: [UInt8] = []
+        for idx in 0...7 {
+            if channelMask[idx] != 0 {
+                _channels.append(UInt8(idx))
+            }
+        }
+        return _channels
+    }
 }
 
 
@@ -159,7 +169,7 @@ struct AMLFixedMemoryRangeDescriptor: AMLResourceSetting {
 
 struct AMLIrqExtendedDescriptor: AMLResourceSetting {
     let flags: BitArray8
-    let intNumbers: [UInt32]
+    let interrupts: [UInt8]
 
     var isResourceProducer: Bool { return flags[0] == 0 }
     var levelTriggered:     Bool { return flags[1] == 0 }
@@ -169,18 +179,20 @@ struct AMLIrqExtendedDescriptor: AMLResourceSetting {
 
 
     init(_ buffer: AMLByteList) {
-        precondition(buffer.count >= 2)
+        precondition(buffer.count >= 6)
         flags = BitArray8(buffer[0])
         let intCount = Int(buffer[1])
-        var interrupts: [UInt32] = []
-        interrupts.reserveCapacity(intCount)
+        precondition(intCount > 0)
+        precondition(buffer.count >= (intCount * 4) + 2)
+
+        var intNumbers: [UInt8] = []
+        intNumbers.reserveCapacity(intCount)
         for int in 0..<intCount {
             let idx = (int * 4) + 2
-            let irq = UInt32(withBytes: buffer[idx], buffer[idx + 1],
-                             buffer[idx + 2], buffer[idx + 3])
-            interrupts.append(irq)
+            let irq = UInt32(withBytes: buffer[idx], buffer[idx + 1], buffer[idx + 2], buffer[idx + 3])
+            intNumbers.append(UInt8(irq))
         }
-        intNumbers = interrupts
+        interrupts = intNumbers
     }
 }
 

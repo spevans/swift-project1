@@ -23,7 +23,7 @@ final class CMOSRTC: Device, ISADevice, CustomStringConvertible {
     }
 
 
-    init?(interruptManager: InterruptManager, pnpName: String,
+    init?(parentBus: Bus, interruptManager: InterruptManager, pnpName: String,
         resources: ISABus.Resources, facp: FACP?) {
         print("CMOS: init:", resources)
         guard let ports = resources.ioPorts.first, ports.count > 1

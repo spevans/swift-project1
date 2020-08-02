@@ -11,66 +11,47 @@
 
 
 protocol ISADevice {
-    init?(interruptManager: InterruptManager, pnpName: String,
-        resources: ISABus.Resources, facp: FACP?)
+    init?(parentBus: Bus, interruptManager: InterruptManager, pnpName: String, resources: ISABus.Resources, facp: FACP?)
 }
 
 
 final class UnknownISADevice: UnknownDevice, ISADevice {
-    let pnpName: String
     let resources: ISABus.Resources
-    override var description: String { "ISA: Unknown device: \(pnpName) \(resources)" }
+    override var description: String { "ISA: Unknown device: \(pnpName) \(acpiDevice?.fullname() ?? "") \(resources)" }
 
-    override init?(parentBus: Bus, pnpName: String? = nil, acpiNode: AMLDefDevice? = nil) {
-        self.pnpName = pnpName ?? acpiNode?.fullname() ?? "unknown"
-        self.resources = ISABus.extractCRSSettings(acpiNode?.currentResourceSettings() ?? [])
-        super.init(parentBus: parentBus, pnpName: pnpName, acpiNode: acpiNode)
+    override init?(parentBus: Bus, pnpName: String? = nil, acpiDevice: AMLDefDevice? = nil) {
+        self.resources = ISABus.Resources(acpiDevice?.currentResourceSettings() ?? [])
+        super.init(parentBus: parentBus, pnpName: pnpName, acpiDevice: acpiDevice)
     }
 
-    init?(interruptManager: InterruptManager, pnpName: String,
-          resources: ISABus.Resources, facp: FACP?) {
-        self.pnpName = pnpName
+    init?(parentBus: Bus, interruptManager: InterruptManager, pnpName: String, resources: ISABus.Resources, facp: FACP?) {
         self.resources = resources
-        super.init()
+        super.init(parentBus: parentBus, pnpName: pnpName, acpiDevice: nil)
     }
 }
 
 
-final class ISABus: Bus {
-
-    // Resources used by a device
-    struct Resources: CustomStringConvertible {
-        let ioPorts: [ClosedRange<UInt16>]
-        let interrupts: [UInt8]
-
-        var description: String {
-            var s = ""
-            if !ioPorts.isEmpty {
-                s = "io: " + ioPorts.map {
-                    $0.count == 1 ? "0x\(String($0.first!, radix: 16))"
-                    : "0x\(String($0.first!, radix: 16))-0x\(String($0.last!, radix: 16))"
-                }.joined(separator: ", ")
-            }
-            if !interrupts.isEmpty {
-                let irq = "irq: " + interrupts.map { String($0) }.joined(separator: ", ")
-                if !s.isEmpty { s += " " }
-                s += irq
-            }
-            return s
-        }
-    }
+final class ISABus: Bus, CustomStringConvertible {
 
     let rs = ReservedSpace(name: "IO Ports", start: 0, end: 0xfff)
+    var description: String { "ISABus: \(acpiDevice?.fullname() ?? "")" }
 
-    override func unknownDevice(parentBus: Bus, pnpName: String? = nil, acpiNode: AMLDefDevice? = nil) -> UnknownDevice? {
-        return UnknownISADevice(parentBus: parentBus, pnpName: pnpName, acpiNode: acpiNode)
+
+    init(parentBus: Bus, acpiDevice: AMLDefDevice? = nil) {
+        print("Initialising ISABus, acpi:", acpiDevice?.fullname() ?? "nil")
+          super.init(parentBus: parentBus, acpiDevice: acpiDevice)
+    }
+
+
+    override func unknownDevice(parentBus: Bus, pnpName: String? = nil, acpiDevice: AMLDefDevice? = nil) -> UnknownDevice? {
+        return UnknownISADevice(parentBus: parentBus, pnpName: pnpName, acpiDevice: acpiDevice)
     }
 
 
     override func initialiseDevices() {
         print("ISA: InitialiseDevices called name:", self.fullName)
 
-        guard let acpi = self.acpi else { return }
+        guard let acpi = self.acpiDevice else { return }
         // PS2 is split over 2 devices (keyboard, mouse) so need to gather these
         // up beforehard.
         var ps2keyboard: [AMLResourceSetting] = []
@@ -102,10 +83,10 @@ final class ISABus: Bus {
             let im = deviceManager.interruptManager
 
             ps2keyboard.append(contentsOf: ps2mouse)
-            if let device = KBD8042(interruptManager: im, pnpName: "PNP0303",
-                                    resources: ISABus.extractCRSSettings(ps2keyboard), facp: nil) {
+            if let device = KBD8042(parentBus: self, interruptManager: im, pnpName: "PNP0303",
+                                    resources: ISABus.Resources(ps2keyboard), facp: nil) {
                 self.addDevice(device)
-                // FIXME: KBD8042 should really be some port of BusDevice that adds its
+                // FIXME: KBD8042 should really be some sort of BusDevice that adds its
                 // sub devices.
                 if let keyboard = device.keyboardDevice {
                     deviceManager.addDevice(keyboard)
@@ -113,21 +94,73 @@ final class ISABus: Bus {
             }
         }
     }
+}
 
 
-    static func extractCRSSettings(_ resources: [AMLResourceSetting]) -> ISABus.Resources {
-        var ioports: [ClosedRange<UInt16>] = []
-        var irqs: [UInt8] = []
+extension ISABus {
+    // Resources used by a device
+    struct Resources: CustomStringConvertible {
+        let ioPorts: [ClosedRange<UInt16>]
+        let interrupts: [UInt8]
+        let dmaChannels: [UInt8]
+        let fixedMemoryRanges: [(Range<UInt32>, Bool)]
 
-        for resource in resources {
-            if let ioPort = resource as? AMLIOPortSetting {
-                ioports.append(ioPort.ioPorts())
-            } else if let irq = resource as? AMLIrqSetting {
-                irqs.append(contentsOf: irq.interrupts())
-            } else {
-                print("Ignoring resource:", resource)
+
+        var description: String {
+            var s = ""
+            if !ioPorts.isEmpty {
+                s = "io: " + ioPorts.map {
+                    $0.count == 1 ? "0x\(String($0.lowerBound, radix: 16))"
+                        : "0x\(String($0.lowerBound, radix: 16))-0x\(String($0.upperBound, radix: 16))"
+                }.joined(separator: ", ")
             }
+            if !interrupts.isEmpty {
+                let irq = "irq: " + interrupts.map { String($0) }.joined(separator: ", ")
+                if !s.isEmpty { s += " " }
+                s += irq
+            }
+            if !dmaChannels.isEmpty {
+                let dma = "dma: " + dmaChannels.map { String($0) }.joined(separator: ", ")
+                if !s.isEmpty { s += " " }
+                s += dma
+            }
+            if !fixedMemoryRanges.isEmpty {
+                let ranges = "memory: " + fixedMemoryRanges.map {
+                    "0x\(String($0.0.lowerBound, radix: 16)) - 0x\(String($0.0.upperBound, radix: 16)) \($0.1 ? "RO" : "RW")"
+                }.joined(separator: ", " )
+                if !s.isEmpty { s += " " }
+                s += ranges
+            }
+            return s
         }
-        return ISABus.Resources(ioPorts: ioports, interrupts: irqs)
+
+        init(_ resources: [AMLResourceSetting]) {
+            var ioPorts: [ClosedRange<UInt16>] = []
+            var interrupts: [UInt8] = []
+            var dmaChannels: [UInt8] = []
+            var fixedMemoryRanges: [(Range<UInt32>, Bool)] = []
+
+            for resource in resources {
+                if let ioPort = resource as? AMLIOPortSetting {
+                    ioPorts.append(ioPort.ioPorts())
+                } else if let irq = resource as? AMLIrqSetting {
+                    interrupts.append(contentsOf: irq.interrupts())
+                } else if let irq = resource as? AMLIrqExtendedDescriptor {
+                    interrupts.append(contentsOf: irq.interrupts)
+                } else if let dma = resource as? AMLDmaSetting {
+                    dmaChannels.append(contentsOf: dma.channels())
+                } else if let fixedRange = resource as? AMLFixedMemoryRangeDescriptor {
+                    let range = fixedRange.baseAddress..<(fixedRange.baseAddress + fixedRange.rangeLength)
+                    fixedMemoryRanges.append((range, fixedRange.writeable))
+                } else {
+                    fatalError("Cant convert \(resource) to an ISABus.Resource")
+                }
+            }
+
+            self.ioPorts = ioPorts
+            self.interrupts = interrupts
+            self.dmaChannels = dmaChannels
+            self.fixedMemoryRanges = fixedMemoryRanges
+        }
     }
 }

@@ -12,10 +12,10 @@ final class QEMUFWCFG: Device {
     let baseIOPort: UInt16
     private(set) var hasDMAInterface = false
 
-    init?(parentBus: Bus, acpiNode: AMLDefDevice) {
-        guard let crs = acpiNode.currentResourceSettings() else { return nil }
-        let resources = ISABus.extractCRSSettings(crs)
-        print(acpiNode.fullname(), "Resources:", resources)
+    init?(parentBus: Bus, acpiDevice: AMLDefDevice) {
+        guard let crs = acpiDevice.currentResourceSettings() else { return nil }
+        let resources = ISABus.Resources(crs)
+        print(acpiDevice.fullname(), "Resources:", resources)
         guard let ioPorts = resources.ioPorts.first, ioPorts.count > 6 else {
             print("QEMU: port range is to small:", resources.ioPorts.count)
             return nil

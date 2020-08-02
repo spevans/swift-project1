@@ -173,12 +173,15 @@ final class KBD8042: Device, ISADevice, CustomStringConvertible {
     private var keyboardBuffer = CircularBuffer<UInt8>(item: 0, capacity: 16)
     private var port1device: PS2Device? = nil
     private var port2device: PS2Device? = nil
+    private let resources: ISABus.Resources
 
-    var description: String { return "KBD8042" }
+    var description: String { return "KBD8042 \(resources)" }
 
-    required init?(interruptManager: InterruptManager, pnpName: String,
+
+    required init?(parentBus: Bus, interruptManager: InterruptManager, pnpName: String,
         resources: ISABus.Resources, facp: FACP?) {
         print("i8042:", pnpName, resources)
+        self.resources = resources
         super.init()
 
         // 1. Flush output buffer

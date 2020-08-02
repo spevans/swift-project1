@@ -10,7 +10,7 @@
 
 
 protocol PCIDevice {
-    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpi: AMLDefDevice?)
+    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpiDevice: AMLDefDevice?)
 
     var deviceFunction: PCIDeviceFunction { get }
 }
@@ -87,36 +87,23 @@ struct PCIDeviceFunction: CustomStringConvertible {
 
 final class UnknownPCIDevice: UnknownDevice, PCIDevice {
     let deviceFunction: PCIDeviceFunction
-    let acpiName: String?
 
     override var description: String {
-        var desc = "PCI: Unknown device: " + deviceFunction.description
-        if let name = acpiName {
-            desc.append(": ")
-            desc.append(name)
-        }
-        return desc
+        return "PCI: Unknown device: \(fullName) \(deviceFunction.description)"
     }
 
-    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction) {
+    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpiDevice: AMLDefDevice? = nil) {
         self.deviceFunction = deviceFunction
-        acpiName = nil
-        super.init()
+        super.init(parentBus: parentBus, acpiDevice: acpiDevice)
     }
 
-    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpi: AMLDefDevice? = nil) {
-        self.deviceFunction = deviceFunction
-        acpiName = acpi?.fullname()
-        super.init()
-    }
-
-    override init?(parentBus: Bus, pnpName: String?, acpiNode: AMLDefDevice? = nil) {
-        guard let acpiNode = acpiNode else {
-            print("UnknownPCIDevice, acpiNode is nil for \(pnpName ?? "nil")")
+    override init?(parentBus: Bus, pnpName: String?, acpiDevice: AMLDefDevice? = nil) {
+        guard let acpiDevice = acpiDevice else {
+            print("UnknownPCIDevice, acpiDevice is nil for \(pnpName ?? "nil")")
             return nil
         }
-        guard let address = acpiNode.addressResource() else {
-            print("UnknownPCIDevice, no _ADR for \(acpiNode.fullname())")
+        guard let address = acpiDevice.addressResource() else {
+            print("UnknownPCIDevice, no _ADR for \(acpiDevice.fullname())")
             return nil
         }
 
@@ -127,7 +114,6 @@ final class UnknownPCIDevice: UnknownDevice, PCIDevice {
             return nil
         }
         self.deviceFunction = deviceFunction
-        acpiName = acpiNode.fullname()
-        super.init()
+        super.init(parentBus: parentBus, pnpName: pnpName, acpiDevice: acpiDevice)
     }
 }

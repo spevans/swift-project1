@@ -121,7 +121,7 @@ final class PIT8254: Device, ISADevice, Timer, CustomStringConvertible {
     }
 
 
-    required init?(interruptManager: InterruptManager, pnpName: String,
+    required init?(parentBus: Bus, interruptManager: InterruptManager, pnpName: String,
         resources: ISABus.Resources, facp: FACP?) {
         print("PIT8254: init:", resources)
 
