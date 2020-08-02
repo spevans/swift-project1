@@ -51,6 +51,10 @@ class Bus: Device {
         devices.append(device)
     }
 
+    func sortDevices(by body: (Device, Device) -> Bool) {
+        devices.sort(by: body)
+    }
+
     func device(parentBus: Bus, pnpName: String, acpiNode: AMLDefDevice? = nil) -> Device? {
         return nil
     }

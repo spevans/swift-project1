@@ -17,7 +17,7 @@ final class PCIBus: Bus, PCIDevice, CustomStringConvertible {
     var description: String { "BUS: \(pciConfigSpace.pciConfigAccess) busId: \(busID) \(deviceFunction.description) \(acpi?.fullname() ?? "")" }
 
     init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpi: AMLDefDevice? = nil) {
-        busID = deviceFunction.secondaryBusNumber
+        busID = deviceFunction.secondaryBusId
         self.deviceFunction = deviceFunction
         pciConfigSpace = PCIConfigSpace(busID: busID, device: 0, function: 0)
         super.init(parentBus: parentBus, acpi: acpi)
@@ -26,32 +26,44 @@ final class PCIBus: Bus, PCIDevice, CustomStringConvertible {
 
     // Scan the PCI bus for devices but ignore any that have already been added to the `devices` array by ACPI
     private func scanBus() -> [PCIDeviceFunction] {
-
-        // Get current devices on bus by device number
-        var currentPCIDevices: Set<UInt8> = []
+        // Get current devices on bus by device number, key = devicveID (0-0x1F) value = 0 if non-multifunction else bitX = functionX
+        var currentPCIDevices: [UInt8: UInt8] = [:]
         for dev in self.devices {
-            if let pciDevice = dev as? PCIDevice {
-                currentPCIDevices.insert(pciDevice.deviceFunction.device)
+            guard let pciDevice = dev as? PCIDevice else { continue } // FIXME: Shouldnt have non PCIDevices in list
+            let devId = pciDevice.deviceFunction.device
+            if pciDevice.deviceFunction.function == 0 && !pciDevice.deviceFunction.hasSubFunction {
+                currentPCIDevices[devId] = 0
+            } else {
+                currentPCIDevices[devId] = (currentPCIDevices[devId] ?? 0) | 1 << pciDevice.deviceFunction.function
             }
         }
+
         var pciDeviceFunctions: [PCIDeviceFunction] = []
-        print("PCI: Scanning bus \(self)")
         for device: UInt8 in 0..<32 {
             if busID == 0 && device == deviceFunction.device {
                 print("Skipping PCIBus on busID: 0")
                 continue
             }
-            if !currentPCIDevices.contains(device),
-                let pciDev = PCIDeviceFunction(bus: self, device: device, function: 0) {
-                pciDeviceFunctions.append(pciDev)
+
+            if let curDevices = currentPCIDevices[device], curDevices == 0 {
+                // Already found this non-multifunction device
+                continue
+            }
+            let currentFunctions = currentPCIDevices[device] ?? 0   // currentFuntions has bitX set where functionX is already known
+
+            if let pciDev = PCIDeviceFunction(bus: self, device: device, function: 0) {
+                if currentFunctions & 1 == 0 { // subFunctions() doesnt return function 0 so check it seperately.
+                    pciDeviceFunctions.append(pciDev)
+                }
                 if let subFuncs = pciDev.subFunctions() {
                     for dev in subFuncs {
-                        pciDeviceFunctions.append(dev)
+                        if (1 << dev.function) & currentFunctions == 0 {
+                            pciDeviceFunctions.append(dev)
+                        }
                     }
                 }
             }
         }
-        print("PCI: Scan finished")
 
         return pciDeviceFunctions
     }
@@ -67,6 +79,11 @@ final class PCIBus: Bus, PCIDevice, CustomStringConvertible {
                 }
             }
         }
+        self.sortDevices {
+            guard let dev0 = $0 as? PCIDevice else { return true }
+            guard let dev1 = $1 as? PCIDevice else { return true }
+            return dev0.deviceFunction.deviceFunction < dev1.deviceFunction.deviceFunction
+        }
     }
 
 
@@ -80,7 +97,7 @@ final class PCIBus: Bus, PCIDevice, CustomStringConvertible {
 
     func device(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpiNode: AMLDefDevice? =  nil) -> Device? {
 
-        if deviceFunction.headerType == 0x1 {
+        if deviceFunction.isBus {
             return PCIBus(parentBus: self, deviceFunction: deviceFunction, acpi: acpiNode)
         }
 

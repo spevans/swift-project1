@@ -106,6 +106,7 @@ extension PCIConfigSpace {
         }
 
         private func configAddress(device: UInt8, function: UInt8, offset: UInt) -> UnsafeMutableRawPointer {
+            precondition(offset < 4096)
             let address = baseAddress | UInt(device) << 15 | UInt(function) << 12 | (offset & 0xfff)
             return UnsafeMutableRawPointer(bitPattern: address)!
         }
@@ -167,6 +168,7 @@ extension PCIConfigSpace {
         }
 
         private func setConfigAddress(device: UInt8, function: UInt8, offset: UInt) {
+            precondition(offset < 256)
             let address = baseAddress | UInt32(device) << 11 | UInt32(function) << 8 | UInt32(offset & 0xfc)
             outl(PCI_CONFIG_ADDRESS, address)
         }

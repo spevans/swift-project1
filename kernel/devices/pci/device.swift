@@ -23,18 +23,19 @@ struct PCIDeviceFunction: CustomStringConvertible {
 
     var device:         UInt8  { configSpace.device }
     var function:       UInt8  { configSpace.function }
+    var deviceFunction: UInt8  { device << 3 | function }
     var vendor:         UInt16 { configSpace.readConfigWord(atByteOffset: 0x0) }
     var deviceId:       UInt16 { configSpace.readConfigWord(atByteOffset: 0x2) }
     var classCode:      UInt8  { configSpace.readConfigByte(atByteOffset: 0xb) }
     var subClassCode:   UInt8  { configSpace.readConfigByte(atByteOffset: 0xa) }
     var headerType:     UInt8  { configSpace.readConfigByte(atByteOffset: 0xe) }
+    var primaryBusId:   UInt8  { configSpace.readConfigByte(atByteOffset: 0x18) }   // The bus this device is on
+    var secondaryBusId: UInt8  { configSpace.readConfigByte(atByteOffset: 0x19) }   // If a bridge, the busID of the non device side.
+
     var hasSubFunction: Bool   { (headerType & 0x80) == 0x80 }
+    var isBus:          Bool   { (headerType & 0x01) == 0x01 }
     var acpiADR:        UInt32 { UInt32(withWords: UInt16(configSpace.function), UInt16(device)) }
     var isValidDevice:  Bool   { vendor != 0xffff }
-
-
-    var primaryBusNumber: UInt8 { configSpace.readConfigByte(atByteOffset: 0x18) }
-    var secondaryBusNumber: UInt8 { configSpace.readConfigByte(atByteOffset: 0x19) }
 
 
     var description: String {
@@ -45,6 +46,9 @@ struct PCIDeviceFunction: CustomStringConvertible {
 
 
     init?(bus: PCIBus, device: UInt8, function: UInt8) {
+        precondition(device < 32)
+        precondition(function < 8)
+
         self.busId = bus.busID
         self.configSpace =  bus.pciConfigSpace.configSpaceFor(device: device, function: function)
         if (vendor == 0xFFFF) {
@@ -54,6 +58,9 @@ struct PCIDeviceFunction: CustomStringConvertible {
 
 
     init?(busId: UInt8, device: UInt8, function: UInt8) {
+        precondition(device < 32)
+        precondition(function < 8)
+
         self.busId = busId
         self.configSpace = PCIConfigSpace(busID: busId, device: device, function: function)
 
