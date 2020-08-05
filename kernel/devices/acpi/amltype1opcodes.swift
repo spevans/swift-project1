@@ -59,11 +59,11 @@ struct AMLDefFatal: AMLType1Opcode {
 
 struct AMLDefIfElse: AMLType1Opcode {
     // IfOp PkgLength Predicate TermList DefElse
-    let predicate: AMLPredicate
+    let predicate: AMLTermArg // => Integer
     let value: AMLTermList
     let elseValue: AMLTermList?
 
-    init(predicate: AMLPredicate, value: AMLTermList, defElse: AMLDefElse) {
+    init(predicate: AMLTermArg, value: AMLTermList, defElse: AMLDefElse) {
         self.predicate = predicate
         self.value = value
         elseValue = defElse.value
@@ -127,18 +127,12 @@ struct AMLDefReset: AMLType1Opcode {
 }
 
 
-// fixme
-//typealias AMLArgObject = AMLTermArg
 struct AMLDefReturn: AMLType1Opcode {
     // ReturnOp ArgObject
-    let object: AMLTermArg//AMLDataRefObject // TermArg => DataRefObject
+    let object: AMLTermArg // => DataRefObject
 
     init(object: AMLTermArg?) {
-        if object == nil {
-            self.object = AMLIntegerData(0)
-        } else {
-            self.object = object!
-        }
+        self.object = object ?? AMLIntegerData(0)
     }
 
     func execute(context: inout ACPI.AMLExecutionContext) throws {
@@ -183,7 +177,7 @@ struct AMLDefUnload: AMLType1Opcode {
 
 struct AMLDefWhile: AMLType1Opcode {
     // WhileOp PkgLength Predicate TermList
-    let predicate: AMLPredicate
+    let predicate: AMLTermArg // => Integer
     let list: AMLTermList
 
     func execute(context: inout ACPI.AMLExecutionContext) throws {

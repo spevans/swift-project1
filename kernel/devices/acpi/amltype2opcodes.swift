@@ -22,7 +22,7 @@ private func AMLBoolean(_ bool: Bool) -> AMLDataObject {
 }
 
 
-func operandAsInteger(operand: AMLOperand, context: inout ACPI.AMLExecutionContext) -> AMLInteger {
+func operandAsInteger(operand: AMLTermArg, context: inout ACPI.AMLExecutionContext) -> AMLInteger {
     guard let result = operand.evaluate(context: &context).integerValue else {
         fatalError("\(operand) does not evaluate to an integer")
     }
@@ -31,12 +31,10 @@ func operandAsInteger(operand: AMLOperand, context: inout ACPI.AMLExecutionConte
 
 
 // AMLType2Opcode
-typealias AMLTimeout = AMLWordData
 struct AMLDefAcquire: AMLType2Opcode {
     // AcquireOp MutexObject Timeout
-
     let mutex: AMLMutexObject
-    let timeout: AMLTimeout
+    let timeout: AMLWordData
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         // FIXME - implement
@@ -45,12 +43,11 @@ struct AMLDefAcquire: AMLType2Opcode {
     }
 }
 
-typealias AMLOperand = AMLTermArg // => Integer
-struct AMLDefAdd: AMLType2Opcode {
 
+struct AMLDefAdd: AMLType2Opcode {
     // AddOp Operand Operand Target
-    let operand1: AMLOperand
-    let operand2: AMLOperand
+    let operand1: AMLTermArg // => Integer
+    let operand2: AMLTermArg // => Integer
     let target: AMLTarget
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
@@ -64,10 +61,9 @@ struct AMLDefAdd: AMLType2Opcode {
 
 
 struct AMLDefAnd: AMLType2Opcode {
-
     // AndOp Operand Operand Target
-    let operand1: AMLOperand
-    let operand2: AMLOperand
+    let operand1: AMLTermArg // => Integer
+    let operand2: AMLTermArg // => Integer
     let target: AMLTarget
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
@@ -80,14 +76,11 @@ struct AMLDefAnd: AMLType2Opcode {
 }
 
 
-typealias AMLData = AMLTermArg // => ComputationalData
 struct AMLDefConcat: AMLType2Opcode {
-
     // ConcatOp Data Data Target
-    let data1: AMLData
-    let data2: AMLData
+    let data1: AMLTermArg // => ComputationalData
+    let data2: AMLTermArg // => ComputationalData
     let target: AMLTarget
-
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         fatalError("\(type(of: self))")
@@ -95,14 +88,11 @@ struct AMLDefConcat: AMLType2Opcode {
 }
 
 
-typealias AMLBufData = AMLTermArg // =>
 struct AMLDefConcatRes: AMLType2Opcode {
-
     // ConcatResOp BufData BufData Target
-    let data1: AMLBufData
-    let data2: AMLBufData
+    let data1: AMLTermArg // => Buffer
+    let data2: AMLTermArg // => Buffer
     let target: AMLTarget
-
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         guard let buf1 = data1.evaluate(context: &context).bufferValue,
@@ -118,10 +108,8 @@ struct AMLDefConcatRes: AMLType2Opcode {
     }
 }
 
-//ObjReference := TermArg => ObjectReference | String
-//ObjectReference :=  Integer
-struct AMLDefCondRefOf: AMLType2Opcode {
 
+struct AMLDefCondRefOf: AMLType2Opcode {
     // CondRefOfOp SuperName Target
     let name: AMLSuperName
     var target: AMLTarget
@@ -142,11 +130,9 @@ struct AMLDefCondRefOf: AMLType2Opcode {
 
 
 struct AMLDefCopyObject: AMLType2Opcode {
-
     // CopyObjectOp TermArg SimpleName
     let object: AMLTermArg
     let target: AMLSimpleName
-
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         fatalError("Implement DefCopyObject")
@@ -155,7 +141,6 @@ struct AMLDefCopyObject: AMLType2Opcode {
 
 
 struct AMLDefDecrement: AMLType2Opcode {
-
     // DecrementOp SuperName
     let target: AMLSuperName
 
@@ -178,16 +163,12 @@ struct AMLDefDerefOf: AMLType2Opcode, AMLType6Opcode {
 }
 
 
-typealias AMLDividend = AMLTermArg // => Integer
-typealias AMLDivisor = AMLTermArg // => Integer
 struct AMLDefDivide: AMLType2Opcode {
-
     // DivideOp Dividend Divisor Remainder Quotient
-    let dividend: AMLDividend
-    let divisor: AMLDivisor
+    let dividend: AMLTermArg // => Integer
+    let divisor: AMLTermArg // => Integer
     let remainder: AMLTarget
     let quotient: AMLTarget
-
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let d1 = operandAsInteger(operand: dividend, context: &context)
@@ -205,9 +186,8 @@ struct AMLDefDivide: AMLType2Opcode {
 
 
 struct AMLDefFindSetLeftBit: AMLType2Opcode {
-
     // FindSetLeftBitOp Operand Target
-    let operand: AMLOperand
+    let operand: AMLTermArg // => Integer
     let target: AMLTarget
 
     func execute(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
@@ -221,11 +201,9 @@ struct AMLDefFindSetLeftBit: AMLType2Opcode {
 
 
 struct AMLDefFindSetRightBit: AMLType2Opcode {
-
     // FindSetRightBitOp Operand Target
-    let operand: AMLOperand
+    let operand: AMLTermArg // => Integer
     let target: AMLTarget
-
 
     func execute(context: inout ACPI.AMLExecutionContext)  -> AMLTermArg {
         let op = operandAsInteger(operand: operand, context: &context)
@@ -237,13 +215,10 @@ struct AMLDefFindSetRightBit: AMLType2Opcode {
 }
 
 
-typealias AMLBCDValue = AMLTermArg //=> Integer
 struct AMLDefFromBCD: AMLType2Opcode {
-
     // FromBCDOp BCDValue Target
-    let value: AMLBCDValue
+    let value: AMLTermArg // => Integer
     let target: AMLTarget
-
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let bcdValue = operandAsInteger(operand: value, context: &context)
@@ -266,10 +241,8 @@ struct AMLDefFromBCD: AMLType2Opcode {
 
 
 struct AMLDefIncrement: AMLType2Opcode {
-
     // IncrementOp SuperName
     let target: AMLSuperName
-
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         guard let value = target.evaluate(context: &context).integerValue else {
@@ -283,26 +256,36 @@ struct AMLDefIncrement: AMLType2Opcode {
 
 
 struct AMLDefIndex: AMLType2Opcode, AMLType6Opcode {
-
     // IndexOp BuffPkgStrObj IndexValue Target
-    let object: AMLBuffPkgStrObj // => Buffer, Package or String
-    let index: AMLTermArg // => Integer
+    let operand1: AMLTermArg // => Buffer, Package or String
+    let operand2: AMLTermArg // => Integer
     let target: AMLTarget
 
-
     // FIXME: Implement
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        guard let object = operand1.evaluate(context: &context) as? AMLDataObject else {
+            fatalError("\(operand1) does not evaluate to an AMLDataObject")
+        }
 
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        fatalError("Cant update \(self) to \(to)")
+        let index = operandAsInteger(operand: operand2, context: &context)
+
+        switch object {
+            case .buffer(let buffer):   precondition(index < buffer.count)
+            case .package(let package): precondition(index < package.count)
+            case .string(let string):   precondition(index < string.count)
+
+            default:
+            fatalError("ACPI: Index passed an integer as the source")
+        }
+        fatalError("Implement Index (Index Reference to Member objecr")
     }
 }
 
 
 struct AMLDefLAnd: AMLType2Opcode {
     // LandOp Operand Operand
-    let operand1: AMLOperand
-    let operand2: AMLOperand
-
+    let operand1: AMLTermArg // => Integer
+    let operand2: AMLTermArg // => Integer
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
@@ -314,9 +297,8 @@ struct AMLDefLAnd: AMLType2Opcode {
 
 struct AMLDefLEqual: AMLType2Opcode {
     // LequalOp Operand Operand
-    let operand1: AMLOperand
-    let operand2: AMLOperand
-
+    let operand1: AMLTermArg // => Integer
+    let operand2: AMLTermArg // => Integer
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
@@ -328,9 +310,8 @@ struct AMLDefLEqual: AMLType2Opcode {
 
 struct AMLDefLGreater: AMLType2Opcode {
     // LgreaterOp Operand Operand
-    let operand1: AMLOperand
-    let operand2: AMLOperand
-
+    let operand1: AMLTermArg // => Integer
+    let operand2: AMLTermArg // => Integer
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
@@ -342,8 +323,8 @@ struct AMLDefLGreater: AMLType2Opcode {
 
 struct AMLDefLGreaterEqual: AMLType2Opcode {
     // LgreaterEqualOp Operand Operand
-    let operand1: AMLOperand
-    let operand2: AMLOperand
+    let operand1: AMLTermArg // => Integer
+    let operand2: AMLTermArg // => Integer
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
@@ -355,8 +336,8 @@ struct AMLDefLGreaterEqual: AMLType2Opcode {
 
 struct AMLDefLLess: AMLType2Opcode {
     // LlessOp Operand Operand
-    let operand1: AMLOperand
-    let operand2: AMLOperand
+    let operand1: AMLTermArg // => Integer
+    let operand2: AMLTermArg // => Integer
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
@@ -368,9 +349,8 @@ struct AMLDefLLess: AMLType2Opcode {
 
 struct AMLDefLLessEqual: AMLType2Opcode {
     // LlessEqualOp Operand Operand
-    let operand1: AMLOperand
-    let operand2: AMLOperand
-
+    let operand1: AMLTermArg // => Integer
+    let operand2: AMLTermArg // => Integer
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
@@ -382,7 +362,7 @@ struct AMLDefLLessEqual: AMLType2Opcode {
 
 struct AMLDefLNot: AMLType2Opcode {
     // LnotOp Operand
-    let operand: AMLOperand
+    let operand: AMLTermArg // => Integer
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op = operandAsInteger(operand: operand, context: &context)
@@ -392,7 +372,6 @@ struct AMLDefLNot: AMLType2Opcode {
 
 
 struct AMLDefLNotEqual: AMLType2Opcode {
-
     // LnotEqualOp Operand Operand
     let operand1: AMLTermArg
     let operand2: AMLTermArg
@@ -402,7 +381,6 @@ struct AMLDefLNotEqual: AMLType2Opcode {
 
 
 struct AMLDefLoadTable: AMLType2Opcode {
-
     // LoadTableOp TermArg TermArg TermArg TermArg TermArg TermArg
     let arg1: AMLTermArg
     let arg2: AMLTermArg
@@ -418,8 +396,8 @@ struct AMLDefLoadTable: AMLType2Opcode {
 
 struct AMLDefLOr: AMLType2Opcode {
     // LorOp Operand Operand
-    let operand1: AMLOperand
-    let operand2: AMLOperand
+    let operand1: AMLTermArg // => Integer
+    let operand2: AMLTermArg // => Integer
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
@@ -430,7 +408,6 @@ struct AMLDefLOr: AMLType2Opcode {
 
 
 struct AMLDefMatch: AMLType2Opcode {
-
     enum AMLMatchOpcode: AMLByteData {
         case mtr = 0
         case meq = 1
@@ -443,9 +420,9 @@ struct AMLDefMatch: AMLType2Opcode {
     // MatchOp SearchPkg MatchOpcode Operand MatchOpcode Operand StartIndex
     let package: AMLTermArg // => Package
     let matchOpcode1: AMLMatchOpcode
-    let operand1: AMLOperand
+    let operand1: AMLTermArg // => Integer
     let matchOpcode2: AMLMatchOpcode
-    let operand2: AMLOperand
+    let operand2: AMLTermArg // => Integer
     let startIndex: AMLTermArg // => Integer
 
 
@@ -454,7 +431,6 @@ struct AMLDefMatch: AMLType2Opcode {
 
 
 struct AMLDefMid: AMLType2Opcode {
-
     // MidOp MidObj TermArg TermArg Target
     let obj: AMLTermArg // => Buffer | String
     let arg1: AMLTermArg
@@ -467,10 +443,9 @@ struct AMLDefMid: AMLType2Opcode {
 
 
 struct AMLDefMod: AMLType2Opcode {
-
     // ModOp Dividend Divisor Target
-    let dividend: AMLDividend
-    let divisor: AMLDivisor
+    let dividend: AMLTermArg // => Integer
+    let divisor: AMLTermArg // => Integer
     let target: AMLTarget
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
@@ -487,10 +462,9 @@ struct AMLDefMod: AMLType2Opcode {
 
 
 struct AMLDefMultiply: AMLType2Opcode {
-
     // MultiplyOp Operand Operand Target
-    let operand1: AMLOperand
-    let operand2: AMLOperand
+    let operand1: AMLTermArg // => Integer
+    let operand2: AMLTermArg // => Integer
     let target: AMLTarget
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
@@ -504,10 +478,9 @@ struct AMLDefMultiply: AMLType2Opcode {
 
 
 struct AMLDefNAnd: AMLType2Opcode {
-
     // NandOp Operand Operand Target
-    let operand1: AMLOperand
-    let operand2: AMLOperand
+    let operand1: AMLTermArg // => Integer
+    let operand2: AMLTermArg // => Integer
     let target: AMLTarget
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
@@ -521,10 +494,9 @@ struct AMLDefNAnd: AMLType2Opcode {
 
 
 struct AMLDefNOr: AMLType2Opcode {
-
     // NorOp Operand Operand Target
-    let operand1: AMLOperand
-    let operand2: AMLOperand
+    let operand1: AMLTermArg // => Integer
+    let operand2: AMLTermArg // => Integer
     let target: AMLTarget
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
@@ -539,7 +511,7 @@ struct AMLDefNOr: AMLType2Opcode {
 
 struct AMLDefNot: AMLType2Opcode {
     // NotOp Operand Target
-    let operand: AMLOperand
+    let operand: AMLTermArg // => Integer
     let target: AMLTarget
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
@@ -563,8 +535,8 @@ struct AMLDefObjectType: AMLType2Opcode {
 
 struct AMLDefOr: AMLType2Opcode {
     // OrOp Operand Operand Target
-    let operand1: AMLOperand
-    let operand2: AMLOperand
+    let operand1: AMLTermArg // => Integer
+    let operand2: AMLTermArg // => Integer
     let target: AMLTarget
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
@@ -576,30 +548,19 @@ struct AMLDefOr: AMLType2Opcode {
     }
 }
 
-// FIXME: Not sure about these three types
-typealias AMLPackageElement = AMLDataRefObject
-typealias AMLPackageElementList = [AMLPackageElement]
-typealias AMLDefVarPackage = AMLDataRefObject
-
 
 struct AMLDefRefOf: AMLType2Opcode, AMLType6Opcode {
     // RefOfOp SuperName
     let name: AMLSuperName
 
-
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        fatalError("cant update \(self) to \(to)")
-    }
 }
 
 
-typealias AMLShiftCount = AMLTermArg //=> Integer
 struct AMLDefShiftLeft: AMLType2Opcode {
     // ShiftLeftOp Operand ShiftCount Target
-    let operand: AMLOperand
-    let count: AMLShiftCount
+    let operand: AMLTermArg // => Integer
+    let count: AMLTermArg //=> Integer
     let target: AMLTarget
-
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op = operandAsInteger(operand: operand, context: &context)
@@ -613,10 +574,9 @@ struct AMLDefShiftLeft: AMLType2Opcode {
 
 struct AMLDefShiftRight: AMLType2Opcode {
     // ShiftRightOp Operand ShiftCount Target
-    let operand: AMLOperand
-    let count: AMLShiftCount
+    let operand: AMLTermArg // => Integer
+    let count: AMLTermArg //=> Integer
     let target: AMLTarget
-
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op = operandAsInteger(operand: operand, context: &context)
@@ -629,7 +589,6 @@ struct AMLDefShiftRight: AMLType2Opcode {
 
 
 struct AMLDefSizeOf: AMLType2Opcode {
-
     // SizeOfOp SuperName
     let name: AMLSuperName
 
@@ -638,7 +597,6 @@ struct AMLDefSizeOf: AMLType2Opcode {
 
 
 struct AMLDefStore: AMLType2Opcode {
-
     // StoreOp TermArg SuperName
     let arg: AMLTermArg
     let name: AMLSuperName
@@ -679,12 +637,10 @@ struct AMLDefStore: AMLType2Opcode {
 
 
 struct AMLDefSubtract: AMLType2Opcode {
-
     // SubtractOp Operand Operand Target
-    let operand1: AMLOperand
-    let operand2: AMLOperand
+    let operand1: AMLTermArg // => Integer
+    let operand2: AMLTermArg // => Integer
     let target: AMLTarget
-
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
@@ -705,12 +661,10 @@ struct AMLDefTimer: AMLType2Opcode {
 
 
 struct AMLDefToBCD: AMLType2Opcode {
-
     // ToBCDOp Operand Target
-    let operand: AMLOperand
+    let operand: AMLTermArg // => Integer
     let target: AMLTarget
     var description: String { return "ToBCD(\(operand), \(target)" }
-
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         var value = operandAsInteger(operand: operand, context: &context)
@@ -734,7 +688,7 @@ struct AMLDefToBCD: AMLType2Opcode {
 struct AMLDefToBuffer: AMLType2Opcode {
 
     // ToBufferOp Operand Target
-    let operand: AMLOperand
+    let operand: AMLTermArg // => Integer
     let target: AMLTarget
     var description: String { return "ToBuffer(\(operand), \(target)" }
 
@@ -745,7 +699,7 @@ struct AMLDefToBuffer: AMLType2Opcode {
 struct AMLDefToDecimalString: AMLType2Opcode {
 
     // ToDecimalStringOp Operand Target
-    let operand: AMLOperand
+    let operand: AMLTermArg // => Integer
     let target: AMLTarget
 
     // FIXME: Implement
@@ -755,7 +709,7 @@ struct AMLDefToDecimalString: AMLType2Opcode {
 struct AMLDefToHexString: AMLType2Opcode {
 
     // ToHexStringOp Operand Target
-    let operand: AMLOperand
+    let operand: AMLTermArg // => Integer
     let target: AMLTarget
 
 
@@ -764,9 +718,8 @@ struct AMLDefToHexString: AMLType2Opcode {
 
 
 struct AMLDefToInteger: AMLType2Opcode {
-
     // ToIntegerOp Operand Target
-    let operand: AMLOperand
+    let operand: AMLTermArg // => Integer
     let target: AMLTarget
 
 
@@ -775,7 +728,6 @@ struct AMLDefToInteger: AMLType2Opcode {
 
 
 struct AMLDefToString: AMLType2Opcode {
-
     // ToStringOp TermArg LengthArg Target
     let arg: AMLTermArg
     let length: AMLTermArg // => Integer
@@ -789,7 +741,7 @@ struct AMLDefToString: AMLType2Opcode {
 struct AMLDefWait: AMLType2Opcode {
     // WaitOp EventObject Operand
     let object: AMLEventObject
-    let operand: AMLOperand
+    let operand: AMLTermArg // => Integer
 
 
     // FIXME: Implement
@@ -798,10 +750,9 @@ struct AMLDefWait: AMLType2Opcode {
 
 struct AMLDefXor: AMLType2Opcode {
     // XorOp Operand Operand Target
-    let operand1: AMLOperand
-    let operand2: AMLOperand
+    let operand1: AMLTermArg // => Integer
+    let operand2: AMLTermArg // => Integer
     var target: AMLTarget
-
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
@@ -869,4 +820,3 @@ struct AMLMethodInvocation: AMLType2Opcode {
         }
     }
 }
-

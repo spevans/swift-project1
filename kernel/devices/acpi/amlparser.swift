@@ -413,8 +413,6 @@ final class AMLParser {
     }
 
 
-
-
     private func parseTermObj(symbol: ParsedSymbol) throws -> AMLTermObj {
         let x = try parseSymbol(symbol: symbol)
         if let obj = x as? AMLTermObj {
@@ -540,7 +538,7 @@ final class AMLParser {
         case .lLessOp:              return try parseDefLLess()
         case .lLessEqualOp:         return try parseDefLLessEqual()
         case .midOp:                return try parseDefMid()
-        case .lNotOp:               return try AMLDefLNot(operand: parseOperand())
+        case .lNotOp:               return try AMLDefLNot(operand: parseTermArg())
         case .lNotEqualOp:          return try parseDefLNotEqual()
         case .loadTableOp:          return try parseDefLoadTable()
         case .lOrOp:                return try parseDefLOr()
@@ -663,22 +661,6 @@ final class AMLParser {
         return try AMLMethodInvocation(method: name, args:  args)
     }
 
-    
-    // FIXME: needs fix for Integer check (AMLOperand = AMLTermArg // => Integer)
-    private func parseOperand() throws -> AMLOperand {
-        let operand: AMLOperand = try parseTermArg()
-        return operand
-    }
-
-    //  => Buffer, Package or String or Object
-    private func parseBuffPkgStrObj() throws -> AMLBuffPkgStrObj {
-        let arg = try parseTermArg()
-        guard let result = arg as? AMLBuffPkgStrObj else {
-            throw AMLError.invalidData(reason: "\(arg) is not a BuffPkgStrObj")
-        }
-        return result
-    }
-
 
     private func parseString() throws -> AMLDataObject {
         var result: String = ""
@@ -695,54 +677,6 @@ final class AMLParser {
         }
         return AMLDataObject.string(result)
     }
-
-#if false  // Unused???
-    private func parseInteger(symbol: ParsedSymbol) throws -> AMLInteger {
-        var result: AMLInteger = 0
-        var radix: AMLInteger = 0
-        guard let symbol = try nextSymbol(), let ch = symbol.currentChar else {
-            throw AMLError.endOfStream
-        }
-        guard let value = ch.numericValue else {
-            throw AMLError.invalidData(reason: "Not a digit: '\(ch)'")
-        }
-        if value == 0 { // hex or octal
-            radix = 1
-        } else {
-            radix = 10
-            result = AMLInteger(value)
-        }
-        while let symbol = try nextSymbol(), let ch = symbol.currentChar {
-            if radix == 1 {
-                if ch.character == Character(UnicodeScalar("x")) ||
-                    ch.character == Character(UnicodeScalar("X")) {
-                    radix = 16
-                    continue
-                }
-            }
-            guard let value = ch.numericValueInclHex else {
-                throw AMLError.invalidData(reason: "Not a digit: '\(ch)'")
-            }
-            if radix == 1 { // check if octal
-                if value > 7 {
-                    let r = "Invalid octal digit: '\(ch)'"
-                    throw AMLError.invalidData(reason: r)
-                }
-                radix = 8
-                result = AMLInteger(value)
-                continue
-            }
-
-            if AMLInteger(value) >= radix {
-                let r = "Invalid digit '\(ch)' for radix: \(radix)"
-                throw AMLError.invalidData(reason: r)
-            }
-            result *= radix
-            result += AMLInteger(value)
-        }
-        return result
-    }
-#endif
 
 
     private func parsePackageElementList(numElements: UInt8) throws -> AMLPackageElementList {
@@ -1068,7 +1002,7 @@ final class AMLParser {
 
     private func parseDefIfElse() throws -> AMLDefIfElse {
         let parser = try subParser()
-        let predicate: AMLPredicate = try parser.parseTermArg()
+        let predicate = try parser.parseTermArg()
         let termList = try parser.parseTermList()
         var defElse = AMLDefElse(value: nil)
 
@@ -1124,13 +1058,13 @@ final class AMLParser {
 
 
     private func parseDefAdd() throws -> AMLDefAdd {
-        return try AMLDefAdd(operand1: parseOperand(), operand2: parseOperand(),
+        return try AMLDefAdd(operand1: parseTermArg(), operand2: parseTermArg(),
                              target: parseTarget())
     }
 
 
     private func parseDefAnd() throws -> AMLDefAnd {
-        return try AMLDefAnd(operand1: parseOperand(), operand2: parseOperand(),
+        return try AMLDefAnd(operand1: parseTermArg(), operand2: parseTermArg(),
                             target: parseTarget())
     }
 
@@ -1176,69 +1110,63 @@ final class AMLParser {
 
 
     private func parseDefFindSetLeftBit() throws -> AMLDefFindSetLeftBit {
-        return try AMLDefFindSetLeftBit(operand: parseOperand(),
+        return try AMLDefFindSetLeftBit(operand: parseTermArg(),
                                         target: parseTarget())
     }
 
 
     private func parseDefFindSetRightBit() throws -> AMLDefFindSetRightBit {
-        return try AMLDefFindSetRightBit(operand: parseOperand(),
+        return try AMLDefFindSetRightBit(operand: parseTermArg(),
                                          target: parseTarget())
     }
 
 
     private func parseDefFromBCD() throws -> AMLDefFromBCD {
-        return try AMLDefFromBCD(value: parseOperand(),
+        return try AMLDefFromBCD(value: parseTermArg(),
                                  target: parseTarget())
     }
 
 
     private func parseDefIndex() throws -> AMLDefIndex {
-        let b = try parseBuffPkgStrObj()
-        print(b)
-        let i = try parseTermArg()
-        print(i)
-        let r = try parseTarget()
-        return AMLDefIndex(object:b, index: i, target: r)
-//        return try AMLDefIndex(object: parseBuffPkgStrObj(),
-//                               index: parseTermArg(),
-//                               target: parseTarget())
+        return try AMLDefIndex(operand1: parseTermArg(),
+                               operand2: parseTermArg(),
+                               target: parseTarget())
     }
 
 
     private func parseDefLAnd() throws -> AMLDefLAnd {
-        return try AMLDefLAnd(operand1: parseOperand(),
-                              operand2: parseOperand())
+        return try AMLDefLAnd(operand1: parseTermArg(),
+                              operand2: parseTermArg())
     }
 
 
     private func parseDefLEqual() throws -> AMLDefLEqual {
-        return try AMLDefLEqual(operand1: parseOperand(),
-                                operand2: parseOperand())
+        return try AMLDefLEqual(operand1: parseTermArg(),
+                                operand2: parseTermArg())
     }
 
 
     private func parseDefLGreater() throws -> AMLDefLGreater {
-        return try AMLDefLGreater(operand1: parseOperand(),
-                                  operand2: parseOperand())
+        return try AMLDefLGreater(operand1: parseTermArg(),
+                                  operand2: parseTermArg())
     }
 
 
     private func parseDefLGreaterEqual() throws -> AMLDefLGreaterEqual {
-        return try AMLDefLGreaterEqual(operand1: parseOperand(),
-                                       operand2: parseOperand())
+        return try AMLDefLGreaterEqual(operand1: parseTermArg(),
+                                       operand2: parseTermArg())
     }
 
 
     private func parseDefLLess() throws -> AMLDefLLess {
-        return try AMLDefLLess(operand1: parseOperand(),
-                        operand2: parseOperand())
+        return try AMLDefLLess(operand1: parseTermArg(),
+                        operand2: parseTermArg())
     }
 
 
     private func parseDefLLessEqual() throws -> AMLDefLLessEqual {
-        return try AMLDefLLessEqual(operand1: parseOperand(),
-                                    operand2: parseOperand())
+        return try AMLDefLLessEqual(operand1: parseTermArg(),
+                                    operand2: parseTermArg())
     }
 
 
@@ -1262,8 +1190,8 @@ final class AMLParser {
 
 
     private func parseDefLOr() throws -> AMLDefLOr {
-        return try AMLDefLOr(operand1: parseOperand(),
-                             operand2: parseOperand())
+        return try AMLDefLOr(operand1: parseTermArg(),
+                             operand2: parseTermArg())
     }
 
 
@@ -1278,48 +1206,48 @@ final class AMLParser {
 
 
     private func parseDefMultiply() throws -> AMLDefMultiply {
-        return try AMLDefMultiply(operand1: parseOperand(),
-                                  operand2: parseOperand(),
+        return try AMLDefMultiply(operand1: parseTermArg(),
+                                  operand2: parseTermArg(),
                                   target: parseTarget())
     }
 
 
     private func parseDefNAnd() throws -> AMLDefNAnd {
-        return try AMLDefNAnd(operand1: parseOperand(),
-                              operand2: parseOperand(),
+        return try AMLDefNAnd(operand1: parseTermArg(),
+                              operand2: parseTermArg(),
                               target: parseTarget())
     }
 
 
     private func parseDefNOr() throws -> AMLDefNOr {
-        return try AMLDefNOr(operand1: parseOperand(),
-                             operand2: parseOperand(),
+        return try AMLDefNOr(operand1: parseTermArg(),
+                             operand2: parseTermArg(),
                              target: parseTarget())
     }
 
 
     private func parseDefNot() throws -> AMLDefNot {
-        return try AMLDefNot(operand: parseOperand(), target: parseTarget())
+        return try AMLDefNot(operand: parseTermArg(), target: parseTarget())
     }
 
 
     private func parseDefOr() throws -> AMLDefOr {
-        return try AMLDefOr(operand1: parseOperand(),
-                            operand2: parseOperand(),
+        return try AMLDefOr(operand1: parseTermArg(),
+                            operand2: parseTermArg(),
                             target: parseTarget())
     }
 
 
     private func parseDefShiftLeft() throws -> AMLDefShiftLeft {
-        return try AMLDefShiftLeft(operand: parseOperand(),
-                                   count: parseOperand(),
+        return try AMLDefShiftLeft(operand: parseTermArg(),
+                                   count: parseTermArg(),
                                    target: parseTarget())
     }
 
 
     private func parseDefShiftRight() throws -> AMLDefShiftRight {
-        return try AMLDefShiftRight(operand: parseOperand(),
-                                    count: parseOperand(),
+        return try AMLDefShiftRight(operand: parseTermArg(),
+                                    count: parseTermArg(),
                                     target: parseTarget())
     }
 
@@ -1330,36 +1258,36 @@ final class AMLParser {
 
 
     private func parseDefSubtract() throws -> AMLDefSubtract {
-        return try AMLDefSubtract(operand1: parseOperand(),
-                                  operand2: parseOperand(),
+        return try AMLDefSubtract(operand1: parseTermArg(),
+                                  operand2: parseTermArg(),
                                   target: parseTarget())
     }
 
 
     private func parseDefToBCD() throws -> AMLDefToBCD {
-        return try AMLDefToBCD(operand: parseOperand(), target: parseTarget())
+        return try AMLDefToBCD(operand: parseTermArg(), target: parseTarget())
     }
 
 
     private func parseDefToBuffer() throws -> AMLDefToBuffer {
-        return try AMLDefToBuffer(operand: parseOperand(), target: parseTarget())
+        return try AMLDefToBuffer(operand: parseTermArg(), target: parseTarget())
     }
 
 
     private func parseDefToDecimalString() throws -> AMLDefToDecimalString {
-        return try AMLDefToDecimalString(operand: parseOperand(),
+        return try AMLDefToDecimalString(operand: parseTermArg(),
                                          target: parseTarget())
     }
 
 
     private func parseDefToHexString() throws -> AMLDefToHexString {
-        return try AMLDefToHexString(operand: parseOperand(),
+        return try AMLDefToHexString(operand: parseTermArg(),
                                      target: parseTarget())
     }
 
 
     private func parseDefToInteger() throws -> AMLDefToInteger {
-        return try AMLDefToInteger(operand: parseOperand(),
+        return try AMLDefToInteger(operand: parseTermArg(),
                                    target: parseTarget())
     }
 
@@ -1373,14 +1301,14 @@ final class AMLParser {
 
     private func parseDefWait() throws -> AMLDefWait {
         let object = try parseSuperName()
-        let operand = try parseOperand()
+        let operand = try parseTermArg()
         return AMLDefWait(object: object, operand: operand)
     }
 
 
     private func parseDefXor() throws -> AMLDefXor {
-        return try AMLDefXor(operand1: parseOperand(),
-                             operand2: parseOperand(),
+        return try AMLDefXor(operand1: parseTermArg(),
+                             operand2: parseTermArg(),
                              target: parseTarget())
     }
 

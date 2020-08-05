@@ -49,9 +49,6 @@ protocol AMLObject {
 typealias AMLObjectList = [AMLObject] // FIXME: ObjectList should be more specific
 
 
-protocol AMLBuffPkgStrObj: AMLTermArg {
-}
-
 
 protocol AMLTarget {
     //var value: AMLDataRefObject { get set }
@@ -76,7 +73,7 @@ protocol AMLNameSpaceModifierObj: AMLTermObj, AMLObject {
 }
 
 protocol AMLSimpleName: AMLSuperName {}
-protocol AMLType6Opcode: AMLSuperName, AMLBuffPkgStrObj {}
+protocol AMLType6Opcode: AMLSuperName {}
 
 
 enum AMLComputationalData {
@@ -120,6 +117,15 @@ enum AMLDataObject: AMLTermArg {
     var packageValue: AMLPackageElementList? {
         switch self {
             case .package(let value): return value
+            default: return nil
+        }
+    }
+
+    var computationalData: AMLComputationalData? {
+        switch self {
+            case .buffer(let value):  return .buffer(value)
+            case .integer(let value): return .integer(value)
+            case .string(let value):  return .string(value)
             default: return nil
         }
     }
@@ -184,17 +190,20 @@ enum AMLDataRefObject {
 
 
 typealias AMLFieldList = [(AMLNameString, AMLFieldSettings)]
-typealias AMLPredicate = AMLTermArg // => Integer
 typealias AMLDDBHandleObject = AMLSuperName
 typealias AMLMutexObject = AMLSuperName
 typealias AMLEventObject = AMLSuperName
 typealias AMLObjectReference = AMLInteger
+typealias AMLPackageElement = AMLDataRefObject
+typealias AMLPackageElementList = [AMLPackageElement]
+typealias AMLDefVarPackage = AMLDataRefObject
+
 
 
 func AMLIntegerData(_ value: AMLInteger) -> AMLDataObject { .integer(value) }
 
 
-struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg, Hashable {
+struct AMLNameString: AMLSimpleName, AMLTermArg, Hashable {
 
     let value: String
     var isNameSeg: Bool { return (value.count <= 4) }
@@ -299,7 +308,7 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg, Hashable {
 
 
     func updateValue(to newValue: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        print("AMLNameString Updating value of \(self) to", newValue)
+        //print("AMLNameString Updating value of \(self) to", newValue)
 
         let scope = context.scope
         guard let globalObjects = system.deviceManager.acpiTables.globalObjects,
@@ -369,7 +378,7 @@ struct AMLMutexFlags {
 
 
 // AMLTermArg
-struct AMLArgObj: AMLTermArg, AMLSimpleName, AMLBuffPkgStrObj, AMLTermObj {
+struct AMLArgObj: AMLTermArg, AMLSimpleName, AMLTermObj {
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         fatalError("\(self) is readOnly")
     }
@@ -393,7 +402,7 @@ struct AMLArgObj: AMLTermArg, AMLSimpleName, AMLBuffPkgStrObj, AMLTermObj {
 }
 
 
-struct AMLLocalObj: AMLTermArg, AMLSimpleName, AMLBuffPkgStrObj, AMLTermObj {
+struct AMLLocalObj: AMLTermArg, AMLSimpleName, AMLTermObj {
     let opcode: AMLOpcode      // FIXME needs better type
     var argIdx: Int { return Int(opcode.rawValue - AMLOpcode.local0Op.rawValue) }
 
@@ -680,7 +689,7 @@ final class AMLDefName: AMLNamedObj, AMLNameSpaceModifierObj {
     }
 
     override func updateValue(to newValue: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        print("Updating value of", self.fullname(), "to:", newValue)
+        //print("Updating value of", self.fullname(), "to:", newValue)
         if let newValue = newValue as? AMLDataObject {
             value = .dataObject(newValue)
         } else {
