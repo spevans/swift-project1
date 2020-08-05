@@ -77,12 +77,14 @@ func outl(_ port: UInt16, _ value: UInt32) {
 
 struct PCIConfigSpace {
     let busID: UInt8
-    let address: UInt32
+    let device: UInt8
+    let function: UInt8
 
 
-    init(busID: UInt8, address: UInt32) {
+    init(busID: UInt8, device: UInt8, function: UInt8) {
         self.busID = busID
-        self.address = address
+        self.device = device
+        self.function = function
     }
 
     func readConfigByte(atByteOffset offset: UInt) -> UInt8 {

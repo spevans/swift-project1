@@ -33,7 +33,7 @@ fileprivate func invokeMethod(name: String, _ args: Any...) throws -> AMLTermArg
     var methodArgs: AMLTermArgList = []
     for arg in args {
         if let arg = arg as? String {
-            methodArgs.append(AMLString(arg))
+            methodArgs.append(AMLDataObject.string(AMLString(arg)))
         } else if let arg = arg as? AMLInteger {
             methodArgs.append(AMLIntegerData(AMLInteger(arg)))
         } else {
@@ -176,48 +176,48 @@ class ACPITests: XCTestCase {
             XCTFail("\\_S5 is not an AMLDefName")
             return
         }
-        guard let package = defname.value as? AMLDefPackage else {
+        guard let package = defname.value.dataObject?.packageValue else {
             XCTFail("namedObjects[0] is not an AMLDefPackage")
             return
         }
         XCTAssertNotNil(package)
-        XCTAssertEqual(package.elements.count, 3)
-        let data = package.elements.compactMap { ($0 as? AMLIntegerData)?.value }
+        XCTAssertEqual(package.count, 3)
+        let data = package.compactMap { $0.integerValue }
         XCTAssertEqual(data, [7, 7, 0])
     }
 
 
     func testMethod_PIC() {
         let acpi = ACPITests.macbookACPI()
-        guard let gpic = acpi.globalObjects.getDataRefObject("\\GPIC") as? AMLIntegerData else {
+        guard let gpic = acpi.globalObjects.get("\\GPIC") as? AMLDefName else {
             XCTFail("Cant find object \\_PIC")
             return
         }
         XCTAssertNotNil(gpic)
-        XCTAssertEqual(gpic.value, 0)
+        XCTAssertEqual(gpic.value.integerValue, 0)
         let invocation = try? AMLMethodInvocation(method: AMLNameString("\\_PIC"),
-                                                  AMLByteConst(1)) // APIC
+                                                  AMLIntegerData(1)) // APIC
         XCTAssertNotNil(invocation)
         var context = ACPI.AMLExecutionContext(scope: invocation!.method)
         _ = invocation?.evaluate(context: &context)
 
-        guard let gpic2 = acpi.globalObjects.getDataRefObject("\\GPIC") as? AMLIntegerData else {
+        guard let gpic2 = acpi.globalObjects.get("\\GPIC") as? AMLDefName else {
             XCTFail("Cant find object \\_PIC")
             return
         }
-        XCTAssertEqual(gpic2.value, 1)
+        XCTAssertEqual(gpic2.value.integerValue, 1)
     }
 
 
     func testMethod_OSI() {
         do {
-            let result = try invokeMethod(name: "\\_OSI", "Linux") as? AMLIntegerData
+            let result = try invokeMethod(name: "\\_OSI", "Linux")?.integerValue
             XCTAssertNotNil(result)
-            XCTAssertEqual(result!.value, 0)
+            XCTAssertEqual(result, 0)
 
-            let result2 = try invokeMethod(name: "\\_OSI", "Darwin") as? AMLIntegerData
+            let result2 = try invokeMethod(name: "\\_OSI", "Darwin")?.integerValue
             XCTAssertNotNil(result2)
-            XCTAssertEqual(result2!.value, 0xffffffff)
+            XCTAssertEqual(result2, 0xffffffff)
         } catch {
             XCTFail(String(describing: error))
             return
@@ -240,13 +240,13 @@ class ACPITests: XCTestCase {
             }
 
             context = ACPI.AMLExecutionContext(scope: AMLNameString("\\"))
-            let x = osys.readValue(context: &context) as? AMLIntegerData
+            let x = osys.readValue(context: &context).integerValue
             XCTAssertNotNil(x)
-            XCTAssertEqual(x!.value, 10000)
+            XCTAssertEqual(x, 10000)
 
-            let ret = try invokeMethod(name: "\\OSDW") as? AMLIntegerData
+            let ret = try invokeMethod(name: "\\OSDW")?.integerValue
             XCTAssertNotNil(ret)
-            XCTAssertEqual(ret!.value, 1)
+            XCTAssertEqual(ret, 1)
         } catch {
             XCTFail(String(describing: error))
             return
@@ -258,12 +258,12 @@ class ACPITests: XCTestCase {
         // Add some dummy external values
         let (acpi, allData) = createACPI(files: ["QEMU-DSDT.aml"])
         defer { allData.deallocate() }
-        acpi.globalObjects.add("\\_SB.PCI0.P0S", AMLDefName(name: AMLNameString("P0S"), value: AMLIntegerData(0x44556677)))
-        acpi.globalObjects.add("\\_SB.PCI0.P0E", AMLDefName(name: AMLNameString("P0E"), value: AMLIntegerData(0xAABBCCDD)))
-        acpi.globalObjects.add("\\_SB.PCI0.P1S", AMLDefName(name: AMLNameString("P1S"), value: AMLIntegerData(0x00010000)))
-        acpi.globalObjects.add("\\_SB.PCI0.P1E", AMLDefName(name: AMLNameString("P1E"), value: AMLIntegerData(0x0002FFFF)))
-        acpi.globalObjects.add("\\_SB.PCI0.P1L", AMLDefName(name: AMLNameString("P1L"), value: AMLIntegerData(0x00020000)))
-        acpi.globalObjects.add("\\_SB.PCI0.P1V", AMLDefName(name: AMLNameString("P1V"), value: AMLIntegerData(1)))
+        acpi.globalObjects.add("\\_SB.PCI0.P0S", AMLDefName(name: AMLNameString("P0S"), value: AMLDataRefObject(integer: 0x44556677)))
+        acpi.globalObjects.add("\\_SB.PCI0.P0E", AMLDefName(name: AMLNameString("P0E"), value: AMLDataRefObject(integer: 0xAABBCCDD)))
+        acpi.globalObjects.add("\\_SB.PCI0.P1S", AMLDefName(name: AMLNameString("P1S"), value: AMLDataRefObject(integer: 0x00010000)))
+        acpi.globalObjects.add("\\_SB.PCI0.P1E", AMLDefName(name: AMLNameString("P1E"), value: AMLDataRefObject(integer: 0x0002FFFF)))
+        acpi.globalObjects.add("\\_SB.PCI0.P1L", AMLDefName(name: AMLNameString("P1L"), value: AMLDataRefObject(integer: 0x00020000)))
+        acpi.globalObjects.add("\\_SB.PCI0.P1V", AMLDefName(name: AMLNameString("P1V"), value: AMLDataRefObject(integer: 1)))
 
         let devices = acpi.globalObjects.getDevices()
         XCTAssertEqual(devices.count, 17)
@@ -354,14 +354,35 @@ class ACPITests: XCTestCase {
         ])
         defer { allData.deallocate()}
 
-        let fullName = "\\_SB.PCI0.DMAR"
-        guard let dmar = acpi.globalObjects.get(fullName) else {
+
+        // Call \_SB.INI and then \_SB.PCI0.INI
+        do {
+            _ = try invokeMethod(name: "\\_PIC", AMLInteger(1))
+        } catch {
+            XCTFail("Cant set _PIC to GPIC \(error)")
+        }
+
+        do {
+            _ = try invokeMethod(name: "\\_SB._INI")
+        } catch {
+            XCTFail("Cant run \\_SB.INI \(error)")
+        }
+
+        do {
+            _ = try invokeMethod(name: "\\_SB.PCI0._INI")
+        } catch {
+            XCTFail("Cant run \\_SB.PCI0.INI: \(error)")
+        }
+
+
+        let fullName = "\\_SB.PCI0"
+        guard let pci0 = acpi.globalObjects.get(fullName) else {
             XCTFail("Cant find \(fullName)")
             return
         }
 
-        guard let device = dmar as? AMLDefDevice else {
-            XCTFail("DMAR is not an AMLDefDevice")
+        guard let device = pci0 as? AMLDefDevice else {
+            XCTFail("PCI0 is not an AMLDefDevice")
             return
         }
 

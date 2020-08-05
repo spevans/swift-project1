@@ -10,9 +10,11 @@
 
 // Simple Types
 typealias AMLInteger = UInt64
+typealias AMLString = String
 typealias AMLTermList = [AMLTermObj]
 typealias AMLByteData = UInt8
 typealias AMLByteList = [AMLByteData]
+typealias AMLBuffer = AMLByteList
 typealias AMLWordData = UInt16
 typealias AMLDWordData = UInt32
 typealias AMLQWordData = UInt64
@@ -25,15 +27,18 @@ protocol AMLTermObj {
 
 
 protocol AMLTermArg {
-    func canBeConverted(to: AMLDataRefObject) -> Bool
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg
+
+    var integerValue: AMLInteger? { get }
+    var stringValue: AMLString? { get }
+    var bufferValue: AMLBuffer? { get }
 }
 
 
 extension AMLTermArg {
-    func canBeConverted(to: AMLDataRefObject) -> Bool {
-        return false
-    }
+    var integerValue: AMLInteger? { nil }
+    var stringValue: AMLString? { nil }
+    var bufferValue: AMLBuffer? { nil }
 }
 
 
@@ -45,22 +50,6 @@ typealias AMLObjectList = [AMLObject] // FIXME: ObjectList should be more specif
 
 
 protocol AMLBuffPkgStrObj: AMLTermArg {
-}
-
-
-protocol AMLDataRefObject: AMLBuffPkgStrObj {
-    var isReadOnly: Bool { get }
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext)
-}
-
-extension AMLDataRefObject {
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        if isReadOnly {
-            fatalError("updateValue denied")
-        } else {
-            fatalError("Missing updateValue function for \(self)")
-        }
-    }
 }
 
 
@@ -88,18 +77,111 @@ protocol AMLNameSpaceModifierObj: AMLTermObj, AMLObject {
 
 protocol AMLSimpleName: AMLSuperName {}
 protocol AMLType6Opcode: AMLSuperName, AMLBuffPkgStrObj {}
-protocol AMLDataObject: AMLDataRefObject {}
-protocol AMLComputationalData: AMLDataObject {}
-protocol AMLConstObj: AMLComputationalData {
-    var value: AMLIntegerData { get }
+
+
+enum AMLComputationalData {
+    case buffer(AMLBuffer)
+    case integer(AMLInteger)
+    case string(AMLString)
 }
 
-extension AMLConstObj {
-    var isReadOnly: Bool { return true }
+
+enum AMLDataObject: AMLTermArg {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return value
+        return self
+    }
+
+    case package(AMLPackageElementList)
+    case buffer(AMLBuffer)
+    case integer(AMLInteger)
+    case string(AMLString)
+
+    var integerValue: AMLInteger? {
+        switch self {
+            case .integer(let value): return value
+            default: return nil
+        }
+    }
+
+    var stringValue: AMLString? {
+        switch self {
+            case .string(let value): return value
+            default: return nil
+        }
+    }
+
+    var bufferValue: AMLBuffer? {
+        switch self {
+            case .buffer(let value): return value
+            default: return nil
+        }
+    }
+
+    var packageValue: AMLPackageElementList? {
+        switch self {
+            case .package(let value): return value
+            default: return nil
+        }
     }
 }
+
+enum AMLDataRefObject {
+    case dataObject(AMLDataObject)
+    case objectReference(AMLInteger)
+    case ddbHandle(AMLInteger)
+
+    init?(_ value: Any) {
+        if let refObject = value as? Self {
+            self = refObject
+        } else if let object = value as? AMLDataObject {
+            self = .dataObject(object)
+        } else {
+            return nil
+        }
+    }
+
+    init(_ value: Self) {
+        self = value
+    }
+
+    init(integer: AMLInteger) {
+        self = .dataObject(.integer(integer))
+    }
+
+    init(string: AMLString) {
+        self = .dataObject(.string(string))
+    }
+
+    var dataObject: AMLDataObject? {
+        switch self {
+            case .dataObject(let value): return value
+            default: return nil
+        }
+    }
+
+    var integerValue: AMLInteger? {
+        switch self {
+            case .dataObject(.integer(let value)): return value
+            default: return nil
+        }
+    }
+
+    var stringValue: AMLString? {
+        switch self {
+            case .dataObject(.string(let value)): return value
+            default: return nil
+        }
+    }
+
+    var bufferValue: AMLBuffer? {
+        switch self {
+            case .dataObject(.buffer(let value)): return value
+            default: return nil
+        }
+    }
+
+}
+
 
 typealias AMLFieldList = [(AMLNameString, AMLFieldSettings)]
 typealias AMLPredicate = AMLTermArg // => Integer
@@ -109,36 +191,7 @@ typealias AMLEventObject = AMLSuperName
 typealias AMLObjectReference = AMLInteger
 
 
-class AMLIntegerData: AMLDataObject, AMLTermArg, AMLTermObj {
-    private(set) var value: AMLInteger
-    let isReadOnly = false
-
-    init(_ value: AMLInteger) {
-        self.value = value
-    }
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return self
-    }
-
-    func canBeConverted(to: AMLDataRefObject) -> Bool {
-        if to is AMLIntegerData {
-            return true
-        }
-        if let _to = to as? AMLNamedField {
-            return _to.fieldSettings.bitWidth <= AMLInteger.bitWidth
-        }
-
-        return false
-    }
-
-    func updateValue(to operand: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        guard let result = operand.evaluate(context: &context) as? AMLIntegerData else {
-            fatalError("\(operand) does not evaluate to an integer")
-        }
-        value = result.value
-    }
-}
+func AMLIntegerData(_ value: AMLInteger) -> AMLDataObject { .integer(value) }
 
 
 struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg, Hashable {
@@ -181,13 +234,6 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg, Hashable {
             }
         }
         return AMLNameString(value)
-    }
-
-    func canBeConverted(to: AMLDataRefObject) -> Bool {
-        if to is AMLNamedField {
-            return true
-        }
-        return false
     }
 
     func parent() -> AMLNameString {
@@ -245,18 +291,25 @@ struct AMLNameString: AMLSimpleName, AMLBuffPkgStrObj, AMLTermArg, Hashable {
         if let fieldElement = namedObject as? AMLNamedField {
             let resolvedScope = AMLNameString(fullPath).removeLastSeg()
             var tmpContext = context.withNewScope(resolvedScope)
-            return fieldElement.evaluate(context: &tmpContext)
-        } else if let namedObj = namedObject as? AMLDefName {
-                return namedObj.value
+            return fieldElement.readValue(context: &tmpContext)
         } else {
             return namedObject.readValue(context: &context)
         }
     }
 
 
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        print("Updating value of \(self) to \(to)")
-        // Update Value
+    func updateValue(to newValue: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+        print("AMLNameString Updating value of \(self) to", newValue)
+
+        let scope = context.scope
+        guard let globalObjects = system.deviceManager.acpiTables.globalObjects,
+            let (node, _) = globalObjects.getGlobalObject(currentScope: scope,
+                                                                           name: self) else {
+            fatalError("Cant find node: \(value)")
+        }
+
+        print(node.fullname(), newValue, "context:", context)
+        node.updateValue(to: newValue, context: &context)
     }
 }
 
@@ -322,11 +375,6 @@ struct AMLArgObj: AMLTermArg, AMLSimpleName, AMLBuffPkgStrObj, AMLTermObj {
     }
 
 
-    func canBeConverted(to: AMLDataRefObject) -> Bool {
-        return false
-    }
-
-
     let opcode: AMLOpcode      // FIXME needs better type
     var argIdx: Int { return Int(opcode.rawValue - AMLOpcode.arg0Op.rawValue) }
 
@@ -377,19 +425,14 @@ struct AMLLocalObj: AMLTermArg, AMLSimpleName, AMLBuffPkgStrObj, AMLTermObj {
 }
 
 
-struct AMLDebugObj: AMLSuperName, AMLDataRefObject, AMLTarget {
-    var isReadOnly: Bool  { return false }
-
-    func canBeConveArted(to: AMLDataRefObject) -> Bool {
-        return false
-    }
+struct AMLDebugObj: AMLSuperName, AMLTarget {
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return self
+        fatalError("ACPI: Read from Debug Object")
     }
 
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        print("DEBUG:", to)
+    func updateValue(to newValue: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+        print("DEBUG:", newValue)
     }
 }
 
@@ -404,7 +447,7 @@ struct AMLFieldSettings {
 }
 
 
-final class AMLNamedField: AMLNamedObj, AMLDataObject, CustomStringConvertible {
+final class AMLNamedField: AMLNamedObj, CustomStringConvertible {
 
     enum RegionReference {
         case regionSpace(OpRegionSpace)
@@ -473,22 +516,17 @@ final class AMLNamedField: AMLNamedObj, AMLDataObject, CustomStringConvertible {
     }
 
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let value = getRegionSpace(context: &context).read(bitOffset: Int(fieldSettings.bitOffset),
                                                           width: Int(fieldSettings.bitWidth),
                                                           flags: fieldSettings.fieldFlags)
         //print("\(self.name): read 0x\(String(value, radix: 16)) from bitOffset: \(fieldSettings.bitOffset)")
         return AMLIntegerData(value)
     }
-
-
-    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return evaluate(context: &context)
-    }
 }
 
 
-final class AMLNamedIndexField: AMLNamedObj, AMLDataObject, OpRegionSpace, CustomStringConvertible {
+final class AMLNamedIndexField: AMLNamedObj, OpRegionSpace, CustomStringConvertible {
 
     enum FieldReference {
         case namedField(AMLNamedField)
@@ -546,16 +584,11 @@ final class AMLNamedIndexField: AMLNamedObj, AMLDataObject, OpRegionSpace, Custo
     }
 
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let value = self.read(bitOffset: Int(fieldSettings.bitOffset),
                           width: Int(fieldSettings.bitWidth),
                           flags: fieldSettings.fieldFlags)
         return AMLIntegerData(value)
-    }
-
-
-    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return evaluate(context: &context)
     }
 
 
@@ -569,8 +602,8 @@ final class AMLNamedIndexField: AMLNamedObj, AMLDataObject, OpRegionSpace, Custo
         //print("NamedIndexField read(0x\(String(index, radix: 16))) \(self.fullname()) indexField \(_indexField) dataField: \(dataField)")
         // FIXME, ensure index is correct wrt register access width
         _indexField.updateValue(to: AMLIntegerData(AMLInteger(index)), context: &context)
-        let data = _datafield.readValue(context: &context) as! AMLIntegerData
-        return data.value
+        let data = _datafield.readValue(context: &context).integerValue!
+        return data
     }
 
 
@@ -633,7 +666,7 @@ struct AMLDefAlias: AMLNameSpaceModifierObj {
 
 final class AMLDefName: AMLNamedObj, AMLNameSpaceModifierObj {
     //let name: AMLNameString
-    let value: AMLDataRefObject
+    var value: AMLDataRefObject
 
     init(name: AMLNameString, value: AMLDataRefObject) {
         self.value = value
@@ -646,16 +679,20 @@ final class AMLDefName: AMLNamedObj, AMLNameSpaceModifierObj {
         globalObjects.add(fullPath.value, self)
     }
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return value
-    }
-
-    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        value.updateValue(to: to, context: &context)
+    override func updateValue(to newValue: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+        print("Updating value of", self.fullname(), "to:", newValue)
+        if let newValue = newValue as? AMLDataObject {
+            value = .dataObject(newValue)
+        } else {
+            fatalError("AMLDefName.updateValue, cant update to \(newValue)")
+        }
     }
 
     override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        evaluate(context: &context)
+        switch value {
+            case .dataObject(let object): return object
+            default: fatalError("AMLDefName.readValue, cant return \(value)")
+        }
     }
 }
 
@@ -697,84 +734,54 @@ struct AMLUserTermObj: AMLType6Opcode {
 }
 
 
-func AMLByteConst(_ v: AMLByteData) -> AMLIntegerData {
+func AMLByteConst(_ v: AMLByteData) -> AMLDataObject {
     return AMLIntegerData(AMLInteger(v))
 }
 
-func AMLWordConst(_ v: AMLWordData) -> AMLIntegerData {
-    return AMLIntegerData(AMLInteger(v))
-}
-
-
-func AMLDWordConst(_ v: AMLDWordData) -> AMLIntegerData {
+func AMLWordConst(_ v: AMLWordData) -> AMLDataObject {
     return AMLIntegerData(AMLInteger(v))
 }
 
 
-func AMLQWordConst(_ v: AMLQWordData) -> AMLIntegerData {
+func AMLDWordConst(_ v: AMLDWordData) -> AMLDataObject {
     return AMLIntegerData(AMLInteger(v))
 }
 
 
-struct AMLString: AMLDataRefObject, AMLTermObj {
-    var isReadOnly: Bool { return false }
-    private(set) var value: String
-
-    init(_ v: String) {
-        value = v
-    }
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return self
-    }
+func AMLQWordConst(_ v: AMLQWordData) -> AMLDataObject {
+    return AMLIntegerData(AMLInteger(v))
 }
 
 
-struct AMLZeroOp: AMLConstObj {
-    // ZeroOp
-    var value: AMLIntegerData { AMLIntegerData(0) }
-
-    func canBeConverted(to: AMLDataRefObject) -> Bool {
-        return true
-    }
+func AMLZeroOp() -> AMLDataObject {
+    return AMLIntegerData(0)
 }
 
 
-struct AMLOneOp: AMLConstObj {
+func AMLOneOp() -> AMLDataObject {
     // OneOp
-    var value: AMLIntegerData { AMLIntegerData(1) }
-
-    func canBeConverted(to: AMLDataRefObject) -> Bool {
-        return true
-    }
+    return AMLIntegerData(1)
 }
 
 
-struct AMLOnesOp: AMLConstObj {
+func AMLOnesOp() -> AMLDataObject {
     // OnesOp
-    var value: AMLIntegerData { AMLIntegerData(0xff) }
-
-    func canBeConverted(to: AMLDataRefObject) -> Bool {
-        return true
-    }
+    // FIXME, this value being 64bit is assuming the DSDT version is >= 2
+    return AMLIntegerData(UInt64.max)
 }
 
 
-struct AMLRevisionOp: AMLConstObj {
+func AMLRevisionOp() -> AMLDataObject {
     // RevisionOp - AML interpreter supports revision 2
 
-    var value: AMLIntegerData { AMLIntegerData(2) }
+    return AMLIntegerData(2)
 }
 
 
 // AMLDataObject
-struct AMLDDBHandle: AMLDataRefObject {
-    let isReadOnly = true
-    let value: AMLInteger
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return self
-    }
+func AMLDDBHandle(value: AMLInteger) -> AMLDataRefObject {
+    return .ddbHandle(value)
 }
 
 

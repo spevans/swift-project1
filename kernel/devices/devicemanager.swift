@@ -113,10 +113,12 @@ class Bus: Device {
                     // FIXME, is it ok to default _ADR and _BBN to 0?
                     let address = _address ?? 0
 
+                    // FIXME: _BBN should be a method 'busNumbers()' on a DefDevice
                     var busId: UInt8 = 0
                     var p: ACPI.ACPIObjectNode? = node
                     while let _node = p {
-                        if let bbnNode = _node.childNode(named: "_BBN") as? AMLDefName, let bbnValue = bbnNode.integerValue() {
+                        if let bbnNode = _node.childNode(named: "_BBN") as? AMLDefName {
+                            let bbnValue = bbnNode.value.integerValue!
                             busId = UInt8(bbnValue)
                             break
                         }

@@ -8,7 +8,7 @@
 
 
 // Convert a compressed 32bit EISA type ID to a string
-private func decodeEISAId(_ id: UInt32) -> AMLDataRefObject {
+private func decodeEISAId(_ id: UInt32) -> AMLString {
     let eisaid = BitArray32(UInt32(bigEndian: id))
 
     func hexDigit(_ x: Int) -> UnicodeScalar {
@@ -34,11 +34,14 @@ private func decodeEISAId(_ id: UInt32) -> AMLDataRefObject {
 }
 
 
-func decodeHID(obj: AMLDataRefObject) -> AMLDataRefObject {
-    if let value = obj as? AMLIntegerData {
-        return decodeEISAId(UInt32(value.value))
+func decodeHID(obj: AMLTermArg) -> AMLString {
+    if let string = obj.stringValue {
+        return string
+    }
+    else if let value = obj.integerValue {
+        return decodeEISAId(UInt32(value))
     } else {
-        return obj
+        fatalError("decodeHID: \(obj) is invalid argument for decoding an EISAid")
     }
 }
 

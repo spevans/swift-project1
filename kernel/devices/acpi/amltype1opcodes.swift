@@ -70,10 +70,10 @@ struct AMLDefIfElse: AMLType1Opcode {
     }
 
     func execute(context: inout ACPI.AMLExecutionContext) throws {
-        guard let result = predicate.evaluate(context: &context) as? AMLIntegerData else {
+        guard let result = predicate.evaluate(context: &context).integerValue else {
             fatalError("Predicate does not evaluate to an integer")
         }
-        if result.value != 0 {
+        if result != 0 {
             try context.execute(termList: value)
         } else if let elseTermList = elseValue {
             try context.execute(termList: elseTermList)
@@ -188,8 +188,8 @@ struct AMLDefWhile: AMLType1Opcode {
 
     func execute(context: inout ACPI.AMLExecutionContext) throws {
         while true {
-            let result = predicate.evaluate(context: &context) as! AMLIntegerData
-            if result.value == 0 {
+            let result = (predicate.evaluate(context: &context) as! AMLDataObject).integerValue!
+            if result == 0 {
                 return
             }
             try context.execute(termList: list)

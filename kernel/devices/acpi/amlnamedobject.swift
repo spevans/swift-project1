@@ -67,15 +67,16 @@ final class AMLDefDevice: AMLNamedObj {
         guard let sta = childNode(named: "_STA") else {
             return .defaultStatus()
         }
-        if let obj = sta as? AMLDefName, let v = obj.value as? AMLIntegerData {
-            return AMLDefDevice.DeviceStatus(v.value)
-        }
-
         var context = ACPI.AMLExecutionContext(scope: AMLNameString(sta.fullname()))
-        if let v = sta.readValue(context: &context) as? AMLIntegerData {
-            return AMLDefDevice.DeviceStatus(v.value)
-        }
-        fatalError("Cant determine status of: \(sta))")
+        let result = sta.readValue(context: &context)
+        return AMLDefDevice.DeviceStatus(result.integerValue!)
+    }
+
+    // Run the _INI method if it exists
+    func initialise() throws {
+        guard let ini = childNode(named: "_INI") as? AMLMethod else { return }
+        var context = ACPI.AMLExecutionContext(scope: AMLNameString(ini.fullname()))
+        try ini.execute(context: &context)
     }
 
 
@@ -84,21 +85,17 @@ final class AMLDefDevice: AMLNamedObj {
             return nil
         }
 
-        let buffer: AMLBuffer?
-        if let obj = crs as? AMLDefName {
-            buffer = obj.value as? AMLBuffer
+        let buffer: AMLBuffer
+        if let obj = (crs as? AMLDefName)?.value {
+            buffer = obj.bufferValue!
         } else {
             guard let crsObject = crs as? AMLMethod else {
                 fatalError("CRS object is an \(type(of: crs))")
             }
             var context = ACPI.AMLExecutionContext(scope: AMLNameString(crs.fullname()))
-            buffer = crsObject.readValue(context: &context) as? AMLBuffer
+            buffer = crsObject.readValue(context: &context).bufferValue!
         }
-        if buffer != nil {
-            return decodeResourceData(buffer!)
-        } else {
-            return nil
-        }
+        return decodeResourceData(buffer)
     }
 
 
@@ -108,14 +105,16 @@ final class AMLDefDevice: AMLNamedObj {
         }
 
         if let hidName = hid as? AMLDefName {
-            return (decodeHID(obj: hidName.value) as? AMLString)?.value
+            switch hidName.value {
+                case .dataObject(let object): return decodeHID(obj: object)
+                default: fatalError("\(hid.fullname()) has an data for pnpname: \(hidName.value)")
+            }
         }
 
         if let hidMethod = hid as? AMLMethod {
             var context = ACPI.AMLExecutionContext(scope: AMLNameString(hid.fullname()))
-            if let _hid = hidMethod.readValue(context: &context) as? AMLIntegerData {
-                return (decodeHID(obj: _hid) as? AMLString)?.value
-            }
+            return decodeHID(obj: hidMethod.readValue(context: &context))
+
         }
         return nil
     }
@@ -127,14 +126,15 @@ final class AMLDefDevice: AMLNamedObj {
         }
 
         if let cidName = cid as? AMLDefName {
-            return (decodeHID(obj: cidName.value) as? AMLString)?.value
+            switch cidName.value {
+                case .dataObject(let object): return decodeHID(obj: object)
+                default: fatalError("\(cid.fullname()) has an data for pnpname: \(cidName.value)")
+            }
         }
 
         if let cidMethod = cid as? AMLMethod {
             var context = ACPI.AMLExecutionContext(scope: AMLNameString(cid.fullname()))
-            if let _cid = cidMethod.readValue(context: &context) as? AMLIntegerData {
-                return (decodeHID(obj: _cid) as? AMLString)?.value
-            }
+            return decodeHID(obj: cidMethod.readValue(context: &context))
         }
 
         return nil
@@ -147,7 +147,7 @@ final class AMLDefDevice: AMLNamedObj {
             return nil
         }
 
-        return adr.integerValue()
+        return adr.value.integerValue
     }
 }
 
@@ -190,10 +190,6 @@ struct AMLDefIndexField: AMLTermObj {
 
 
 final class AMLMethod: AMLNamedObj {
-    func canBeConverted(to: AMLDataRefObject) -> Bool {
-        return false
-    }
-
     //let name: AMLNameString
     let flags: AMLMethodFlags
     private var parser: AMLParser!
@@ -214,10 +210,14 @@ final class AMLMethod: AMLNamedObj {
         return _termList!
     }
 
+    func execute(context: inout ACPI.AMLExecutionContext) throws {
+        let termList = try self.termList()
+        try context.execute(termList: termList)
+    }
+
     override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         do {
-            let termList = try self.termList()
-            try context.execute(termList: termList)
+            try execute(context: &context)
             return context.returnValue!
         } catch {
             fatalError(String(describing: error))
@@ -379,15 +379,15 @@ final class AMLDefCreateByteField: AMLNamedObj {
 
 
     override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let buffer = sourceBuff.evaluate(context: &context) as! AMLBuffer
-        return AMLIntegerData(AMLInteger(buffer.read(atIndex: byteIndex)))
+        let buffer = sourceBuff.evaluate(context: &context).bufferValue!
+        return AMLIntegerData(AMLInteger(buffer[Int(byteIndex)]))
     }
 
     override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         //print(self.name.value, "updateValue, context:", context)
-        var buffer = sourceBuff.evaluate(context: &context) as! AMLBuffer
-        let byte = (to.evaluate(context: &context) as! AMLIntegerData).value
-        buffer.write(atIndex: byteIndex, value: AMLByteData(byte))
+        var buffer = sourceBuff.evaluate(context: &context).bufferValue!
+        let byte = to.evaluate(context: &context).integerValue!
+        buffer[Int(byteIndex)] = AMLByteData(byte)
     }
 }
 
@@ -565,14 +565,14 @@ extension OpRegionSpace {
     func write(bitOffset: Int, width: Int, value: AMLInteger, flags: AMLFieldFlags) {
         precondition(bitOffset >= 0)
         precondition(width >= 1)
+        precondition(width <= AMLInteger.bitWidth)
 
         let elementBits = elementBitWidth(flags: flags)
         precondition((bitOffset + width) <= (length * elementBits))
 
-        if value > (1 << width) {
-            let max = (1 << width) - 1
-            fatalError("Value [\(value)] cant fit in \(width) bits [max = \(max)]")
-        }
+        // Truncate the value to fit in the destination
+        let mask = (width == AMLInteger.bitWidth) ? AMLInteger.max : AMLInteger((1 << width) - 1)
+        let value = value & mask
 
         var _width = width
         var elementValue = value
@@ -867,15 +867,15 @@ final class AMLDefOpRegion: AMLNamedObj, CustomStringConvertible {
 
     var description: String {
         let _offset: String
-        if let o = offset as? AMLIntegerData {
-            _offset = "0x" + String(o.value, radix: 16)
+        if let o = offset.integerValue {
+            _offset = "0x" + String(o, radix: 16)
         } else {
             _offset = String(describing: offset)
         }
 
         let _length: String
-        if let l = length as? AMLIntegerData {
-            _length = l.value.description
+        if let l = length.integerValue {
+            _length = l.description
         } else {
             _length = String(describing: length)
         }
@@ -899,8 +899,8 @@ final class AMLDefOpRegion: AMLNamedObj, CustomStringConvertible {
             return rs
         }
 
-        let regionOffset = (offset.evaluate(context: &context) as! AMLIntegerData).value
-        let regionLength = (length.evaluate(context: &context) as! AMLIntegerData).value
+        let regionOffset = offset.evaluate(context: &context).integerValue!
+        let regionLength = length.evaluate(context: &context).integerValue!
 
         switch regionSpaceType {
 
@@ -922,7 +922,8 @@ final class AMLDefOpRegion: AMLNamedObj, CustomStringConvertible {
                 var busId: UInt8 = 0
                 var p: ACPI.ACPIObjectNode? = dev
                 while let node = p {
-                    if let bbnNode = node.childNode(named: "_BBN") as? AMLDefName, let bbnValue = bbnNode.integerValue() {
+                    if let bbnNode = node.childNode(named: "_BBN") as? AMLDefName {
+                        let bbnValue = bbnNode.value.integerValue!
                         busId = UInt8(bbnValue)
                         break
                     }

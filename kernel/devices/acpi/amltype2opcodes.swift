@@ -17,19 +17,16 @@ extension AMLType2Opcode {
 }
 
 
-private let AMLIntegerFalse = AMLInteger(0)
-private let AMLIntegerTrue = AMLInteger(1)
-
-private func AMLBoolean(_ bool: Bool) -> AMLInteger {
-    return bool ? AMLIntegerTrue : AMLIntegerFalse
+private func AMLBoolean(_ bool: Bool) -> AMLDataObject {
+    return bool ? AMLOnesOp() : AMLZeroOp()
 }
 
 
 func operandAsInteger(operand: AMLOperand, context: inout ACPI.AMLExecutionContext) -> AMLInteger {
-    guard let result = operand.evaluate(context: &context) as? AMLIntegerData else {
+    guard let result = operand.evaluate(context: &context).integerValue else {
         fatalError("\(operand) does not evaluate to an integer")
     }
-    return result.value
+    return result
 }
 
 
@@ -44,7 +41,7 @@ struct AMLDefAcquire: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         // FIXME - implement
         print("Acquiring Mutex:", mutex)
-        return AMLIntegerData(AMLBoolean(false))   // acquired
+        return AMLBoolean(false)   // acquired
     }
 }
 
@@ -83,30 +80,6 @@ struct AMLDefAnd: AMLType2Opcode {
 }
 
 
-struct AMLBuffer: AMLBuffPkgStrObj, AMLType2Opcode, AMLComputationalData, CustomStringConvertible {
-    var isReadOnly: Bool { return true }
-    var description: String { "AMLBuffer, length: \(data.count)" }
-
-    // BufferOp PkgLength BufferSize ByteList
-    let size: AMLTermArg // => Integer
-    private(set) var data: AMLByteList
-
-
-    // FIXME: Implement
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-       return self
-    }
-
-    func read(atIndex index: AMLInteger) -> AMLByteData {
-        return AMLByteData(data[Int(index)])
-    }
-
-    mutating func write(atIndex index: AMLInteger, value: AMLByteData) {
-        data[Int(index)] = value
-    }
-}
-
-
 typealias AMLData = AMLTermArg // => ComputationalData
 struct AMLDefConcat: AMLType2Opcode {
 
@@ -132,14 +105,14 @@ struct AMLDefConcatRes: AMLType2Opcode {
 
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        guard let buf1 = data1.evaluate(context: &context) as? AMLBuffer,
-            let buf2 = data2.evaluate(context: &context) as? AMLBuffer else {
+        guard let buf1 = data1.evaluate(context: &context).bufferValue,
+        let buf2 = data2.evaluate(context: &context).bufferValue else {
                 fatalError("cant evaulate to buffers")
         }
         // Fixme, iterate validating the individual entries and add an endtag
-        let result = Array(buf1.data[0..<buf1.data.count-2]) + buf2.data
+        let result = AMLBuffer(buf1[0..<buf1.count-2]) + buf2
 
-        let newBuffer = AMLBuffer(size: AMLIntegerData(AMLInteger(result.count)), data: result)
+        let newBuffer = AMLDataObject.buffer(result)
         target.updateValue(to: newBuffer, context: &context)
         return newBuffer
     }
@@ -187,14 +160,13 @@ struct AMLDefDecrement: AMLType2Opcode {
     let target: AMLSuperName
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        guard let value = (target.evaluate(context: &context) as? AMLIntegerData)?.value else {
+        guard let value = target.evaluate(context: &context).integerValue else {
             fatalError("\target) is not an integer")
         }
         let result = AMLIntegerData(value &- 1)
         target.updateValue(to: result, context: &context)
         return result
     }
-
 }
 
 
@@ -300,7 +272,7 @@ struct AMLDefIncrement: AMLType2Opcode {
 
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        guard let value = (target.evaluate(context: &context) as? AMLIntegerData)?.value else {
+        guard let value = target.evaluate(context: &context).integerValue else {
             fatalError("\target) is not an integer")
         }
         let result = AMLIntegerData(value &+ 1)
@@ -335,8 +307,7 @@ struct AMLDefLAnd: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
-        let value = AMLBoolean(op1 != 0 && op2 != 0)
-        return AMLIntegerData(value)
+        return AMLBoolean(op1 != 0 && op2 != 0)
     }
 }
 
@@ -350,8 +321,7 @@ struct AMLDefLEqual: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
-        let value = AMLBoolean(op1 == op2)
-        return AMLIntegerData(value)
+        return AMLBoolean(op1 == op2)
     }
 }
 
@@ -365,8 +335,7 @@ struct AMLDefLGreater: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
-        let value = AMLBoolean(op1 < op2)
-        return AMLIntegerData(value)
+        return AMLBoolean(op1 < op2)
     }
 }
 
@@ -379,8 +348,7 @@ struct AMLDefLGreaterEqual: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
-        let value = AMLBoolean(op1 >= op2)
-        return AMLIntegerData(value)
+        return AMLBoolean(op1 >= op2)
     }
 }
 
@@ -393,8 +361,7 @@ struct AMLDefLLess: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
-        let value = AMLBoolean(op1 < op2)
-        return AMLIntegerData(value)
+        return AMLBoolean(op1 < op2)
     }
 }
 
@@ -408,8 +375,7 @@ struct AMLDefLLessEqual: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
-        let value = AMLBoolean(op1 <= op2)
-        return AMLIntegerData(value)
+        return AMLBoolean(op1 <= op2)
     }
 }
 
@@ -420,8 +386,7 @@ struct AMLDefLNot: AMLType2Opcode {
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op = operandAsInteger(operand: operand, context: &context)
-        let value = AMLBoolean(op == 0)
-        return AMLIntegerData(value)
+        return AMLBoolean(op == 0)
     }
 }
 
@@ -459,8 +424,7 @@ struct AMLDefLOr: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
-        let value = AMLBoolean(op1 != 0 || op2 != 0)
-        return AMLIntegerData(value)
+        return AMLBoolean(op1 != 0 || op2 != 0)
     }
 }
 
@@ -612,29 +576,9 @@ struct AMLDefOr: AMLType2Opcode {
     }
 }
 
-
+// FIXME: Not sure about these three types
 typealias AMLPackageElement = AMLDataRefObject
 typealias AMLPackageElementList = [AMLPackageElement]
-struct AMLDefPackage: AMLBuffPkgStrObj, AMLType2Opcode, AMLDataObject, AMLTermArg {
-    func canBeConverted(to: AMLDataRefObject) -> Bool {
-        return false
-    }
-
-    var isReadOnly: Bool { return false }
-
-    // PackageOp PkgLength NumElements PackageElementList
-    //let pkgLength: AMLPkgLength
-    let numElements: AMLByteData
-    let elements: AMLPackageElementList
-
-    var value: AMLPackageElementList { return elements }
-    let asInteger: AMLInteger? = nil
-    let resultAsInteger: AMLInteger? = nil
-
-    // FIXME: Implement
-}
-
-
 typealias AMLDefVarPackage = AMLDataRefObject
 
 
@@ -709,12 +653,7 @@ struct AMLDefStore: AMLType2Opcode {
         }
         let v = source.evaluate(context: &context)
 
-        if let obj = name as? AMLDataRefObject {
-            //obj.updateValue(to: source, context: &context)
-            //return source
-            obj.updateValue(to: v, context: &context)
-            return v
-        }
+        //print("AMLDefStore: \(name):", v)
 
         if let localObj = name as? AMLLocalObj {
             context.localObjects[localObj.argIdx] = v
@@ -730,17 +669,6 @@ struct AMLDefStore: AMLType2Opcode {
                                                                  name: sname) else {
             fatalError("Cant find \(sname)")
         }
-        // guard let target = dest.object as? AMLDataRefObject else {
-        //     fatalError("dest not an AMLDataRefObject")
-        // }
-
-        // FIXME: Shouldnt be here
-        //guard var namedObject = dest.object else {
-        //    fatalError("Cant find namedObj: \(sname)")
-        //}
-        //  guard source.canBeConverted(to: target) else {
-        //      fatalError("\(source) can not be converted to \(target)")
-        //  }
         let resolvedScope = AMLNameString(fullPath).removeLastSeg()
         var tmpContext = context.withNewScope(resolvedScope)
         dest.updateValue(to: source, context: &tmpContext)

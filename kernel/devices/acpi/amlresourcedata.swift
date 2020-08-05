@@ -53,7 +53,7 @@ struct AMLIrqSetting: AMLResourceSetting {
     let wakeCapable: Bool
 
 
-    init(_ buffer: AMLByteList) {
+    init(_ buffer: AMLBuffer) {
         precondition(buffer.count == 2 || buffer.count == 3)
         irqMask = BitArray16(UInt16(withBytes: buffer[0], buffer[1]))
         if buffer.count == 3 {
@@ -86,7 +86,7 @@ struct AMLDmaSetting: AMLResourceSetting {
     let channelMask: BitArray8
     let flags: BitArray8
 
-    init(_ buffer: AMLByteList) {
+    init(_ buffer: AMLBuffer) {
         precondition(buffer.count == 2)
         channelMask = BitArray8(buffer[0])
         flags = BitArray8(buffer[1])
@@ -111,7 +111,7 @@ struct AMLIOPortSetting: AMLResourceSetting {
     let baseAlignment: UInt8
     let rangeLength: UInt8
 
-    init(_ buffer: AMLByteList) {
+    init(_ buffer: AMLBuffer) {
         precondition(buffer.count == 7)
 
         if buffer[0] == 0 {
@@ -143,7 +143,7 @@ struct AMLMemoryRangeDescriptor: AMLResourceSetting {
     let baseAlignment: UInt32
     let rangeLength: UInt32
 
-    init(_ buffer: AMLByteList) {
+    init(_ buffer: AMLBuffer) {
         precondition(buffer.count == 17)
         writeable = (buffer[0] == 1)
         minimumBaseAddress = UInt32(withBytes: buffer[1], buffer[2], buffer[3], buffer[4])
@@ -159,7 +159,7 @@ struct AMLFixedMemoryRangeDescriptor: AMLResourceSetting {
     let baseAddress: UInt32
     let rangeLength: UInt32
 
-    init(_ buffer: AMLByteList) {
+    init(_ buffer: AMLBuffer) {
         precondition(buffer.count == 9)
         writeable = (buffer[0] == 1)
         baseAddress = UInt32(withBytes: buffer[1], buffer[2], buffer[3], buffer[4])
@@ -178,7 +178,7 @@ struct AMLIrqExtendedDescriptor: AMLResourceSetting {
     var wakeCapable:        Bool { return flags[4] == 1 }
 
 
-    init(_ buffer: AMLByteList) {
+    init(_ buffer: AMLBuffer) {
         precondition(buffer.count >= 6)
         flags = BitArray8(buffer[0])
         let intCount = Int(buffer[1])
@@ -222,7 +222,7 @@ struct AMLWordAddressSpaceDescriptor: AMLResourceSetting {
     var isMinAddressFixed: Bool { return generalFlags[2] == 1 } // _MIF
     var bridgeSubtractivelyDecodesAddress: Bool { return generalFlags[1] == 1 } // _DEC
 
-    init(_ buffer: AMLByteList) {
+    init(_ buffer: AMLBuffer) {
         precondition(buffer.count >= 13)
         resourceType = ResourceType(rawValue: buffer[0])!
         generalFlags = BitArray8(buffer[1])
@@ -267,7 +267,7 @@ struct AMLDWordAddressSpaceDescriptor: AMLResourceSetting {
     var isMinAddressFixed: Bool { return generalFlags[2] == 1 } // _MIF
     var bridgeSubtractivelyDecodesAddress: Bool { return generalFlags[1] == 1 } // _DEC
 
-    init(_ buffer: AMLByteList) {
+    init(_ buffer: AMLBuffer) {
         precondition(buffer.count >= 23)
         resourceType = ResourceType(rawValue: buffer[0])!
         generalFlags = BitArray8(buffer[1])
@@ -313,7 +313,7 @@ struct AMLQWordAddressSpaceDescriptor: AMLResourceSetting {
     var isMinAddressFixed: Bool { return generalFlags[2] == 1 } // _MIF
     var bridgeSubtractivelyDecodesAddress: Bool { return generalFlags[1] == 1 } // _DEC
 
-    init(_ buffer: AMLByteList) {
+    init(_ buffer: AMLBuffer) {
         precondition(buffer.count >= 43)
         resourceType = ResourceType(rawValue: buffer[0])!
         generalFlags = BitArray8(buffer[1])
@@ -335,16 +335,13 @@ struct AMLQWordAddressSpaceDescriptor: AMLResourceSetting {
 
 
 func decodeResourceData(_ buffer: AMLBuffer) -> [AMLResourceSetting] {
-    guard let len = (buffer.size as? AMLIntegerData)?.value else {
-        fatalError("Cant get buffer size")
-    }
-    precondition(len > 0)
+    precondition(buffer.count > 0)
 
     var settings: [AMLResourceSetting] = []
 
     var idx = 0
-    while idx < buffer.data.count {
-        let header = BitArray8(buffer.data[idx])
+    while idx < buffer.count {
+        let header = BitArray8(buffer[idx])
         idx += 1
         let setting: AMLResourceSetting
         let length: Int
@@ -356,10 +353,10 @@ func decodeResourceData(_ buffer: AMLBuffer) -> [AMLResourceSetting] {
                 fatalError("Invalid AMLLargeItemName: \(itemName)")
             }
 
-            assert(idx + 2 < buffer.data.count)
-            length = Int(UInt16(withBytes: buffer.data[idx], buffer.data[idx+1]))
+            assert(idx + 2 < buffer.count)
+            length = Int(UInt16(withBytes: buffer[idx], buffer[idx+1]))
             idx += 2
-            let buf = AMLByteList(buffer.data[idx..<idx + length])
+            let buf = AMLBuffer(buffer[idx..<idx + length])
 
             switch type {
             case .memoryRangeDescriptor32Bit:               setting = AMLMemoryRangeDescriptor(buf)
@@ -378,7 +375,7 @@ func decodeResourceData(_ buffer: AMLBuffer) -> [AMLResourceSetting] {
                 fatalError("Invalid AMLSmallItemnName: \(itemName)")
             }
             length = Int(header[0...2])
-            let buf = AMLByteList(buffer.data[idx..<idx + length])
+            let buf = AMLBuffer(buffer[idx..<idx + length])
 
             switch type {
             case .irqFormatDescriptor:  setting = AMLIrqSetting(buf)

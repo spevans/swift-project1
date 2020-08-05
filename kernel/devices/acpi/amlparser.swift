@@ -319,11 +319,11 @@ final class AMLParser {
         var termList: AMLTermList = []
         while let symbol = try nextSymbol() {
             do {
-            let termObj = try parseTermObj(symbol: symbol)
-            termList.append(termObj)
+                let termObj = try parseTermObj(symbol: symbol)
+                termList.append(termObj)
             } catch {
-                //fatalError("\(error)")
-                print("Skipping invalid method:", error)
+                fatalError("\(error)")
+                //print("Skipping invalid method:", error)
             }
         }
         return termList
@@ -377,8 +377,8 @@ final class AMLParser {
                             let r = "Bad AMLExtendedAccessAttrib byte: \(byte)"
                             throw AMLError.invalidData(reason: r)
                         }
-                        let length = try AMLByteConst(nextByte())
-                        extendedAccessField =  AMLExtendedAccessField(type: type, attrib: attrib, length: length.value)
+                        let length = try AMLInteger(nextByte())
+                        extendedAccessField =  AMLExtendedAccessField(type: type, attrib: attrib, length: length)
                         throw AMLError.unimplemented()
 
                     default:
@@ -464,10 +464,10 @@ final class AMLParser {
     private func parseTermArgAsInteger() throws -> AMLInteger {
         let arg = try parseTermArg()
         var context = ACPI.AMLExecutionContext(scope: currentScope)
-        guard let integerData = arg.evaluate(context: &context) as? AMLIntegerData else {
+        guard let value = arg.evaluate(context: &context).integerValue else {
             throw AMLError.invalidData(reason: "Cant convert \(type(of: arg)) to integer")
         }
-        return integerData.value
+        return value
     }
 
 
@@ -680,7 +680,7 @@ final class AMLParser {
     }
 
 
-    private func parseString() throws -> AMLString {
+    private func parseString() throws -> AMLDataObject {
         var result: String = ""
         while true {
             let byte = try nextByte()
@@ -693,9 +693,10 @@ final class AMLParser {
                 throw AMLError.invalidData(reason: "Bad asciichar \(byte)")
             }
         }
-        return AMLString(result)
+        return AMLDataObject.string(result)
     }
 
+#if false  // Unused???
     private func parseInteger(symbol: ParsedSymbol) throws -> AMLInteger {
         var result: AMLInteger = 0
         var radix: AMLInteger = 0
@@ -741,20 +742,21 @@ final class AMLParser {
         }
         return result
     }
+#endif
 
 
     private func parsePackageElementList(numElements: UInt8) throws -> AMLPackageElementList {
 
         func parsePackageElement(_ symbol: ParsedSymbol) throws -> AMLPackageElement {
             if let ch = symbol.currentChar, ch.charType != .nullChar {
-                return try AMLString(parseNameStringWith(character: ch).value)
+                return try .init(string: AMLString(parseNameStringWith(character: ch).value))
             }
 
             guard symbol.currentOpcode != nil else {
                 throw AMLError.invalidData(reason: "No opcode or valid string found")
             }
-            if let obj = try parseSymbol(symbol: symbol) as? AMLDataRefObject {
-                return obj //parseDataRefObject(symbol: symbol)
+            if let obj = AMLDataRefObject(try parseSymbol(symbol: symbol)) {
+                return obj
             }
             throw AMLError.invalidSymbol(reason: "\(symbol) is not an AMLDataRefObject")
         }
@@ -805,11 +807,11 @@ final class AMLParser {
     }
 
     // MARK: Parse Def
-    private func parseDefPackage() throws -> AMLDefPackage {
+    private func parseDefPackage() throws -> AMLDataRefObject {
         let parser = try subParser()
         let numElements = try parser.nextByte()
         let elements = try parser.parsePackageElementList(numElements: numElements)
-        return AMLDefPackage(numElements: numElements, elements: elements)
+        return AMLDataRefObject.dataObject(.package(elements))
     }
 
 
@@ -826,11 +828,12 @@ final class AMLParser {
     }
 
 
-    private func parseDefBuffer() throws -> AMLBuffer {
+    private func parseDefBuffer() throws -> AMLDataObject {
         let parser = try subParser()
-        let bufSize = try parser.parseTermArg()
+        let bufSize = try parser.parseTermArg().integerValue!
         let bytes = parser.byteStream.bytesToEnd()
-        return AMLBuffer(size: bufSize, data: bytes)
+        precondition(bufSize == bytes.count)
+        return .buffer(bytes)
     }
 
 
@@ -839,7 +842,7 @@ final class AMLParser {
         guard let symbol = try nextSymbol() else {
             throw AMLError.invalidSymbol(reason: "parseDefName")
         }
-        if let dataObj = try parseSymbol(symbol: symbol) as? AMLDataRefObject {
+        if let dataObj = AMLDataRefObject(try parseSymbol(symbol: symbol)) {
             let obj = AMLDefName(name: name.shortName, value: dataObj)
             try addGlobalObject(name: resolveNameToCurrentScope(path: name),
                                 object: obj)

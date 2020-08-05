@@ -92,7 +92,7 @@ extension ACPI {
         // Create an initial ACPI tree with default nodes
         static func createGlobalObjects() -> ACPIObjectNode {
 
-            let parent = AMLDefName(name: AMLNameString("\\"), value: AMLIntegerData(0))
+            let parent = AMLDefName(name: AMLNameString("\\"), value: AMLDataRefObject(integer: 0))
 
             let children: [AMLNameString: AMLNamedObj] = [
                 AMLNameString("_OSI"): AMLMethod(name: AMLNameString("_OSI"),
@@ -103,10 +103,10 @@ extension ACPI {
                                                   flags: AMLMutexFlags()),
 
                 AMLNameString("_REV"): AMLDefName(name: AMLNameString("_REV"),
-                                                  value: AMLIntegerData(2)),
+                                                  value: AMLDataRefObject(integer: 2)),
 
                 AMLNameString("_OS"): AMLDefName(name: AMLNameString("_OS"),
-                                                 value: AMLString("Darwin")),
+                                                 value: AMLDataRefObject(string: "Darwin")),
             ]
             parent.childNodes = children
             return parent
@@ -170,34 +170,6 @@ extension ACPI {
                 }
             }
             return parent
-        }
-
-
-        func getDataRefObject(_ name: String) -> AMLDataRefObject? {
-            if let node = get(name) {
-                if let o = node as? AMLDataRefObject {
-                    return o
-                }
-                if let o = node as? AMLDefName {
-                    return o.value
-                }
-            }
-            return nil
-        }
-
-
-        func integerValue() -> AMLInteger? {
-            guard let name = self as? AMLDefName else { return nil }
-            if let v = name.value as? AMLIntegerData {
-                return v.value
-            }
-
-            var context = ACPI.AMLExecutionContext(scope: AMLNameString(self.fullname()))
-            if let v = name.value.evaluate(context: &context) as? AMLIntegerData {
-                return v.value
-            }
-
-            return nil
         }
 
 
