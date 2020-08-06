@@ -8,7 +8,7 @@
 
 
 extension ACPI {
-    class ACPIObjectNode: AMLTermObj, AMLObject, Hashable {
+    class ACPIObjectNode: AMLTermObj, Hashable {
         let name: AMLNameString
         fileprivate(set) var childNodes: [AMLNameString: ACPIObjectNode]
         unowned private(set) var parent: ACPIObjectNode?

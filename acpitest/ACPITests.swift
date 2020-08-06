@@ -407,6 +407,14 @@ class ACPITests: XCTestCase {
             XCTFail("Cant get \\_SB.PCI0._CRS")
         }
 
+        // Check DefProcessor
+        if let cpu = acpi.globalObjects.get("\\_SB.CP01") {
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(cpu.fullname()))
+            let id = (cpu.childNode(named: "CPID")?.readValue(context: &context) as? AMLDataObject)
+            XCTAssertEqual(id?.integerValue, 1)
+        } else {
+            XCTFail("Cant find \\_SB.CP01")
+        }
     }
 }
 

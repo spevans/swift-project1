@@ -42,14 +42,6 @@ extension AMLTermArg {
 }
 
 
-protocol AMLObject {
-    var name: AMLNameString { get }
-}
-
-typealias AMLObjectList = [AMLObject] // FIXME: ObjectList should be more specific
-
-
-
 protocol AMLTarget {
     //var value: AMLDataRefObject { get set }
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext)
@@ -67,7 +59,7 @@ extension AMLSuperName {
     }
 }
 
-protocol AMLNameSpaceModifierObj: AMLTermObj, AMLObject {
+protocol AMLNameSpaceModifierObj: AMLTermObj {
     //var name: AMLNameString { get }
     func execute(context: inout ACPI.AMLExecutionContext) throws
 }

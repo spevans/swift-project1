@@ -52,12 +52,12 @@ final class AMLDefDevice: AMLNamedObj {
     }
 
 
-    // DeviceOp PkgLength NameString ObjectList
+    // DeviceOp PkgLength NameString TermList
     //let name: AMLNameString
-    let value: AMLObjectList
+    let value: AMLTermList
 
 
-    init(name: AMLNameString, value: AMLObjectList) {
+    init(name: AMLNameString, value: AMLTermList) {
         self.value = value
         super.init(name: name)
     }
@@ -964,9 +964,9 @@ final class AMLDefProcessor: AMLNamedObj {
     let procId: AMLByteData
     let pblkAddr: AMLDWordData
     let pblkLen: AMLByteData
-    let objects: AMLObjectList
+    let objects: AMLTermList
 
-    init(name: AMLNameString, procId: AMLByteData, pblkAddr: AMLDWordData, pblkLen: AMLByteData, objects: AMLObjectList) {
+    init(name: AMLNameString, procId: AMLByteData, pblkAddr: AMLDWordData, pblkLen: AMLByteData, objects: AMLTermList) {
         self.procId = procId
         self.pblkAddr = pblkAddr
         self.pblkLen = pblkLen
@@ -974,4 +974,3 @@ final class AMLDefProcessor: AMLNamedObj {
         super.init(name: name)
     }
 }
-

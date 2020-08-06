@@ -330,24 +330,6 @@ final class AMLParser {
     }
 
 
-    // FIXME: parse objects to a more specific type
-    private func parseObjectList() throws -> AMLObjectList {
-        var objectList: [AMLObject] = []
-        for obj in try parseTermList() {
-            if let amlObj = obj as? AMLObject {
-                objectList.append(amlObj)
-            } else if let amlObj = obj as? AMLDefField {
-                objectList.append(contentsOf: amlObj.fields)
-            } else if let amlObj = obj as? AMLDefIndexField {
-                objectList.append(contentsOf: amlObj.fields)
-            } else {
-                fatalError("\(obj) is not an AMLObject")
-            }
-        }
-        return objectList
-    }
-
-
     private func parseFieldList(fieldFlags: AMLFieldFlags) throws -> AMLFieldList {
         var bitOffset: UInt = 0
         var fieldList: AMLFieldList = []
@@ -908,10 +890,10 @@ final class AMLParser {
         let fqn = resolveNameToCurrentScope(path: name)
         // open a new scope.
         parser.currentScope = fqn
-        _ = try parser.parseObjectList()
+        let termList = try parser.parseTermList()
 
         // No need to store any subobject as they get added to the tree as named objects themselves.
-        let dev = AMLDefDevice(name: name, value: [])
+        let dev = AMLDefDevice(name: name, value: termList)
         try addGlobalObject(name: fqn, object: dev)
         return dev
     }
@@ -970,7 +952,7 @@ final class AMLParser {
                                    procId: parser.nextByte(),
                                    pblkAddr: parser.nextDWord(),
                                    pblkLen: parser.nextByte(),
-                                   objects: parser.parseObjectList())
+                                   objects: parser.parseTermList())
     }
 
 
