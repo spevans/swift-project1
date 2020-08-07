@@ -92,23 +92,31 @@ extension ACPI {
         // Create an initial ACPI tree with default nodes
         static func createGlobalObjects() -> ACPIObjectNode {
 
-            let parent = AMLDefName(name: AMLNameString("\\"), value: AMLDataRefObject(integer: 0))
+            let parent = ACPIObjectNode(name: AMLNameString("\\"))
 
-            let children: [AMLNameString: AMLNamedObj] = [
-                AMLNameString("_OSI"): AMLMethod(name: AMLNameString("_OSI"),
-                                                flags: AMLMethodFlags(flags: 1),
-                                                parser: nil),
+            let children: [AMLNamedObj] = [
+                AMLMethod(name: AMLNameString("_OSI"),
+                          flags: AMLMethodFlags(flags: 1),
+                          parser: nil),
 
-                AMLNameString("_GL"): AMLDefMutex(name: AMLNameString("_GL"),
-                                                  flags: AMLMutexFlags()),
+                AMLDefMutex(name: AMLNameString("_GL"),
+                            flags: AMLMutexFlags()),
 
-                AMLNameString("_REV"): AMLDefName(name: AMLNameString("_REV"),
-                                                  value: AMLDataRefObject(integer: 2)),
+                AMLDefName(name: AMLNameString("_REV"),
+                           value: AMLDataRefObject(integer: 2)),
 
-                AMLNameString("_OS"): AMLDefName(name: AMLNameString("_OS"),
-                                                 value: AMLDataRefObject(string: "Darwin")),
-            ]
-            parent.childNodes = children
+                AMLDefName(name: AMLNameString("_OS"),
+                           value: AMLDataRefObject(string: "Darwin")),
+
+                // Root namespaces
+                AMLNamedObj(name: AMLNameString("_GPE")),
+                AMLNamedObj(name: AMLNameString("_PR")),
+                AMLNamedObj(name: AMLNameString("_SB")),
+                AMLNamedObj(name: AMLNameString("_SI")),
+                AMLNamedObj(name: AMLNameString("_TZ")),
+                ]
+
+            children.forEach { parent.addChildNode($0) }
             return parent
         }
 
@@ -142,8 +150,11 @@ extension ACPI {
                 if let node = findNode(named: part, parent: parent) {
                     parent = node
                 } else {
-                    // FIXME: Need something better than AMLDefScope since it is valid on its own, possibly AMLPlaceHolder?
-                    let newNode = AMLDefScope(name: AMLNameString(part), value: [])
+                    // FIXME: Adding a missing part of the path directly is not the correct way as
+                    // The missing part should probably generate its own subtree to add to. This
+                    // occurs when eg parsing a Device and the methods in the device are added to the
+                    // global tree before the device itself. The device later over writes this object.
+                    let newNode = AMLNamedObj(name: AMLNameString(part))
                     parent.addChildNode(newNode)
                     parent = newNode
                 }
