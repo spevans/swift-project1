@@ -17,6 +17,9 @@ extension ACPI {
             self.name = name
             self.childNodes = [:]
             self.parent = parent
+            guard name.isNameSeg else {
+                fatalError("\(type(of: self)) has invalid name: \(name.value)")
+            }
         }
 
         func readValue(context: inout AMLExecutionContext) -> AMLTermArg {
@@ -102,10 +105,10 @@ extension ACPI {
                 AMLDefMutex(name: AMLNameString("_GL"),
                             flags: AMLMutexFlags()),
 
-                AMLDefName(name: AMLNameString("_REV"),
+                AMLNamedValue(name: AMLNameString("_REV"),
                            value: AMLDataRefObject(integer: 2)),
 
-                AMLDefName(name: AMLNameString("_OS"),
+                AMLNamedValue(name: AMLNameString("_OS"),
                            value: AMLDataRefObject(string: "Darwin")),
 
                 // Root namespaces

@@ -36,6 +36,7 @@
 		B933A7941F2F90C900FE6846 /* ACPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7761F2F8D6A00FE6846 /* ACPITests.swift */; };
 		B933A7951F2FBA8700FE6846 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7311F2F49C700FE6846 /* Extensions.swift */; };
 		B93620762326A4A0009A2215 /* Docker in Resources */ = {isa = PBXBuildFile; fileRef = B93620752326A4A0009A2215 /* Docker */; };
+		B9362EF024DD681000856B47 /* amlnamespacemodifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9362EEF24DD681000856B47 /* amlnamespacemodifier.swift */; };
 		B962BDAC1FD3116B00D42D70 /* amlresourcedata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */; };
 		B9AF69D61FBDEB8B0049CB98 /* ACPIReadWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9AF69D51FBDEB8B0049CB98 /* ACPIReadWriteTests.swift */; };
 		B9C2AF2B1FD84CB300E6EFEB /* KlibTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF2A1FD84CB300E6EFEB /* KlibTests.swift */; };
@@ -174,6 +175,7 @@
 		B933A7761F2F8D6A00FE6846 /* ACPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPITests.swift; sourceTree = "<group>"; };
 		B933A7781F2F8D6A00FE6846 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B93620752326A4A0009A2215 /* Docker */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Docker; sourceTree = "<group>"; };
+		B9362EEF24DD681000856B47 /* amlnamespacemodifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amlnamespacemodifier.swift; sourceTree = "<group>"; };
 		B95867E722E5D082005FA3BF /* kernel */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = kernel; sourceTree = BUILT_PRODUCTS_DIR; };
 		B95867F322E5D4BC005FA3BF /* vmx.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = vmx.swift; path = vm/vmx.swift; sourceTree = "<group>"; };
 		B95867F522E635EA005FA3BF /* vmcs.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = vmcs.swift; path = vm/vmcs.swift; sourceTree = "<group>"; };
@@ -436,6 +438,7 @@
 				B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */,
 				B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */,
 				B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */,
+				B9362EEF24DD681000856B47 /* amlnamespacemodifier.swift */,
 			);
 			path = acpi;
 			sourceTree = "<group>";
@@ -832,6 +835,7 @@
 				B933A78F1F2F8F2100FE6846 /* dwordarray.swift in Sources */,
 				B933A7901F2F8F2100FE6846 /* integer.swift in Sources */,
 				B933A77C1F2F8F0700FE6846 /* address.swift in Sources */,
+				B9362EF024DD681000856B47 /* amlnamespacemodifier.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

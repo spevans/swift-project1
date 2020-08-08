@@ -172,8 +172,8 @@ class ACPITests: XCTestCase {
 
         let s5 = acpi.globalObjects.get("\\_S5")
         XCTAssertNotNil(s5)
-        guard let defname = s5 as? AMLDefName else {
-            XCTFail("\\_S5 is not an AMLDefName")
+        guard let defname = s5 as? AMLNamedValue else {
+            XCTFail("\\_S5 is not an AMLNamedValue")
             return
         }
         guard let package = defname.value.dataObject?.packageValue else {
@@ -189,7 +189,7 @@ class ACPITests: XCTestCase {
 
     func testMethod_PIC() {
         let acpi = ACPITests.macbookACPI()
-        guard let gpic = acpi.globalObjects.get("\\GPIC") as? AMLDefName else {
+        guard let gpic = acpi.globalObjects.get("\\GPIC") as? AMLNamedValue else {
             XCTFail("Cant find object \\_PIC")
             return
         }
@@ -201,7 +201,7 @@ class ACPITests: XCTestCase {
         var context = ACPI.AMLExecutionContext(scope: invocation!.method)
         _ = invocation?.evaluate(context: &context)
 
-        guard let gpic2 = acpi.globalObjects.get("\\GPIC") as? AMLDefName else {
+        guard let gpic2 = acpi.globalObjects.get("\\GPIC") as? AMLNamedValue else {
             XCTFail("Cant find object \\_PIC")
             return
         }
@@ -258,12 +258,12 @@ class ACPITests: XCTestCase {
         // Add some dummy external values
         let (acpi, allData) = createACPI(files: ["QEMU-DSDT.aml"])
         defer { allData.deallocate() }
-        acpi.globalObjects.add("\\_SB.PCI0.P0S", AMLDefName(name: AMLNameString("P0S"), value: AMLDataRefObject(integer: 0x44556677)))
-        acpi.globalObjects.add("\\_SB.PCI0.P0E", AMLDefName(name: AMLNameString("P0E"), value: AMLDataRefObject(integer: 0xAABBCCDD)))
-        acpi.globalObjects.add("\\_SB.PCI0.P1S", AMLDefName(name: AMLNameString("P1S"), value: AMLDataRefObject(integer: 0x00010000)))
-        acpi.globalObjects.add("\\_SB.PCI0.P1E", AMLDefName(name: AMLNameString("P1E"), value: AMLDataRefObject(integer: 0x0002FFFF)))
-        acpi.globalObjects.add("\\_SB.PCI0.P1L", AMLDefName(name: AMLNameString("P1L"), value: AMLDataRefObject(integer: 0x00020000)))
-        acpi.globalObjects.add("\\_SB.PCI0.P1V", AMLDefName(name: AMLNameString("P1V"), value: AMLDataRefObject(integer: 1)))
+        acpi.globalObjects.add("\\_SB.PCI0.P0S", AMLNamedValue(name: AMLNameString("P0S"), value: AMLDataRefObject(integer: 0x44556677)))
+        acpi.globalObjects.add("\\_SB.PCI0.P0E", AMLNamedValue(name: AMLNameString("P0E"), value: AMLDataRefObject(integer: 0xAABBCCDD)))
+        acpi.globalObjects.add("\\_SB.PCI0.P1S", AMLNamedValue(name: AMLNameString("P1S"), value: AMLDataRefObject(integer: 0x00010000)))
+        acpi.globalObjects.add("\\_SB.PCI0.P1E", AMLNamedValue(name: AMLNameString("P1E"), value: AMLDataRefObject(integer: 0x0002FFFF)))
+        acpi.globalObjects.add("\\_SB.PCI0.P1L", AMLNamedValue(name: AMLNameString("P1L"), value: AMLDataRefObject(integer: 0x00020000)))
+        acpi.globalObjects.add("\\_SB.PCI0.P1V", AMLNamedValue(name: AMLNameString("P1V"), value: AMLDataRefObject(integer: 1)))
 
         let devices = acpi.globalObjects.getDevices()
         XCTAssertEqual(devices.count, 17)
@@ -338,7 +338,7 @@ class ACPITests: XCTestCase {
         }
     }
 
-    func testVMWare11Devices() {
+    func testVMWare11Devices() throws {
 
         let (acpi, allData) = createACPI(files: [
             "vmware11-APIC.aml",
@@ -353,7 +353,6 @@ class ACPITests: XCTestCase {
             "vmware11-dsdt.aml",
         ])
         defer { allData.deallocate()}
-
 
         // Call \_SB.INI and then \_SB.PCI0.INI
         do {
@@ -390,21 +389,11 @@ class ACPITests: XCTestCase {
         XCTAssertTrue(status.present)
         XCTAssertTrue(status.enabled)
 
-
         if let com3 = acpi.globalObjects.get("\\_SB.PCI0.ISA.CO02") as? AMLDefDevice {
             let sta = com3.status()
             XCTAssertNotNil(sta)
         } else {
             XCTFail("Cant find \\_SB.PIC0.ISA.SIO.CO02")
-        }
-
-
-        if let pci0 = acpi.globalObjects.get("\\_SB.PCI0") as? AMLDefDevice {
-            let resources = pci0.currentResourceSettings()
-            XCTAssertNotNil(resources)
-            print(resources!)
-        } else {
-            XCTFail("Cant get \\_SB.PCI0._CRS")
         }
 
         // Check DefProcessor
@@ -415,6 +404,28 @@ class ACPITests: XCTestCase {
         } else {
             XCTFail("Cant find \\_SB.CP01")
         }
+
+
+        let scrsMethod = "\\_SB.PCI0.ISA.SCRS"
+        if let scrs = try invokeMethod(name: scrsMethod, AMLInteger(2)) {
+            guard let obj = scrs as? AMLDataObject, case .buffer(_) = obj else {
+                XCTFail("\(scrsMethod) did not return a buffer")
+                throw AMLError.invalidData(reason: "Not a buffer")
+            }
+        } else {
+            XCTFail("Could not execute \(scrsMethod)")
+        }
+
+        let com3sMethod = "\\_SB.PCI0.ISA.COM3._CRS"
+        if let com3crs = try invokeMethod(name: com3sMethod) {
+            guard let obj = com3crs as? AMLDataObject, case .buffer(_) = obj else {
+                XCTFail("\(com3sMethod) did not return a buffer")
+                throw AMLError.invalidData(reason: "Not a buffer")
+            }
+        } else {
+            XCTFail("Could not execute \(com3sMethod)")
+        }
+
     }
 }
 

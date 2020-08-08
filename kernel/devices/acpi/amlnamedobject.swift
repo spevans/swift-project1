@@ -85,15 +85,22 @@ final class AMLDefDevice: AMLNamedObj {
             return nil
         }
 
-        let buffer: AMLBuffer
-        if let obj = (crs as? AMLDefName)?.value {
-            buffer = obj.bufferValue!
+        let buffer: AMLSharedBuffer
+        if let obj = (crs as? AMLNamedValue)?.value {
+            guard let _buffer = obj.bufferValue else {
+                fatalError("crsObject namedValue \(value) not a buffer")
+            }
+            buffer = _buffer
         } else {
             guard let crsObject = crs as? AMLMethod else {
                 fatalError("CRS object is an \(type(of: crs))")
             }
             var context = ACPI.AMLExecutionContext(scope: AMLNameString(crs.fullname()))
-            buffer = crsObject.readValue(context: &context).bufferValue!
+            let value = crsObject.readValue(context: &context)
+            guard let _buffer = value.bufferValue else {
+                fatalError("crsObject returned \(value) not a buffer")
+            }
+            buffer = _buffer
         }
         return decodeResourceData(buffer)
     }
@@ -104,10 +111,10 @@ final class AMLDefDevice: AMLNamedObj {
             return nil
         }
 
-        if let hidName = hid as? AMLDefName {
+        if let hidName = hid as? AMLNamedValue {
             switch hidName.value {
                 case .dataObject(let object): return decodeHID(obj: object)
-                default: fatalError("\(hid.fullname()) has an data for pnpname: \(hidName.value)")
+                default: fatalError("\(hid.fullname()) has invalid valid for pnpname: \(hidName.value)")
             }
         }
 
@@ -125,10 +132,10 @@ final class AMLDefDevice: AMLNamedObj {
             return nil
         }
 
-        if let cidName = cid as? AMLDefName {
+        if let cidName = cid as? AMLNamedValue {
             switch cidName.value {
                 case .dataObject(let object): return decodeHID(obj: object)
-                default: fatalError("\(cid.fullname()) has an data for pnpname: \(cidName.value)")
+                default: fatalError("\(cid.fullname()) has invalid value for pnpname: \(cidName.value)")
             }
         }
 
@@ -142,7 +149,7 @@ final class AMLDefDevice: AMLNamedObj {
 
 
     func addressResource() -> AMLInteger? {
-        guard let adr = childNode(named: "_ADR") as? AMLDefName else {
+        guard let adr = childNode(named: "_ADR") as? AMLNamedValue else {
             print("Cant find _ADR in", self.fullname())
             return nil
         }
@@ -169,22 +176,6 @@ final class AMLDefExternal: AMLNamedObj {
         self.type = type
         self.argCount = argCount
         super.init(name: name)
-    }
-}
-
-
-struct AMLDefIndexField: AMLTermObj {
-    // IndexFieldOp PkgLength NameString NameString FieldFlags FieldList
-    let indexName: AMLNameString
-    let dataName: AMLNameString
-    let flags: AMLFieldFlags
-    let fields: [AMLNamedObj]
-
-    init(indexName: AMLNameString, dataName: AMLNameString, flags: AMLFieldFlags, fields: [AMLNamedObj]) {
-        self.indexName = indexName
-        self.dataName = dataName
-        self.flags = flags
-        self.fields = fields
     }
 }
 
@@ -316,193 +307,6 @@ struct AMLFieldFlags: CustomStringConvertible {
 }
 
 
-final class AMLDefBankField: AMLNamedObj {
-    // BankFieldOp PkgLength NameString NameString BankValue FieldFlags FieldList
-    //let name: AMLNameString
-    let bankValue: AMLTermArg // => Integer
-    let flags: AMLFieldFlags
-    let fields: AMLFieldList
-
-    init(name: AMLNameString, bankValue: AMLTermArg, flags: AMLFieldFlags, fields: AMLFieldList) {
-        self.bankValue = bankValue
-        self.flags = flags
-        self.fields = fields
-        super.init(name: name)
-    }
-
-
-    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        print("reading from \(self)")
-        return AMLIntegerData(0)
-    }
-
-    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        print("Updating \(self) to \(to)")
-    }
-}
-
-
-final class AMLDefCreateBitField: AMLNamedObj {
-    // CreateBitFieldOp SourceBuff BitIndex NameString
-    let sourceBuff: AMLTermArg
-    let bitIndex: AMLInteger
-
-    init(sourceBuff: AMLTermArg, bitIndex: AMLInteger, name: AMLNameString) {
-        self.sourceBuff = sourceBuff
-        self.bitIndex = bitIndex
-        super.init(name: name)
-    }
-
-    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        //let buffer = sourceBuff.evaluate(context: &context) as! AMLBuffer
-        //print(type(of: self), "reading from \(buffer), bitIndex:", bitIndex)
-        return AMLIntegerData(0)
-    }
-
-    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        //print(type(of: self), "Updating \(sourceBuff)[\(bitIndex)] to \(to)")
-    }
-}
-
-
-final class AMLDefCreateByteField: AMLNamedObj {
-    // CreateByteFieldOp SourceBuff ByteIndex NameString
-    let sourceBuff: AMLTermArg
-    let byteIndex: AMLInteger
-    //  let name: AMLNameString
-
-    init(sourceBuff: AMLTermArg, byteIndex: AMLInteger, name: AMLNameString) {
-        self.sourceBuff = sourceBuff
-        self.byteIndex = byteIndex
-        super.init(name: name)
-    }
-
-
-    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let buffer = sourceBuff.evaluate(context: &context).bufferValue!
-        return AMLIntegerData(AMLInteger(buffer[Int(byteIndex)]))
-    }
-
-    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        //print(self.name.value, "updateValue, context:", context)
-        var buffer = sourceBuff.evaluate(context: &context).bufferValue!
-        let byte = to.evaluate(context: &context).integerValue!
-        buffer[Int(byteIndex)] = AMLByteData(byte)
-    }
-}
-
-
-final class AMLDefCreateDWordField: AMLNamedObj {
-    // CreateDWordFieldOp SourceBuff ByteIndex NameString
-    let sourceBuff: AMLTermArg
-    let byteIndex: AMLInteger
-    // let name: AMLNameString
-
-    init(sourceBuff: AMLTermArg, byteIndex: AMLInteger, name: AMLNameString) {
-        self.sourceBuff = sourceBuff
-        self.byteIndex = byteIndex
-        super.init(name: name)
-    }
-
-    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        //let buffer = sourceBuff.evaluate(context: &context)
-        //print(type(of: self), "reading from \(buffer), byteIndex:", byteIndex)
-        return AMLIntegerData(0)
-    }
-
-    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        //print(type(of: self), "Updating \(sourceBuff)[\(byteIndex)] to \(to)")
-    }
-}
-
-
-final class AMLDefCreateField: AMLNamedObj {
-    // CreateFieldOp SourceBuff BitIndex NumBits NameString
-    let sourceBuff: AMLTermArg
-    let bitIndex: AMLInteger
-    let numBits: AMLInteger
-
-    init(sourceBuff: AMLTermArg, bitIndex: AMLInteger, numBits: AMLInteger, name: AMLNameString) {
-        precondition(numBits > 0)
-        self.sourceBuff = sourceBuff
-        self.bitIndex = bitIndex
-        self.numBits = numBits
-        super.init(name: name)
-    }
-
-
-    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        //let buffer = sourceBuff.evaluate(context: &context)
-        //print(type(of: self), "reading from \(buffer), byteIndex:", bitIndex)
-        return AMLIntegerData(0)
-    }
-
-    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        //print(type(of: self), "Updating \(sourceBuff)[\(bitIndex)] to \(to)")
-    }
-}
-
-
-final class AMLDefCreateQWordField: AMLNamedObj {
-    // CreateQWordFieldOp SourceBuff ByteIndex NameString
-    let sourceBuff: AMLTermArg
-    let byteIndex: AMLInteger
-
-    init(sourceBuff: AMLTermArg, byteIndex: AMLInteger, name: AMLNameString) {
-        self.sourceBuff = sourceBuff
-        self.byteIndex = byteIndex
-        super.init(name: name)
-    }
-
-
-    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        //let buffer = sourceBuff.evaluate(context: &context)
-        //print(type(of: self), "reading from \(buffer), byteIndex:", byteIndex)
-        return AMLIntegerData(0)
-    }
-
-    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        //print(type(of: self), "Updating \(sourceBuff)[\(byteIndex)] to \(to)")
-    }
-}
-
-
-final class AMLDefCreateWordField: AMLNamedObj {
-    // CreateWordFieldOp SourceBuff ByteIndex NameString
-    let sourceBuff: AMLTermArg
-    let byteIndex: AMLInteger
-
-    init(sourceBuff: AMLTermArg, byteIndex: AMLInteger, name: AMLNameString) {
-        self.sourceBuff = sourceBuff
-        self.byteIndex = byteIndex
-        super.init(name: name)
-    }
-
-
-    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        //let buffer = sourceBuff.evaluate(context: &context)
-        //print(type(of: self), "reading from \(buffer), byteIndex:", byteIndex)
-        return AMLIntegerData(0)
-    }
-
-    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        //print(type(of: self), "Updating \(sourceBuff)[\(byteIndex)] to \(to)")
-    }
-}
-
-
-struct AMLDefField: AMLTermObj {
-    // FieldOp PkgLength NameString FieldFlags FieldList
-    let regionName: AMLNameString
-    let flags: AMLFieldFlags
-    let fields: [AMLNamedObj]
-
-    init(regionName: AMLNameString, flags: AMLFieldFlags, fields: [AMLNamedObj]) {
-        self.regionName = regionName
-        self.flags = flags
-        self.fields = fields
-    }
-}
 
 
 protocol OpRegionSpace {
@@ -922,7 +726,7 @@ final class AMLDefOpRegion: AMLNamedObj, CustomStringConvertible {
                 var busId: UInt8 = 0
                 var p: ACPI.ACPIObjectNode? = dev
                 while let node = p {
-                    if let bbnNode = node.childNode(named: "_BBN") as? AMLDefName {
+                    if let bbnNode = node.childNode(named: "_BBN") as? AMLNamedValue {
                         let bbnValue = bbnNode.value.integerValue!
                         busId = UInt8(bbnValue)
                         break

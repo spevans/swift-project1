@@ -8,7 +8,7 @@
  *
  */
 
-struct ByteArray2: Collection, Sequence, CustomStringConvertible {
+struct ByteArray2: RandomAccessCollection, Sequence, CustomStringConvertible {
     typealias Index = Int
     typealias Element = UInt8
 
@@ -111,7 +111,7 @@ struct ByteArray2: Collection, Sequence, CustomStringConvertible {
 }
 
 
-struct ByteArray4: Collection, Sequence, CustomStringConvertible {
+struct ByteArray4: RandomAccessCollection, Sequence, CustomStringConvertible {
     typealias Index = Int
     typealias Element = UInt8
 
@@ -214,7 +214,7 @@ struct ByteArray4: Collection, Sequence, CustomStringConvertible {
 }
 
 
-struct ByteArray8: Collection, Sequence, CustomStringConvertible {
+struct ByteArray8: RandomAccessCollection, Sequence, CustomStringConvertible {
     typealias Index = Int
     typealias Element = UInt8
 

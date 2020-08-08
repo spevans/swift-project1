@@ -45,6 +45,7 @@ _SWIFT_SRCS :=	init/startup.swift		\
 		devices/acpi/amlresourcedata.swift \
 		devices/acpi/amlutils.swift	\
 		devices/acpi/amlmethod.swift	\
+		devices/acpi/amlnamespacemodifier.swift	\
 		devices/acpi/acpiglobalobjects.swift \
 		devices/pci/access.swift	\
 		devices/pci/bus.swift		\

@@ -31,14 +31,14 @@ protocol AMLTermArg {
 
     var integerValue: AMLInteger? { get }
     var stringValue: AMLString? { get }
-    var bufferValue: AMLBuffer? { get }
+    var bufferValue: AMLSharedBuffer? { get }
 }
 
 
 extension AMLTermArg {
     var integerValue: AMLInteger? { nil }
     var stringValue: AMLString? { nil }
-    var bufferValue: AMLBuffer? { nil }
+    var bufferValue: AMLSharedBuffer? { nil }
 }
 
 
@@ -59,21 +59,159 @@ extension AMLSuperName {
     }
 }
 
-protocol AMLNameSpaceModifierObj: AMLTermObj {
-    //var name: AMLNameString { get }
-    func execute(context: inout ACPI.AMLExecutionContext) throws
-}
 
 protocol AMLSimpleName: AMLSuperName {}
 protocol AMLType6Opcode: AMLSuperName {}
 
 
+class AMLSharedBuffer: RandomAccessCollection {
+    typealias Index = Int
+    typealias Element = UInt8
+
+    private var buffer: [UInt8]
+
+    var count: Int { buffer.count }
+    var startIndex: Index { buffer.startIndex }
+    var endIndex: Index { buffer.endIndex }
+
+    init(bytes: AMLBuffer) {
+        buffer = bytes
+    }
+
+    func copyBuffer() -> AMLBuffer {
+        let copy = buffer
+        return copy
+    }
+
+    func index(after i: Index) -> Index {
+        precondition(i >= 0)
+        precondition(i < endIndex)
+        return i + 1
+    }
+
+    subscript(position: Index) -> Element {
+        get { buffer[position] }
+        set { buffer[position] = newValue }
+    }
+
+
+    // Bit
+    func readBit(atBitIndex bitIndex: Int) -> AMLInteger {
+        let byteIndex = Int(bitIndex / 8)
+        let bit = bitIndex % 8
+        let result = ((buffer[byteIndex] >> bit) & 1)
+        return AMLInteger(result)
+    }
+
+    func writeBit(atBitIndex bitIndex: Int, value: AMLInteger) {
+        let byteIndex = Int(bitIndex / 8)
+        let bit = bitIndex % 8
+        let mask = AMLByteData(1 << bit)
+
+        switch value {
+            case 0: buffer[byteIndex] &= ~mask
+            case 1: buffer[byteIndex] |= mask
+            default: fatalError("AMLSharedBuffer.writeBit: Attempting to set value to \(value) not 0 or 1")
+        }
+    }
+
+    // Byte
+    func readByte(atByteIndex index: Int) -> AMLByteData {
+        return buffer[index]
+    }
+
+    func writeByte(atByteIndex index: Int, value: AMLByteData) {
+        buffer[index] = value
+    }
+
+    // Word
+    func readWord(atByteIndex byteIndex: Int) -> AMLWordData {
+        let value = (AMLWordData(buffer[byteIndex + 1]) << 8) | (AMLWordData(buffer[byteIndex + 0]))
+        return value
+    }
+
+    func writeWord(atByteIndex byteIndex: Int, value: AMLWordData) {
+        buffer[Int(byteIndex + 0)] = AMLByteData(truncatingIfNeeded: value)
+        buffer[Int(byteIndex + 1)] = AMLByteData(truncatingIfNeeded: value >> 8)
+    }
+
+    // DWord
+    func readDWord(atByteIndex byteIndex: Int) -> AMLDWordData {
+        let value = (AMLDWordData(buffer[Int(byteIndex + 3)]) << 24)
+            | (AMLDWordData(buffer[Int(byteIndex + 2)]) << 16)
+            | (AMLDWordData(buffer[Int(byteIndex + 1)]) << 8)
+            | (AMLDWordData(buffer[Int(byteIndex + 0)]))
+        return value
+    }
+
+    func writeDWord(atByteIndex byteIndex: Int, value: AMLDWordData) {
+        buffer[Int(byteIndex + 0)] = AMLByteData(truncatingIfNeeded: value)
+        buffer[Int(byteIndex + 1)] = AMLByteData(truncatingIfNeeded: value >> 8)
+        buffer[Int(byteIndex + 2)] = AMLByteData(truncatingIfNeeded: value >> 16)
+        buffer[Int(byteIndex + 3)] = AMLByteData(truncatingIfNeeded: value >> 24)
+    }
+
+    // QWord
+    func readQWord(atByteIndex byteIndex: Int) -> AMLQWordData {
+        var value = (AMLQWordData(buffer[byteIndex + 7]) << 56)
+        value |= (AMLQWordData(buffer[byteIndex + 6]) << 48)
+        value |= (AMLQWordData(buffer[byteIndex + 5]) << 40)
+        value |= (AMLQWordData(buffer[byteIndex + 4]) << 32)
+        value |= (AMLQWordData(buffer[byteIndex + 3]) << 24)
+        value |= (AMLQWordData(buffer[byteIndex + 2]) << 16)
+        value |= (AMLQWordData(buffer[byteIndex + 1]) << 8)
+        value |= (AMLQWordData(buffer[byteIndex + 0]))
+        return value
+    }
+
+    func writeQWord(atByteIndex byteIndex: Int, value: AMLQWordData) {
+        buffer[Int(byteIndex + 0)] = AMLByteData(truncatingIfNeeded: value)
+        buffer[Int(byteIndex + 1)] = AMLByteData(truncatingIfNeeded: value >> 8)
+        buffer[Int(byteIndex + 2)] = AMLByteData(truncatingIfNeeded: value >> 16)
+        buffer[Int(byteIndex + 3)] = AMLByteData(truncatingIfNeeded: value >> 24)
+        buffer[Int(byteIndex + 4)] = AMLByteData(truncatingIfNeeded: value >> 32)
+        buffer[Int(byteIndex + 5)] = AMLByteData(truncatingIfNeeded: value >> 40)
+        buffer[Int(byteIndex + 6)] = AMLByteData(truncatingIfNeeded: value >> 48)
+        buffer[Int(byteIndex + 7)] = AMLByteData(truncatingIfNeeded: value >> 56)
+    }
+
+    // Bits
+    func readBits(atBitIndex bitIndex: Int, numBits: Int) -> AMLSharedBuffer {
+        var result: AMLBuffer = []
+        result.reserveCapacity((numBits + 7) / 8)
+
+        if bitIndex.isMultiple(of: 8) && numBits.isMultiple(of: 8) {
+            let start = bitIndex / 8
+            let count = numBits / 8
+            for i in 0..<count {
+                result[i] = buffer[start + i]
+            }
+            return AMLSharedBuffer(bytes: result)
+        } else {
+            fatalError("AMLSharedBuffer.readBits() need to implement for index: \(bitIndex) numBits: \(numBits)")
+        }
+    }
+
+    func writeBits<C: RandomAccessCollection>(atBitIndex bitIndex: Int, numBits: Int, value: C) where C.Element == UInt8, C.Index == Int {
+        print("WriteBits bitIndex: \(bitIndex) numBits: \(numBits) buffer.count \(buffer.count) value.count: \(value.count)")
+        if bitIndex.isMultiple(of: 8) && numBits.isMultiple(of: 8) {
+            let start = bitIndex / 8
+            let count = numBits / 8
+            for i in 0..<count {
+                buffer[start + i] = value[i]
+            }
+        } else {
+            fatalError("AMLSharedBuffer.readBits() need to implement for index: \(bitIndex) numBits: \(numBits)")
+        }
+    }
+}
+
+
 enum AMLComputationalData {
-    case buffer(AMLBuffer)
+    case buffer(AMLSharedBuffer)
     case integer(AMLInteger)
     case string(AMLString)
 }
-
 
 enum AMLDataObject: AMLTermArg {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
@@ -81,7 +219,7 @@ enum AMLDataObject: AMLTermArg {
     }
 
     case package(AMLPackageElementList)
-    case buffer(AMLBuffer)
+    case buffer(AMLSharedBuffer)
     case integer(AMLInteger)
     case string(AMLString)
 
@@ -99,7 +237,7 @@ enum AMLDataObject: AMLTermArg {
         }
     }
 
-    var bufferValue: AMLBuffer? {
+    var bufferValue: AMLSharedBuffer? {
         switch self {
             case .buffer(let value): return value
             default: return nil
@@ -122,6 +260,7 @@ enum AMLDataObject: AMLTermArg {
         }
     }
 }
+
 
 enum AMLDataRefObject {
     case dataObject(AMLDataObject)
@@ -171,7 +310,7 @@ enum AMLDataRefObject {
         }
     }
 
-    var bufferValue: AMLBuffer? {
+    var bufferValue: AMLSharedBuffer? {
         switch self {
             case .dataObject(.buffer(let value)): return value
             default: return nil
@@ -309,7 +448,7 @@ struct AMLNameString: AMLSimpleName, AMLTermArg, Hashable {
             fatalError("Cant find node: \(value)")
         }
 
-        print(node.fullname(), newValue, "context:", context)
+        //print(node.fullname(), newValue, "context:", context)
         node.updateValue(to: newValue, context: &context)
     }
 }
@@ -448,179 +587,6 @@ struct AMLFieldSettings {
 }
 
 
-final class AMLNamedField: AMLNamedObj, CustomStringConvertible {
-
-    enum RegionReference {
-        case regionSpace(OpRegionSpace)
-        case opRegion(AMLDefOpRegion)
-        case name(AMLNameString)
-    }
-
-    var region: RegionReference
-    let fieldSettings: AMLFieldSettings
-    var isReadOnly: Bool { false }
-
-
-    var description: String {
-        return "\(self.name): bitOffset: \(fieldSettings.bitOffset) bitWidth: \(fieldSettings.bitWidth)"
-            + " fieldFlags: \(fieldSettings.fieldFlags)"
-    }
-
-    init(name: AMLNameString, regionName: AMLNameString, fieldSettings: AMLFieldSettings) {
-        self.region = .name(regionName)
-        self.fieldSettings = fieldSettings
-        super.init(name: name)
-    }
-
-    init(name: AMLNameString, opRegion: AMLDefOpRegion, fieldSettings: AMLFieldSettings) {
-        self.region = .opRegion(opRegion)
-        self.fieldSettings = fieldSettings
-        super.init(name: name)
-    }
-
-
-    private func getRegionSpace(context: inout ACPI.AMLExecutionContext) -> OpRegionSpace {
-        let space: OpRegionSpace
-
-        switch region {
-            case let .regionSpace(opRegionSpace):
-                space = opRegionSpace
-
-            case let .opRegion(opRegion):
-                space = opRegion.getRegionSpace(context: &context)
-                region = .regionSpace(space)
-
-            case let .name(regionName):
-                guard let globalObjects = system.deviceManager.acpiTables.globalObjects else {
-                    fatalError("cant get opRegionanme for \(self.fullname()) in scope for \(context.scope)")
-                }
-                guard let (opNode, _) = globalObjects.getGlobalObject(currentScope: context.scope, name: regionName),
-                    let opRegion = opNode as? AMLDefOpRegion else {
-                        fatalError("Cant find \(regionName) in \(context.scope)")
-                }
-                space = opRegion.getRegionSpace(context: &context)
-                region = .regionSpace(space)
-        }
-        //print("region space:", region)
-        return space
-    }
-
-
-    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        let value = operandAsInteger(operand: to, context: &context)
-
-        //print("\(self.name): writing 0x\(String(value, radix: 16)) to bitOffset: \(fieldSettings.bitOffset)")
-        getRegionSpace(context: &context).write(bitOffset: Int(fieldSettings.bitOffset),
-                                               width: Int(fieldSettings.bitWidth),
-                                               value: value,
-                                               flags: fieldSettings.fieldFlags)
-    }
-
-
-    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let value = getRegionSpace(context: &context).read(bitOffset: Int(fieldSettings.bitOffset),
-                                                          width: Int(fieldSettings.bitWidth),
-                                                          flags: fieldSettings.fieldFlags)
-        //print("\(self.name): read 0x\(String(value, radix: 16)) from bitOffset: \(fieldSettings.bitOffset)")
-        return AMLIntegerData(value)
-    }
-}
-
-
-final class AMLNamedIndexField: AMLNamedObj, OpRegionSpace, CustomStringConvertible {
-
-    enum FieldReference {
-        case namedField(AMLNamedField)
-        case name(AMLNameString)
-    }
-
-    private var indexField: FieldReference
-    private var dataField: FieldReference
-    let fieldSettings: AMLFieldSettings
-    var isReadOnly: Bool { false }
-    var length: Int { Int(( fieldSettings.bitOffset + fieldSettings.bitWidth + 7) / 8) }
-
-    var description: String {
-        return "idx: \(indexField) data: \(dataField) \(self.name): bitOffset: \(fieldSettings.bitOffset)"
-            + " fieldFlags: \(fieldSettings.fieldFlags)"
-    }
-
-
-    init(name: AMLNameString, indexField: AMLNameString, dataField: AMLNameString, fieldSettings: AMLFieldSettings) {
-        self.indexField = .name(indexField)
-        self.dataField = .name(dataField)
-        self.fieldSettings = fieldSettings
-        super.init(name: name)
-    }
-
-
-    private func getField(_ field: inout FieldReference) -> AMLNamedField {
-        let namedField: AMLNamedField
-        switch field {
-            case let .namedField(obj):
-                namedField = obj
-
-            case let .name(fieldName):
-                let scope = self.parent?.fullname() ?? "\\"
-                guard
-                    let globalObjects = system.deviceManager.acpiTables.globalObjects,
-                    let (node, _) = globalObjects.getGlobalObject(currentScope: AMLNameString(scope), name: fieldName) else {
-                    fatalError("cant get field \(fieldName) for IndexField \(self.fullname())")
-                }
-                guard let obj = node as? AMLNamedField else {
-                    fatalError("\(node.fullname()) is not an AMLNamedField")
-                }
-                field = .namedField(obj)
-                namedField = obj
-        }
-        return namedField
-    }
-
-    override func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        let value = operandAsInteger(operand: to, context: &context)
-        self.write(bitOffset: Int(fieldSettings.bitOffset),
-                   width: Int(fieldSettings.bitWidth),
-                   value: value,
-                   flags: fieldSettings.fieldFlags)
-    }
-
-
-    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let value = self.read(bitOffset: Int(fieldSettings.bitOffset),
-                          width: Int(fieldSettings.bitWidth),
-                          flags: fieldSettings.fieldFlags)
-        return AMLIntegerData(value)
-    }
-
-
-    func read(atIndex index: Int, flags: AMLFieldFlags) -> AMLInteger {
-        var context = ACPI.AMLExecutionContext(scope: AMLNameString(self.fullname()))
-        let _indexField = getField(&indexField)
-        let _datafield = getField(&dataField)
-        print(_indexField)
-        print(_datafield)
-
-        //print("NamedIndexField read(0x\(String(index, radix: 16))) \(self.fullname()) indexField \(_indexField) dataField: \(dataField)")
-        // FIXME, ensure index is correct wrt register access width
-        _indexField.updateValue(to: AMLIntegerData(AMLInteger(index)), context: &context)
-        let data = _datafield.readValue(context: &context).integerValue!
-        return data
-    }
-
-
-    func write(atIndex index: Int, value: AMLInteger, flags: AMLFieldFlags) {
-        var context = ACPI.AMLExecutionContext(scope: AMLNameString(self.fullname()))
-        let _indexField = getField(&indexField)
-        let _datafield = getField(&dataField)
-        print(_indexField)
-        print(_datafield)
-
-        // FIXME, ensure index is correct wrt register access width
-        print("NamedIndexField write\(index),\(value) \(self.fullname()) indexField \(_indexField) dataField: \(dataField)")
-        _indexField.updateValue(to: AMLIntegerData(AMLInteger(index)), context: &context)
-        _datafield.updateValue(to: AMLIntegerData(value), context: &context)
-    }
-}
 
 
 struct AMLAccessType {
@@ -653,65 +619,25 @@ struct AMLExtendedAccessField {
 }
 
 
-// AMLNameSpaceModifierObj
-struct AMLDefAlias: AMLNameSpaceModifierObj {
-    func execute(context: inout ACPI.AMLExecutionContext) throws {
 
-    }
-
+struct AMLDefAlias: AMLTermObj {
     var name: AMLNameString { return aliasObject }
     let sourceObject: AMLNameString
     let aliasObject: AMLNameString
-}
-
-
-final class AMLDefName: AMLNamedObj, AMLNameSpaceModifierObj {
-    //let name: AMLNameString
-    var value: AMLDataRefObject
-
-    init(name: AMLNameString, value: AMLDataRefObject) {
-        self.value = value
-        super.init(name: name)
-    }
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws {
-        let fullPath = resolveNameTo(scope: context.scope, path: name)
-        let globalObjects = system.deviceManager.acpiTables.globalObjects!
-        globalObjects.add(fullPath.value, self)
-    }
-
-    override func updateValue(to newValue: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        //print("Updating value of", self.fullname(), "to:", newValue)
-        if let newValue = newValue as? AMLDataObject {
-            value = .dataObject(newValue)
-        } else {
-            fatalError("AMLDefName.updateValue, cant update to \(newValue)")
-        }
-    }
-
-    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        switch value {
-            case .dataObject(let object): return object
-            default: fatalError("AMLDefName.readValue, cant return \(value)")
-        }
-    }
-}
-
-
-final class AMLDefScope: AMLNamedObj, AMLNameSpaceModifierObj {
-    // ScopeOp PkgLength NameString TermList
-
-    //let name: AMLNameString
-    let value: AMLTermList
-
-    init(name: AMLNameString, value: AMLTermList) {
-        self.value = value
-        super.init(name: name)
-    }
 
     func execute(context: inout ACPI.AMLExecutionContext) throws {
         throw AMLError.unimplemented("\(type(of: self))")
+    }
+}
 
+
+struct AMLDefScope: AMLTermObj {
+    // ScopeOp PkgLength NameString TermList
+    let name: AMLNameString
+    let value: AMLTermList
+
+    func execute(context: inout ACPI.AMLExecutionContext) throws {
+        throw AMLError.unimplemented("\(type(of: self))")
     }
 }
 

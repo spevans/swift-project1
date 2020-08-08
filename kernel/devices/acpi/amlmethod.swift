@@ -65,17 +65,8 @@ extension ACPI {
                     try op.createNamedObject(context: &self)
                     dynamicNamedObjects.append(op)
                 } else if let op = termObj as? AMLNameSpaceModifierObj {
-                    try op.execute(context: &self)
-                } else if let defFields = termObj as? AMLDefField {
-                    // AMLDefField isnt a named object but rather holds a list of AMLNamedObj
-                    for object in defFields.fields {
-                        try object.createNamedObject(context: &self)
-                        dynamicNamedObjects.append(object)
-                    }
-                }
-                else if let indexFields = termObj as? AMLDefIndexField {
-                    // AMLDefIndexField isnt a named object but rather holds a list of AMLNamedObj
-                    for object in indexFields.fields {
+                    let objects = try op.createObjects(context: &self)
+                    for (_, object) in objects {
                         try object.createNamedObject(context: &self)
                         dynamicNamedObjects.append(object)
                     }

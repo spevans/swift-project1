@@ -397,6 +397,17 @@ final class AMLParser {
 
     private func parseTermObj(symbol: ParsedSymbol) throws -> AMLTermObj {
         let x = try parseSymbol(symbol: symbol)
+
+        if !isParsingMethod {
+            if let obj = x as? AMLNameSpaceModifierObj {
+                var context = ACPI.AMLExecutionContext(scope: currentScope)
+                let objectsToAdd = try obj.createObjects(context: &context)
+                for (fullname, object) in objectsToAdd {
+                    try addGlobalObject(name: fullname, object: object)
+                }
+            }
+        }
+
         if let obj = x as? AMLTermObj {
             return obj
         }
@@ -438,16 +449,6 @@ final class AMLParser {
         }
         let r = "Invalid for termarg: \(String(describing: symbol))"
         throw AMLError.invalidSymbol(reason: r)
-    }
-
-
-    private func parseTermArgAsInteger() throws -> AMLInteger {
-        let arg = try parseTermArg()
-        var context = ACPI.AMLExecutionContext(scope: currentScope)
-        guard let value = arg.evaluate(context: &context).integerValue else {
-            throw AMLError.invalidData(reason: "Cant convert \(type(of: arg)) to integer")
-        }
-        return value
     }
 
 
@@ -563,7 +564,7 @@ final class AMLParser {
         case .createBitFieldOp:     return try parseDefCreateBitField()
         case .createByteFieldOp:    return try parseDefCreateByteField()
         case .createDWordFieldOp:   return try parseDefCreateDWordField()
-        case .createFieldOp:        return try parseDefCreateField()
+        case .createFieldOp:        return try parseDefCreateBitsField()
         case .createQWordFieldOp:   return try parseDefCreateQWordField()
         case .createWordFieldOp:    return try parseDefCreateWordField()
         case .dataRegionOp:         return try parseDefDataRegion()
@@ -749,7 +750,7 @@ final class AMLParser {
         let bufSize = try parser.parseTermArg().integerValue!
         let bytes = parser.byteStream.bytesToEnd()
         precondition(bufSize == bytes.count)
-        return .buffer(bytes)
+        return .buffer(AMLSharedBuffer(bytes: bytes))
     }
 
 
@@ -759,16 +760,14 @@ final class AMLParser {
             throw AMLError.invalidSymbol(reason: "parseDefName")
         }
         if let dataObj = AMLDataRefObject(try parseSymbol(symbol: symbol)) {
-            let obj = AMLDefName(name: name.shortName, value: dataObj)
-            try addGlobalObject(name: resolveNameToCurrentScope(path: name),
-                                object: obj)
-            return obj
+            return AMLDefName(name: name.shortName, value: dataObj)
         }
         throw AMLError.invalidSymbol(reason: "\(symbol) is not an AMLDataRefObject")
     }
 
 
-    // FIXME: Validate the location in the scope already exists
+    // FIXME: Validate the location in the scope already exists. Also should DefScope
+    // even exist as a type? parseDefScope has already altered the scope by the time its created.
     private func parseDefScope() throws -> AMLDefScope {
         let parser = try subParser()
         let nameString = try parser.parseNameString()
@@ -780,19 +779,11 @@ final class AMLParser {
 
     private func parseDefIndexField() throws -> AMLDefIndexField {
         let parser = try subParser()
-      //  let fieldRef = AMLDefFieldRef()
 
         let indexName = try parser.parseNameString()
         let dataName = try parser.parseNameString()
         let flags = try AMLFieldFlags(flags: parser.nextByte())
-
-        var fields: [AMLNamedObj] = []
-        for (name, settings) in try parser.parseFieldList(fieldFlags: flags) {
-            let field = AMLNamedIndexField(name: name, indexField: indexName, dataField: dataName, fieldSettings: settings)
-            try addGlobalObject(name: resolveNameToCurrentScope(path: name), object: field)
-            fields.append(field)
-        }
-
+        let fields = try parser.parseFieldList(fieldFlags: flags)
         return AMLDefIndexField(indexName: indexName, dataName: dataName, flags: flags, fields: fields)
     }
 
@@ -826,43 +817,43 @@ final class AMLParser {
 
     private func parseDefCreateBitField() throws -> AMLDefCreateBitField {
         return try AMLDefCreateBitField(sourceBuff: parseTermArg(),
-                                        bitIndex: parseTermArgAsInteger(),
+                                        bitIndex: parseTermArg(),
                                         name: parseNameString())
     }
 
 
     private func parseDefCreateByteField() throws -> AMLDefCreateByteField {
         return try AMLDefCreateByteField(sourceBuff: parseTermArg(),
-                                         byteIndex: parseTermArgAsInteger(),
+                                         byteIndex: parseTermArg(),
                                          name: parseNameString())
     }
 
 
     private func parseDefCreateWordField() throws -> AMLDefCreateWordField {
         return try AMLDefCreateWordField(sourceBuff: parseTermArg(),
-                                         byteIndex: parseTermArgAsInteger(),
+                                         byteIndex: parseTermArg(),
                                          name: parseNameString())
     }
 
 
     private func parseDefCreateDWordField() throws -> AMLDefCreateDWordField {
         return try AMLDefCreateDWordField(sourceBuff: parseTermArg(),
-                                          byteIndex: parseTermArgAsInteger(),
+                                          byteIndex: parseTermArg(),
                                           name: parseNameString())
     }
     
 
     private func parseDefCreateQWordField() throws -> AMLDefCreateQWordField {
         return try AMLDefCreateQWordField(sourceBuff: parseTermArg(),
-                                          byteIndex: parseTermArgAsInteger(),
+                                          byteIndex: parseTermArg(),
                                           name: parseNameString())
     }
 
 
-    private func parseDefCreateField() throws -> AMLDefCreateField {
-        return try AMLDefCreateField(sourceBuff: parseTermArg(),
-                                     bitIndex: parseTermArgAsInteger(),
-                                     numBits: parseTermArgAsInteger(),
+    private func parseDefCreateBitsField() throws -> AMLDefCreateBitsField {
+        return try AMLDefCreateBitsField(sourceBuff: parseTermArg(),
+                                     bitIndex: parseTermArg(),
+                                     numBits: parseTermArg(),
                                      name: parseNameString())
     }
 
@@ -903,19 +894,8 @@ final class AMLParser {
         let parser = try subParser()
         let regionName = try parser.parseNameString()
         let flags = try AMLFieldFlags(flags: parser.nextByte())
-        //let fieldRef = AMLDefFieldRef()
-
-        var fields: [AMLNamedField] = []
-        for (name, settings) in try parser.parseFieldList(fieldFlags: flags) {
-            let field = AMLNamedField(name: name, regionName: regionName, fieldSettings: settings)
-            try addGlobalObject(name: resolveNameToCurrentScope(path: name), object: field)
-            fields.append(field)
-        }
-
-        let field = AMLDefField(regionName: regionName, flags: flags, fields: fields)
-        //fieldRef.amlDefField = field
-
-        return field
+        let fields = try parser.parseFieldList(fieldFlags: flags)
+        return AMLDefField(regionName: regionName, flags: flags, fields: fields)
     }
 
 
@@ -965,7 +945,7 @@ final class AMLParser {
         if byteStream.endOfStream() {
             return AMLDefElse(value: nil)
         }
-        let parser = try subParser()
+        let parser = try subParser(parsingMethod: isParsingMethod)
         if parser.byteStream.endOfStream() {
             return AMLDefElse(value: nil)
         }
@@ -983,7 +963,7 @@ final class AMLParser {
 
 
     private func parseDefIfElse() throws -> AMLDefIfElse {
-        let parser = try subParser()
+        let parser = try subParser(parsingMethod: isParsingMethod)
         let predicate = try parser.parseTermArg()
         let termList = try parser.parseTermList()
         var defElse = AMLDefElse(value: nil)
@@ -1023,13 +1003,9 @@ final class AMLParser {
 
     private func parseDefWhile() throws -> AMLDefWhile {
 
-        let parser = try subParser()
-        let p = try parser.parseTermArg()
-        let l = try parser.parseTermList()
-        let defWhile = AMLDefWhile(predicate: p, list: l)
-       // let defWhile = try AMLDefWhile(predicate: parser.parseTermArg(),
-       //                        list: parser.parseTermList())
-        return defWhile
+        let parser = try subParser(parsingMethod: isParsingMethod)
+        return try AMLDefWhile(predicate: parser.parseTermArg(),
+                               list: parser.parseTermList())
     }
 
 

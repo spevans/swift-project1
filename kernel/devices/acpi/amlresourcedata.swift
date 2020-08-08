@@ -334,7 +334,7 @@ struct AMLQWordAddressSpaceDescriptor: AMLResourceSetting {
 }
 
 
-func decodeResourceData(_ buffer: AMLBuffer) -> [AMLResourceSetting] {
+func decodeResourceData(_ buffer: AMLSharedBuffer) -> [AMLResourceSetting] {
     precondition(buffer.count > 0)
 
     var settings: [AMLResourceSetting] = []

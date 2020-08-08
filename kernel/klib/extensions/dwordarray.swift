@@ -8,7 +8,7 @@
  *
  */
 
-struct DWordArray2: Collection, Sequence, CustomStringConvertible {
+struct DWordArray2: RandomAccessCollection, Sequence, CustomStringConvertible {
     typealias Index = Int
     typealias Element = UInt32
 

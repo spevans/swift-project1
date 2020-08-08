@@ -95,14 +95,14 @@ struct AMLDefConcatRes: AMLType2Opcode {
     let target: AMLTarget
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        guard let buf1 = data1.evaluate(context: &context).bufferValue,
-        let buf2 = data2.evaluate(context: &context).bufferValue else {
-                fatalError("cant evaulate to buffers")
+        guard let buf1 = data1.evaluate(context: &context).bufferValue?.copyBuffer(),
+            let buf2 = data2.evaluate(context: &context).bufferValue?.copyBuffer() else {
+                fatalError("AMLDefConcatRes: cant evaulate operands as buffers")
         }
         // Fixme, iterate validating the individual entries and add an endtag
         let result = AMLBuffer(buf1[0..<buf1.count-2]) + buf2
 
-        let newBuffer = AMLDataObject.buffer(result)
+        let newBuffer = AMLDataObject.buffer(AMLSharedBuffer(bytes: result))
         target.updateValue(to: newBuffer, context: &context)
         return newBuffer
     }
@@ -630,7 +630,6 @@ struct AMLDefStore: AMLType2Opcode {
         let resolvedScope = AMLNameString(fullPath).removeLastSeg()
         var tmpContext = context.withNewScope(resolvedScope)
         dest.updateValue(to: source, context: &tmpContext)
-
         return v
     }
 }
@@ -803,8 +802,7 @@ struct AMLMethodInvocation: AMLType2Opcode {
         var newContext = ACPI.AMLExecutionContext(scope: AMLNameString(fullPath),
                                                   args: newArgs)
         try newContext.execute(termList: termList)
-        context.returnValue = newContext.returnValue
-        return context.returnValue
+        return newContext.returnValue
     }
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
