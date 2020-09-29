@@ -94,7 +94,7 @@ fileprivate func createACPI(files: [String]) -> (ACPI, UnsafeMutableRawPointer) 
         offset += data.count
     }
 
-    _ = acpi.parseAMLTables()
+    acpi.parseAMLTables()
 
     guard let (sb, _) = acpi.globalObjects.getGlobalObject(currentScope: AMLNameString("\\"),
                                                            name: AMLNameString("_SB")) else {

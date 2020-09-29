@@ -8,20 +8,18 @@
 // QEMU Firmware Configuration (fw_cfg) Device
 // https://github.com/qemu/qemu/blob/master/docs/specs/fw_cfg.txt
 
-final class QEMUFWCFG: Device {
+final class QEMUFWCFG: PNPDeviceDriver {
     let baseIOPort: UInt16
     private(set) var hasDMAInterface = false
 
-    init?(parentBus: Bus, acpiDevice: AMLDefDevice) {
-        guard let crs = acpiDevice.currentResourceSettings() else { return nil }
-        let resources = ISABus.Resources(crs)
-        print(acpiDevice.fullname(), "Resources:", resources)
+    init?(pnpDevice: ISADevice) {
+        let resources = pnpDevice.resources
+        print(pnpDevice.fullName, "Resources:", resources)
         guard let ioPorts = resources.ioPorts.first, ioPorts.count > 6 else {
             print("QEMU: port range is to small:", resources.ioPorts.count)
             return nil
         }
         baseIOPort = ioPorts.first!
-        super.init()
 
         let signature = readSignature()
         guard signature == "QEMU" else {
@@ -37,7 +35,6 @@ final class QEMUFWCFG: Device {
         }
         hasDMAInterface = (features & 2) != 0
         print("QEMU: DMA interface available")
-
     }
 
 

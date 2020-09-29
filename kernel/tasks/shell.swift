@@ -70,6 +70,24 @@ private struct DumpBusCommand: ShellCommand {
     }
 }
 
+private struct DumpPCICommand: ShellCommand {
+    let command = "dumppci"
+    let helpText = "List the PCI devices"
+
+    func runCommand(arguments: [String]) {
+        system.deviceManager.dumpPCIDevices()
+    }
+}
+
+private struct DumpPNPCommand: ShellCommand {
+    let command = "dumppnp"
+    let helpText = "List the PNP devices"
+
+    func runCommand(arguments: [String]) {
+        system.deviceManager.dumpPNPDevices()
+    }
+}
+
 private struct DumpDevCommand: ShellCommand {
     let command = "dumpdev"
     let helpText = "Dump the known system devices"
@@ -178,6 +196,8 @@ private let commands: [String: ShellCommand] = {
         DateCommand(),
         ShowCPUCommand(),
         DumpBusCommand(),
+        DumpPCICommand(),
+        DumpPNPCommand(),
         DumpDevCommand(),
         DumpACPICommand(),
         DumpMemCommand(),

@@ -9,9 +9,8 @@
  */
 
 
-final class PIT8254: Device, ISADevice, Timer, CustomStringConvertible {
+final class PIT8254: PNPDeviceDriver, Timer, CustomStringConvertible {
 
-    private let interruptManager: InterruptManager
     private let oscillator = 1193182         // Base frequency
     private let channel0Port: UInt16
     private let channel2Port: UInt16
@@ -121,8 +120,8 @@ final class PIT8254: Device, ISADevice, Timer, CustomStringConvertible {
     }
 
 
-    required init?(parentBus: Bus, interruptManager: InterruptManager, pnpName: String,
-        resources: ISABus.Resources, facp: FACP?) {
+    init?(pnpDevice: ISADevice) {
+        let resources = pnpDevice.resources
         print("PIT8254: init:", resources)
 
         guard let ports = resources.ioPorts.first, ports.count > 3
@@ -130,7 +129,7 @@ final class PIT8254: Device, ISADevice, Timer, CustomStringConvertible {
             print("PIT8254: Requires 4 IO ports and 1 IRQ")
             return nil
         }
-        self.interruptManager = interruptManager
+
         let idx = ports.startIndex
         channel0Port = ports[ports.index(idx, offsetBy: 0)]
         channel2Port = ports[ports.index(idx, offsetBy: 2)]
@@ -142,7 +141,7 @@ final class PIT8254: Device, ISADevice, Timer, CustomStringConvertible {
     func enablePeriodicInterrupt(hz: Int, _ callback: @escaping () -> ()) -> Bool {
         setChannel(.CHANNEL_0, mode: .MODE_3, hz: hz)
         periodicTimerCallback = callback
-        interruptManager.setIrqHandler(0, handler: timerInterrupt)
+        system.deviceManager.interruptManager.setIrqHandler(0, handler: timerInterrupt)
         return true
     }
 

@@ -1,5 +1,5 @@
 /*
- * kernel/devices/pci/access.swift
+ * kernel/devices/pci/pciconfigspace.swift
  *
  * Created by Simon Evans on 27/07/2020.
  * Copyright © 2015 - 2020 Simon Evans. All rights reserved.
@@ -10,6 +10,7 @@
 
 
 protocol PCIConfigAccessProtocol {
+    var busId: UInt8 { get }
     func readConfigByte(device: UInt8, function: UInt8, offset: UInt) -> UInt8
     func readConfigWord(device: UInt8, function: UInt8, offset: UInt) -> UInt16
     func readConfigDword(device: UInt8, function: UInt8, offset: UInt) -> UInt32
@@ -23,17 +24,17 @@ struct PCIConfigSpace {
     let pciConfigAccess: PCIConfigAccessProtocol
     let device:     UInt8
     let function:   UInt8
+    var busId:      UInt8 { pciConfigAccess.busId }
 
-
-    init(busID: UInt8, device: UInt8, function: UInt8) {
+    init(busId: UInt8, device: UInt8, function: UInt8) {
         self.device = device
         self.function = function
 
         let mcfgTable = system.deviceManager.acpiTables.mcfg
-        if let mmioBaseAddress = mcfgTable?.baseAddressFor(bus: busID) {
-            pciConfigAccess = PCIMMIOConfigAccess(busID: busID, mmiobase: mmioBaseAddress)
+        if let mmioBaseAddress = mcfgTable?.baseAddressFor(bus: busId) {
+            pciConfigAccess = PCIMMIOConfigAccess(busId: busId, mmiobase: mmioBaseAddress)
         } else {
-            pciConfigAccess = PCIPIOConfigAccess(busID: busID)
+            pciConfigAccess = PCIPIOConfigAccess(busId: busId)
         }
     }
 
@@ -95,13 +96,14 @@ struct PCIConfigSpace {
 
 extension PCIConfigSpace {
     fileprivate struct PCIMMIOConfigAccess: PCIConfigAccessProtocol, CustomStringConvertible {
-
         private let baseAddress: VirtualAddress
+        let busId: UInt8
 
         var description: String { String.sprintf("PCIBusMMIO @ %p", baseAddress) }
 
-        init(busID: UInt8, mmiobase: PhysAddress) {
-            let address = mmiobase.advanced(by: UInt(busID) << 20)
+        init(busId: UInt8, mmiobase: PhysAddress) {
+            self.busId = busId
+            let address = mmiobase.advanced(by: UInt(busId) << 20)
             baseAddress = address.vaddr
         }
 
@@ -157,14 +159,16 @@ extension PCIConfigSpace {
         private let PCI_CONFIG_ADDRESS: UInt16 = 0xCF8
         private let PCI_CONFIG_DATA:    UInt16 = 0xCFC
         private let baseAddress: UInt32
+        let busId: UInt8
 
         var description: String {
             return String.sprintf("PCIBusPIO @ %8.8X", baseAddress)
         }
 
 
-        init(busID: UInt8) {
-            baseAddress = UInt32(busID) << 16 | 0x80000000;
+        init(busId: UInt8) {
+            self.busId = busId
+            baseAddress = UInt32(busId) << 16 | 0x80000000;
         }
 
         private func setConfigAddress(device: UInt8, function: UInt8, offset: UInt) {

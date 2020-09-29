@@ -18,7 +18,7 @@ protocol PS2Device {
 }
 
 
-final class KBD8042: Device, ISADevice, CustomStringConvertible {
+final class KBD8042: PNPDeviceDriver, CustomStringConvertible {
     // Constants
     static private let DATA_PORT:        UInt16 = 0x60
     static private let STATUS_REGISTER:  UInt16 = 0x64
@@ -173,16 +173,13 @@ final class KBD8042: Device, ISADevice, CustomStringConvertible {
     private var keyboardBuffer = CircularBuffer<UInt8>(item: 0, capacity: 16)
     private var port1device: PS2Device? = nil
     private var port2device: PS2Device? = nil
-    private let resources: ISABus.Resources
+    private unowned let pnpDevice: ISADevice
 
-    var description: String { return "KBD8042 \(resources)" }
+    var description: String { return "KBD8042 \(pnpDevice.resources)" }
 
-
-    required init?(parentBus: Bus, interruptManager: InterruptManager, pnpName: String,
-        resources: ISABus.Resources, facp: FACP?) {
-        print("i8042:", pnpName, resources)
-        self.resources = resources
-        super.init()
+    init?(pnpDevice: ISADevice) {
+        self.pnpDevice = pnpDevice
+        print("i8042:", pnpDevice.pnpName, pnpDevice.resources)
 
         // 1. Flush output buffer
         if flushOutput() == false { // No device
@@ -271,10 +268,10 @@ final class KBD8042: Device, ISADevice, CustomStringConvertible {
         flushOutput()
         keyboardBuffer.clear()
         port1device = PS2Keyboard(buffer: keyboardBuffer)
-        interruptManager.setIrqHandler(1, handler: kbdInterrupt)
+        system.deviceManager.interruptManager.setIrqHandler(1, handler: kbdInterrupt)
         if dualChannel {
             port2device = nil
-            interruptManager.setIrqHandler(12, handler: mouseInterrupt)
+            system.deviceManager.interruptManager.setIrqHandler(12, handler: mouseInterrupt)
         } else {
             port2device = nil
         }
@@ -282,11 +279,11 @@ final class KBD8042: Device, ISADevice, CustomStringConvertible {
     }
 
 
-    public var keyboardDevice: (Device & Keyboard)? {
-        if let kbd = port1device as? (Device & Keyboard) {
+    public var keyboardDevice: (DeviceDriver & Keyboard)? {
+        if let kbd = port1device as? (DeviceDriver & Keyboard) {
             return kbd
         }
-        if let kbd = port2device as? (Device & Keyboard) {
+        if let kbd = port2device as? (DeviceDriver & Keyboard) {
             return kbd
         }
         return nil

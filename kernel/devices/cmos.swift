@@ -9,34 +9,31 @@
  */
 
 
-final class CMOSRTC: Device, ISADevice, CustomStringConvertible {
+final class CMOSRTC: PNPDeviceDriver, CustomStringConvertible {
 
-    private let interruptManager: InterruptManager
     private let addressPort: UInt16
     private let dataPort: UInt16
     private let irq: UInt8
     private let centuryIndex: UInt8
+
 
     var description: String {
         return String.sprintf("CMOS RTC addr: 0x%2.2x data: 0x%2.2x irq: %u",
             addressPort, dataPort, irq)
     }
 
-
-    init?(parentBus: Bus, interruptManager: InterruptManager, pnpName: String,
-        resources: ISABus.Resources, facp: FACP?) {
-        print("CMOS: init:", resources)
-        guard let ports = resources.ioPorts.first, ports.count > 1
-            && resources.interrupts.count > 0 else {
+    init?(pnpDevice: ISADevice) {
+        print("CMOS: init:", pnpDevice.resources)
+        guard let ports = pnpDevice.resources.ioPorts.first, ports.count > 1
+                && pnpDevice.resources.interrupts.count > 0 else {
             print("CMOS: Requires 2 IO ports and 1 IRQ")
             return nil
         }
-        self.interruptManager = interruptManager
         let idx = ports.startIndex
         addressPort = ports[ports.index(idx, offsetBy: 0)]
         dataPort = ports[ports.index(idx, offsetBy: 1)]
-        irq = resources.interrupts[0]
-        if let century = facp?.rtcCenturyIndex, century < 64 {
+        irq = pnpDevice.resources.interrupts[0]
+        if let century = system.deviceManager.acpiTables.facp?.rtcCenturyIndex, century < 64 {
             centuryIndex = century
         } else {
             centuryIndex = 0

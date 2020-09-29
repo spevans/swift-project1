@@ -756,7 +756,7 @@ final class AMLDefOpRegion: AMLNamedObj, CustomStringConvertible {
 
                 let device = UInt8(adr >> 16)
                 let function = UInt8(truncatingIfNeeded: adr)
-                let configSpace = PCIConfigSpace(busID: busId, device: device, function: function)
+                let configSpace = PCIConfigSpace(busId: busId, device: device, function: function)
                 regionSpace = PCIConfigRegionSpace(config: configSpace, offset: regionOffset, length: regionLength)
 
             case .embeddedControl:
