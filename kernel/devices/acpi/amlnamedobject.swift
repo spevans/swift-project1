@@ -127,21 +127,41 @@ final class AMLDefDevice: AMLNamedObj {
     }
 
 
+    // FIXME, maybe return an array of String if source is a package
     func pnpName() -> String? {
         guard let cid = childNode(named: "_CID") else {
             return nil
         }
 
+        let value: AMLTermArg
         if let cidName = cid as? AMLNamedValue {
-            switch cidName.value {
-                case .dataObject(let object): return decodeHID(obj: object)
-                default: fatalError("\(cid.fullname()) has invalid value for pnpname: \(cidName.value)")
+            let dataRefObject = cidName.value
+            guard let object = dataRefObject.dataObject else {
+                fatalError("\(cid.fullname()) has invalid value for pnpname: \(dataRefObject)")
             }
+            value = object
+        } else if let cidMethod = cid as? AMLMethod {
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(cid.fullname()))
+            value = cidMethod.readValue(context: &context)
+        } else {
+            return nil
         }
 
-        if let cidMethod = cid as? AMLMethod {
-            var context = ACPI.AMLExecutionContext(scope: AMLNameString(cid.fullname()))
-            return decodeHID(obj: cidMethod.readValue(context: &context))
+
+        guard let object = value as? AMLDataObject else {
+            fatalError("\(cid.fullname()) has invalid value for pnpname: \(value)")
+        }
+
+        // _CID could be a package containg multiple values, so take the first (for now)
+        if case let .package(package) = object {
+            for value in package {
+                guard let data = value.dataObject else {
+                    fatalError("\(cid.fullname()) has invalid value for pnpname: \(value)")
+                }
+                return decodeHID(obj: data)
+            }
+        } else {
+            return decodeHID(obj: object)
         }
 
         return nil
