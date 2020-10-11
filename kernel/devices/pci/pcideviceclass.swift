@@ -9,22 +9,28 @@
  */
 
 
-struct PCIDeviceClass {
-    let deviceClass: PCIClassCode
-    private let subClassCode: UInt8
-    private let progInterface: UInt8
+struct PCIDeviceClass: Equatable {
+    let classCode: PCIClassCode
+    let subClassCode: UInt8
+    let progInterface: UInt8
 
     init?(classCode: UInt8, subClassCode: UInt8, progInterface: UInt8) {
         guard let _classCode = PCIClassCode(rawValue: classCode) else {
             return nil
         }
-        self.deviceClass = _classCode
+        self.classCode = _classCode
+        self.subClassCode = subClassCode
+        self.progInterface = progInterface
+    }
+
+    init(classCode: PCIClassCode, subClassCode: UInt8, progInterface: UInt8) {
+        self.classCode = classCode
         self.subClassCode = subClassCode
         self.progInterface = progInterface
     }
 
     var bridgeSubClass: PCIBridgeControllerSubClass? {
-        guard deviceClass == .bridgeDevice else {
+        guard classCode == .bridgeDevice else {
             return nil
         }
         return PCIBridgeControllerSubClass(rawValue: subClassCode)

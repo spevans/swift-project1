@@ -11,7 +11,7 @@ final class DeviceManager {
     let acpiTables: ACPI
     private(set) var interruptManager: InterruptManager
     private(set) var devices: [DeviceDriver] = []
-    private(set) var masterBus: Bus
+    private(set) var masterBus: MasterBus
 
 
     init(acpiTables: ACPI) {
@@ -36,9 +36,71 @@ final class DeviceManager {
     }
 
 
-    func initialiseDevices() {
+    private func pnpDevices(on bus: Bus, pnpName: String, body: (PNPDevice) -> ()) {
+        for device in bus.devices {
+            if let pnpDevice = device as? PNPDevice, pnpDevice.pnpName == pnpName {
+                body(pnpDevice)
+            }
+            if let bus = device.deviceDriver as? Bus {
+                pnpDevices(on: bus, pnpName: pnpName, body: body)
+            }
+        }
+    }
+
+
+    private func pciDevices(on bus: PCIBus, classCode: PCIClassCode? = nil, subClassCode: UInt8? = nil, progInterface: UInt8? = nil, body: (PCIDevice, PCIDeviceClass) -> ()) {
+        for device in bus.devices {
+            if let pciDevice = device as? PCIDevice, let deviceClass = pciDevice.deviceFunction.deviceClass {
+                if let classCode = classCode {
+                    if deviceClass.classCode == classCode {
+                        if let subClassCode = subClassCode {
+                            if deviceClass.subClassCode != subClassCode { continue }
+                            if let progInterface = progInterface, deviceClass.progInterface != progInterface { continue }
+                        }
+                        body(pciDevice, deviceClass)
+                    }
+                } else {
+                    body(pciDevice, deviceClass)
+                }
+            }
+            if let bus = device.deviceDriver as? PCIBus {
+                pciDevices(on: bus, classCode: classCode, subClassCode: subClassCode, progInterface: progInterface, body: body)
+            }
+        }
+    }
+
+
+    // Setup devices required for other device setup. This includes timers which are used for to
+    // implement sleep() etc, used by more complex devices eg USB Host Controllers when initialising.
+    // Currently this setups all of the pnp ISA devices but this should be restricted to timers.
+    func initialiseEarlyDevices() {
+        print("initialiseEarlyDevices start")
         masterBus.initialiseDevices(acpiDevice: nil)
 
+        // Find a timer
+        pnpDevices(on: masterBus, pnpName: "PNP0100") {
+            guard let pnpDevice = $0 as? ISADevice, pnpDevice.pnpDeviceDriver == nil else { return }
+            if let driverType = pnpDriverById(pnpName: pnpDevice.pnpName), let driver = driverType.init(pnpDevice: pnpDevice) {
+                print("Found early PNP device:", driverType)
+                pnpDevice.pnpDeviceDriver = driver
+                system.deviceManager.addDevice(driver)
+            }
+        }
+
+        // Set the timer interrupt for 1kHz
+        if let timer = timer {
+            _ = timer.enablePeriodicInterrupt(hz: 1000, timerCallback)
+            print(timer)
+            print("Timer setup for 1000Hz")
+        } else {
+            fatalError("Cant find a timer")
+        }
+        print("initialiseEarlyDevices done")
+    }
+
+    // Setup the rest of the devices.
+    func initialiseDevices() {
+        print("MasterBus.initialiseDevices")
         // Now load device drivers for any known devices, ISA/PNP first
         func initPnpDevices(on bus: Bus) {
             for device in bus.devices {
@@ -55,11 +117,15 @@ final class DeviceManager {
         }
         initPnpDevices(on: masterBus)
 
-        // Set the timer interrupt for 20Hz
-        if let timer = timer {
-            _ = timer.enablePeriodicInterrupt(hz: 20, timerCallback)
-            print(timer)
+        if let rootPCIBus = masterBus.rootPCIBus() {
+            pciDevices(on: rootPCIBus) {
+                print("Found pcidevice: \($0) deviceClass: \($1)")
+                guard $0.pciDeviceDriver == nil else { return }
+            }
+        } else {
+            print("Error: Cant Find ROOT PCI Bus")
         }
+
         TTY.sharedInstance.scrollTimingTest()
         dumpDeviceTree()
     }

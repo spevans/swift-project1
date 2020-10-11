@@ -86,9 +86,8 @@ struct PCIBridgeDevice {
 
 
 struct PCIDeviceFunction: CustomStringConvertible {
-
     private let busId: UInt8
-    private let configSpace: PCIConfigSpace
+    let configSpace: PCIConfigSpace
 
     var device:         UInt8  { configSpace.device }
     var function:       UInt8  { configSpace.function }

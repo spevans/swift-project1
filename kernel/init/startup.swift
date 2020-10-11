@@ -49,11 +49,16 @@ final class System {
     fileprivate func initSystem() {
         CPU.getInfo()
         TTY.sharedInstance.setTTY(frameBufferInfo: bootParams.frameBufferInfo)
-        deviceManager.initialiseDevices()
+        deviceManager.initialiseEarlyDevices()
 
         // gitBuildVersion defined in kernel/init/version.swift, created
         // by kernel/Makefile
         print("Version: \(gitBuildVersion)\n")
+        if system.deviceManager.keyboard == nil {
+            system.deviceManager.dumpDevices()
+            print("No keyboard attached, HLTing")
+            hlt()
+        }
     }
 
 

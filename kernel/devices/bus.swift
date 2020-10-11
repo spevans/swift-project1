@@ -57,7 +57,7 @@ extension Bus {
 
 
 final class MasterBus: Bus {
-    private var pciBus: PCIBus?     // PCI Host Bus
+    private var pciHostBus: PCIHostBus?     // PCI Host Bus
     private (set) var devices: [Device] = []
 
     var resources: [MotherBoardResource] = []
@@ -78,6 +78,18 @@ final class MasterBus: Bus {
 
     func addDevice(_ device: Device) {
         devices.append(device)
+    }
+
+    func rootPCIBus() -> PCIBus? {
+        if pciHostBus == nil {
+            for device in devices {
+                if let bus = device as? PCIHostBus {
+                    pciHostBus = bus
+                    break
+                }
+            }
+        }
+        return pciHostBus?.pciBus
     }
 
 
@@ -139,7 +151,7 @@ extension ACPI {
 
                     if let pciBus = parentBus as? PCIBus,
                        let deviceFunction = PCIBus.pciDeviceFunctionFor(address: address, withBusId: pciBus.busId),
-                       deviceFunction.deviceClass?.deviceClass == .bridgeDevice {
+                       deviceFunction.deviceClass?.classCode == .bridgeDevice {
 
                         foundDevice = pciBus.device(deviceFunction: deviceFunction, acpiDevice: node)
                     } else {

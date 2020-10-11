@@ -10,7 +10,7 @@
 
 
 final class PCIHostBus: Device, CustomStringConvertible {
-    private let pciBus: PCIBus                  // The bus (downstream) side of the bridge
+    let pciBus: PCIBus                  // The bus (downstream) side of the bridge
 
     unowned let parentBus: Bus
     let acpiDevice: AMLDefDevice?
@@ -53,13 +53,19 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
     var description: String { "PCIBus: \(pciConfigSpace) busId: \(pciConfigSpace.busId) \(deviceFunction.description) \(acpiDevice?.fullname() ?? "")" }
 
 
-    init(pciConfigSpace: PCIConfigSpace, deviceFunction: PCIDeviceFunction, acpiDevice: AMLDefDevice? = nil) {
+    fileprivate init(pciConfigSpace: PCIConfigSpace, deviceFunction: PCIDeviceFunction, acpiDevice: AMLDefDevice? = nil) {
         self.pciConfigSpace = pciConfigSpace
         self.deviceFunction = deviceFunction
         self.acpiDevice = acpiDevice
     }
 
-    init(pciDevice: PCIDevice) {
+    init?(pciDevice: PCIDevice) {
+
+        guard let busClass = pciDevice.deviceFunction.deviceClass?.bridgeSubClass, busClass == .pci else {
+            print("PCIBus: \(pciDevice) is not a PCI-PCI Bridge")
+            return nil
+        }
+
         let configSpace = PCIConfigSpace(busId: pciDevice.deviceFunction.bridgeDevice!.secondaryBusId, device: 0, function: 0)
         self.pciConfigSpace = configSpace
         self.deviceFunction = pciDevice.deviceFunction
@@ -130,7 +136,8 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
                     return nil
 
                 case .pci:
-                    pciDevice.pciDeviceDriver = PCIBus(pciDevice: pciDevice)
+                    let configSpace = PCIConfigSpace(busId: pciDevice.deviceFunction.bridgeDevice!.secondaryBusId, device: 0, function: 0)
+                    pciDevice.pciDeviceDriver = PCIBus(pciConfigSpace: configSpace, deviceFunction: deviceFunction, acpiDevice: acpiDevice)
                     return pciDevice
 
                 default:
