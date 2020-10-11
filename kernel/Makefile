@@ -77,7 +77,7 @@ _SWIFT_SRCS :=	init/startup.swift				\
 CWD := $(shell pwd)
 SWIFT_SRCS := $(addprefix $(CWD)/, $(_SWIFT_SRCS)) init/version.swift
 
-KERNEL_OBJS := init/init.o traps/traps.o vm/vmentry.o SwiftKernel.o
+KERNEL_OBJS := init/init.o traps/traps.o vm/vmentry.o devices/timer.o SwiftKernel.o
 SUBDIRS := devices mm traps init vm
 HEADERS = $(TOPDIR)/include/*.h
 

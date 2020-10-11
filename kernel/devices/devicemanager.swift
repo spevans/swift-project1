@@ -89,7 +89,7 @@ final class DeviceManager {
 
         // Set the timer interrupt for 1kHz
         if let timer = timer {
-            _ = timer.enablePeriodicInterrupt(hz: 1000, timerCallback)
+            _ = timer.enablePeriodicInterrupt(hz: 1000, timer_callback)
             print(timer)
             print("Timer setup for 1000Hz")
         } else {
@@ -194,14 +194,13 @@ final class DeviceManager {
     }
 }
 
-// FIXME: This is unsafe, needs atomic read/write or some locking
-private var ticks: UInt64 = 0
 
-func timerCallback() {
-    ticks = ticks &+ 1
-    if (ticks % 0x200) == 0 {
-        //printf("\ntimerInterrupt: %#016X\n", ticks)
+public func sleep(milliseconds: Int) {
+    let current = current_ticks()
+    let required = current + UInt64(milliseconds)
+    //print("Sleeping for \(milliseconds), current ticks:", current, "required ticks:", required)
+    while required > current_ticks() {
+        hlt()
     }
-    // Do nothing for now
+    //print("Ticks now:", current_ticks())
 }
-

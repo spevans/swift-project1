@@ -89,4 +89,7 @@ void apic_int4_stub(void);
 void apic_int5_stub(void);
 void apic_int6_stub(void);
 
+uint64_t current_ticks(void);
+void timer_callback(void);
+void sleep_in_milliseconds(uint64_t);
 #endif  // __KERNEL_H__

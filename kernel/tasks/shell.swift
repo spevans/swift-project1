@@ -149,6 +149,19 @@ private struct ShowNodeCommand: ShellCommand {
     }
 }
 
+struct UptimeCommand: ShellCommand {
+    let command = "uptime"
+    let helpText = "Show time since boot"
+
+    func runCommand(arguments: [String]) {
+        let ticks = current_ticks()
+        let seconds = ticks / 1000
+        var ms = String(ticks % 1000)
+        while ms.count < 3 { ms = "0" + ms }
+        print("Uptime \(seconds).\(ms)")
+    }
+}
+
 struct VMXOnCommand: ShellCommand {
     let command = "vmxon"
     let helpText = "Enable VMX"
@@ -202,6 +215,7 @@ private let commands: [String: ShellCommand] = {
         DumpACPICommand(),
         DumpMemCommand(),
         ShowNodeCommand(),
+        UptimeCommand(),
         VMXOnCommand(),
         VMXOffCommand(),
         VMXTestCommand(),
