@@ -117,19 +117,19 @@ final class TTY {
     // The cursorX and cursorY and managed by early_tty.c so they
     // can be kept in sync
     var cursorX: TextCoord {
-        get { return earlyTTY.cursorX }
-        set(newX) {
-            earlyTTY.cursorX = newX
-            driver.cursorX = newX
+        get { earlyTTY.cursorX }
+        set {
+            earlyTTY.cursorX = newValue
+            driver.cursorX = newValue
         }
     }
 
 
     var cursorY: TextCoord {
-        get { return earlyTTY.cursorY }
-        set(newY) {
-            earlyTTY.cursorY = newY
-            driver.cursorY = newY
+        get { earlyTTY.cursorY }
+        set {
+            earlyTTY.cursorY = newValue
+            driver.cursorY = newValue
         }
     }
 
@@ -313,13 +313,13 @@ private final class EarlyTTY: ScreenDriver {
     var totalLines:   TextCoord { return etty_total_lines() }
 
     var cursorX:      TextCoord {
-        get { return etty_get_cursor_x() }
-        set(newX) { etty_set_cursor_x(newX) }
+        get { etty_get_cursor_x() }
+        set { etty_set_cursor_x(newValue) }
     }
 
     var cursorY:      TextCoord {
-        get { return etty_get_cursor_y(); }
-        set(newY) { etty_set_cursor_y(newY) }
+        get { etty_get_cursor_y() }
+        set { etty_set_cursor_y(newValue) }
     }
 
 
@@ -363,23 +363,23 @@ private final class TextTTY: ScreenDriver {
     private var _cursorY: TextCoord = 0
 
     var cursorX: TextCoord {
-        get { return _cursorX }
-        set(newX) {
-            guard newX < charsPerLine else {
+        get { _cursorX }
+        set {
+            guard newValue < charsPerLine else {
                 return
             }
-            _cursorX = newX
+            _cursorX = newValue
             writeCursor(_cursorX, cursorY)
         }
     }
 
     var cursorY: TextCoord {
-        get { return _cursorY }
-        set(newY) {
-            guard newY < totalLines else {
+        get { _cursorY }
+        set {
+            guard newValue < totalLines else {
                 return
             }
-            _cursorY = newY
+            _cursorY = newValue
             writeCursor(_cursorX, _cursorY)
         }
     }
@@ -516,22 +516,22 @@ private final class FrameBufferTTY: ScreenDriver {
     private var _cursorY: TextCoord = 0
 
     var cursorX: TextCoord {
-        get { return _cursorX }
-        set(newX) {
-            guard newX < charsPerLine else {
+        get { _cursorX }
+        set {
+            guard newValue < charsPerLine else {
                 return
             }
-            _cursorX = newX
+            _cursorX = newValue
          }
     }
 
     var cursorY: TextCoord {
-        get { return _cursorY }
-        set(newY) {
-            guard newY < totalLines else {
+        get { _cursorY }
+        set {
+            guard newValue < totalLines else {
                 return
             }
-            _cursorY = newY
+            _cursorY = newValue
          }
     }
 

@@ -83,7 +83,7 @@ struct DWordArray2: RandomAccessCollection, Sequence, CustomStringConvertible {
             return Element((rawValue >> shift) & UInt64(Element.max))
         }
 
-        set(newValue) {
+        set {
             precondition(index >= 0)
             precondition(index < endIndex)
             precondition(newValue >= 0 || newValue <= Element.max)

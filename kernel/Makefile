@@ -6,73 +6,73 @@ GITVER := $(shell git rev-parse HEAD)
 
 SWIFT_MODULE := SwiftKernel
 SWIFT_OBJS := SwiftKernel.o
-_SWIFT_SRCS :=	init/startup.swift			\
+_SWIFT_SRCS :=	init/startup.swift				\
 		init/bootparams.swift				\
-		init/biosboot.swift					\
-		init/efiboot.swift					\
-		init/smbios.swift					\
-		init/GDT.swift						\
+		init/biosboot.swift				\
+		init/efiboot.swift				\
+		init/smbios.swift				\
+		init/GDT.swift					\
 		klib/Extensions.swift				\
-		klib/extensions/integer.swift		\
-		klib/extensions/bitarray.swift		\
-		klib/extensions/bytearray.swift 	\
-		klib/extensions/dwordarray.swift 	\
-		klib/MemoryBufferReader.swift		\
+		klib/extensions/integer.swift			\
+		klib/extensions/bitarray.swift			\
+		klib/extensions/bytearray.swift			\
+		klib/extensions/dwordarray.swift		\
+		klib/MemoryBufferReader.swift			\
 		klib/CircularBuffer.swift			\
-		klib/ReservationManager.swift		\
-		klib/printf.swift					\
-		mm/init.swift						\
-		mm/address.swift					\
-		mm/page.swift						\
-		mm/alloc.swift						\
-		mm/symbols.swift					\
-		devices/acpi/acpi.swift		\
-		devices/acpi/boot.swift		\
-		devices/acpi/ecdt.swift		\
-		devices/acpi/facp.swift		\
-		devices/acpi/facs.swift		\
-		devices/acpi/hpet.swift		\
-		devices/acpi/madt.swift		\
-		devices/acpi/mcfg.swift		\
-		devices/acpi/sbst.swift		\
-		devices/acpi/srat.swift		\
-		devices/acpi/waet.swift		\
-		devices/acpi/amlparser.swift 			\
-		devices/acpi/amltypes.swift				\
-		devices/acpi/amltype1opcodes.swift 		\
-		devices/acpi/amltype2opcodes.swift 		\
-		devices/acpi/amlnamedobject.swift  		\
-		devices/acpi/amlresourcedata.swift 		\
-		devices/acpi/amlutils.swift				\
+		klib/ReservationManager.swift			\
+		klib/printf.swift				\
+		mm/init.swift					\
+		mm/address.swift				\
+		mm/page.swift					\
+		mm/alloc.swift					\
+		mm/symbols.swift				\
+		devices/acpi/acpi.swift				\
+		devices/acpi/boot.swift				\
+		devices/acpi/ecdt.swift				\
+		devices/acpi/facp.swift				\
+		devices/acpi/facs.swift				\
+		devices/acpi/hpet.swift				\
+		devices/acpi/madt.swift				\
+		devices/acpi/mcfg.swift				\
+		devices/acpi/sbst.swift				\
+		devices/acpi/srat.swift				\
+		devices/acpi/waet.swift				\
+		devices/acpi/amlparser.swift			\
+		devices/acpi/amltypes.swift			\
+		devices/acpi/amltype1opcodes.swift		\
+		devices/acpi/amltype2opcodes.swift		\
+		devices/acpi/amlnamedobject.swift		\
+		devices/acpi/amlresourcedata.swift		\
+		devices/acpi/amlutils.swift			\
 		devices/acpi/amlmethod.swift			\
-		devices/acpi/amlnamespacemodifier.swift	\
-		devices/acpi/acpiglobalobjects.swift 	\
-		devices/pci/pcibus.swift				\
+		devices/acpi/amlnamespacemodifier.swift		\
+		devices/acpi/acpiglobalobjects.swift		\
+		devices/pci/pcibus.swift			\
 		devices/pci/pciconfigspace.swift		\
-		devices/pci/pcidevice.swift				\
+		devices/pci/pcidevice.swift			\
 		devices/pci/pcideviceclass.swift		\
-		devices/bus.swift						\
-		devices/device.swift					\
-		devices/devicemanager.swift				\
-		devices/driver.swift					\
-		devices/cpu.swift						\
-		devices/isa.swift						\
-		devices/tty.swift						\
-		devices/kbd8042.swift		\
-		devices/ps2keyboard.swift	\
-		devices/pit8254.swift		\
-		devices/pic8259.swift		\
-		devices/qemufwcf.swift		\
-		devices/apic.swift			\
-		devices/ioapic.swift		\
-		devices/cmos.swift			\
-		traps/exceptions.swift		\
-		traps/interrupt.swift		\
-		traps/IDT.swift				\
-		tasks/tasks.swift			\
-		tasks/shell.swift			\
-		vm/vmx.swift				\
-		vm/vmcs.swift
+		devices/bus.swift				\
+		devices/device.swift				\
+		devices/devicemanager.swift			\
+		devices/driver.swift				\
+		devices/cpu.swift				\
+		devices/isa.swift				\
+		devices/tty.swift				\
+		devices/kbd8042.swift				\
+		devices/ps2keyboard.swift			\
+		devices/pit8254.swift				\
+		devices/pic8259.swift				\
+		devices/qemufwcf.swift				\
+		devices/apic.swift				\
+		devices/ioapic.swift				\
+		devices/cmos.swift				\
+		traps/exceptions.swift				\
+		traps/interrupt.swift				\
+		traps/IDT.swift					\
+		tasks/tasks.swift				\
+		tasks/shell.swift				\
+		vm/vmx.swift					\
+                vm/vmcs.swift
 
 CWD := $(shell pwd)
 SWIFT_SRCS := $(addprefix $(CWD)/, $(_SWIFT_SRCS)) init/version.swift

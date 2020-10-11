@@ -454,7 +454,7 @@ final class VMCS {
     }
 
     var pleGap: UInt32? {
-        get { return supportsPLE ? _vmread32(0x4020) : nil }
+        get { supportsPLE ? _vmread32(0x4020) : nil }
         set {
             if supportsPLE {
                 _vmwrite32(0x4020, newValue)
@@ -463,7 +463,7 @@ final class VMCS {
     }
     
     var pleWindow: UInt32? {
-        get { return supportsPLE ? _vmread32(0x4022) : nil }
+        get { supportsPLE ? _vmread32(0x4022) : nil }
         set {
             if supportsPLE {
                 _vmwrite32(0x4022, newValue)
@@ -606,12 +606,12 @@ final class VMCS {
     }
     
     var cr0ReadShadow: CPU.CR0Register? {
-        get { return _vmread64(0x6004).map { CPU.CR0Register($0) } }
+        get { _vmread64(0x6004).map { CPU.CR0Register($0) } }
         set { _vmwrite64(0x6004, newValue?.value) }
     }
 
     var cr4ReadShadow: CPU.CR4Register? {
-        get { return _vmread64(0x6006).map { CPU.CR4Register($0) } }
+        get { _vmread64(0x6006).map { CPU.CR4Register($0) } }
         set { _vmwrite64(0x6006, newValue?.value) }
     }
 
@@ -645,17 +645,17 @@ final class VMCS {
 
     // Natural width Guest state fields
     var guestCR0: CPU.CR0Register? {
-        get { return _vmread64(0x6800).map { CPU.CR0Register($0) } }
+        get { _vmread64(0x6800).map { CPU.CR0Register($0) } }
         set { _vmwrite64(0x6800, newValue?.value) }
     }
 
     var guestCR3: CPU.CR3Register? {
-        get { return _vmread64(0x6802).map { CPU.CR3Register($0) } }
+        get { _vmread64(0x6802).map { CPU.CR3Register($0) } }
         set { _vmwrite64(0x6802, newValue?.value) }
     }
 
     var guestCR4: CPU.CR4Register? {
-        get { return _vmread64(0x6804).map { CPU.CR4Register($0) } }
+        get { _vmread64(0x6804).map { CPU.CR4Register($0) } }
         set { _vmwrite64(0x6804, newValue?.value) }
     }
 
@@ -746,17 +746,17 @@ final class VMCS {
     
     // Natural-Width Host-State Fields
     var hostCR0: CPU.CR0Register? {
-        get { return _vmread64(0x6C00).map { CPU.CR0Register($0) } }
+        get { _vmread64(0x6C00).map { CPU.CR0Register($0) } }
         set { _vmwrite64(0x6C00, newValue?.value) }
     }
 
     var hostCR3: CPU.CR3Register? {
-        get { return _vmread64(0x6C02).map { CPU.CR3Register($0) } }
+        get { _vmread64(0x6C02).map { CPU.CR3Register($0) } }
         set { _vmwrite64(0x6C02, newValue?.value) }
     }
 
     var hostCR4: CPU.CR4Register? {
-        get { return _vmread64(0x6C04).map{ CPU.CR4Register($0) } }
+        get { _vmread64(0x6C04).map{ CPU.CR4Register($0) } }
         set { _vmwrite64(0x6C04, newValue?.value) }
     }
 

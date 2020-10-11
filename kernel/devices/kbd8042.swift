@@ -86,33 +86,33 @@ final class KBD8042: PNPDeviceDriver, CustomStringConvertible {
         }
 
         var interrupt1: Bool {
-            get { return bit(Interrupt1) }
-            set(value) { bit(Interrupt1, value) }
+            get { bit(Interrupt1) }
+            set { bit(Interrupt1, newValue) }
         }
 
         var interrupt2: Bool {
-            get { return bit(Interrupt2) }
-            set(value) { bit(Interrupt2, value) }
+            get { bit(Interrupt2) }
+            set { bit(Interrupt2, newValue) }
         }
 
         var system: Bool {
-            get { return bit(System) }
-            set(value) { bit(System, value) }
+            get { bit(System) }
+            set { bit(System, newValue) }
         }
 
         var port1Disable: Bool {
-            get { return bit(Port1Disable) }
-            set(value) { bit(Port1Disable, value) }
+            get { bit(Port1Disable) }
+            set { bit(Port1Disable, newValue) }
         }
 
         var port2Disable: Bool {
-            get { return bit(Port2Disable) }
-            set(value) { bit(Port2Disable, value) }
+            get { bit(Port2Disable) }
+            set { bit(Port2Disable, newValue) }
         }
 
         var translateEnable: Bool {
-            get { return bit(TranslateEnable) }
-            set(value) { bit(TranslateEnable, value) }
+            get { bit(TranslateEnable) }
+            set { bit(TranslateEnable, newValue) }
         }
 
         init(rawValue: UInt8) {

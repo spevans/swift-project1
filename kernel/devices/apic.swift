@@ -21,7 +21,7 @@ struct LVTEntry: CustomStringConvertible {
         get {
             return UInt8(value[0...7])
         }
-        set(newValue) {
+        set {
             //let data = BitArray32(rawValue: newValue)
             value[0...7] = UInt32(newValue)
             //value.replaceSubrange(0...7, with: data)
@@ -33,8 +33,8 @@ struct LVTEntry: CustomStringConvertible {
     }
 
     var masked: Bool {
-        get { return value[16] == 1 }
-        set(newValue) { value[16] = newValue ? 1 : 0 }
+        get { value[16] == 1 }
+        set { value[16] = newValue ? 1 : 0 }
     }
 
 
@@ -64,7 +64,7 @@ extension TimerEntry {
             let rawValue = UInt8(value[17...18])
             return TimerMode(rawValue: rawValue) ?? .oneShot
         }
-        set(newValue) {
+        set {
             //let data = BitArray32(newValue.rawValue)
             value[17...18] = UInt32(newValue.rawValue)
             //value.replaceSubrange(17...18, with: data)
@@ -94,7 +94,7 @@ extension InterruptEntry {
             let mode = DeliveryMode(rawValue: Int(value[8...10]))
             return mode ?? .Fixed
         }
-        set(newValue) {
+        set {
             //let data = BitArray32(newValue.rawValue)
             //value.replaceSubrange(8...10, with: data)
             value[8...10] = UInt32(newValue.rawValue)
@@ -172,21 +172,21 @@ public class APIC: InterruptController {
     var arbitrationPriority: UInt32 { return atOffset(0x90) }
     var processorPriority: UInt32 { return atOffset(0xA0) }
     var EOI: UInt32 {
-        get { return 0 }
-        set(value) { atOffset(0xB0, value: value) }
+        get { 0 }
+        set { atOffset(0xB0, value: newValue) }
     }
     var remoteRead:       UInt32 { return atOffset(0xC0) }
     var logicalDestination: UInt32 {
-        get { return atOffset(0xD0) }
-        set(value) { atOffset(0xD0, value: value) }
+        get { atOffset(0xD0) }
+        set { atOffset(0xD0, value: newValue) }
     }
     var destinationFormat: UInt32 {
-        get { return atOffset(0xE0) }
-        set(value) { atOffset(0xE0, value: value) }
+        get { atOffset(0xE0) }
+        set { atOffset(0xE0, value: newValue) }
     }
     var spuriousIntVector: UInt32 {
-        get { return atOffset(0xF0) }
-        set(value) { atOffset(0xF0, value: value) }
+        get { atOffset(0xF0) }
+        set { atOffset(0xF0, value: newValue) }
     }
     var inService:    Register256 { return Register256(apicRegisters, 0x100) }
     var triggerMode:  Register256 { return Register256(apicRegisters, 0x180) }
@@ -194,8 +194,8 @@ public class APIC: InterruptController {
     var errorStatus:  UInt32      { return atOffset(0x280) }
 
     var lvtCMCI: InterruptEntry {
-        get { return InterruptEntry(rawValue: atOffset(0x2F0)) }
-        set(newValue) { atOffset(0x2F0, value: newValue.rawValue) }
+        get { InterruptEntry(rawValue: atOffset(0x2F0)) }
+        set { atOffset(0x2F0, value: newValue.rawValue) }
     }
 
     var interruptCmd: UInt64 {
@@ -204,45 +204,51 @@ public class APIC: InterruptController {
             let hi = atOffset(0x310)
             return UInt64(withDWords: lo, hi)
         }
-        set(value) {
-            let v = DWordArray2(value)
+        set {
+            let v = DWordArray2(newValue)
             atOffset(0x300, value: v[0])
             atOffset(0x310, value: v[1])
         }
     }
     var lvtTimer: TimerEntry {
-        get { return TimerEntry(rawValue: atOffset(0x320)) }
-        set(newValue) { atOffset(0x320, value: newValue.rawValue) }
+        get { TimerEntry(rawValue: atOffset(0x320)) }
+        set { atOffset(0x320, value: newValue.rawValue) }
     }
 
     var lvtThermalSensor: InterruptEntry {
-        get { return InterruptEntry(rawValue: atOffset(0x330)) }
-        set(newValue) { atOffset(0x330, value: newValue.rawValue) }
+        get { InterruptEntry(rawValue: atOffset(0x330)) }
+        set { atOffset(0x330, value: newValue.rawValue) }
     }
+
     var lvtPerfMonitorCounters: InterruptEntry {
-        get { return InterruptEntry(rawValue: atOffset(0x340)) }
-        set(newValue) { atOffset(0x340, value: newValue.rawValue) }
+        get { InterruptEntry(rawValue: atOffset(0x340)) }
+        set { atOffset(0x340, value: newValue.rawValue) }
     }
+
     var lvtLint0: LocalInterruptEntry {
-        get { return LocalInterruptEntry(rawValue: atOffset(0x350)) }
-        set(newValue) { atOffset(0x350, value: newValue.rawValue) }
+        get { LocalInterruptEntry(rawValue: atOffset(0x350)) }
+        set { atOffset(0x350, value: newValue.rawValue) }
     }
+
     var lvtLint1: LocalInterruptEntry {
-        get { return LocalInterruptEntry(rawValue: atOffset(0x360)) }
-        set(newValue) { atOffset(0x360, value: newValue.rawValue) }
+        get { LocalInterruptEntry(rawValue: atOffset(0x360)) }
+        set { atOffset(0x360, value: newValue.rawValue) }
     }
+
     var lvtError: LVTEntry {
-        get { return LVTEntry(rawValue: atOffset(0x370)) }
-        set(newValue) { atOffset(0x370, value: newValue.rawValue) }
+        get { LVTEntry(rawValue: atOffset(0x370)) }
+        set { atOffset(0x370, value: newValue.rawValue) }
     }
+
     var initialCount: UInt32 {
-        get { return atOffset(0x380) }
-        set(value) { atOffset(0x380, value: value) }
+        get { atOffset(0x380) }
+        set { atOffset(0x380, value: newValue) }
     }
+
     var currentCount: UInt32 { return atOffset(0x390) }
     var divideConfig: UInt32 {
-        get { return atOffset(0x3E0) }
-        set(value) { atOffset(0x3E0, value: value) }
+        get { atOffset(0x3E0) }
+        set { atOffset(0x3E0, value: newValue) }
     }
 
 
@@ -366,7 +372,7 @@ public class APIC: InterruptController {
 
 
     func setupTimer() {
-                printf("APIC: InitialCount: %8.8X CurrentCount: %8.8X Divide Config: %8.8X\n",
+        printf("APIC: InitialCount: %8.8X CurrentCount: %8.8X Divide Config: %8.8X\n",
             initialCount, currentCount, divideConfig)
 
         var newLvtTimer = lvtTimer

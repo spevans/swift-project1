@@ -64,7 +64,7 @@ struct ByteArray2: RandomAccessCollection, Sequence, CustomStringConvertible {
             return Element((rawValue >> shift) & UInt16(Element.max))
         }
 
-        set(newValue) {
+        set {
             precondition(index >= 0)
             precondition(index < endIndex)
             precondition(newValue >= 0 || newValue <= Element.max)
@@ -167,7 +167,7 @@ struct ByteArray4: RandomAccessCollection, Sequence, CustomStringConvertible {
             return Element((rawValue >> shift) & UInt32(Element.max))
         }
 
-        set(newValue) {
+        set {
             precondition(index >= 0)
             precondition(index < endIndex)
             precondition(newValue >= 0 || newValue <= Element.max)
@@ -278,7 +278,7 @@ struct ByteArray8: RandomAccessCollection, Sequence, CustomStringConvertible {
             return Element((rawValue >> shift) & UInt64(Element.max))
         }
 
-        set(newValue) {
+        set {
             precondition(index >= 0)
             precondition(index < endIndex)
             precondition(newValue >= 0 || newValue <= Element.max)

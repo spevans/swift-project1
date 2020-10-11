@@ -147,7 +147,7 @@ fileprivate extension IORedirectionRegister {
         get {
             return UInt8(self[0...7])
         }
-        set(newValue) {
+        set {
             self[0...7] = UInt64(newValue)
         }
     }
@@ -155,10 +155,9 @@ fileprivate extension IORedirectionRegister {
     var deliveryMode: IOAPIC.DeliveryMode {
         get {
             let mode = BitArray64(self[8...10]).toInt()
-            return IOAPIC.DeliveryMode(rawValue: mode)
-                ?? IOAPIC.DeliveryMode.fixed
+            return IOAPIC.DeliveryMode(rawValue: mode) ?? IOAPIC.DeliveryMode.fixed
         }
-        set(newValue) {
+        set {
             //self.replaceSubrange([8...10], with: BitArray64(newValue.rawValue))
         }
     }
@@ -169,7 +168,7 @@ fileprivate extension IORedirectionRegister {
             return IOAPIC.DestinationMode(rawValue: mode)
             ?? IOAPIC.DestinationMode.physical
         }
-        set(newValue) {
+        set {
             self[11] = newValue.rawValue
         }
     }
@@ -182,10 +181,9 @@ fileprivate extension IORedirectionRegister {
     var inputPinPolarity: IOAPIC.InputPinPolarity {
         get {
             let mode = self[13]
-            return IOAPIC.InputPinPolarity(rawValue: mode)
-            ?? IOAPIC.InputPinPolarity.activeHigh
+            return IOAPIC.InputPinPolarity(rawValue: mode) ?? IOAPIC.InputPinPolarity.activeHigh
         }
-        set(newValue) {
+        set {
             self[13] = newValue.rawValue
         }            
     }
@@ -199,24 +197,19 @@ fileprivate extension IORedirectionRegister {
     var triggerMode: IOAPIC.TriggerMode {
         get {
             let value = self[15]
-            return IOAPIC.TriggerMode(rawValue: value)
-            ?? IOAPIC.TriggerMode.edge
+            return IOAPIC.TriggerMode(rawValue: value) ?? IOAPIC.TriggerMode.edge
         }
-        set(newValue) {
-            self[15] = newValue.rawValue
-        }
+        set { self[15] = newValue.rawValue }
     }
 
     var maskInterrupt: Bool {
-        get { return self[16] == 1 }
-        set(newValue) { self[16] = newValue ? 1 : 0 }
+        get { self[16] == 1 }
+        set { self[16] = newValue ? 1 : 0 }
     }
 
     var destinationField: UInt8 {
-        get { return UInt8(self[56...63]) }
-        set(newValue) {
-            self[56...63] = UInt64(newValue)
-        }
+        get { UInt8(self[56...63]) }
+        set { self[56...63] = UInt64(newValue) }
     }
 }
 

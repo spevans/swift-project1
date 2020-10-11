@@ -39,7 +39,7 @@ struct BitArray8: CustomStringConvertible {
             return (rawValue & UInt8(1 << index) == 0) ? 0 : 1
         }
 
-        set(newValue) {
+        set {
             precondition(index >= 0)
             precondition(index < 8)
             precondition(newValue == 0 || newValue == 1)
@@ -124,7 +124,7 @@ struct BitArray16: CustomStringConvertible {
             return (rawValue & UInt16(1 << index) == 0) ? 0 : 1
         }
 
-        set(newValue) {
+        set {
             precondition(index >= 0)
             precondition(index < 16)
             precondition(newValue == 0 || newValue == 1)
@@ -215,7 +215,7 @@ struct BitArray32: CustomStringConvertible {
             return (rawValue & UInt32(1 << index) == 0) ? 0 : 1
         }
 
-        set(newValue) {
+        set {
             precondition(index >= 0)
             precondition(index < 32)
             precondition(newValue == 0 || newValue == 1)
