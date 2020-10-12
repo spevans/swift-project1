@@ -221,6 +221,15 @@ getRBP()
 
 
 static inline uint64_t
+getRSP()
+{
+        uint64_t res;
+        asm volatile ("mov %%rsp, %0" : "=r" (res) : : );
+        return res;
+}
+
+
+static inline uint64_t
 getCR0()
 {
         uint64_t res;

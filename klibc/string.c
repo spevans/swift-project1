@@ -130,3 +130,10 @@ strncmp(const char *s1, const char *s2, size_t n)
         }
         return 0;
 }
+
+
+int
+bcmp(const void *b1, const void *b2, size_t len)
+{
+        return memcmp(b1, b2, len);
+}

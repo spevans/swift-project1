@@ -89,6 +89,9 @@ isdigit(int c)
         return (c >= '0' && c <='9');
 }
 
+// The environment is used by the Swift Runtime to enable certain
+// debug features. Make it available for now.
+char *environ[] = { NULL };
 
 char *
 getenv(const char *name)

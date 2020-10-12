@@ -179,8 +179,10 @@ func unhandledException(registers: ExceptionRegisters) {
 
 
 func koops(_ format: StaticString, _ arguments: CVarArg...) -> Never {
+    precondition(format.hasPointerRepresentation)
+    precondition(format.isASCII)
     kprint("oops: ")
-    _ = withVaList(arguments) {
+    withVaList(arguments) {
         let args = $0
          _ = format.utf8Start.withMemoryRebound(to: CChar.self,
             capacity: format.utf8CodeUnitCount) {

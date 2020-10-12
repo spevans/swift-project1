@@ -17,13 +17,16 @@ private let SPACE: CUnsignedChar = 0x20
 typealias TextCoord = text_coord
 
 
-// kprint via the C early_tty.c driver
+// kprint via the C early_tty.c driver. This should avoid any memory allocation
+// as the pointer to the string is being passed directly and the single unicode
+// scalar case is explictly rejected.
 @inline(__always)
 func kprint(_ string: StaticString) {
+    precondition(string.hasPointerRepresentation)
     precondition(string.isASCII)
     string.utf8Start.withMemoryRebound(to: Int8.self, capacity: string.utf8CodeUnitCount) {
         (ptr: UnsafePointer<Int8>) -> Void in
-        kprint(ptr)
+        early_print_string_len(ptr, string.utf8CodeUnitCount)
     }
 }
 

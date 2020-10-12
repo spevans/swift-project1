@@ -14,9 +14,11 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdarg.h>
-#include "klibc.h"
 #include "acpi.h"
 #include "swift.h"
+#include "x86funcs.h"
+#include "mm.h"
+#include "efi.h"
 
 // Export as [symbol]_addr as a unitptr_t to be manipulated as a UInt
 #define EXPORTED_SYMBOL_AS_UINTPTR(x)               \
@@ -89,7 +91,41 @@ void apic_int4_stub(void);
 void apic_int5_stub(void);
 void apic_int6_stub(void);
 
+// kprintf
+int kvlprintf(const char * _Nonnull fmt, size_t len, va_list args);
+int kprintf1arg(const char * _Nonnull fmt, long l1);
+int kprintf2args(const char * _Nonnull fmt, long l1, long l2);
+int kprintf3args(const char * _Nonnull fmt, long l1, long l2, long l3);
+
+// klibc
+void abort(void);
+void debugger_hook(void);
+void stack_trace(uintptr_t rsp, uintptr_t rbp);
+void dump_registers(struct exception_regs * _Nonnull registers);
+int memcmp(const void * _Nonnull s1, const void * _Nonnull s2, size_t count);
+void serial_print_char(const char ch);
+
+// kernel/traps/entry.asm
+unsigned int read_int_nest_count(void);
+void run_first_task(void);
+void set_interrupt_manager(const void * _Nonnull im);
+
+// early_tty interface for TTY.EarlyTTY driver
+typedef uint16_t text_coord;
+extern void (* _Nonnull etty_print_char)(text_coord x, text_coord y, const unsigned char ch);
+extern void (* _Nonnull etty_clear_screen)(void);
+extern void (* _Nonnull etty_scroll_up)(void);
+text_coord etty_chars_per_line(void);
+text_coord etty_total_lines(void);
+text_coord etty_get_cursor_x(void);
+text_coord etty_get_cursor_y(void);
+void etty_set_cursor_x(text_coord x);
+void etty_set_cursor_y(text_coord y);
+void early_print_string_len(const char * _Nonnull text, size_t len);
+
+// timer.asm
 uint64_t current_ticks(void);
 void timer_callback(void);
 void sleep_in_milliseconds(uint64_t);
+
 #endif  // __KERNEL_H__

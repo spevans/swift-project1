@@ -329,6 +329,10 @@ malloc(size_t size)
 {
         void *retval = NULL;
         debugf("malloc(%ld)\n", size);
+        if (size == 0) {
+                return retval;
+        }
+
         if (sizeof(struct slab_header) != PAGE_SIZE) {
                 koops("slab_header is %lu bytes", sizeof(struct slab_header));
         }
@@ -387,6 +391,25 @@ malloc(size_t size)
 }
 
 
+// Slow calloc() that just does a malloc()/memset() pair. Should really have some mechanism
+// to mark free pages as already zeroed to potentially avoid it.
+void *
+calloc(size_t nmemb, size_t size)
+{
+
+      size_t total_size = 0;
+      if (__builtin_umull_overflow(nmemb, size, &total_size)) {
+              koops("calloc: size overflow: nmemb: %lu size: %lu", nmemb, size);
+      }
+      if (total_size == 0) {
+        return NULL;
+      }
+      void *retval = malloc(total_size);
+      memset(retval, 0, total_size);
+      return retval;
+}
+
+
 void
 free(void *ptr)
 {
@@ -395,7 +418,7 @@ free(void *ptr)
                 return;
         }
         if (read_int_nest_count() > 0) {
-                koops("malloc called in interrupt handler");
+                koops("free called in interrupt handler");
         }
 
         uint64_t flags = local_irq_save();

@@ -72,7 +72,15 @@ fputc(int c, void *stream)
                 koops("fputc stream = %p", stream);
         }
         early_print_char((char)c);
-        return 0;
+        return c;
+}
+
+
+int
+putchar(int c)
+{
+        early_print_char((char)c);
+        return c;
 }
 
 

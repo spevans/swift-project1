@@ -34,6 +34,7 @@ koops(const char *fmt, ...)
         kvprintf(fmt, args);
         kprintf("\n");
         va_end(args);
+        stack_trace(getRSP(), getRBP());
         debugger_hook();
         stop();
 }
