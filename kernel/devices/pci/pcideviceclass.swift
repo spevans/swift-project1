@@ -64,6 +64,7 @@ enum PCIClassCode: UInt8 {
 }
 
 
+// .bridgeDevice
 enum PCIBridgeControllerSubClass: UInt8 {
     case host = 0
     case isa = 1

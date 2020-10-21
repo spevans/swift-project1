@@ -4,7 +4,7 @@
  * Created by Simon Evans on 27/07/2020.
  * Copyright © 2015 - 2020 Simon Evans. All rights reserved.
  *
- * PCI Device class.
+ * PCI Device and access to the PCI Configspace.
  *
  */
 
@@ -85,6 +85,119 @@ struct PCIBridgeDevice {
 }
 
 
+struct PCICommand: CustomStringConvertible {
+    private var bits: BitArray16
+    fileprivate var rawValue: UInt16 { bits.rawValue }
+
+    fileprivate init(rawValue: UInt16) {
+        bits = BitArray16(rawValue)
+    }
+
+    var ioSpace: Bool {
+        get { bits[0] == 1 }
+        set { bits[0] = newValue ? 1 : 0 }
+    }
+
+    var memorySpace: Bool {
+        get { bits[1] == 1 }
+        set { bits[1] = newValue ? 1 : 0 }
+    }
+
+    var busMaster: Bool {
+        get { bits[2] == 1 }
+        set { bits[2] = newValue ? 1 : 0 }
+    }
+
+    var specialCycles: Bool {
+        get { bits[3] == 1 }
+        set { bits[3] = newValue ? 1 : 0 }
+    }
+
+    var memoryWriteInvalidate: Bool {
+        get { bits[4] == 1 }
+        set { bits[4] = newValue ? 1 : 0 }
+    }
+
+    var vgaPaletteSnoop: Bool {
+        get { bits[5] == 1 }
+        set { bits[5] = newValue ? 1 : 0 }
+    }
+
+    var parityErrorResponse: Bool {
+        get { bits[6] == 1 }
+        set { bits[6] = newValue ? 1 : 0 }
+    }
+
+    var serrEnable: Bool {
+        get { bits[8] == 1 }
+        set { bits[8] = newValue ? 1 : 0 }
+    }
+
+    var fastBackToBack: Bool {
+        get { bits[9] == 1 }
+        set { bits[9] = newValue ? 1 : 0 }
+    }
+
+    var interruptDisable: Bool {
+        get { bits[10] == 1 }
+        set { bits[10] = newValue ? 1 : 0 }
+    }
+
+    var description: String {
+        var result = ""
+        if ioSpace { result += "ioSpace " }
+        if memorySpace { result += "memorySpace " }
+        if busMaster { result += "busMaster " }
+        if specialCycles { result += "specialCycles " }
+        if memoryWriteInvalidate { result += "memoryWriteInvalidate " }
+        if vgaPaletteSnoop { result += "vgaPaletteSnoop " }
+        if parityErrorResponse { result += "parityErrorResponse " }
+        if serrEnable { result += "serrEnable " }
+        if fastBackToBack { result += "fastBackToBack " }
+        if interruptDisable { result += "interruptDisable" }
+        return result
+    }
+}
+
+
+struct PCIStatus: CustomStringConvertible {
+    private let bits: BitArray16
+    fileprivate var rawValue: UInt16 { bits.rawValue }
+
+    fileprivate init(rawValue: UInt16) {
+        bits = BitArray16(rawValue)
+    }
+
+    var interrupt: Bool { bits[3] == 1 }
+    var hasCapabilities: Bool { bits[4] == 1 }
+    var is66MhzCapable: Bool { bits[5] == 1 }
+    var isFastBackToBackCapabile: Bool { bits[7] == 1 }
+    var msterDataParityError: Bool { bits[8] == 1 }
+    var devselTiming: Int { Int(bits[9...10]) }
+    var signaledTargetAbort: Bool { bits[11] == 1 }
+    var receivedTargetAbort: Bool { bits[12] == 1 }
+    var receivedMasterAbort: Bool { bits[13] == 1 }
+    var signaledSystemError: Bool { bits[14] == 1 }
+    var detectedParityError: Bool { bits[15] == 1 }
+
+    var description: String {
+        var result = ""
+        if interrupt { result += "interrupt " }
+        if hasCapabilities { result += "hasCapabilities " }
+        if is66MhzCapable { result += "is66MhzCapable " }
+        if isFastBackToBackCapabile { result += "isFastBackToBackCapabile " }
+        if msterDataParityError { result += "msterDataParityError " }
+        result += "devselTiming \(devselTiming) "
+        if signaledTargetAbort { result += "signaledTargetAbort " }
+        if receivedTargetAbort { result += "receivedTargetAbort " }
+        if receivedMasterAbort { result += "receivedMasterAbort " }
+        if signaledSystemError { result += "signaledSystemError " }
+        if detectedParityError { result += "detectedParityError" }
+        return result
+    }
+}
+
+
 struct PCIDeviceFunction: CustomStringConvertible {
     private let busId: UInt8
     let configSpace: PCIConfigSpace
@@ -94,9 +207,15 @@ struct PCIDeviceFunction: CustomStringConvertible {
     var deviceFunction: UInt8  { device << 3 | function }
     var vendor:         UInt16 { configSpace.readConfigWord(atByteOffset: 0x0) }
     var deviceId:       UInt16 { configSpace.readConfigWord(atByteOffset: 0x2) }
+    var command:        PCICommand {
+        get { PCICommand(rawValue: configSpace.readConfigWord(atByteOffset: 0x04)) }
+        set { configSpace.writeConfigWord(atByteOffset: 0x04, value: newValue.rawValue) }
+    }
+    var status:         PCIStatus { PCIStatus(rawValue: configSpace.readConfigWord(atByteOffset: 0x06)) }
     var classCode:      UInt8  { configSpace.readConfigByte(atByteOffset: 0xb) }
     var subClassCode:   UInt8  { configSpace.readConfigByte(atByteOffset: 0xa) }
     var progInterface:  UInt8  { configSpace.readConfigByte(atByteOffset: 0x9) }
+    var revisionId:     UInt8  { configSpace.readConfigByte(atByteOffset: 0x8) }
     var headerType:     UInt8  { configSpace.readConfigByte(atByteOffset: 0xe) & 0x7f }
     var hasSubFunction: Bool   { configSpace.readConfigByte(atByteOffset: 0xe) & 0x80 == 0x80 }
 
