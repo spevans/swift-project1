@@ -8,7 +8,7 @@
  *
  */
 
-struct BitArray8: CustomStringConvertible {
+struct BitArray8: Equatable, CustomStringConvertible {
     private(set) var rawValue: UInt8
 
     var description: String { return String(rawValue, radix: 2) }
@@ -89,7 +89,7 @@ struct BitArray8: CustomStringConvertible {
 }
 
 
-struct BitArray16: CustomStringConvertible {
+struct BitArray16: Equatable, CustomStringConvertible {
     private(set) var rawValue: UInt16
 
     var description: String { return String(rawValue, radix: 2) }
@@ -177,7 +177,7 @@ struct BitArray16: CustomStringConvertible {
 }
 
 
-struct BitArray32: CustomStringConvertible {
+struct BitArray32: Equatable, CustomStringConvertible {
     private(set) var rawValue: UInt32
 
     var description: String { return String(rawValue, radix: 2) }
@@ -275,7 +275,7 @@ struct BitArray32: CustomStringConvertible {
 }
 
 
-struct BitArray64: CustomStringConvertible {
+struct BitArray64: Equatable, CustomStringConvertible {
     private(set) var rawValue: UInt64
 
     var description: String { return String(rawValue, radix: 2) }

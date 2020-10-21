@@ -144,7 +144,9 @@ struct AMLMemoryRangeDescriptor: AMLResourceSetting {
     let rangeLength: UInt32
 
     init(_ buffer: AMLBuffer) {
-        precondition(buffer.count == 17)
+        guard buffer.count == 17 else {
+            fatalError("AMLMemoryRangeDescriptor count (\(buffer.count)) != 17")
+        }
         writeable = (buffer[0] == 1)
         minimumBaseAddress = UInt32(withBytes: buffer[1], buffer[2], buffer[3], buffer[4])
         maximumBaseAddress = UInt32(withBytes: buffer[5], buffer[6], buffer[7], buffer[8])
@@ -160,7 +162,9 @@ struct AMLFixedMemoryRangeDescriptor: AMLResourceSetting {
     let rangeLength: UInt32
 
     init(_ buffer: AMLBuffer) {
-        precondition(buffer.count == 9)
+        guard buffer.count == 9 else {
+            fatalError("AMLFixedMemoryRangeDescriptor count (\(buffer.count)) != 9")
+        }
         writeable = (buffer[0] == 1)
         baseAddress = UInt32(withBytes: buffer[1], buffer[2], buffer[3], buffer[4])
         rangeLength = UInt32(withBytes: buffer[5], buffer[6], buffer[7], buffer[8])

@@ -1,12 +1,8 @@
 /*
- * include/x86funcs.h
+ * include/vmx.h
  *
  * Created by Simon Evans on 01/07/2019.
  * Copyright © 2019 Simon Evans. All rights reserved.
- *
- * Header file for x86 specific instructions. Most functions are one
- * instruction and by making them static inline Swift will include them
- * directly into the output making them inline assembly
  *
  * VMX instruction wrappers.
  *

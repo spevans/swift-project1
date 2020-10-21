@@ -12,7 +12,7 @@
 
 typealias IRQHandler = (Int) -> ()
 
-public private(set) var localAPIC: APIC?
+private(set) var localAPIC: APIC?
 
 protocol InterruptController {
     func enableIRQ(_ irq: Int)
@@ -23,7 +23,7 @@ protocol InterruptController {
 }
 
 
-public class InterruptManager {
+public final class InterruptManager {
 
     fileprivate let irqController: InterruptController
 

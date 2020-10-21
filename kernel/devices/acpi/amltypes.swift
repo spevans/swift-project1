@@ -64,7 +64,7 @@ protocol AMLSimpleName: AMLSuperName {}
 protocol AMLType6Opcode: AMLSuperName {}
 
 
-class AMLSharedBuffer: RandomAccessCollection {
+final class AMLSharedBuffer: RandomAccessCollection {
     typealias Index = Int
     typealias Element = UInt8
 
