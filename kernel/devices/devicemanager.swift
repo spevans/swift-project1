@@ -7,6 +7,8 @@
 //
 
 
+internal var usbBus: USB!
+
 final class DeviceManager {
     let acpiTables: ACPI
     private(set) var interruptManager: InterruptManager
@@ -43,28 +45,6 @@ final class DeviceManager {
             }
             if let bus = device.deviceDriver as? Bus {
                 pnpDevices(on: bus, pnpName: pnpName, body: body)
-            }
-        }
-    }
-
-
-    private func pciDevices(on bus: PCIBus, classCode: PCIClassCode? = nil, subClassCode: UInt8? = nil, progInterface: UInt8? = nil, body: (PCIDevice, PCIDeviceClass) -> ()) {
-        for device in bus.devices {
-            if let pciDevice = device as? PCIDevice, let deviceClass = pciDevice.deviceFunction.deviceClass {
-                if let classCode = classCode {
-                    if deviceClass.classCode == classCode {
-                        if let subClassCode = subClassCode {
-                            if deviceClass.subClassCode != subClassCode { continue }
-                            if let progInterface = progInterface, deviceClass.progInterface != progInterface { continue }
-                        }
-                        body(pciDevice, deviceClass)
-                    }
-                } else {
-                    body(pciDevice, deviceClass)
-                }
-            }
-            if let bus = device.deviceDriver as? PCIBus {
-                pciDevices(on: bus, classCode: classCode, subClassCode: subClassCode, progInterface: progInterface, body: body)
             }
         }
     }
@@ -117,8 +97,12 @@ final class DeviceManager {
         }
         initPnpDevices(on: masterBus)
 
+        print("Initialising USB")
+        usbBus = USB()
+        usbBus.initialiseDevices()
+        print("USB initialised, looking at rest of devices")
         if let rootPCIBus = masterBus.rootPCIBus() {
-            pciDevices(on: rootPCIBus) {
+            rootPCIBus.devicesMatching() {
                 print("Found pcidevice: \($0) deviceClass: \($1)")
                 guard $0.pciDeviceDriver == nil else { return }
             }

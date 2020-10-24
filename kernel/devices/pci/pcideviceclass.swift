@@ -35,6 +35,10 @@ struct PCIDeviceClass: Equatable {
         }
         return PCIBridgeControllerSubClass(rawValue: subClassCode)
     }
+
+    var seriaBusSubClass: PCISerialBusControllerSubClass? {
+        classCode == .serialBusController ? PCISerialBusControllerSubClass(rawValue: subClassCode) : nil
+    }
 }
 
 enum PCIClassCode: UInt8 {
@@ -78,4 +82,30 @@ enum PCIBridgeControllerSubClass: UInt8 {
     case pciSemiTransparent = 9
     case infiniband = 0x0a
     case other = 0x80
+}
+
+// serialBusController
+enum PCISerialBusControllerSubClass: UInt8 {
+    case fireWire = 0
+    case accessBus = 1
+    case ssa = 2
+    case usb = 3
+    case fibreChannel = 4
+    case smbus = 5
+    case infiniband = 6
+    case ipmiInterface = 7
+    case sercos = 8
+    case canbus = 9
+    case other = 0x80
+}
+
+
+// USB Programming Interface
+enum PCIUSBProgrammingInterace: UInt8 {
+    case uhci = 0x00
+    case ohci = 0x10
+    case ehci = 0x20
+    case xhci = 0x30
+    case other = 0x80
+    case device = 0xfe
 }

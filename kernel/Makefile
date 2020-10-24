@@ -18,6 +18,7 @@ _SWIFT_SRCS :=	init/startup.swift				\
 		klib/extensions/bytearray.swift			\
 		klib/extensions/dwordarray.swift		\
 		klib/MemoryBufferReader.swift			\
+		klib/BitmapAllocator.swift			\
 		klib/CircularBuffer.swift			\
 		klib/ReservationManager.swift			\
 		klib/printf.swift				\
@@ -51,6 +52,24 @@ _SWIFT_SRCS :=	init/startup.swift				\
 		devices/pci/pciconfigspace.swift		\
 		devices/pci/pcidevice.swift			\
 		devices/pci/pcideviceclass.swift		\
+		devices/usb/usb.swift				\
+		devices/usb/usb-configdescriptor.swift		\
+		devices/usb/usb-controlrequest.swift		\
+		devices/usb/usb-device.swift			\
+		devices/usb/usb-devicedescriptor.swift		\
+		devices/usb/usb-devicequalifier.swift		\
+		devices/usb/usb-endpointdescriptor.swift	\
+		devices/usb/usb-hiddescriptor.swift		\
+		devices/usb/usb-hid.swift			\
+		devices/usb/usb-hub.swift			\
+		devices/usb/usb-interfacedescriptor.swift	\
+		devices/usb/hcd-ehci.swift			\
+		devices/usb/hcd-xhci.swift			\
+		devices/usb/uhci-buffers.swift			\
+		devices/usb/uhci-hcd.swift			\
+		devices/usb/uhci-datastructures.swift		\
+		devices/usb/uhci-pipe.swift			\
+		devices/usb/uhci-registers.swift		\
 		devices/bus.swift				\
 		devices/device.swift				\
 		devices/devicemanager.swift			\

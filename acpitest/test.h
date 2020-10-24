@@ -11,5 +11,6 @@
 
 #include "../include/mm.h"
 #include "../include/acpi.h"
+#include "../include/usb.h"
 
 #endif /* test_h */

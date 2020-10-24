@@ -101,6 +101,29 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
         }
     }
 
+    // Find PCI Devices matching a specific classCode and optional subClassCode and progInterface
+    func devicesMatching(classCode: PCIClassCode? = nil, subClassCode: UInt8? = nil, progInterface: UInt8? = nil, body: (PCIDevice, PCIDeviceClass) -> ()) {
+        for device in devices {
+            if let pciDevice = device as? PCIDevice, let deviceClass = pciDevice.deviceFunction.deviceClass {
+                if let classCode = classCode {
+                    if deviceClass.classCode == classCode {
+                        if let subClassCode = subClassCode {
+                            if deviceClass.subClassCode != subClassCode { continue }
+                            if let progInterface = progInterface, deviceClass.progInterface != progInterface { continue }
+                        }
+                        body(pciDevice, deviceClass)
+                    }
+                } else {
+                    body(pciDevice, deviceClass)
+                }
+            }
+            if let bus = device.deviceDriver as? PCIBus {
+                bus.devicesMatching(classCode: classCode, subClassCode: subClassCode, progInterface: progInterface, body: body)
+            }
+        }
+    }
+
+
     func device(acpiDevice: AMLDefDevice, pnpName: String? = nil) -> Device? {
         // Is it a normal PCI Device
         if let address = acpiDevice.addressResource() {
