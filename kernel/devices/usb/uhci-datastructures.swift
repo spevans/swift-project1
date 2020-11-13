@@ -34,13 +34,19 @@ extension HCD_UHCI {
             return FrameListPointer(rawValue: 1)
         }
 
-        var terminate: Bool { bits[0] == 1 }
-        var emptyFrame: Bool { terminate }
-        var queueHead: Bool { bits[1] == 1 }
-        var transferDescriptor: Bool { !queueHead }
-
+        var isTerminator: Bool { bits[0] == 1 }
+        var isEmptyFrame: Bool { isTerminator }
+        var isQueueHead: Bool { bits[1] == 1 }
+        var isTransferDescriptor: Bool { !isQueueHead }
         // FIXME: This should be a PhyiscalAddress in the 1st 4G with correct type
-        var frameListPointer: UInt32 { bits.rawValue & 0xffff_fff0 }
+        var address: UInt32 { bits.rawValue & 0xffff_fff0 }
+        var physQueueHead: PhysQueueHead? {
+            if isQueueHead && !isTerminator {
+                return PhysQueueHead(address: PhysAddress(RawAddress(address)))
+            } else {
+                return nil
+            }
+        }
     }
 
     struct TransferDescriptor: CustomStringConvertible {
@@ -182,7 +188,7 @@ extension HCD_UHCI {
 
 
         let linkPointer: LinkPointer
-        let controlStatus: ControlStatus
+        var controlStatus: ControlStatus
         let token: Token
         let bufferPointer: UInt32
 
@@ -197,7 +203,7 @@ extension HCD_UHCI {
             return "headLP: \(headLinkPointer.description) elementLP: \(elementLinkPointer.description)"
         }
 
-        struct QueueHeadLinkPointer: CustomStringConvertible {
+        struct QueueHeadLinkPointer: Equatable, CustomStringConvertible {
             let bits: BitArray32
 
             init(queueHeadAddress: UInt32) {
@@ -220,13 +226,21 @@ extension HCD_UHCI {
                 QueueHeadLinkPointer(rawValue: 1)
             }
 
-            var terminate: Bool { bits[0] == 1 }
+            var isTerminator: Bool { bits[0] == 1 }
             var isQueueHead: Bool { bits[1] == 1 }
             var isTransferDescriptor: Bool { !isQueueHead }
             var address: UInt32 { bits.rawValue & 0xffff_fff0 }
 
+            var nextQH: PhysQueueHead? {
+                if isQueueHead && !isTerminator {
+                    return PhysQueueHead(address: PhysAddress(RawAddress(address)))
+                } else {
+                    return nil
+                }
+            }
+
             var description: String {
-                if terminate {
+                if isTerminator {
                     return "Terminate"
                 } else {
                     return (isQueueHead ? "QH" : "TD") + " \(String(address, radix: 16))"
@@ -257,13 +271,13 @@ extension HCD_UHCI {
                 QueueElementLinkPointer(rawValue: 1)
             }
 
-            var terminate: Bool { bits[0] == 1 }
+            var isTerminator: Bool { bits[0] == 1 }
             var isQueueHead: Bool { bits[1] == 1 }
             var isTransferDescriptor: Bool { !isQueueHead }
             var address: UInt32 { bits.rawValue & 0xffff_fff0 }
 
             var description: String {
-                if terminate {
+                if isTerminator {
                     return "Terminate"
                 } else {
                     return (isQueueHead ? "QH" : "TD") + " \(String(address, radix: 16))"
@@ -285,14 +299,14 @@ extension HCD_UHCI {
         // Dump a QueueHead showing the list of TDs and QHs below it
         func dump() -> String {
             var result = "QHLP: "
-            if headLinkPointer.terminate {
+            if headLinkPointer.isTerminator {
                 result += "Terminates\n"
             } else {
                 result += (headLinkPointer.isQueueHead ? "QH" : "TD") + ": \(String(headLinkPointer.address, radix: 16))\n"
             }
             var idx = 0
             var lp = elementLinkPointer
-            while !lp.terminate {
+            while !lp.isTerminator {
                 result += "\(idx): \(lp.isQueueHead ? "QH" : "TD") "
                 let ptr = PhysAddress(RawAddress(lp.address))
                 result += String(lp.address, radix: 16) + " "

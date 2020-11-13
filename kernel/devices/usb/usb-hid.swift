@@ -12,6 +12,8 @@
 final class USBHIDDriver: DeviceDriver {
     private let device: USBDevice
     private let interface: USB.InterfaceDescriptor
+    private var intrPipe: USBPipe!
+
 
     // bRequest for Class specific request
     enum HIDRequest: UInt8 {
@@ -63,6 +65,13 @@ final class USBHIDDriver: DeviceDriver {
             return false
         }
 
+        // Find the INTR endpoint
+        guard let intrEndpoint = interface.endpointMatching(transferType: .interrupt) else {
+            print("USB-HID: Cant find an interrupt endpoint")
+            return false
+        }
+        print("USB-HID: Interrupt endpoint:", intrEndpoint)
+
         print("USB: Setting protocol to GetReport")
         // Set protocol to 'GetReport'
 
@@ -73,11 +82,11 @@ final class USBHIDDriver: DeviceDriver {
             return false
         }
 
+        // Create a pipe for the interrupt endpoint and add it to the active queues
+        intrPipe = device.hub.allocatePipe(device: device, endpointDescriptor: intrEndpoint)
+
         return true
     }
-
-
-
 }
 
 
@@ -152,15 +161,12 @@ extension USBHIDDriver {
         var oldkeys: [UInt8] = []
 
         print("USB-HID wLength:", wLength)
-        // Now poll for get report and to look for keypresses
-        let reportRequest = getReportRequest(report: .input)
-        var ok = true
-        while ok {
-            guard var keys = device.sendControlRequestReadData(request: reportRequest) else {
-                print("USB: HID error reading keyboard")
-                ok = false
-                return
-            }
+
+        // Now poll the interrupt to look for keypresses
+
+        while true {
+            sleep(milliseconds: 10)
+            guard var keys = intrPipe.pollInterruptPipe() else { continue }
 
             guard let modifierKeys = keys.first else {
                 print("No modifier data")
@@ -179,8 +185,6 @@ extension USBHIDDriver {
                 print(event)
             }
             oldkeys = keys
-
-            sleep(milliseconds: 10)
         }
     }
 }

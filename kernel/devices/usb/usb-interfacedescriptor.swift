@@ -39,8 +39,8 @@ extension USB {
         private let descriptor: usb_standard_interface_descriptor
         // Endpoints that were found in the iterator input may have endpoints.count < bNumEndpoints
         private(set) var endpoint0: EndpointDescriptor
-        private let endpoints: [EndpointDescriptor]
-        private let hid: HIDDescriptor?
+        let endpoints: [EndpointDescriptor]
+        let hid: HIDDescriptor?
 
 
         var bLength: UInt8 { descriptor.bLength }
@@ -109,6 +109,12 @@ extension USB {
 
             descriptor = _descriptor
             endpoints = _endpoints
+        }
+
+
+        func endpointMatching(transferType: EndpointDescriptor.TransferType) -> EndpointDescriptor? {
+            if endpoint0.transferType == transferType { return endpoint0 }
+            return endpoints.filter { $0.transferType == transferType }.first
         }
     }
 }

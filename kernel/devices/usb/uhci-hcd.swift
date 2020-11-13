@@ -16,7 +16,7 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
     private var deviceFunction: PCIDeviceFunction       // The device (upstream) side of the bridge
     fileprivate let ioBasePort: UInt16
     private var maxAddress: UInt8 = 1
-    private(set) var qhStart = PhysQueueHead(address: PhysAddress(0))
+    private(set) var controlQH = PhysQueueHead(address: PhysAddress(0))
     let allocator: UHCIAllocator
 
     // FIXME: Should guarantee being 32bit phys
@@ -103,6 +103,7 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
             bufferPointer: 0
         )
 
+        // FIXME: Dealloc this
         let terminatingQH = allocator.allocQueueHead()
         terminatingQH.pointer.pointee = QueueHead(
             headLinkPointer: QueueHead.QueueHeadLinkPointer.terminator(),
@@ -110,20 +111,20 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
         )
 
         // Create the start node in the list which has a terminating element and points to the last node as the link pointer
-        qhStart = allocator.allocQueueHead()
-        qhStart.pointer.pointee = QueueHead(
+        controlQH = allocator.allocQueueHead()
+        controlQH.pointer.pointee = QueueHead(
             headLinkPointer: QueueHead.QueueHeadLinkPointer(queueHeadAddress: terminatingQH.physAddress),
             elementLinkPointer: QueueHead.QueueElementLinkPointer.terminator()
         )
 
-        let flp = FrameListPointer(queueHead: qhStart.physAddress)
+        let flp = FrameListPointer(queueHead: controlQH.physAddress)
         frameList.assign(repeating: flp)
+        dumpAndCheckFrameList()
 
         // Point to the frame list and set frame number to 0
         frameListBaseAddress = UInt32(frameListPage.address.value)
         frameNumberRegister = 0
 
-//        startOfFrame = 64
         statusRegister = Status(rawValue: 0)
         var cmd = Command()
         cmd.maxPacket64Bytes = true
@@ -134,6 +135,110 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
         sleep(milliseconds: 10)
         registerDump()
         usbBus!.enumerate(hub: self)
+    }
+
+
+    func addQueueHead(_ queueHead: PhysQueueHead, transferType: USB.EndpointDescriptor.TransferType, interval: UInt8) {
+        print("UHCI: addQueueHead:", queueHead, queueHead.pointer.pointee) // FIXME, transferTYPE causes GP
+        dumpAndCheckFrameList()
+
+        switch transferType {
+            case .control:
+                // For Control Pipes, add the QueueHead into the
+                queueHead.pointer.pointee.headLinkPointer = controlQH.pointer.pointee.headLinkPointer
+                controlQH.pointer.pointee.headLinkPointer = QueueHead.QueueHeadLinkPointer(queueHeadAddress: queueHead.physAddress)
+
+            case .interrupt:
+                // Determine the frequency of the interrupt to know which slots to add it to
+                let frequency = 1024 / Int(interval)
+                print("UHCI: interval: \(interval)ms frequency: \(frequency)")
+                let ptr = UnsafeMutablePointer<FrameListPointer>(bitPattern: frameListPage.vaddr)!
+                let frameList = UnsafeMutableBufferPointer(start: ptr, count: Int(frameListPage.regionSize) / MemoryLayout<FrameListPointer>.stride)
+                assert(frameList.count == 1024)
+
+                queueHead.pointer.pointee.headLinkPointer = QueueHead.QueueHeadLinkPointer(queueHeadAddress: controlQH.physAddress)
+                for idx in stride(from: 0, to: frameList.count, by: frequency) {
+                    frameList[idx] = FrameListPointer(queueHead: queueHead.physAddress)
+                }
+
+            default:
+                fatalError("UHCI: Pipes of type \(transferType) are not currently supported")
+        }
+        dumpAndCheckFrameList()
+        print("UHCI: Added QH")
+    }
+
+
+    func removeQueueHead(_ queueHead: PhysQueueHead, transferType: USB.EndpointDescriptor.TransferType) {
+        print("removeQueueHEad", queueHead)
+        dumpAndCheckFrameList()
+
+        switch transferType {
+            case .control:
+                // The queueHead that is being searched for
+                //let queueHeadLP = QueueHead.QueueHeadLinkPointer(queueHeadAddress: queueHead.physAddress)
+                var qh = controlQH
+                var qhlp = qh.pointer.pointee.headLinkPointer
+
+                var maxLoops = 8    // Debugging
+                while !qhlp.isTerminator {
+                    maxLoops -= 1
+                    if maxLoops <= 0 { fatalError("removeQueueHead exceeded maxLoops") }
+
+                    // qhlp points to the queueHead to remove
+                    if qhlp.address == queueHead.physAddress {
+                        // Point it to the next pointer of the QH to remove
+                        qh.pointer.pointee.headLinkPointer = queueHead.pointer.pointee.headLinkPointer
+                        return
+                    }
+
+                    guard let next = qh.pointer.pointee.headLinkPointer.nextQH else {
+                        fatalError("UHCI-HCD: removeQueueHead: Reached end of QHs")
+                    }
+                    qh = next
+                    qhlp = qh.pointer.pointee.headLinkPointer
+                }
+                fatalError("Cant find QH \(queueHead) in list of control queueheads")
+
+
+            case .interrupt:
+                // Loop through eqvery frame list entry to
+                fallthrough
+
+            default:
+                fatalError("Pipes of type \(transferType) are not currently supported")
+        }
+
+        print("Removed QH")
+        dumpAndCheckFrameList()
+    }
+
+
+    // Dump and check the framelist PTRs and QHs
+    private func dumpAndCheckFrameList() {
+        // Keep track of FL entries already seen to avoid deupliacting work
+        var previousFLEntries: [UInt32] = []
+        previousFLEntries.reserveCapacity(16)
+
+        let ptr = UnsafeMutablePointer<FrameListPointer>(bitPattern: frameListPage.vaddr)!
+        let frameList = UnsafeMutableBufferPointer(start: ptr, count: Int(frameListPage.regionSize) / MemoryLayout<FrameListPointer>.stride)
+        print("Dumping frame list at:", ptr)
+        for idx in 0..<frameList.count {
+            let entry = frameList[idx]
+            if previousFLEntries.contains(entry.address) { continue }
+            print("\n\(idx): \(entry): ", terminator: " ")
+            var next = entry.physQueueHead
+            var maxDepth = 32
+
+            while maxDepth >= 0, let qhlp = next {
+                maxDepth -= 1
+                print(" ->", qhlp, terminator: "")
+                next = qhlp.pointer.pointee.headLinkPointer.nextQH
+            }
+
+            previousFLEntries.append(entry.address)
+        }
+        print("\n")
     }
 
 

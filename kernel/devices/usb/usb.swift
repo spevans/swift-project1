@@ -27,6 +27,7 @@ protocol USBPipe {
     func allocateBuffer(length: Int) -> UnsafeRawBufferPointer
     func freeBuffer()
     func send(request: USB.ControlRequest, withBuffer: Bool) -> Bool
+    func pollInterruptPipe() -> [UInt8]?
 }
 
 

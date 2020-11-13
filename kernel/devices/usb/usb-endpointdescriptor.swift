@@ -43,7 +43,7 @@ extension USB {
 
         var bmAttributesBits: BitArray8 { BitArray8(bmAttributes) }
 
-        var endpoint: UInt8 { descriptor.bEndpointAddress & 0xf }
+        var endpoint: UInt { UInt(descriptor.bEndpointAddress & 0xf) }
         var direction: TransferDirection { TransferDirection(rawValue: descriptor.bEndpointAddress >> 7)! }
         var transferType: TransferType { TransferType(rawValue: UInt8(bmAttributesBits[0...1]))! }
         var synchronization: SynchronizationType { SynchronizationType(rawValue: UInt8(bmAttributesBits[2...3]))! }
