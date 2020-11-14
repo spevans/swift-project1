@@ -205,7 +205,7 @@
 		B9568C97254D92E300C3F49B /* device.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = device.swift; sourceTree = "<group>"; };
 		B9568C9A254EFD6600C3F49B /* uhci-pipe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "uhci-pipe.swift"; sourceTree = "<group>"; };
 		B9568C9E254EFDE000C3F49B /* uhci-registers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "uhci-registers.swift"; sourceTree = "<group>"; };
-		B9568CA2254EFEAA00C3F49B /* uhci-datastructures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "uhci-datastructures.swift"; sourceTree = "<group>"; };
+		B9568CA2254EFEAA00C3F49B /* uhci-queuehead.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "uhci-queuehead.swift"; sourceTree = "<group>"; };
 		B9568CAA254F037400C3F49B /* uhci-buffers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "uhci-buffers.swift"; sourceTree = "<group>"; };
 		B9568CB02551819E00C3F49B /* BitmapAllocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BitmapAllocator.swift; sourceTree = "<group>"; };
 		B95867E722E5D082005FA3BF /* kernel */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = kernel; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -238,6 +238,7 @@
 		B9C6DF0B22FF0629006BD245 /* qemufwcf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = qemufwcf.swift; sourceTree = "<group>"; };
 		B9C6DF0D22FF08E0006BD245 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; tabWidth = 8; };
 		B9CB7297255901A000A6C3C8 /* usb-hid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "usb-hid.swift"; sourceTree = "<group>"; };
+		B9CB729C255F5A6700A6C3C8 /* uhci-transferdescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "uhci-transferdescriptor.swift"; sourceTree = "<group>"; };
 		B9DEE4F32323BA960010F7A0 /* lldb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "lldb-cmds"; sourceTree = "<group>"; };
 		B9DEE4F52323BBC30010F7A0 /* bochsrc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = bochsrc; sourceTree = "<group>"; };
 		B9DEE4F62323BBC30010F7A0 /* gdb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "gdb-cmds"; sourceTree = "<group>"; };
@@ -507,10 +508,11 @@
 				B9568C782548BDBC00C3F49B /* usb.swift */,
 				B9568C8B2548E87600C3F49B /* usb-hiddescriptor.swift */,
 				B9568C742548BDBC00C3F49B /* uhci-hcd.swift */,
-				B9568CA2254EFEAA00C3F49B /* uhci-datastructures.swift */,
-				B9568C9A254EFD6600C3F49B /* uhci-pipe.swift */,
 				B9568C9E254EFDE000C3F49B /* uhci-registers.swift */,
 				B9568CAA254F037400C3F49B /* uhci-buffers.swift */,
+				B9568C9A254EFD6600C3F49B /* uhci-pipe.swift */,
+				B9568CA2254EFEAA00C3F49B /* uhci-queuehead.swift */,
+				B9CB729C255F5A6700A6C3C8 /* uhci-transferdescriptor.swift */,
 			);
 			path = usb;
 			sourceTree = "<group>";

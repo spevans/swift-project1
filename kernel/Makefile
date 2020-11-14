@@ -67,9 +67,10 @@ _SWIFT_SRCS :=	init/startup.swift				\
 		devices/usb/hcd-xhci.swift			\
 		devices/usb/uhci-buffers.swift			\
 		devices/usb/uhci-hcd.swift			\
-		devices/usb/uhci-datastructures.swift		\
 		devices/usb/uhci-pipe.swift			\
+		devices/usb/uhci-queuehead.swift		\
 		devices/usb/uhci-registers.swift		\
+		devices/usb/uhci-transferdescriptor.swift	\
 		devices/bus.swift				\
 		devices/device.swift				\
 		devices/devicemanager.swift			\

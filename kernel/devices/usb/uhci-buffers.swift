@@ -31,42 +31,8 @@ struct PhysBuffer32 {
 }
 
 
-
 extension HCD_UHCI {
-    typealias QueueHeadPtr = UnsafeMutablePointer<QueueHead>
-    typealias TransferDescriptorPtr = UnsafeMutablePointer<TransferDescriptor>
-
-    struct PhysQueueHead {
-        fileprivate let address: PhysAddress
-
-        init(address: PhysAddress) {
-            self.address = address
-        }
-
-        var pointer: QueueHeadPtr {
-            return address.rawPointer.bindMemory(to: QueueHead.self, capacity: 1)
-        }
-
-        var physAddress: UInt32 { UInt32(address.value) }
-    }
-
-
-    struct PhysTransferDescriptor {
-        fileprivate let address: PhysAddress
-
-        init(address: PhysAddress) {
-            self.address = address
-        }
-
-        var pointer: TransferDescriptorPtr {
-            return address.rawPointer.bindMemory(to: TransferDescriptor.self, capacity: 1)
-        }
-
-        var physAddress: UInt32 { UInt32(address.value) }
-    }
-
-
-    class UHCIAllocator {
+      class UHCIAllocator {
 
         // For QHs and TDs - 128x 32 byte blocks
         private let bufferPool32 = alloc(pages: 1)

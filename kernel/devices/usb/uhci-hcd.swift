@@ -96,26 +96,26 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
         // This forms the last node in a list of Control QueueHeads. The QueueHeads points to a terminating TransferDescriptor.
         // This is to workaround a bug in PIIX chipsets which need to set the terminating TD.
         let terminatingTD = allocator.allocTransferDescriptor()
-        terminatingTD.pointer.pointee = TransferDescriptor(
+        terminatingTD.setTD(TransferDescriptor(
             linkPointer: TransferDescriptor.LinkPointer.terminator(),
             controlStatus: TransferDescriptor.ControlStatus(),
             token: TransferDescriptor.Token(pid: .pidIn, deviceAddress: 0x7f, endpoint: 0, dataToggle: false, maximumLength: 0),
             bufferPointer: 0
-        )
+        ))
 
         // FIXME: Dealloc this
         let terminatingQH = allocator.allocQueueHead()
-        terminatingQH.pointer.pointee = QueueHead(
+        terminatingQH.setQH(QueueHead(
             headLinkPointer: QueueHead.QueueHeadLinkPointer.terminator(),
             elementLinkPointer: QueueHead.QueueElementLinkPointer(transferDescriptorAddress: terminatingTD.physAddress)
-        )
+        ))
 
         // Create the start node in the list which has a terminating element and points to the last node as the link pointer
         controlQH = allocator.allocQueueHead()
-        controlQH.pointer.pointee = QueueHead(
+        controlQH.setQH(QueueHead(
             headLinkPointer: QueueHead.QueueHeadLinkPointer(queueHeadAddress: terminatingQH.physAddress),
             elementLinkPointer: QueueHead.QueueElementLinkPointer.terminator()
-        )
+        ))
 
         let flp = FrameListPointer(queueHead: controlQH.physAddress)
         frameList.assign(repeating: flp)
@@ -139,14 +139,15 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
 
 
     func addQueueHead(_ queueHead: PhysQueueHead, transferType: USB.EndpointDescriptor.TransferType, interval: UInt8) {
-        print("UHCI: addQueueHead:", queueHead, queueHead.pointer.pointee) // FIXME, transferTYPE causes GP
+        print("UHCI: addQueueHead:", queueHead, transferType)
         dumpAndCheckFrameList()
 
+        var queueHead = queueHead
         switch transferType {
             case .control:
                 // For Control Pipes, add the QueueHead into the
-                queueHead.pointer.pointee.headLinkPointer = controlQH.pointer.pointee.headLinkPointer
-                controlQH.pointer.pointee.headLinkPointer = QueueHead.QueueHeadLinkPointer(queueHeadAddress: queueHead.physAddress)
+                queueHead.headLinkPointer = controlQH.headLinkPointer
+                controlQH.headLinkPointer = QueueHead.QueueHeadLinkPointer(queueHeadAddress: queueHead.physAddress)
 
             case .interrupt:
                 // Determine the frequency of the interrupt to know which slots to add it to
@@ -156,7 +157,7 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
                 let frameList = UnsafeMutableBufferPointer(start: ptr, count: Int(frameListPage.regionSize) / MemoryLayout<FrameListPointer>.stride)
                 assert(frameList.count == 1024)
 
-                queueHead.pointer.pointee.headLinkPointer = QueueHead.QueueHeadLinkPointer(queueHeadAddress: controlQH.physAddress)
+                queueHead.headLinkPointer = QueueHead.QueueHeadLinkPointer(queueHeadAddress: controlQH.physAddress)
                 for idx in stride(from: 0, to: frameList.count, by: frequency) {
                     frameList[idx] = FrameListPointer(queueHead: queueHead.physAddress)
                 }
@@ -178,7 +179,7 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
                 // The queueHead that is being searched for
                 //let queueHeadLP = QueueHead.QueueHeadLinkPointer(queueHeadAddress: queueHead.physAddress)
                 var qh = controlQH
-                var qhlp = qh.pointer.pointee.headLinkPointer
+                var qhlp = qh.headLinkPointer
 
                 var maxLoops = 8    // Debugging
                 while !qhlp.isTerminator {
@@ -188,15 +189,15 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
                     // qhlp points to the queueHead to remove
                     if qhlp.address == queueHead.physAddress {
                         // Point it to the next pointer of the QH to remove
-                        qh.pointer.pointee.headLinkPointer = queueHead.pointer.pointee.headLinkPointer
+                        qh.headLinkPointer = queueHead.headLinkPointer
                         return
                     }
 
-                    guard let next = qh.pointer.pointee.headLinkPointer.nextQH else {
+                    guard let next = qh.headLinkPointer.nextQH else {
                         fatalError("UHCI-HCD: removeQueueHead: Reached end of QHs")
                     }
                     qh = next
-                    qhlp = qh.pointer.pointee.headLinkPointer
+                    qhlp = qh.headLinkPointer
                 }
                 fatalError("Cant find QH \(queueHead) in list of control queueheads")
 
@@ -233,7 +234,7 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
             while maxDepth >= 0, let qhlp = next {
                 maxDepth -= 1
                 print(" ->", qhlp, terminator: "")
-                next = qhlp.pointer.pointee.headLinkPointer.nextQH
+                next = qhlp.headLinkPointer.nextQH
             }
 
             previousFLEntries.append(entry.address)

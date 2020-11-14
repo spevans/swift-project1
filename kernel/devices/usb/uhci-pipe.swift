@@ -18,13 +18,23 @@ extension HCD_UHCI {
 }
 
 
+private let UHCI_DEBUG = false
+private func uhciDebug(_ msg: Any...) {
+    if UHCI_DEBUG {
+        for m in msg {
+            print(m, terminator: "")
+        }
+        print("")
+    }
+}
+
 fileprivate extension HCD_UHCI {
     final class UHCIPipe: USBPipe {
         private unowned let hcd: HCD_UHCI
         private unowned let device: USBDevice
         private let maxPacketSize: UInt16 = 8
         private let isLowSpeedDevice: Bool
-        private let queueHead: PhysQueueHead
+        private var queueHead: PhysQueueHead
         private var physBuffer: PhysBuffer32? = nil
         private let transferDescriptors: [PhysTransferDescriptor]
 
@@ -58,15 +68,15 @@ fileprivate extension HCD_UHCI {
                     // Eg consider 1 intr added to every frame and one added to every other frame. This will require adding more QHs.
                     physBuffer = hcd.allocator.allocPhysBuffer(length: Int(endpointDescriptor.maxPacketSize))
                     let td = hcd.allocator.allocTransferDescriptor()
-                    td.pointer.pointee = TransferDescriptor(
+                    td.setTD(TransferDescriptor(
                         linkPointer: TransferDescriptor.LinkPointer.terminator(),
                         controlStatus: TransferDescriptor.ControlStatus(active: true, lowSpeedDevice: isLowSpeedDevice, maxErrorCount: 3),
                         token: TransferDescriptor.Token(pid: .pidIn, deviceAddress: device.address, endpoint: endpointDescriptor.endpoint, dataToggle: false, maximumLength: UInt(endpointDescriptor.maxPacketSize)),
                         bufferPointer: physBuffer!.physAddress
-                    )
+                    ))
                     print("UHCI-PIPE: Interrupt TD:", td, td.pointer) // FIXME td.pointer.pointee causes GP
                     _tds.append(td)
-                    queueHead.pointer.pointee.elementLinkPointer = QueueHead.QueueElementLinkPointer(transferDescriptorAddress: td.physAddress)
+                    queueHead.elementLinkPointer = QueueHead.QueueElementLinkPointer(transferDescriptorAddress: td.physAddress)
 
                 default:
                     fatalError("Pipes of type \(endpointDescriptor.transferType) are not currently supported")
@@ -94,8 +104,8 @@ fileprivate extension HCD_UHCI {
                 print("UHCI-PIPE: Attempting to poll an non interrupt pipe")
                 return nil
             }
-            let td = transferDescriptors.first!
-            guard !td.pointer.pointee.controlStatus.active else {
+            var td = transferDescriptors.first!
+            guard !td.controlStatus.active else {
                 return nil
             }
 
@@ -105,8 +115,8 @@ fileprivate extension HCD_UHCI {
                 result.append(byte)
             }
             // Reenable the Interrupt TD
-            queueHead.pointer.pointee.elementLinkPointer = QueueHead.QueueElementLinkPointer(transferDescriptorAddress: td.physAddress)
-            td.pointer.pointee.controlStatus.active = true
+            queueHead.elementLinkPointer = QueueHead.QueueElementLinkPointer(transferDescriptorAddress: td.physAddress)
+            td.controlStatus.active = true
             return result
         }
 
@@ -129,11 +139,11 @@ fileprivate extension HCD_UHCI {
 
 
         func send(request: USB.ControlRequest, withBuffer: Bool) -> Bool {
-//            print("UHCI: Sending request:", request, "withBuffer:", withBuffer)
+           uhciDebug("UHCI: Sending request:", request, "withBuffer:", withBuffer)
             // copy the request into a 32byte low buffer
             let buffer = hcd.allocator.allocPhysBuffer(length: MemoryLayout<USB.ControlRequest>.size)
             buffer.mutableRawPointer.storeBytes(of: request, as: USB.ControlRequest.self)
-//            hexDump(buffer: buffer.rawBufferPointer)
+            if UHCI_DEBUG { hexDump(buffer: buffer.rawBufferPointer) }
 
             let dataPid: TransferDescriptor.Token.PID
             let statusPid: TransferDescriptor.Token.PID
@@ -154,9 +164,9 @@ fileprivate extension HCD_UHCI {
             var tdAllocations = 0
             var nextTd: PhysTransferDescriptor
             if withBuffer {
-//                print("UHCI: Allocating first dataTD, physBuffer is nil:", physBuffer == nil)
+                uhciDebug("UHCI: Allocating first dataTD, physBuffer is anil:", physBuffer == nil)
                 nextTd = hcd.allocator.allocTransferDescriptor()
-//                print("UHCI: Allocated:", String(nextTd.physAddress, radix: 16))
+                uhciDebug("UHCI: Allocated:", String(nextTd.physAddress, radix: 16))
                 tdAllocations = 1
             } else {
                 // No data to add so the statusPid is the setupPid's next TD
@@ -168,18 +178,18 @@ fileprivate extension HCD_UHCI {
             assert(requestLength == 8)
 
             let endpoint = endpointDescriptor.endpoint
-            setupTd.pointer.pointee = TransferDescriptor(
+            setupTd.setTD(TransferDescriptor(
                 linkPointer: TransferDescriptor.LinkPointer(transferDescriptor: UInt32(nextTd.physAddress), depthFirst: true),
                 controlStatus: TransferDescriptor.ControlStatus(active: true, lowSpeedDevice: isLowSpeedDevice, maxErrorCount: 3),
                 token: TransferDescriptor.Token(pid: .pidSetup, deviceAddress: device.address, endpoint: endpoint, dataToggle: false, maximumLength: requestLength),
                 bufferPointer: buffer.physAddress
-            )
-//            print("UHCI: setupTd: ", String(setupTd.physAddress, radix: 16), setupTd.pointer.pointee)
+            ))
+            uhciDebug("UHCI: setupTd: ", setupTd)
             var toggle = true
 
             // 0 or more data pids as necessary
             if withBuffer, let dataBuffer = physBuffer {
-  //              print("UHCI: request.wLength:", request.wLength, "dataBuffer.rawBufferPointer.count:", dataBuffer.rawBufferPointer.count)
+                uhciDebug("UHCI: request.wLength:", request.wLength, "dataBuffer.rawBufferPointer.count:", dataBuffer.rawBufferPointer.count)
                 precondition(request.wLength == dataBuffer.rawBufferPointer.count)
                 precondition(request.wLength != 0)
                 var bytesLeft = request.wLength
@@ -191,9 +201,9 @@ fileprivate extension HCD_UHCI {
                     bytesLeft -= min(maxPacketSize, bytesLeft)
 
                     if bytesLeft > 0 {
-//                        print("UHCI: Allocating next dataTD")
+                        uhciDebug("UHCI: Allocating next dataTD")
                         nextTd = hcd.allocator.allocTransferDescriptor()
-//                        print("UHCI: Allocated:", String(nextTd.physAddress, radix: 16))
+                        uhciDebug("UHCI: Allocated:", String(nextTd.physAddress, radix: 16))
 
                         tdAllocations += 1
                     } else {
@@ -201,39 +211,39 @@ fileprivate extension HCD_UHCI {
                         nextTd = statusTd
                     }
 
-                    dataTd.pointer.pointee = TransferDescriptor(
+                    dataTd.setTD(TransferDescriptor(
                         linkPointer: TransferDescriptor.LinkPointer(transferDescriptor: UInt32(nextTd.physAddress), depthFirst: true),
                         controlStatus: TransferDescriptor.ControlStatus(active: true, lowSpeedDevice: isLowSpeedDevice, maxErrorCount: 3),
                         token: TransferDescriptor.Token(pid: dataPid, deviceAddress: device.address, endpoint: endpoint, dataToggle: toggle, maximumLength: UInt(length)),
                         bufferPointer: bufferPointer
-                    )
+                    ))
                     bufferPointer += UInt32(maxPacketSize)
-//                print("UHCI: dataTd:  ", String(dataTd.physAddress, radix: 16), dataTd.pointer.pointee)
+                    uhciDebug("UHCI: dataTd:  ", dataTd)
                     toggle.toggle()
                 }
             }
 
             // Status PID
-            statusTd.pointer.pointee = TransferDescriptor(
+            statusTd.setTD(TransferDescriptor(
                 linkPointer: TransferDescriptor.LinkPointer.terminator(),
                 controlStatus: TransferDescriptor.ControlStatus(active: true, lowSpeedDevice: isLowSpeedDevice, maxErrorCount: 3),
                 token: TransferDescriptor.Token(pid: statusPid, deviceAddress: device.address, endpoint: endpoint, dataToggle: true, maximumLength: 0),
                 bufferPointer: 0
-            )
-//            print("UHCI: statusTd:", String(statusTd.physAddress, radix: 16), statusTd.pointer.pointee)
-//            print("UHCI: TD allocations:", tdAllocations)
+            ))
+            uhciDebug("UHCI: statusTd:", statusTd)
+            uhciDebug("UHCI: TD allocations:", tdAllocations)
 
             // Add the chain of Transfer Descriptors into the Queue Head.
             let queueElementLP = QueueHead.QueueElementLinkPointer(transferDescriptorAddress: setupTd.physAddress)
-//            print("UHCI: queueElementLP:", queueElementLP)
-            queueHead.pointer.pointee.elementLinkPointer = queueElementLP
-//            print("UHCI: before send:", queueHead, queueHead.pointer.pointee.dump())
+            uhciDebug("UHCI: queueElementLP:", queueElementLP)
+            queueHead.elementLinkPointer = queueElementLP
+            uhciDebug("UHCI: before send:", queueHead, queueHead.dump())
 
-//            print("UHCI: Waiting for response...")
+            uhciDebug("UHCI: Waiting for response...")
             var result = false
 
             for _ in 1...10 {
-                if queueHead.pointer.pointee.elementLinkPointer.isTerminator {
+                if queueHead.elementLinkPointer.isTerminator {
                     result = true
                     break
                 }
@@ -241,11 +251,11 @@ fileprivate extension HCD_UHCI {
             }
 
             // Get list of TDs to free
-            var td = PhysTransferDescriptor(address: PhysAddress(RawAddress(setupTd.pointer.pointee.linkPointer.address)))
+            var td = PhysTransferDescriptor(address: setupTd.linkPointer.physAddress)
             while td.physAddress != statusTd.physAddress {
                 tdAllocations -= 1
-                let address = PhysAddress(RawAddress(td.pointer.pointee.linkPointer.address))
-//                print("UHCI: Freeing:", String(td.physAddress, radix: 16))
+                let address = td.linkPointer.physAddress
+                uhciDebug("UHCI: Freeing:", String(td.physAddress, radix: 16))
                 hcd.allocator.freeTransferDescriptor(td)
                 td = PhysTransferDescriptor(address: address)
             }
@@ -256,16 +266,17 @@ fileprivate extension HCD_UHCI {
                 fatalError("tdAllocation = \(tdAllocations), corrupted link pointers")
             }
 
-            if result {
-  //              print("UHCI: Send OK")
-//                if withBuffer, let dataBuffer = physBuffer {
-//                    print("UHCI: Returned Data @ 0x\(String(dataBuffer.physAddress, radix: 16)), \(dataBuffer.rawBufferPointer):")
-//                    hexDump(buffer: dataBuffer.rawBufferPointer)
-//                }
-            } else {
-                print("UHCI: Send failed QueueHead after send:", queueHead, queueHead.pointer.pointee.dump())
+            if UHCI_DEBUG {
+                if result {
+                    print("UHCI: Send OK")
+                    if withBuffer, let dataBuffer = physBuffer {
+                        print("UHCI: Returned Data @ 0x\(String(dataBuffer.physAddress, radix: 16)), \(dataBuffer.rawBufferPointer):")
+                        hexDump(buffer: dataBuffer.rawBufferPointer)
+                    }
+                } else {
+                    print("UHCI: Send failed QueueHead after send:", queueHead, queueHead.dump())
+                }
             }
-
             return result
         }
     }
