@@ -43,35 +43,28 @@ final class USBHIDDriver: DeviceDriver {
     }
 
 
-    init(device: USBDevice, interface: USB.InterfaceDescriptor) {
+    init?(device: USBDevice, interface: USB.InterfaceDescriptor) {
         self.device = device
         self.interface = interface
-    }
 
-
-    func initialise() -> Bool {
         guard case .hid = interface.interfaceClass else {
             print("USB-HID: interface is not a HID")
-            return false
+            return nil
         }
 
         guard interface.bInterfaceSubClass == 0x1, let interfaceProtocol = HIDInterfaceProtocol(rawValue: interface.bInterfaceProtocol) else {
             print("USB-HID: Device has no boot protocol or cant determine device type (subClass=\(interface.bInterfaceSubClass), protocol=\(interface.bInterfaceProtocol)")
-            return false
+            return nil
         }
 
         if case .none = interfaceProtocol {
             print("USB-HID: Device is not a keyboard or mouse")
-            return false
+            return nil
         }
+    }
 
-        // Find the INTR endpoint
-        guard let intrEndpoint = interface.endpointMatching(transferType: .interrupt) else {
-            print("USB-HID: Cant find an interrupt endpoint")
-            return false
-        }
-        print("USB-HID: Interrupt endpoint:", intrEndpoint)
 
+    func initialise() -> Bool {
         print("USB: Setting protocol to GetReport")
         // Set protocol to 'GetReport'
 
@@ -82,10 +75,78 @@ final class USBHIDDriver: DeviceDriver {
             return false
         }
 
+        // Find the INTR endpoint
+        guard let intrEndpoint = interface.endpointMatching(transferType: .interrupt) else {
+            print("USB-HID: Cant find an interrupt endpoint")
+            return false
+        }
+        print("USB-HID: Interrupt endpoint:", intrEndpoint)
+
         // Create a pipe for the interrupt endpoint and add it to the active queues
         intrPipe = device.hub.allocatePipe(device: device, endpointDescriptor: intrEndpoint)
 
         return true
+    }
+
+    // FIXME: Remove when interrupts work fully, polling test for now
+    func read() {
+        if let interfaceProtocol = HIDInterfaceProtocol(rawValue: interface.bInterfaceProtocol) {
+            switch interfaceProtocol {
+                case .keyboard: readKeyboard()
+                case .mouse: readMouse()
+                default: return
+            }
+        }
+    }
+}
+
+
+// Mouse Interface
+extension USBHIDDriver {
+    struct MouseEvent: CustomStringConvertible {
+        let buttons: BitArray8
+        let xMovement: Int8
+        let yMovement: Int8
+
+        var leftButton: Bool { buttons[0] == 1 }
+        var middleButton: Bool { buttons[1] == 1 }
+        var rightButton: Bool { buttons[2] == 1 }
+        var movement: Bool { xMovement != 0 || yMovement != 0 }
+
+        var description: String {
+            return "X: \(xMovement)\tY: \(yMovement)\t" + (leftButton ? "left " : "") + (middleButton ? "middle " : "") + (rightButton ? "right" : "")
+        }
+
+        init() {
+            buttons = BitArray8(0)
+            xMovement = 0
+            yMovement = 0
+        }
+
+        init(data: [UInt8]) {
+            precondition(data.count >= 3)
+            buttons = BitArray8(data[0])
+            xMovement = Int8(bitPattern: data[1])
+            yMovement = Int8(bitPattern: data[2])
+        }
+    }
+
+    func readMouse() {
+        // Now poll the interrupt to look for mouse changes
+        var oldEvent = MouseEvent()
+        while true {
+            sleep(milliseconds: 10)
+            guard let data = intrPipe.pollInterruptPipe() else { continue }
+            guard data.count >= 3 else {
+                print("USB-Mouse, not enough data: \(data.count)")
+                continue
+            }
+            let event = MouseEvent(data: data)
+            if event.buttons != oldEvent.buttons || event.movement {
+                print(event)
+                oldEvent = event
+            }
+        }
     }
 }
 
@@ -155,14 +216,9 @@ extension USBHIDDriver {
     }
 
 
-    func read() {
-        let wLength = interface.endpoint0.wMaxPacketSize
-
-        var oldkeys: [UInt8] = []
-
-        print("USB-HID wLength:", wLength)
-
+    func readKeyboard() {
         // Now poll the interrupt to look for keypresses
+        var oldkeys: [UInt8] = []
 
         while true {
             sleep(milliseconds: 10)
@@ -211,6 +267,4 @@ extension USBHIDDriver {
         let recipient = USB.ControlRequest.Recipient.interface(interface.bInterfaceNumber)
         return USB.ControlRequest.classSpecificRequest(direction: .hostToDevice, recipient: recipient, bRequest: HIDRequest.SET_PROTOCOL.rawValue, wValue: hidProtocol.rawValue, wLength: 0)
     }
-
-
 }

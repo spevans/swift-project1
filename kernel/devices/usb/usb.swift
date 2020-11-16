@@ -160,8 +160,7 @@ final class USB: Bus {
                         continue
                     }
 
-                    let driver = USBHIDDriver(device: device, interface: interface)
-                    guard driver.initialise() else { continue }
+                    guard let driver = USBHIDDriver(device: device, interface: interface), driver.initialise() else { continue }
 
                     while true {
                         driver.read()
