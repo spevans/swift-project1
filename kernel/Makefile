@@ -12,6 +12,7 @@ _SWIFT_SRCS :=	init/startup.swift				\
 		init/efiboot.swift				\
 		init/smbios.swift				\
 		init/GDT.swift					\
+		init/MemoryRange.swift				\
 		klib/Extensions.swift				\
 		klib/extensions/integer.swift			\
 		klib/extensions/bitarray.swift			\

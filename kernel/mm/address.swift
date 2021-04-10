@@ -74,8 +74,16 @@ struct PhysAddress: CVarArg, Comparable, Hashable, CustomStringConvertible {
         return lhs.advanced(by: rhs)
     }
 
+    static func +=(lhs: inout PhysAddress, rhs: UInt) {
+        lhs = lhs + rhs
+    }
+
     static func +(lhs: PhysAddress, rhs: Int) -> PhysAddress {
         return lhs.advanced(by: rhs)
+    }
+
+    static func +=(lhs: inout PhysAddress, rhs: Int) {
+        lhs = lhs + rhs
     }
 
     static func -(lhs: PhysAddress, rhs: UInt) -> PhysAddress {
@@ -96,8 +104,26 @@ struct PhysAddress: CVarArg, Comparable, Hashable, CustomStringConvertible {
 }
 
 
+struct PhysPageRangeIterator: IteratorProtocol {
+    typealias Element = PhysAddress
+    private let physPageRange: PhysPageRange
+    private var currentPage: PhysAddress
+
+    init(_ physPageRange: PhysPageRange) {
+        self.physPageRange = physPageRange
+        currentPage = physPageRange.address
+    }
+
+    mutating func next() -> Element? {
+        guard currentPage < physPageRange.endAddress else { return nil }
+        defer { currentPage = currentPage + physPageRange.pageSize }
+        return currentPage
+    }
+}
+
+
 // A page aligned physical address region storing the start address, page size and page count.
-struct PhysPageRange: CVarArg, Hashable, CustomStringConvertible {
+struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
     typealias Stride = Int
 
     // Use the lower 2 bits to store the page size, 0 = 4K 1 = 2MB 2 = 1G
@@ -160,6 +186,10 @@ struct PhysPageRange: CVarArg, Hashable, CustomStringConvertible {
         return (region2, region1)
     }
 
+    func makeIterator() -> PhysPageRangeIterator {
+        return PhysPageRangeIterator(self)
+    }
+
 
     var pageSize: UInt {
         switch (addressBits & 3) {
@@ -192,52 +222,79 @@ struct PhysPageRange: CVarArg, Hashable, CustomStringConvertible {
     }
 
 
+    // The smallest pagesize should always be usable to create a range over the whole space
     static func createRanges(startAddress: PhysAddress, size: UInt, pageSizes: [UInt]) -> [PhysPageRange] {
+        precondition(startAddress.isPageAligned) // Aligned to the smallest page size at least.
         precondition(pageSizes.count > 0)
         guard size >= pageSizes[0] else { return [] }
 
-        func createRange(start: PhysAddress, end: PhysAddress, pageSize: UInt) -> PhysPageRange? {
-            let s = start.pageAddress(pageSize: pageSize, roundUp: true)    // round up to next page
-            let e = end.pageAddress(pageSize: pageSize)                     // round down to current page
-            if e >= s {
-                let pageCount = 1 + ((e - s) / Int(pageSize))
-                if pageCount > 0 {
-                    return PhysPageRange(s, pageSize: pageSize, pageCount: pageCount)
-                }
-            }
-            return nil
-        }
-
         var result: [PhysPageRange] = []
         let endAddress = startAddress + (size - 1)
-        var frontEnd = endAddress
-        var backStart = PhysAddress(0)
 
-        for pageSize in pageSizes.sorted().reversed() {
-            if startAddress < frontEnd, let range = createRange(start: startAddress, end: frontEnd, pageSize: pageSize) {
-                result.append(range)
-                if range.endAddress == endAddress {
-                    break
-                }
-                // There is no front block if the original region started at Physical 0
-                if range.address.value > 0 {
-                    frontEnd = PhysAddress(range.address.value - 1)
-                }
+        var centralStart = PhysAddress(0)
+        var centralEnd = PhysAddress(0)
+        var psizes = pageSizes.sorted { $0 > $1 }
 
-                if backStart.value == 0 {
-                    backStart = range.endAddress + 1
-                    continue
-                }
+        var centralRange: PhysPageRange?
+
+        while centralRange == nil {
+            let pageSize = psizes.removeFirst()
+            // Find section of the largest size, this may cover the whole range or,
+            // align to the start but not the end or align to the end but not the start
+            // or maybe doesnt align to start/end at all
+
+            centralStart = startAddress.pageAddress(pageSize: pageSize, roundUp: true)
+            centralEnd = endAddress.pageAddress(pageSize: pageSize, roundUp: false)
+
+            if centralStart == centralEnd, centralStart == startAddress, size == pageSize {
+                // Single page covering the whole range
+                return [PhysPageRange(startAddress, pageSize: pageSize, pageCount: 1)]
             }
-            if let range = createRange(start: backStart, end: endAddress, pageSize: pageSize) {
-                result.append(range)
-                if range.endAddress == endAddress {
-                    break
+
+            if centralStart < centralEnd, centralStart >= startAddress, centralEnd <= endAddress {
+                // Region is between start and end
+                var pageCount = (centralEnd - centralStart) / Int(pageSize)
+                if (centralEnd - 1) + pageSize == endAddress {
+                    pageCount += 1
+                    centralEnd += (pageSize - 1)
                 }
-                backStart = range.endAddress + 1
+                precondition(pageCount > 0)
+                centralRange = PhysPageRange(centralStart, pageSize: pageSize, pageCount: pageCount)
             }
         }
+
+        if centralStart > startAddress {
+            for pageSize in psizes {
+                let start = startAddress.pageAddress(pageSize: pageSize, roundUp: true)
+                if start >= centralStart { continue }
+                let pageCount = (centralStart - start) / Int(pageSize)
+
+                let range = PhysPageRange(start, pageSize: pageSize, pageCount: pageCount)
+                result.append(range)
+                centralStart = start
+            }
+        }
+        precondition(centralStart == startAddress)
+        result.append(centralRange!)
+
+        if centralEnd < endAddress {
+            for pageSize in psizes {
+                let end = endAddress.pageAddress(pageSize: pageSize, roundUp: false)
+                if end <= centralEnd { continue }
+                var pageCount = (end - centralEnd) / Int(pageSize)
+                if (end - 1) + pageSize == endAddress {
+                    pageCount += 1
+                }
+
+                let range = PhysPageRange(centralEnd, pageSize: pageSize, pageCount: pageCount)
+                result.append(range)
+                centralEnd = end
+            }
+        }
+
         result.sort { $0.address < $1.address }
+        precondition(result.first!.address == startAddress)
+        precondition(result.last!.endAddress == endAddress)
         return result
     }
 }

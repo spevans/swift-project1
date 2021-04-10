@@ -57,6 +57,7 @@
 		B9EF91231FC9D14600D14A2F /* amltype2opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */; };
 		B9EF91261FC9D6EA00D14A2F /* amlnamedobject.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */; };
 		B9F22F892325009300A6C92B /* NOTES in Resources */ = {isa = PBXBuildFile; fileRef = B9F22F872325009300A6C92B /* NOTES */; };
+		B9F3DADC262188A900971474 /* MemoryRange.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9F3DAD72621887100971474 /* MemoryRange.swift */; };
 		B9F5D2CE24C1F58D00A6114C /* vmware11-wsmt.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BA24C1F58C00A6114C /* vmware11-wsmt.aml */; };
 		B9F5D2CF24C1F58D00A6114C /* vmware11-hpet.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BB24C1F58C00A6114C /* vmware11-hpet.dsl */; };
 		B9F5D2D024C1F58D00A6114C /* vmware11-mcfg.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BC24C1F58D00A6114C /* vmware11-mcfg.aml */; };
@@ -246,6 +247,7 @@
 		B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amltype2opcodes.swift; sourceTree = "<group>"; };
 		B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amlnamedobject.swift; sourceTree = "<group>"; };
 		B9F22F872325009300A6C92B /* NOTES */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = NOTES; sourceTree = "<group>"; };
+		B9F3DAD72621887100971474 /* MemoryRange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryRange.swift; sourceTree = "<group>"; };
 		B9F5D2BA24C1F58C00A6114C /* vmware11-wsmt.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-wsmt.aml"; sourceTree = "<group>"; };
 		B9F5D2BB24C1F58C00A6114C /* vmware11-hpet.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-hpet.dsl"; sourceTree = "<group>"; };
 		B9F5D2BC24C1F58D00A6114C /* vmware11-mcfg.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-mcfg.aml"; sourceTree = "<group>"; };
@@ -398,6 +400,7 @@
 				B933A7031F2F493800FE6846 /* Makefile */,
 				B933A7081F2F493800FE6846 /* startup.swift */,
 				B933A7051F2F493800FE6846 /* smbios.swift */,
+				B9F3DAD72621887100971474 /* MemoryRange.swift */,
 			);
 			path = init;
 			sourceTree = "<group>";
@@ -865,6 +868,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B9F3DADC262188A900971474 /* MemoryRange.swift in Sources */,
 				B9568C7D2548C0A400C3F49B /* usb-configdescriptor.swift in Sources */,
 				B9568C7E2548C0A400C3F49B /* usb-controlrequest.swift in Sources */,
 				B9568C7F2548C0A400C3F49B /* usb-devicedescriptor.swift in Sources */,
