@@ -81,6 +81,8 @@ fileprivate func mainLoop() {
     let interruptManager = system.deviceManager.interruptManager
     // Idle, woken up by interrupts
     interruptManager.enableIRQs()
+    system.deviceManager.initialiseDevices()
+
     while true {
         hlt()
         interruptManager.queuedIRQsTask()
