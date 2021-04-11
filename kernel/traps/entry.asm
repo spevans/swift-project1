@@ -129,38 +129,39 @@ _run_handler:
 
         ALIGN   8
 _irq_handler:
-        lock    inc dword [int_nest_count]
         SAVE_REGS
         cld                     ; ABI requires DF clear and stack 16byte aligned
         ALIGN_STACK
         mov     r12, rsp
         mov     rsi, qword [interrupt_manager]
+        lock    inc dword [int_nest_count]
         call    irqHandler
-
+        lock    dec dword [int_nest_count]
         mov     rdi, r12
         call    getNextTask
         mov     rsp, [rax + 8]
         RESTORE_REGS
         add     rsp, 8          ; pop irq ('error code')
-        lock    dec dword [int_nest_count]
+
         iretq
 
 
         ALIGN   8
 _apic_int_handler:
-        lock    inc dword [int_nest_count]
         SAVE_REGS
         cld                     ; ABI requires DF clear and stack 16byte aligned
         ALIGN_STACK
         ;; mov     r12, rsp
         ;; mov     rsi, qword [interrupt_manager]
+        lock    inc dword [int_nest_count]
         call    apicIntHandler
+        lock    dec dword [int_nest_count]
 
 ;;;         mov     rsp, r12
         UNALIGN_STACK
         RESTORE_REGS
         add     rsp, 8          ; pop irq ('error code')
-        lock    dec dword [int_nest_count]
+
         iretq
 
 
