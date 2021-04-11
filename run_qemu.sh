@@ -3,6 +3,7 @@
 BOOT="-hda output/boot-hd.img"
 DEBUG=""
 ARGS=""
+MEM=${MEM:=256m}
 
 ACCEL=kvm
 if [ `uname -s` == "Darwin" ]; then
@@ -14,7 +15,7 @@ do
     case $arg in
     --efi)
         BOOT="-bios ovmf.bios -cdrom output/boot-cd.iso"
-	ACCEL=""
+        ACCEL=""
         ;;
 
     -d)
@@ -29,8 +30,12 @@ done
 
 if [ "$ACCEL" != "" ]; then
     echo Using Acceleration $ACCEL
-    qemu-system-x86_64 $DEBUG -accel $ACCEL -cpu host -m 256M $BOOT -serial stdio -D log -d int,cpu_reset,guest_errors,unimp -no-reboot $ARGS
+    CMD="qemu-system-x86_64 $DEBUG -accel $ACCEL -cpu host -m $MEM $BOOT -usb -serial stdio -D log -d int,cpu_reset,guest_errors,unimp -no-reboot $ARGS"
+    echo $CMD
+    $CMD
 else
-    qemu-system-x86_64 $DEBUG  -m 256M $BOOT -serial stdio -D log -d int,cpu_reset,guest_errors,unimp -no-reboot $ARGS
+    CMD="qemu-system-x86_64 $DEBUG  -m $MEM $BOOT -usb -serial stdio -D log -d int,cpu_reset,guest_errors,unimp -no-reboot $ARGS"
+    echo $CMD
+    $CMD
 fi
 

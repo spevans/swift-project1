@@ -23,7 +23,7 @@ endif
 	ld --no-demangle -static -Tlinker.script -Map=output/kernel.map -z max-page-size=0x1000 -o output/kernel.elf $(KERNEL_OBJS) $(KSWIFTLIBS) $(EXTRA_LIBS)
 	echo Converting output/kernel.elf to output/kernel.bin
 	objcopy -O binary output/kernel.elf output/kernel.bin
-	(objdump -d output/kernel.elf -Mintel | $(SWIFT)-demangle > output/kernel.dmp) &
+	(objdump -d output/kernel.elf -Mintel | $(SWIFT)-demangle > output/kernel.dmp)
 	make -C boot
 	objcopy	-I binary -O elf64-x86-64 -B i386:x86-64 output/kernel.elf output/kernel.elf.obj
 	ld --no-demangle -static -Tboot/efi_linker.script -Map=output/efi_body.map -o output/efi_body.bin boot/efi_entry.o boot/efi_main.o boot/efi_elf.o boot/kprintf.o
