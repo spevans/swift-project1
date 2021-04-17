@@ -181,26 +181,76 @@ class AddressTests: XCTestCase {
             XCTAssertEqual(physPageRanges.last?.endAddress, memoryRange.endAddress)
         }
 
-        // Test when the physical address region starts at zero or end at MAX_PHYSICAL_MEMORY
-        let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(0), size: 2 * gb, pageSizes: [4096])
-        XCTAssertEqual(ranges.count, 1)
-        let range = ranges[0]
-        XCTAssertEqual(range.pageCount, 524288)
-        XCTAssertEqual(range.pageSize, 4096)
-        XCTAssertEqual(range.address, PhysAddress(0))
-        let end = 2 * gb - 1
-        XCTAssertEqual(range.endAddress, PhysAddress(end))
+        do {
+            // Test when the physical address region starts at zero or end at MAX_PHYSICAL_MEMORY
+            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(2 * gb - 1), pageSizes: [4096])
+            XCTAssertEqual(ranges.count, 1)
+            let range = ranges[0]
+            XCTAssertEqual(range.pageCount, 524288)
+            XCTAssertEqual(range.pageSize, 4096)
+            XCTAssertEqual(range.address, PhysAddress(0))
+            let end = 2 * gb - 1
+            XCTAssertEqual(range.endAddress, PhysAddress(end))
 
-        let allMemoryRegions4K = PhysPageRange.createRanges(startAddress: PhysAddress(0), size: MAX_PHYSICAL_MEMORY, pageSizes: [4096])
-        XCTAssertEqual(allMemoryRegions4K.count, 1)
-        let total4KPages = allMemoryRegions4K.map { $0.pageCount }.reduce(0, +)
-        XCTAssertEqual(total4KPages, 4096 * 4096)
+            let allMemoryRegions4K = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(MAX_PHYSICAL_MEMORY - 1), pageSizes: [4096])
+            XCTAssertEqual(allMemoryRegions4K.count, 1)
+            let total4KPages = allMemoryRegions4K.map { $0.pageCount }.reduce(0, +)
+            XCTAssertEqual(total4KPages, 4096 * 4096)
 
-        let allMemoryRegions1G = PhysPageRange.createRanges(startAddress: PhysAddress(0), size: MAX_PHYSICAL_MEMORY, pageSizes: [4096, 2 * mb, 1 * gb])
-        XCTAssertEqual(allMemoryRegions1G.count, 1)
-        XCTAssertEqual(allMemoryRegions1G.first?.pageCount, 64)
-        XCTAssertEqual(allMemoryRegions1G.first?.pageSize, 1 * gb)
-        let total1GPages = allMemoryRegions1G.map { $0.pageCount }.reduce(0, +)
-        XCTAssertEqual(total1GPages, 64)
+            let allMemoryRegions1G = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(MAX_PHYSICAL_MEMORY - 1), pageSizes: [4096, 2 * mb, 1 * gb])
+            XCTAssertEqual(allMemoryRegions1G.count, 1)
+            XCTAssertEqual(allMemoryRegions1G.first?.pageCount, 64)
+            XCTAssertEqual(allMemoryRegions1G.first?.pageSize, 1 * gb)
+            let total1GPages = allMemoryRegions1G.map { $0.pageCount }.reduce(0, +)
+            XCTAssertEqual(total1GPages, 64)
+        }
+
+        do {
+            // Region too small, no ranges returned
+            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(99), pageSizes: [4096])
+            XCTAssertEqual(ranges.count, 0)
+        }
+
+        do {
+            // Region overlaps 2 pages but doesnt cover either page fully
+            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(1), endAddress: PhysAddress(6000), pageSizes: [4096])
+            XCTAssertEqual(ranges.count, 0)
+        }
+
+        do {
+            // Region overlaps 3 pages but only covers 1 fully
+            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(100), endAddress: PhysAddress(9099), pageSizes: [4096])
+            XCTAssertEqual(ranges.count, 1)
+            XCTAssertEqual(ranges[0].pageCount, 1)
+            XCTAssertEqual(ranges[0].pageSize, 4096)
+            XCTAssertEqual(ranges[0].address, PhysAddress(4096))
+        }
+
+        do {
+            // 1Gb pages only
+            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(1 * gb - 1), pageSizes: [1 * gb])
+            XCTAssertEqual(ranges.count, 1)
+            XCTAssertEqual(ranges[0].pageCount, 1)
+            XCTAssertEqual(ranges[0].pageSize, 1 * gb)
+            XCTAssertEqual(ranges[0].address, PhysAddress(0))
+        }
+
+        do {
+            // 1Gb pages only
+            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(1 * gb), pageSizes: [1 * gb])
+            XCTAssertEqual(ranges.count, 1)
+            XCTAssertEqual(ranges[0].pageCount, 1)
+            XCTAssertEqual(ranges[0].pageSize, 1 * gb)
+            XCTAssertEqual(ranges[0].address, PhysAddress(0))
+        }
+
+        do {
+            // 1Gb pages only
+            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(1 * gb + 4095), pageSizes: [1 * gb])
+            XCTAssertEqual(ranges.count, 1)
+            XCTAssertEqual(ranges[0].pageCount, 1)
+            XCTAssertEqual(ranges[0].pageSize, 1 * gb)
+            XCTAssertEqual(ranges[0].address, PhysAddress(0))
+        }
     }
 }

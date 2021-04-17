@@ -137,12 +137,14 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
     var regionSize: UInt { pageSize * UInt(pageCount) }
 
     var endAddress: PhysAddress {
-        PhysAddress(address.value + (regionSize - 1))
+        // Avoid overflow if range is the full 64bit region.
+        let regionSizeMinusOne = (UInt(pageCount - 1) * pageSize) + (pageSize - 1)
+        return PhysAddress(address.value + regionSizeMinusOne)
     }
 
     var description: String {
         var result = "0x" + String(address.value, radix: 16) + " - 0x" + String(endAddress.value, radix: 16)
-        result += "\t\(pageCount) [0x\(String(pageSize, radix: 16))]"
+        result += " [\(pageCount) * 0x\(String(pageSize, radix: 16))]"
         return result
     }
 
@@ -154,10 +156,10 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
         let pgSize: UInt
         // Encode the page size
         switch pageSize {
-        case 4096: pgSize = 1
-        case 2048 * 1024: pgSize = 2
-        case 1024 * 1024 * 1024: pgSize = 3
-        default: fatalError("Invalid page size: \(pageSize)")
+            case 4096: pgSize = 1
+            case 2048 * 1024: pgSize = 2
+            case 1024 * 1024 * 1024: pgSize = 3
+            default: fatalError("Invalid page size: \(pageSize)")
         }
 
         var _address: UInt
@@ -181,9 +183,9 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
         let count2 = pageCount - count1
         precondition(count2 > 0)
 
-        let region2 = PhysPageRange(addressBits: addressBits, pageCount: count1)
-        let region1 = PhysPageRange(addressBits: addressBits + region2.regionSize, pageCount: count2)
-        return (region2, region1)
+        let region1 = PhysPageRange(addressBits: addressBits, pageCount: count1)
+        let region2 = PhysPageRange(addressBits: addressBits + region1.regionSize, pageCount: count2)
+        return (region1, region2)
     }
 
     func makeIterator() -> PhysPageRangeIterator {
@@ -223,49 +225,58 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
 
 
     // The smallest pagesize should always be usable to create a range over the whole space
-    static func createRanges(startAddress: PhysAddress, size: UInt, pageSizes: [UInt]) -> [PhysPageRange] {
-        precondition(startAddress.isPageAligned) // Aligned to the smallest page size at least.
+    static func createRanges(startAddress: PhysAddress, endAddress: PhysAddress, pageSizes: [UInt]) -> [PhysPageRange] {
+        print("createRanges(startAddress: \(startAddress), endAddress: \(endAddress), pageSizes: \(pageSizes)")
+        guard startAddress.value < MAX_PHYSICAL_MEMORY, endAddress.value < MAX_PHYSICAL_MEMORY else {
+            fatalError("Out of range physical region")
+        }
         precondition(pageSizes.count > 0)
-        guard size >= pageSizes[0] else { return [] }
+
+        let smallestPageSize = pageSizes.min()!
+        let smallestPageMask = smallestPageSize - 1
+        // Round up the startAddress to a page boundary if not already on one.
+        // Round down the endAddress to an end of page address (ie ends in 0x...fff).
+        // Use the smallest system page size
+        let roundedStartAddress = startAddress.pageAddress(pageSize: smallestPageSize, roundUp: true)
+        let roundedEndAddress: PhysAddress
+        if endAddress.value & smallestPageMask == smallestPageMask {
+            roundedEndAddress = endAddress
+        } else {
+            let address = (endAddress.value & ~smallestPageMask)
+            guard address > 0 else { return [] }
+            roundedEndAddress = PhysAddress(address - 1)
+        }
+        guard roundedEndAddress > roundedStartAddress else { return [] }
+
+        precondition(roundedStartAddress.isPageAligned) // Aligned to the smallest page size at least.
 
         var result: [PhysPageRange] = []
-        let endAddress = startAddress + (size - 1)
-
         var centralStart = PhysAddress(0)
         var centralEnd = PhysAddress(0)
-        var psizes = pageSizes.sorted { $0 > $1 }
-
+        var pageSizes = pageSizes.sorted { $0 > $1 }
         var centralRange: PhysPageRange?
 
         while centralRange == nil {
-            let pageSize = psizes.removeFirst()
+            let pageSize = pageSizes.removeFirst()
             // Find section of the largest size, this may cover the whole range or,
             // align to the start but not the end or align to the end but not the start
             // or maybe doesnt align to start/end at all
 
-            centralStart = startAddress.pageAddress(pageSize: pageSize, roundUp: true)
-            centralEnd = endAddress.pageAddress(pageSize: pageSize, roundUp: false)
-
-            if centralStart == centralEnd, centralStart == startAddress, size == pageSize {
-                // Single page covering the whole range
-                return [PhysPageRange(startAddress, pageSize: pageSize, pageCount: 1)]
+            centralStart = roundedStartAddress.pageAddress(pageSize: pageSize, roundUp: true)
+            if centralStart < roundedStartAddress || centralStart > roundedEndAddress {
+                continue
             }
 
-            if centralStart < centralEnd, centralStart >= startAddress, centralEnd <= endAddress {
-                // Region is between start and end
-                var pageCount = (centralEnd - centralStart) / Int(pageSize)
-                if (centralEnd - 1) + pageSize == endAddress {
-                    pageCount += 1
-                    centralEnd += (pageSize - 1)
-                }
-                precondition(pageCount > 0)
-                centralRange = PhysPageRange(centralStart, pageSize: pageSize, pageCount: pageCount)
-            }
+            let pageCount = UInt((roundedEndAddress - roundedStartAddress) + 1) / pageSize
+            if pageCount == 0 { continue }
+            let range = PhysPageRange(centralStart, pageSize: pageSize, pageCount: Int(pageCount))
+            centralRange = range
+            centralEnd = range.endAddress
         }
 
-        if centralStart > startAddress {
-            for pageSize in psizes {
-                let start = startAddress.pageAddress(pageSize: pageSize, roundUp: true)
+        if centralStart > roundedStartAddress {
+            for pageSize in pageSizes {
+                let start = roundedStartAddress.pageAddress(pageSize: pageSize, roundUp: true)
                 if start >= centralStart { continue }
                 let pageCount = (centralStart - start) / Int(pageSize)
 
@@ -274,27 +285,22 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
                 centralStart = start
             }
         }
-        precondition(centralStart == startAddress)
+        precondition(centralStart == roundedStartAddress)
         result.append(centralRange!)
 
-        if centralEnd < endAddress {
-            for pageSize in psizes {
-                let end = endAddress.pageAddress(pageSize: pageSize, roundUp: false)
-                if end <= centralEnd { continue }
-                var pageCount = (end - centralEnd) / Int(pageSize)
-                if (end - 1) + pageSize == endAddress {
-                    pageCount += 1
-                }
-
-                let range = PhysPageRange(centralEnd, pageSize: pageSize, pageCount: pageCount)
+        if centralEnd < roundedEndAddress {
+            for pageSize in pageSizes {
+                let pageCount = UInt(roundedEndAddress - centralEnd) / pageSize
+                if pageCount == 0  { continue }
+                let range = PhysPageRange(centralEnd + 1, pageSize: pageSize, pageCount: Int(pageCount))
                 result.append(range)
-                centralEnd = end
+                centralEnd = centralEnd + (pageSize * pageCount)
             }
         }
 
         result.sort { $0.address < $1.address }
-        precondition(result.first!.address == startAddress)
-        precondition(result.last!.endAddress == endAddress)
+        precondition(result.first!.address == roundedStartAddress)
+        precondition(result.last!.endAddress == roundedEndAddress)
         return result
     }
 }

@@ -46,12 +46,12 @@ struct MemoryRange: CustomStringConvertible {
 
     var physPageRanges: [PhysPageRange] {
         precondition(start.isPageAligned)
-        return PhysPageRange.createRanges(startAddress: start, size: size, pageSizes: [PAGE_SIZE])
+        return PhysPageRange.createRanges(startAddress: start, endAddress: endAddress, pageSizes: [PAGE_SIZE])
     }
 
     func physPageRanges(using pageSizes: [UInt]) -> [PhysPageRange]  {
         precondition(start.isPageAligned)
-        return PhysPageRange.createRanges(startAddress: start, size: size, pageSizes: pageSizes)
+        return PhysPageRange.createRanges(startAddress: start, endAddress: endAddress, pageSizes: pageSizes)
     }
 
     var description: String {
