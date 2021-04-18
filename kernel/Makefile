@@ -29,6 +29,7 @@ _SWIFT_SRCS :=	init/startup.swift				\
 		mm/alloc.swift					\
 		mm/symbols.swift				\
 		devices/acpi/acpi.swift				\
+		devices/acpi/ACPIGenericAddressStructure.swift	\
 		devices/acpi/boot.swift				\
 		devices/acpi/ecdt.swift				\
 		devices/acpi/facp.swift				\
@@ -87,6 +88,7 @@ _SWIFT_SRCS :=	init/startup.swift				\
 		devices/apic.swift				\
 		devices/ioapic.swift				\
 		devices/cmos.swift				\
+		devices/Timer.swift				\
 		traps/exceptions.swift				\
 		traps/interrupt.swift				\
 		traps/IDT.swift					\

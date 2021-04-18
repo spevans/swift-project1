@@ -131,6 +131,19 @@ struct DumpMemCommand: ShellCommand {
     }
 }
 
+struct HPETCommand: ShellCommand {
+    let command = "hpet"
+    let helpText = "Show HPET configuration"
+
+    func runCommand(arguments: [String]) {
+        guard let hpet = system.deviceManager.acpiTables.entry(of: HPET.self) else {
+            print("No HPET found")
+            return
+        }
+        hpet.showConfiguration()
+    }
+}
+
 private struct ShowNodeCommand: ShellCommand {
     let command = "shownode"
     let helpText = "show an ACPI node"
@@ -214,6 +227,7 @@ private let commands: [String: ShellCommand] = {
         DumpDevCommand(),
         DumpACPICommand(),
         DumpMemCommand(),
+        HPETCommand(),
         ShowNodeCommand(),
         UptimeCommand(),
         VMXOnCommand(),

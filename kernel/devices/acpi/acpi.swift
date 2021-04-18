@@ -187,6 +187,9 @@ final class ACPI {
         print("End of AML code")
     }
 
+    func entry<T>(of type: T.Type) -> T? where T: ACPITable {
+        return tables.filter { $0 is T }.first as? T
+    }
 
     func parseEntry(rawSDTPtr: UnsafeRawPointer, vendor: String,
         product: String) {
@@ -214,15 +217,19 @@ final class ACPI {
 
         case "FACP":
             facp = FACP(rawSDTPtr)
-            tables.append(facp!)
+            if let _facp = facp {
+                print(_facp)
+                tables.append(_facp)
+            }
 
         case "APIC":
             madt = MADT(rawSDTPtr)
             tables.append(madt!)
 
         case "HPET":
-            let table = HPET(rawSDTPtr)
-            tables.append(table)
+            let hpet = HPET(rawSDTPtr)
+            print(hpet)
+            tables.append(hpet)
 
         case "ECDT":
             let table = ECDT(rawSDTPtr)

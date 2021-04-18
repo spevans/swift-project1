@@ -47,6 +47,7 @@
 		B9568C8C2548E87600C3F49B /* usb-hiddescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568C8B2548E87600C3F49B /* usb-hiddescriptor.swift */; };
 		B9568CB12551819E00C3F49B /* BitmapAllocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568CB02551819E00C3F49B /* BitmapAllocator.swift */; };
 		B962BDAC1FD3116B00D42D70 /* amlresourcedata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */; };
+		B96BBE50262B5502009756A8 /* ACPIGenericAddressStructure.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96BBE4F262B5502009756A8 /* ACPIGenericAddressStructure.swift */; };
 		B9AF69D61FBDEB8B0049CB98 /* ACPIReadWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9AF69D51FBDEB8B0049CB98 /* ACPIReadWriteTests.swift */; };
 		B9C2AF2B1FD84CB300E6EFEB /* KlibTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF2A1FD84CB300E6EFEB /* KlibTests.swift */; };
 		B9C2AF2C1FD84D9000E6EFEB /* ReservationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */; };
@@ -218,6 +219,8 @@
 		B963DA0F22FC8A0600E7F8B3 /* run_qemu.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = run_qemu.sh; sourceTree = "<group>"; };
 		B963DA1022FC8A0600E7F8B3 /* gdb-cmds-bochs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "gdb-cmds-bochs"; sourceTree = "<group>"; };
 		B963DA1322FD85BC00E7F8B3 /* cmos.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = cmos.swift; sourceTree = "<group>"; };
+		B96BBE4F262B5502009756A8 /* ACPIGenericAddressStructure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPIGenericAddressStructure.swift; sourceTree = "<group>"; };
+		B96BBE53262CA85F009756A8 /* Timer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Timer.swift; sourceTree = "<group>"; };
 		B9793D4E200A571B0013E03B /* symbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = symbols.swift; sourceTree = "<group>"; };
 		B97C3A8024D0D10F00E3602C /* shell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = shell.swift; sourceTree = "<group>"; };
 		B9A2C1B01F30ECF9003D4D92 /* TODO */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = TODO; sourceTree = "<group>"; };
@@ -384,6 +387,7 @@
 				B933A7161F2F497800FE6846 /* ps2keyboard.swift */,
 				B9C6DF0B22FF0629006BD245 /* qemufwcf.swift */,
 				B933A71A1F2F497800FE6846 /* tty.swift */,
+				B96BBE53262CA85F009756A8 /* Timer.swift */,
 			);
 			path = devices;
 			sourceTree = "<group>";
@@ -479,6 +483,7 @@
 				B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */,
 				B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */,
 				B9362EEF24DD681000856B47 /* amlnamespacemodifier.swift */,
+				B96BBE4F262B5502009756A8 /* ACPIGenericAddressStructure.swift */,
 			);
 			path = acpi;
 			sourceTree = "<group>";
@@ -914,6 +919,7 @@
 				B933A7901F2F8F2100FE6846 /* integer.swift in Sources */,
 				B933A77C1F2F8F0700FE6846 /* address.swift in Sources */,
 				B9362EF024DD681000856B47 /* amlnamespacemodifier.swift in Sources */,
+				B96BBE50262B5502009756A8 /* ACPIGenericAddressStructure.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

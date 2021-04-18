@@ -15,8 +15,7 @@ final class PIT8254: PNPDeviceDriver, Timer, CustomStringConvertible {
     private let channel0Port: UInt16
     private let channel2Port: UInt16
     private let commandPort: UInt16
-    private let irq: UInt8
-    private var periodicTimerCallback: (() -> ())? = nil
+    let irq: UInt8
 
     // Raw Value is the I/O port
     enum TimerChannel: UInt16 {
@@ -124,8 +123,7 @@ final class PIT8254: PNPDeviceDriver, Timer, CustomStringConvertible {
         let resources = pnpDevice.resources
         print("PIT8254: init:", resources)
 
-        guard let ports = resources.ioPorts.first, ports.count > 3
-            && resources.interrupts.count > 0 else {
+        guard let ports = resources.ioPorts.first, ports.count > 3 else {
             print("PIT8254: Requires 4 IO ports and 1 IRQ")
             return nil
         }
@@ -134,15 +132,13 @@ final class PIT8254: PNPDeviceDriver, Timer, CustomStringConvertible {
         channel0Port = ports[ports.index(idx, offsetBy: 0)]
         channel2Port = ports[ports.index(idx, offsetBy: 2)]
         commandPort = ports[ports.index(idx, offsetBy: 3)]
-        irq = resources.interrupts[0]
+        irq = resources.interrupts.first ?? 0   // Default IRQ = 0
+        print("PIT8254: IRQ\(irq)")
     }
 
 
-    func enablePeriodicInterrupt(hz: Int, _ callback: @escaping () -> ()) -> Bool {
+    func enablePeriodicInterrupt(hz: Int) {
         setChannel(.CHANNEL_0, mode: .MODE_3, hz: hz)
-        periodicTimerCallback = callback
-        system.deviceManager.interruptManager.setIrqHandler(0, handler: timerInterrupt)
-        return true
     }
 
 
@@ -211,12 +207,5 @@ final class PIT8254: PNPDeviceDriver, Timer, CustomStringConvertible {
         setDivisor(channel, divisor)
 
         return Int(oscillator / Int(divisor))
-    }
-
-
-    private func timerInterrupt(irq: Int) {
-        if let callback = periodicTimerCallback {
-            callback()
-        }
     }
 }

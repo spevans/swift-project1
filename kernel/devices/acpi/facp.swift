@@ -1,14 +1,14 @@
 /*
- * kernel/devices/acpi/smbios.swift
+ * kernel/devices/acpi/facp.swift
  *
  * Created by Simon Evans on 02/03/2016.
- * Copyright © 2016 Simon Evans. All rights reserved.
+ * Copyright © 2016 - 2021 Simon Evans. All rights reserved.
  *
  * Parsing of ACPI FACP (Fixed ACPI Description Table). Bare minimum
  * of fields are looked at, just to see if IAPC flags held any information.
  */
 
-struct FACP: ACPITable {
+struct FACP: ACPITable, CustomStringConvertible {
 
     private let table: acpi_facp_table
 
@@ -50,6 +50,11 @@ struct FACP: ACPITable {
         return nil
     }
 
+
+    var description: String {
+        "FACP: hasLegacyDev: \(hasLegacyDevices) has8042: \(has8042Controller) hasVga: \(isVgaPresent) " +
+            "hasMSI: \(isMsiSupported) hasRTC: \(hasCmosRtc)"
+    }
 
     init(_ ptr: UnsafeRawPointer) {
         table = ptr.load(as: acpi_facp_table.self)

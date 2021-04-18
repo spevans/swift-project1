@@ -50,15 +50,8 @@ final class DeviceManager {
     }
 
 
-    // Setup devices required for other device setup. This includes timers which are used for to
-    // implement sleep() etc, used by more complex devices eg USB Host Controllers when initialising.
-    // Currently this setups all of the pnp ISA devices but this should be restricted to timers.
-    func initialiseEarlyDevices() {
-        print("initialiseEarlyDevices start")
-        masterBus.initialiseDevices(acpiDevice: nil)
-
-        // Find a timer
-        pnpDevices(on: masterBus, pnpName: "PNP0100") {
+    func findPNPDevice(withName pnpName: String) {
+        pnpDevices(on: masterBus, pnpName: pnpName) {
             guard let pnpDevice = $0 as? ISADevice, pnpDevice.pnpDeviceDriver == nil else { return }
             if let driverType = pnpDriverById(pnpName: pnpDevice.pnpName), let driver = driverType.init(pnpDevice: pnpDevice) {
                 print("Found early PNP device:", driverType)
@@ -66,14 +59,20 @@ final class DeviceManager {
                 system.deviceManager.addDevice(driver)
             }
         }
+    }
 
-        // Set the timer interrupt for 1kHz
-        if let timer = timer {
-            _ = timer.enablePeriodicInterrupt(hz: 1000, timer_callback)
-            print(timer)
-            print("Timer setup for 1000Hz")
-        } else {
-            fatalError("Cant find a timer")
+
+
+    // Setup devices required for other device setup. This includes timers which are used to
+    // implement sleep() etc, used by more complex devices eg USB Host Controllers when initialising.
+    // Currently this setups all of the pnp ISA devices but this should be restricted to timers.
+    func initialiseEarlyDevices() {
+        print("initialiseEarlyDevices start")
+        masterBus.initialiseDevices(acpiDevice: nil)
+        dumpPNPDevices()
+        findPNPDevice(withName: "PNP0100")  // Look for a PIT timer and add to device tree if found
+        guard setupPeriodicTimer() else {
+            koops("Cant find a timer to use for periodic clock")
         }
         print("initialiseEarlyDevices done")
     }
@@ -101,10 +100,10 @@ final class DeviceManager {
         usbBus = USB()
         usbBus.initialiseDevices()
         print("USB initialised, looking at rest of devices")
+
         if let rootPCIBus = masterBus.rootPCIBus() {
-            rootPCIBus.devicesMatching() {
-                print("Found pcidevice: \($0) deviceClass: \($1)")
-                guard $0.pciDeviceDriver == nil else { return }
+            rootPCIBus.devicesMatching() { (device: PCIDevice, deviceClass: PCIDeviceClass) in
+                guard device.pciDeviceDriver == nil else { return }
             }
         } else {
             print("Error: Cant Find ROOT PCI Bus")
@@ -155,7 +154,7 @@ final class DeviceManager {
     func dumpPNPDevices(bus: Bus? = nil) {
         for device in (bus ?? masterBus).devices {
             if let pnpDevice = device as? PNPDevice {
-                print(pnpDevice.pnpName)
+                print(pnpDevice)
             }
             if let bus = device.deviceDriver as? Bus {
                 dumpPNPDevices(bus: bus)
@@ -176,15 +175,4 @@ final class DeviceManager {
     var rtc: CMOSRTC? {
         return devices.filter { $0 is CMOSRTC }.first as? CMOSRTC
     }
-}
-
-
-public func sleep(milliseconds: Int) {
-    let current = current_ticks()
-    let required = current + UInt64(milliseconds)
-    //print("Sleeping for \(milliseconds), current ticks:", current, "required ticks:", required)
-    while required > current_ticks() {
-        hlt()
-    }
-    //print("Ticks now:", current_ticks())
 }

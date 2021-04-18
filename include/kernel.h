@@ -20,6 +20,7 @@
 #include "mm.h"
 #include "efi.h"
 #include "usb.h"
+#include "io.h"
 
 // Export as [symbol]_addr as a unitptr_t to be manipulated as a UInt
 #define EXPORTED_SYMBOL_AS_UINTPTR(x)               \

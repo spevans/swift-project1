@@ -48,9 +48,3 @@ protocol Keyboard {
     func readKeyboard() -> UnicodeScalar?
     // TODO: Add some key modifier state
 }
-
-// Generic Timer device
-protocol Timer {
-    func enablePeriodicInterrupt(hz: Int, _ callback: @escaping () -> ()) -> Bool
-}
-
