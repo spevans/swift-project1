@@ -16,7 +16,7 @@ internal extension HCD_UHCI {
         var rawValue: UInt16 { bits.rawValue }
 
         init(rawValue: UInt16) {
-            bits = BitArray16(rawValue & 0x0f)  // Bits 15:8 reserved
+            bits = BitArray16(rawValue & 0xff)  // Bits 15:8 reserved
         }
 
         init() {
@@ -74,9 +74,10 @@ internal extension HCD_UHCI {
         }
 
         var description: String {
-            return "USBCommand: 0x\(String(rawValue, radix: 16))" +
-                " RS: \(bits[0]) HCRESET: \(bits[1]) GRESET: \(bits[2]) EGSM: \(bits[3]))" +
-                " FGR: \(bits[4]) CF: \(bits[5]) MAXP: \(maxPacket64Bytes ? 64: 32)"
+            return "USBCommand: 0x\(String(rawValue, radix: 16))"
+                + " RS: \(run) HCRESET: \(hostControllerReset) GRESET: \(globalReset)"
+                + " EGSM: \(enterGlobalSuspendMode) FGR: \(forceGlobalResume)"
+                + " DBG: \(debugMode) CF: \(configureFlag) MAXP: \(maxPacket64Bytes ? 64: 32)"
         }
     }
 
@@ -86,7 +87,7 @@ internal extension HCD_UHCI {
         var rawValue: UInt16 { bits.rawValue }
 
         init(rawValue: UInt16) {
-            bits = BitArray16(rawValue & 0x0c)  // Bits 15:6 reserved
+            bits = BitArray16(rawValue & 0x3f)  // Bits 15:6 reserved
         }
 
         var interrupt: Bool { bits[0] == 1 }

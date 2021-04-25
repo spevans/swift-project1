@@ -34,6 +34,31 @@ final class PCIDevice: Device, CustomStringConvertible {
     }
 }
 
+// Base Address Register pointing to I/O space
+struct PCIIOBar {
+    let ioPort: UInt16
+
+    init?(bar: UInt32) {
+        guard bar & 1 == 1 else { return nil }
+        let _ioPort = bar & 0xFFFC  // Bit 1 is reserved
+        guard _ioPort > 0, _ioPort <= UInt16.max else { return nil }
+        ioPort = UInt16(_ioPort)
+    }
+}
+
+struct PCIMemoryBar {
+    private let bits: BitArray32
+
+    init?(bar: UInt32) {
+        guard bar & 1 == 0 else { return nil }
+        bits = BitArray32(bar)
+    }
+
+    var locatable: Int { Int(bits[1...2]) }
+    var isPrefetchable: Bool { Bool(bits[3])}
+    var baseAddress: UInt32 { bits.rawValue & 0xFFF0 }
+}
+
 
 // Header Type 0x00, PCI General Device, excludes common fields in PCIDeviceFunction
 struct PCIGeneralDevice {

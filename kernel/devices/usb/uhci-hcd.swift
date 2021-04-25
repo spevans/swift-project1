@@ -54,27 +54,26 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
             return nil
         }
 
-        let bar4 = generalDevice.bar4
-        guard bar4 & 1 == 1 else {
-            uhciDebug("BAR4 address 0x\(String(bar4, radix: 16)) is not an IO resource")
+        guard let pciIOBar = PCIIOBar(bar: generalDevice.bar4) else {
+            print("PCI BAR4 \(String(generalDevice.bar4, radix: 16)) is not an IO port BAR")
             return nil
         }
 
+        ioBasePort = pciIOBar.ioPort
+        uhciDebug("IO 0x\(String(ioBasePort, radix: 16))")
         allocator = UHCIAllocator()
 
-
-        ioBasePort = UInt16(truncatingIfNeeded: bar4 & 0xffe0)
-        uhciDebug("IO 0x\(String(ioBasePort, radix: 16))")
         self.deviceFunction = pciDevice.deviceFunction
         self.acpiDevice = pciDevice.acpiDevice
 
         let sbrn = deviceFunction.configSpace.readConfigByte(atByteOffset: 0x60)
         uhciDebug("bus release number 0x\(String(sbrn, radix: 16))")
 
-        // Disable PCI interrupts, set IOSpace active
+        // Disable PCI interrupts, set IOSpace and busMaster active
         var pciCommand = deviceFunction.command
         pciCommand.ioSpace = true
         pciCommand.interruptDisable = true
+        pciCommand.busMaster = true
         deviceFunction.command = pciCommand
         uhciDebug("PCICommand:", deviceFunction.command)
     }
@@ -83,10 +82,10 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
     func initialiseDevice() {
         uhciDebug("driver init")
 
-        // Disable Legacy Support (SMI/PS2 emulation)
+        // Disable Legacy Support (SMI/PS2 emulation) and PIRQ
         uhciDebug("PCIStatus:", deviceFunction.status)
         uhciDebug("PCICommand:", deviceFunction.command)
-        deviceFunction.configSpace.writeConfigWord(atByteOffset: 0xC0, value: 0xF800)
+        deviceFunction.configSpace.writeConfigWord(atByteOffset: 0xC0, value: 0x8F00)
 
         // Save SOF to restore after reset
         let savedSOF = self.startOfFrame
