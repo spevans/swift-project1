@@ -139,7 +139,7 @@ extension ISABus {
     // Resources used by a device
     struct Resources: CustomStringConvertible {
         let ioPorts: [ClosedRange<UInt16>]
-        let interrupts: [UInt8]
+        let interrupts: [IRQSetting]
         let dmaChannels: [UInt8]
         let fixedMemoryRanges: [(Range<UInt32>, Bool)]
 
@@ -153,7 +153,7 @@ extension ISABus {
                 }.joined(separator: ", ")
             }
             if !interrupts.isEmpty {
-                let irq = "irq: " + interrupts.map { String($0) }.joined(separator: ", ")
+                let irq = "irq: " + interrupts.map { String($0.irq) }.joined(separator: ", ")
                 if !s.isEmpty { s += " " }
                 s += irq
             }
@@ -174,7 +174,7 @@ extension ISABus {
 
         init(_ resources: [AMLResourceSetting]) {
             var ioPorts: [ClosedRange<UInt16>] = []
-            var interrupts: [UInt8] = []
+            var interrupts: [IRQSetting] = []
             var dmaChannels: [UInt8] = []
             var fixedMemoryRanges: [(Range<UInt32>, Bool)] = []
 
@@ -184,7 +184,7 @@ extension ISABus {
                 } else if let irq = resource as? AMLIrqSetting {
                     interrupts.append(contentsOf: irq.interrupts())
                 } else if let irq = resource as? AMLIrqExtendedDescriptor {
-                    interrupts.append(contentsOf: irq.interrupts)
+                    interrupts.append(contentsOf: irq.interrupts())
                 } else if let dma = resource as? AMLDmaSetting {
                     dmaChannels.append(contentsOf: dma.channels())
                 } else if let fixedRange = resource as? AMLFixedMemoryRangeDescriptor {

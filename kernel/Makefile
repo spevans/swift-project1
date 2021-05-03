@@ -92,6 +92,7 @@ _SWIFT_SRCS :=	init/startup.swift				\
 		traps/exceptions.swift				\
 		traps/interrupt.swift				\
 		traps/IDT.swift					\
+		traps/IRQSetting.swift				\
 		tasks/tasks.swift				\
 		tasks/shell.swift				\
 		vm/vmx.swift					\

@@ -71,11 +71,12 @@ struct AMLIrqSetting: AMLResourceSetting {
     }
 
 
-    func interrupts() -> [UInt8] {
-        var ints: [UInt8] = []
+    func interrupts() -> [IRQSetting] {
+        var ints: [IRQSetting] = []
         for idx in 0..<16 {
             if irqMask[idx] != 0 {
-                ints.append(UInt8(idx))
+                ints.append(IRQSetting(irq: UInt8(idx), activeHigh: activeHigh, levelTriggered: levelTriggered,
+                                       shared: interruptSharing, wakeCapable: wakeCapable))
             }
         }
         return ints
@@ -172,8 +173,8 @@ struct AMLFixedMemoryRangeDescriptor: AMLResourceSetting {
 }
 
 struct AMLIrqExtendedDescriptor: AMLResourceSetting {
-    let flags: BitArray8
-    let interrupts: [UInt8]
+    private let flags: BitArray8
+    private let intNumbers: [UInt8]
 
     var isResourceProducer: Bool { return flags[0] == 0 }
     var levelTriggered:     Bool { return flags[1] == 0 }
@@ -189,14 +190,23 @@ struct AMLIrqExtendedDescriptor: AMLResourceSetting {
         precondition(intCount > 0)
         precondition(buffer.count >= (intCount * 4) + 2)
 
-        var intNumbers: [UInt8] = []
-        intNumbers.reserveCapacity(intCount)
+        var _intNumbers: [UInt8] = []
+        _intNumbers.reserveCapacity(intCount)
         for int in 0..<intCount {
             let idx = (int * 4) + 2
             let irq = UInt32(withBytes: buffer[idx], buffer[idx + 1], buffer[idx + 2], buffer[idx + 3])
-            intNumbers.append(UInt8(irq))
+            _intNumbers.append(UInt8(irq))
         }
-        interrupts = intNumbers
+        intNumbers = _intNumbers
+    }
+
+    func interrupts() -> [IRQSetting] {
+        var ints: [IRQSetting] = []
+        for int in intNumbers {
+            ints.append(IRQSetting(irq: int, activeHigh: activeHigh, levelTriggered: levelTriggered,
+                                   shared: interruptSharing, wakeCapable: wakeCapable))
+        }
+        return ints
     }
 }
 

@@ -13,13 +13,13 @@ final class CMOSRTC: PNPDeviceDriver, CustomStringConvertible {
 
     private let addressPort: UInt16
     private let dataPort: UInt16
-    private let irq: UInt8
+    private let irq: IRQSetting
     private let centuryIndex: UInt8
 
 
     var description: String {
-        return String.sprintf("CMOS RTC addr: 0x%2.2x data: 0x%2.2x irq: %u",
-            addressPort, dataPort, irq)
+        return String.sprintf("CMOS RTC addr: 0x%2.2x data: 0x%2.2x irq: %s",
+                              addressPort, dataPort, irq.description)
     }
 
     init?(pnpDevice: ISADevice) {

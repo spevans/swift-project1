@@ -15,8 +15,8 @@ typealias IRQHandler = (Int) -> ()
 private(set) var localAPIC: APIC?
 
 protocol InterruptController {
-    func enableIRQ(_ irq: Int)
-    func disableIRQ(_ irq: Int)
+    func enableIRQ(_ irqSetting: IRQSetting)
+    func disableIRQ(_ irqSetting: IRQSetting)
     func disableAllIRQs()
     func ackIRQ(_ irq: Int)
     func printStatus()
@@ -27,18 +27,10 @@ public final class InterruptManager {
 
     fileprivate let irqController: InterruptController
 
-    fileprivate var irqHandlers: [IRQHandler] =
-        Array(repeating: InterruptManager.unexpectedInterrupt, count: NR_IRQS)
-
-    fileprivate var queuedIrqHandlers: [IRQHandler] =
-        Array(repeating: InterruptManager.unexpectedInterrupt, count: NR_IRQS)
-
-    // Circular queue of IRQs
-    fileprivate var irqQueue = CircularBuffer<Int>(item: 0, capacity: 128)
+    fileprivate var irqHandlers: [IRQHandler] = Array(repeating: InterruptManager.unexpectedInterrupt, count: NR_IRQS)
 
 
     init(acpiTables: ACPI) {
-        irqQueue.clear()
 
         func initAPIC() -> InterruptController? {
             if let madtEntries = acpiTables.madt?.madtEntries {
@@ -65,10 +57,6 @@ public final class InterruptManager {
         print("localAPIC:", localAPIC as Any)
 
         print("kernel: Using \(irqController.self) as interrupt controller")
-        // In a PIC8259/IOAPIC dual system, need to disable IRQs in both controllers
-        //if let pic = PIC8259() {
-        //    pic.disableAllIRQs()
-        //}
         irqController.disableAllIRQs()
     }
 
@@ -79,28 +67,16 @@ public final class InterruptManager {
     }
 
 
-    func setIrqHandler(_ irq: Int, handler: @escaping IRQHandler) {
-        irqHandlers[irq] = handler
-        irqController.enableIRQ(irq)
+    func setIrqHandler(_ irqSetting: IRQSetting, handler: @escaping IRQHandler) {
+        // FIXME, deal with shared interrupts
+        irqHandlers[irqSetting.irq] = handler
+        irqController.enableIRQ(irqSetting)
     }
 
 
-    func removeIrqHandler(_ irq: Int) {
-        irqController.disableIRQ(irq)
-        irqHandlers[irq] = InterruptManager.unexpectedInterrupt
-    }
-
-
-    func setQueuedIrqHandler(_ irq: Int, handler: @escaping IRQHandler) {
-        queuedIrqHandlers[irq] = handler
-        setIrqHandler(irq, handler: queueIrq)
-    }
-
-
-    func queuedIRQsTask() {
-        while let irq = irqQueue.remove() {
-            queuedIrqHandlers[irq](irq)
-        }
+    func removeIrqHandler(_ irqSetting: IRQSetting) {
+        irqController.disableIRQ(irqSetting)
+        irqHandlers[irqSetting.irq] = InterruptManager.unexpectedInterrupt
     }
 
 
@@ -110,12 +86,6 @@ public final class InterruptManager {
     // (include/x86defs.h:excpetion_regs) as the error_code.
     static private func unexpectedInterrupt(irq: Int) {
         printf("unexpected interrupt: %d\n")
-    }
-
-    private func queueIrq(irq: Int) {
-        if irqQueue.add(irq) == false {
-            kprint("Irq queue full")
-        }
     }
 }
 

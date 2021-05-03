@@ -85,7 +85,6 @@ fileprivate func mainLoop() {
 
     while true {
         hlt()
-        interruptManager.queuedIRQsTask()
         yield()
     }
 }

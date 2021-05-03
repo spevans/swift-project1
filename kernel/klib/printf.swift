@@ -229,6 +229,7 @@ private enum FormatChar: UInt8 {
     case signedInteger   = 105  // 'i'
     case octal           = 111  // 'o'
     case pointer         = 112  // 'p'
+    case string          = 115  // 's'
     case unsignedDecimal = 117  // 'u'
     case lowerCaseHex    = 120  // 'x'
     case upperCaseHex    = 88   // 'X'
@@ -384,6 +385,10 @@ private func dispatchPrint<Target: UnicodeOutputStream>(to output: inout Target,
             _printUnsigned(to: &output, digits: digits, radix: 16,
                 data: data, width: width,
                 leftAligned: leftAligned, leadingZero: leadingZero)
+            return
+
+        case .string:
+            output.write(itemsIterator.next() as! String)
             return
 
         case .lowerCaseHex:

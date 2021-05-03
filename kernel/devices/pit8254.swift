@@ -15,7 +15,7 @@ final class PIT8254: PNPDeviceDriver, Timer, CustomStringConvertible {
     private let channel0Port: UInt16
     private let channel2Port: UInt16
     private let commandPort: UInt16
-    let irq: UInt8
+    let irq: IRQSetting
 
     // Raw Value is the I/O port
     enum TimerChannel: UInt16 {
@@ -97,8 +97,8 @@ final class PIT8254: PNPDeviceDriver, Timer, CustomStringConvertible {
     }
 
     var description: String {
-        return String.sprintf("PIT8254: cmd: 0x%2.2x chan0: 0x%2.2x chan2: 0x%2.2x, irq: %u",
-            commandPort, channel0Port, channel2Port, irq)
+        return String.sprintf("PIT8254: cmd: 0x%2.2x chan0: 0x%2.2x chan2: 0x%2.2x, irq: %s",
+                              commandPort, channel0Port, channel2Port, irq.description)
     }
 
     var status: String {
@@ -132,7 +132,7 @@ final class PIT8254: PNPDeviceDriver, Timer, CustomStringConvertible {
         channel0Port = ports[ports.index(idx, offsetBy: 0)]
         channel2Port = ports[ports.index(idx, offsetBy: 2)]
         commandPort = ports[ports.index(idx, offsetBy: 3)]
-        irq = resources.interrupts.first ?? 0   // Default IRQ = 0
+        irq = resources.interrupts.first ?? IRQSetting(isaIrq: 0)   // Default IRQ = 0
         print("PIT8254: IRQ\(irq)")
     }
 

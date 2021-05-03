@@ -268,10 +268,11 @@ final class KBD8042: PNPDeviceDriver, CustomStringConvertible {
         flushOutput()
         keyboardBuffer.clear()
         port1device = PS2Keyboard(buffer: keyboardBuffer)
-        system.deviceManager.interruptManager.setIrqHandler(1, handler: kbdInterrupt)
+        // FIXME: determine correct irq
+        system.deviceManager.interruptManager.setIrqHandler(IRQSetting(isaIrq: 1), handler: kbdInterrupt)
         if dualChannel {
             port2device = nil
-            system.deviceManager.interruptManager.setIrqHandler(12, handler: mouseInterrupt)
+            system.deviceManager.interruptManager.setIrqHandler(IRQSetting(isaIrq: 12), handler: mouseInterrupt)
         } else {
             port2device = nil
         }

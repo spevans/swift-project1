@@ -36,7 +36,8 @@ final class IOAPIC {
     }
 
 
-    func enableIRQ(_ irq: Int) {
+    func enableIRQ(_ irqSetting: IRQSetting) {
+        let irq = irqSetting.irq
         var register = redirectionRegisterFor(irq: irq)
         if let entry = overrideEntryFor(irq: irq) {
             register = redirectionRegisterFor(irq: Int(entry.globalInterrupt))
@@ -49,15 +50,16 @@ final class IOAPIC {
         data.idtVector = vector 
         data.deliveryMode = .fixed
         data.destinationMode = .physical
-        data.inputPinPolarity = .activeHigh
-        data.triggerMode = .edge
+        data.inputPinPolarity = irqSetting.activeHigh ? .activeHigh : .activeLow
+        data.triggerMode = irqSetting.levelTriggered ? .level : .edge
         data.maskInterrupt = false
         data.destinationField = 0
         writeWideRegister(register, data: data)
     }
 
 
-    func disableIRQ(_ irq: Int) {
+    func disableIRQ(_ irqSetting: IRQSetting) {
+        let irq = irqSetting.irq
         var register = redirectionRegisterFor(irq: irq)
         if let entry = overrideEntryFor(irq: irq) {
             register = redirectionRegisterFor(irq: Int(entry.globalInterrupt))

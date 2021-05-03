@@ -332,15 +332,15 @@ final class APIC: InterruptController {
     }
 
 
-    func enableIRQ(_ irq: Int) {
-        print("APIC: enableIRQ:", irq)
-        ioapics[0].enableIRQ(irq)
+    func enableIRQ(_ irqSetting: IRQSetting) {
+        print("APIC: enableIRQ:", irqSetting)
+        ioapics[0].enableIRQ(irqSetting)
     }
 
 
-    func disableIRQ(_ irq: Int) {
-        print("APIC: disableIRQ:", irq)
-        ioapics[0].disableIRQ(irq)
+    func disableIRQ(_ irqSetting: IRQSetting) {
+        print("APIC: disableIRQ:", irqSetting)
+        ioapics[0].disableIRQ(irqSetting)
     }
 
 

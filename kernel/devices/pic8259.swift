@@ -44,7 +44,8 @@ final class PIC8259: InterruptController {
     }
 
 
-    func enableIRQ(_ irq: Int) {
+    func enableIRQ(_ irqSetting: IRQSetting) {
+        let irq = irqSetting.irq
         printf("PIC8259: Enabling IRQ: %d\n", irq)
         guard irq < 16 else {
             printf("PIC8259: Enabling invalid IRQ: %2.2x\n", irq)
@@ -62,7 +63,8 @@ final class PIC8259: InterruptController {
     }
 
 
-    func disableIRQ(_ irq: Int) {
+    func disableIRQ(_ irqSetting: IRQSetting) {
+        let irq = irqSetting.irq
         printf("PIC8259: Disabling IRQ: %d\n", irq)
         guard irq < 16 else {
             printf("PIC8259: Enabling invalid IRQ: %2.2x\n", irq)

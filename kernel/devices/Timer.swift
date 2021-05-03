@@ -10,7 +10,7 @@
 
 // Generic Timer device
 protocol Timer {
-    var irq: UInt8 { get }
+    var irq: IRQSetting { get }
     func enablePeriodicInterrupt(hz: Int)
 }
 
@@ -19,7 +19,7 @@ protocol Timer {
 // used to increment a counter that can be used for sleep etc.
 func setupPeriodicTimer() -> Bool {
     // Find a timer
-    let irq: UInt8
+    let irq: IRQSetting
     // Set the timer interrupt for 1kHz
     if let timer = system.deviceManager.timer {
         timer.enablePeriodicInterrupt(hz: 1000)
@@ -37,9 +37,9 @@ func setupPeriodicTimer() -> Bool {
             return false
         }
         // HPET is put in legacy mode so IRQ should be 0 although.
-        irq = 0
+        irq = IRQSetting(isaIrq: 0)
     }
-    system.deviceManager.interruptManager.setIrqHandler(0, handler: timerInterrupt)
+    system.deviceManager.interruptManager.setIrqHandler(irq, handler: timerInterrupt)
     print("timer: Setup for 1000Hz on irq:", irq)
     return true
 }
