@@ -301,7 +301,6 @@ struct AMLDefIndex: AMLType2Opcode, AMLType6Opcode {
                 guard let element = AMLPackageElement(termarg: to) else {
                     fatalError("\(to) cant be stored as a package element")
                 }
-                print("Storing into package: \(package) index: \(index)")
                 package[Int(index)] = element
 
             case .string(let string):

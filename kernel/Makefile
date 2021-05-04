@@ -54,6 +54,8 @@ _SWIFT_SRCS :=	init/startup.swift				\
 		devices/pci/pciconfigspace.swift		\
 		devices/pci/pcidevice.swift			\
 		devices/pci/pcideviceclass.swift		\
+		devices/pci/PCIInterruptLinkDevice.swift	\
+		devices/pci/PCIRoutingTable.swift		\
 		devices/usb/usb.swift				\
 		devices/usb/usb-configdescriptor.swift		\
 		devices/usb/usb-controlrequest.swift		\

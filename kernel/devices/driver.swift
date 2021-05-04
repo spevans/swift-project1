@@ -38,6 +38,7 @@ private var pnpDriversForIds: [String: PNPDeviceDriver.Type] = [
     "PNP0100": PIT8254.self,
     "PNP0303": KBD8042.self,
     "PNP0B00": CMOSRTC.self,
+    "PNP0C0F": PCIInterruptLinkDevice.self,
     "QEMU0002": QEMUFWCFG.self,
 ]
 

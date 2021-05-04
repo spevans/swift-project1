@@ -56,6 +56,7 @@ final class DeviceManager {
             if let driverType = pnpDriverById(pnpName: pnpDevice.pnpName), let driver = driverType.init(pnpDevice: pnpDevice) {
                 print("Found early PNP device:", driverType)
                 pnpDevice.pnpDeviceDriver = driver
+                pnpDevice.acpiDevice?.setDevice(pnpDevice)
                 system.deviceManager.addDevice(driver)
             }
         }
@@ -71,6 +72,7 @@ final class DeviceManager {
         masterBus.initialiseDevices(acpiDevice: nil)
         dumpPNPDevices()
         findPNPDevice(withName: "PNP0100")  // Look for a PIT timer and add to device tree if found
+        findPNPDevice(withName: "PNP0C0F")  // PCI Interrupt Link Devices
         guard setupPeriodicTimer() else {
             koops("Cant find a timer to use for periodic clock")
         }
@@ -86,6 +88,7 @@ final class DeviceManager {
                 if let pnpDevice = device as? ISADevice, device.deviceDriver == nil {
                     if let driverType = pnpDriverById(pnpName: pnpDevice.pnpName), let driver = driverType.init(pnpDevice: pnpDevice) {
                         pnpDevice.pnpDeviceDriver = driver
+                        pnpDevice.acpiDevice?.setDevice(pnpDevice)
                         system.deviceManager.addDevice(driver)
                     }
                 }

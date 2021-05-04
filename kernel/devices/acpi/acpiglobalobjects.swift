@@ -201,6 +201,17 @@ extension ACPI {
         }
 
 
+        // FIXME, this is only temporary until getGlobalObject() understands how to walk up to the parent.
+        func topParent() -> ACPIObjectNode {
+            var result = self
+            while let parent = result.parent {
+                result = parent
+            }
+            return result
+        }
+
+
+        // FIXME: This should walk up the parent if needed
         func getGlobalObject(currentScope: AMLNameString, name: AMLNameString)
             -> (ACPIObjectNode, String)? {
                 let nameStr = name.value

@@ -20,7 +20,7 @@ final class PCIDevice: Device, CustomStringConvertible {
     var deviceDriver: DeviceDriver? { pciDeviceDriver as DeviceDriver? }
     var description: String { "PCI \(fullName) \(deviceFunction.description)" }
 
-    init?(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpiDevice: AMLDefDevice? = nil) {
+    init?(parentBus: PCIBus, deviceFunction: PCIDeviceFunction, acpiDevice: AMLDefDevice? = nil) {
         guard deviceFunction.vendor != 0xffff else { return nil } // Invalid device
         self.parentBus = parentBus
         self.deviceFunction = deviceFunction
@@ -76,7 +76,7 @@ struct PCIGeneralDevice {
     var romBaseAddress:     UInt32 { configSpace.readConfigDword(atByteOffset: 0x30) }
     var capabilitiesPtr:    UInt16 { configSpace.readConfigWord(atByteOffset: 0x34) }
     var interruptLine:      UInt8 { configSpace.readConfigByte(atByteOffset: 0x3c) }
-    var interruptPin:       UInt8 { configSpace.readConfigByte(atByteOffset: 0x3d) }
+    var interruptPin:       PCIInterruptPin? { PCIInterruptPin(pin: configSpace.readConfigByte(atByteOffset: 0x3d)) }
     var minGrant:           UInt8 { configSpace.readConfigByte(atByteOffset: 0x3e) }
     var maxLatency:         UInt8 { configSpace.readConfigByte(atByteOffset: 0x3f) }
 }
@@ -105,7 +105,7 @@ struct PCIBridgeDevice {
     var capabilitiesPtr:    UInt16 { configSpace.readConfigWord(atByteOffset: 0x34) }
     var romBaseAddress:     UInt32 { configSpace.readConfigDword(atByteOffset: 0x38) }
     var interruptLine:      UInt8 { configSpace.readConfigByte(atByteOffset: 0x3c) }
-    var interruptPin:       UInt8 { configSpace.readConfigByte(atByteOffset: 0x3d) }
+    var interruptPin:       PCIInterruptPin? { PCIInterruptPin(pin: configSpace.readConfigByte(atByteOffset: 0x3d)) }
     var bridgeControl:      UInt16 { configSpace.readConfigWord(atByteOffset: 0x3e) }
 }
 
@@ -196,7 +196,7 @@ struct PCIStatus: CustomStringConvertible {
     var interrupt: Bool { bits[3] == 1 }
     var hasCapabilities: Bool { bits[4] == 1 }
     var is66MhzCapable: Bool { bits[5] == 1 }
-    var isFastBackToBackCapabile: Bool { bits[7] == 1 }
+    var isFastBackToBackCapable: Bool { bits[7] == 1 }
     var msterDataParityError: Bool { bits[8] == 1 }
     var devselTiming: Int { Int(bits[9...10]) }
     var signaledTargetAbort: Bool { bits[11] == 1 }
@@ -210,7 +210,7 @@ struct PCIStatus: CustomStringConvertible {
         if interrupt { result += "interrupt " }
         if hasCapabilities { result += "hasCapabilities " }
         if is66MhzCapable { result += "is66MhzCapable " }
-        if isFastBackToBackCapabile { result += "isFastBackToBackCapabile " }
+        if isFastBackToBackCapable { result += "isFastBackToBackCapable " }
         if msterDataParityError { result += "msterDataParityError " }
         result += "devselTiming \(devselTiming) "
         if signaledTargetAbort { result += "signaledTargetAbort " }
@@ -249,16 +249,17 @@ struct PCIDeviceFunction: CustomStringConvertible {
     var isValidDevice:  Bool   { vendor != 0xffff }
     var capabilitiesPtr:    UInt16 { configSpace.readConfigWord(atByteOffset: 0x34) }
     var interruptLine:      UInt8 { configSpace.readConfigByte(atByteOffset: 0x3c) }
-    var interruptPin:       UInt8 { configSpace.readConfigByte(atByteOffset: 0x3d) }
+    var interruptPin:       PCIInterruptPin? { PCIInterruptPin(pin: configSpace.readConfigByte(atByteOffset: 0x3d)) }
 
     var generalDevice: PCIGeneralDevice? { headerType == 0x00 ? PCIGeneralDevice(configSpace: configSpace) : nil }
     var bridgeDevice: PCIBridgeDevice?   { headerType == 0x01 ? PCIBridgeDevice(configSpace: configSpace)  : nil }
 
 
     var description: String {
-        let fmt: StaticString =  "%2.2X:%2.2X/%u: %4.4X:%4.4X [%2.2X%2.2X] HT: %2.2X %@ [IRQ: %u/%u]"
+        let fmt: StaticString =  "%2.2X:%2.2X/%u: %4.4X:%4.4X [%2.2X%2.2X] HT: %2.2X %@ [IRQ: %u/%s]"
+        let int = interruptPin?.description ?? "none"
         return String.sprintf(fmt, busId, device, function, vendor, deviceId,
-                              classCode, subClassCode, headerType, configSpace.pciConfigAccess, interruptLine, interruptPin)
+                              classCode, subClassCode, headerType, configSpace.pciConfigAccess, interruptLine, int)
     }
 
 

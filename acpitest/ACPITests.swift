@@ -424,9 +424,17 @@ class ACPITests: XCTestCase {
             try data.withUnsafeBytes {
                 let byteStream = try AMLByteStream(buffer: $0)
 
+                guard let pci0 = acpi.globalObjects.get("\\_SB.PCI0")! as? AMLDefDevice else {
+                    XCTFail("Cant find \\_SB.PCI0")
+                    return
+                }
+
+                // Delete the current \_SB.PCI0._PRT, parse the data block and insert as the new \_SB.PCI0._PRT
+                pci0.removeChildNode(AMLNameString("_PRT"))
                 let parser = AMLParser(byteStream: byteStream, scope: AMLNameString("\\_SB.PCI0"),
                                        globalObjects: acpi.globalObjects, parsingMethod: true)
                 let m = try parser.parseDefMethod()
+                pci0.add("_PRT", m)
 
                 var context = ACPI.AMLExecutionContext(scope: AMLNameString("\\_SB.PCI0._PRT"))
                 let termArg = m.readValue(context: &context)
@@ -440,12 +448,17 @@ class ACPITests: XCTestCase {
                 }
                 XCTAssertEqual(table.count, count)
                 XCTAssertNotNil(table[0].dataRefObject)
+
+                guard let pciRT = PCIRoutingTable(acpi: pci0) else {
+                    XCTFail("Cant parse PCIRoutingTable")
+                    return
+                }
+                XCTAssertEqual(pciRT.table.count, count)
             }
         }
 
         try parsePRT(testData1, 64)
         try parsePRT(testData2, 128)
-
     }
 
     func testVMWareDevices() {

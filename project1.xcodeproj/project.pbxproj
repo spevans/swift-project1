@@ -49,6 +49,7 @@
 		B962BDAC1FD3116B00D42D70 /* amlresourcedata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */; };
 		B98DE1B1264D02280003775C /* IRQSetting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96D9CAA26411FB30079E5AD /* IRQSetting.swift */; };
 		B98DE1BA264D052F0003775C /* ACPIGenericAddressStructure.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96BBE4F262B5502009756A8 /* ACPIGenericAddressStructure.swift */; };
+		B98DE1CC264D11490003775C /* PCIRoutingTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98DE1CB264D11490003775C /* PCIRoutingTable.swift */; };
 		B9AF69D61FBDEB8B0049CB98 /* ACPIReadWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9AF69D51FBDEB8B0049CB98 /* ACPIReadWriteTests.swift */; };
 		B9C2AF2B1FD84CB300E6EFEB /* KlibTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF2A1FD84CB300E6EFEB /* KlibTests.swift */; };
 		B9C2AF2C1FD84D9000E6EFEB /* ReservationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */; };
@@ -225,6 +226,7 @@
 		B96D9CAA26411FB30079E5AD /* IRQSetting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IRQSetting.swift; sourceTree = "<group>"; };
 		B9793D4E200A571B0013E03B /* symbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = symbols.swift; sourceTree = "<group>"; };
 		B97C3A8024D0D10F00E3602C /* shell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = shell.swift; sourceTree = "<group>"; };
+		B98DE1CB264D11490003775C /* PCIRoutingTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PCIRoutingTable.swift; path = kernel/devices/pci/PCIRoutingTable.swift; sourceTree = "<group>"; };
 		B9A2C1B01F30ECF9003D4D92 /* TODO */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = TODO; sourceTree = "<group>"; };
 		B9A2C1B11F30ECF9003D4D92 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		B9A2C1B31F30EEC7003D4D92 /* boot */ = {isa = PBXFileReference; lastKnownFileType = folder; path = boot; sourceTree = "<group>"; };
@@ -542,6 +544,7 @@
 		B9EE70401D3D536B006B6AB7 = {
 			isa = PBXGroup;
 			children = (
+				B98DE1CB264D11490003775C /* PCIRoutingTable.swift */,
 				B9568C852548C13D00C3F49B /* usb.h */,
 				B9F22F872325009300A6C92B /* NOTES */,
 				B9A2C1B11F30ECF9003D4D92 /* README.md */,
@@ -876,6 +879,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B98DE1CC264D11490003775C /* PCIRoutingTable.swift in Sources */,
 				B98DE1BA264D052F0003775C /* ACPIGenericAddressStructure.swift in Sources */,
 				B98DE1B1264D02280003775C /* IRQSetting.swift in Sources */,
 				B9F3DADC262188A900971474 /* MemoryRange.swift in Sources */,

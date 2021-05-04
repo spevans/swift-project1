@@ -31,7 +31,7 @@ final class AMLDefDataRegion: AMLNamedObj {
 }
 
 
-final class AMLDefDevice: AMLNamedObj {
+final class AMLDefDevice: AMLNamedObj, CustomStringConvertible {
 
     struct DeviceStatus {
         private let bits: BitArray32
@@ -55,11 +55,29 @@ final class AMLDefDevice: AMLNamedObj {
     // DeviceOp PkgLength NameString TermList
     //let name: AMLNameString
     let value: AMLTermList
+    private(set) weak var device: Device? = nil
 
+    var description: String {
+        var result = "ACPI Device:"
+        if let devname = device {
+            result += " [\(devname)]"
+        } else {
+            result += " No driver set"
+        }
+        return result
+    }
 
     init(name: AMLNameString, value: AMLTermList) {
         self.value = value
         super.init(name: name)
+    }
+
+    func setDevice(_ device: Device) {
+        print("Adding \(device) to \(fullname())")
+        if let curDevice = self.device {
+            fatalError("\(fullname()) already has a device \(curDevice), cant set to \(device)")
+        }
+        self.device = device
     }
 
 
@@ -79,9 +97,17 @@ final class AMLDefDevice: AMLNamedObj {
         try ini.execute(context: &context)
     }
 
-
     func currentResourceSettings() -> [AMLResourceSetting]? {
-        guard let crs = childNode(named: "_CRS") else {
+        return _resourceSettings(node: "_CRS")
+    }
+
+    func possibleResourceSettings() -> [AMLResourceSetting]? {
+        return _resourceSettings(node: "_PRS")
+    }
+
+
+    private func _resourceSettings(node: String) -> [AMLResourceSetting]? {
+        guard let crs = childNode(named: node) else {
             return nil
         }
 
@@ -114,7 +140,7 @@ final class AMLDefDevice: AMLNamedObj {
         if let hidName = hid as? AMLNamedValue {
             switch hidName.value {
                 case .dataObject(let object): return decodeHID(obj: object)
-                default: fatalError("\(hid.fullname()) has invalid valid for pnpname: \(hidName.value)")
+                default: fatalError("\(hid.fullname()) has invalid value for pnpname: \(hidName.value)")
             }
         }
 
@@ -165,6 +191,32 @@ final class AMLDefDevice: AMLNamedObj {
         }
 
         return nil
+    }
+
+
+    func uniqueId() -> AMLDataObject? { // Integer or String
+        guard let uid = childNode(named: "_UID") else { return nil }
+
+        var value: AMLDataObject? = nil
+
+        if let uidValue = uid as? AMLNamedValue {
+            value = uidValue.value.dataObject
+        }
+        else if let uidMethod = uid as? AMLMethod {
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(uid.fullname()))
+            value = uidMethod.readValue(context: &context) as? AMLDataObject
+        }
+
+        guard let dataObject = value else {
+            fatalError("\(uid.fullname()): doesnt evaluate to a dataobject")
+        }
+
+        switch dataObject {
+            case .integer, .string: return dataObject
+            default: break
+        }
+
+        fatalError("\(uid.fullname()) has invalid valid for _UID: \(dataObject)")
     }
 
 
