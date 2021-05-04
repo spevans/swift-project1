@@ -50,12 +50,12 @@ fileprivate func invokeMethod(name: String, _ args: Any...) throws -> AMLTermArg
 
 fileprivate struct Resources {
     let ioPorts: [ClosedRange<UInt16>]
-    let interrupts: [UInt8]
+    let interrupts: [IRQSetting]
 }
 
 fileprivate func extractCRSSettings(_ resources: [AMLResourceSetting]) -> Resources {
     var ioports: [ClosedRange<UInt16>] = []
-    var irqs: [UInt8] = []
+    var irqs: [IRQSetting] = []
 
     for resource in resources {
         if let ioPort = resource as? AMLIOPortSetting {
@@ -182,7 +182,7 @@ class ACPITests: XCTestCase {
         }
         XCTAssertNotNil(package)
         XCTAssertEqual(package.count, 3)
-        let data = package.compactMap { $0.integerValue }
+        let data = package.compactMap { $0.dataRefObject?.integerValue }
         XCTAssertEqual(data, [7, 7, 0])
     }
 

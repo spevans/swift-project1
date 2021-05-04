@@ -39,6 +39,9 @@
             </BuildableReference>
             <SkippedTests>
                <Test
+                  Identifier = "ACPITests/testVMWare11Devices()">
+               </Test>
+               <Test
                   Identifier = "ACPITests/testVMWareDevices()">
                </Test>
             </SkippedTests>

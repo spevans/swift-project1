@@ -155,7 +155,7 @@ final class AMLDefDevice: AMLNamedObj {
         // _CID could be a package containg multiple values, so take the first (for now)
         if case let .package(package) = object {
             for value in package {
-                guard let data = value.dataObject else {
+                guard let data = value.dataRefObject?.dataObject else {
                     fatalError("\(cid.fullname()) has invalid value for pnpname: \(value)")
                 }
                 return decodeHID(obj: data)

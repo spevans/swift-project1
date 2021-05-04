@@ -316,7 +316,34 @@ enum AMLDataRefObject {
             default: return nil
         }
     }
+}
 
+
+enum AMLPackageElement {
+    case dataRefObject(AMLDataRefObject)
+    case nameString(AMLNameString)
+
+    init(object: AMLDataRefObject) {
+        self = .dataRefObject(object)
+    }
+
+    init(string: AMLNameString) {
+        self = .nameString(string)
+    }
+
+    var dataRefObject: AMLDataRefObject? {
+        switch self {
+            case .dataRefObject(let object): return object
+            default: return nil
+        }
+    }
+
+    var nameString: AMLNameString? {
+        switch self {
+            case .nameString(let name): return name
+            default: return nil
+        }
+    }
 }
 
 
@@ -325,7 +352,6 @@ typealias AMLDDBHandleObject = AMLSuperName
 typealias AMLMutexObject = AMLSuperName
 typealias AMLEventObject = AMLSuperName
 typealias AMLObjectReference = AMLInteger
-typealias AMLPackageElement = AMLDataRefObject
 typealias AMLPackageElementList = [AMLPackageElement]
 typealias AMLDefVarPackage = AMLDataRefObject
 

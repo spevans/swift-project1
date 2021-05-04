@@ -228,7 +228,6 @@ final class ACPI {
 
         case "HPET":
             let hpet = HPET(rawSDTPtr)
-            print(hpet)
             tables.append(hpet)
 
         case "ECDT":

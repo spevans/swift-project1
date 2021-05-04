@@ -48,6 +48,7 @@
 		B9568CB12551819E00C3F49B /* BitmapAllocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568CB02551819E00C3F49B /* BitmapAllocator.swift */; };
 		B962BDAC1FD3116B00D42D70 /* amlresourcedata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */; };
 		B96BBE50262B5502009756A8 /* ACPIGenericAddressStructure.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96BBE4F262B5502009756A8 /* ACPIGenericAddressStructure.swift */; };
+		B98DE1B1264D02280003775C /* IRQSetting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96D9CAA26411FB30079E5AD /* IRQSetting.swift */; };
 		B9AF69D61FBDEB8B0049CB98 /* ACPIReadWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9AF69D51FBDEB8B0049CB98 /* ACPIReadWriteTests.swift */; };
 		B9C2AF2B1FD84CB300E6EFEB /* KlibTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF2A1FD84CB300E6EFEB /* KlibTests.swift */; };
 		B9C2AF2C1FD84D9000E6EFEB /* ReservationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */; };
@@ -221,6 +222,7 @@
 		B963DA1322FD85BC00E7F8B3 /* cmos.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = cmos.swift; sourceTree = "<group>"; };
 		B96BBE4F262B5502009756A8 /* ACPIGenericAddressStructure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPIGenericAddressStructure.swift; sourceTree = "<group>"; };
 		B96BBE53262CA85F009756A8 /* Timer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Timer.swift; sourceTree = "<group>"; };
+		B96D9CAA26411FB30079E5AD /* IRQSetting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IRQSetting.swift; sourceTree = "<group>"; };
 		B9793D4E200A571B0013E03B /* symbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = symbols.swift; sourceTree = "<group>"; };
 		B97C3A8024D0D10F00E3602C /* shell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = shell.swift; sourceTree = "<group>"; };
 		B9A2C1B01F30ECF9003D4D92 /* TODO */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = TODO; sourceTree = "<group>"; };
@@ -454,6 +456,7 @@
 				B933A7291F2F499000FE6846 /* IDT.swift */,
 				B933A7261F2F499000FE6846 /* interrupt.swift */,
 				B933A72A1F2F499000FE6846 /* Makefile */,
+				B96D9CAA26411FB30079E5AD /* IRQSetting.swift */,
 			);
 			path = traps;
 			sourceTree = "<group>";
@@ -760,7 +763,7 @@
 					B95867E622E5D082005FA3BF = {
 						CreatedOnToolsVersion = 11.0;
 						DevelopmentTeam = U2L29966XS;
-						LastSwiftMigration = 1200;
+						LastSwiftMigration = 1240;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -873,6 +876,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B98DE1B1264D02280003775C /* IRQSetting.swift in Sources */,
 				B9F3DADC262188A900971474 /* MemoryRange.swift in Sources */,
 				B9568C7D2548C0A400C3F49B /* usb-configdescriptor.swift in Sources */,
 				B9568C7E2548C0A400C3F49B /* usb-controlrequest.swift in Sources */,

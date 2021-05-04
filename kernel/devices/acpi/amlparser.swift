@@ -666,14 +666,14 @@ final class AMLParser {
 
         func parsePackageElement(_ symbol: ParsedSymbol) throws -> AMLPackageElement {
             if let ch = symbol.currentChar, ch.charType != .nullChar {
-                return try .init(string: AMLString(parseNameStringWith(character: ch).value))
+                return try .init(string: AMLNameString(parseNameStringWith(character: ch).value))
             }
 
             guard symbol.currentOpcode != nil else {
                 throw AMLError.invalidData(reason: "No opcode or valid string found")
             }
             if let obj = AMLDataRefObject(try parseSymbol(symbol: symbol)) {
-                return obj
+                return .init(object: obj)
             }
             throw AMLError.invalidSymbol(reason: "\(symbol) is not an AMLDataRefObject")
         }
@@ -724,11 +724,11 @@ final class AMLParser {
     }
 
     // MARK: Parse Def
-    private func parseDefPackage() throws -> AMLDataRefObject {
+    private func parseDefPackage() throws -> AMLDataObject {
         let parser = try subParser()
         let numElements = try parser.nextByte()
         let elements = try parser.parsePackageElementList(numElements: numElements)
-        return AMLDataRefObject.dataObject(.package(elements))
+        return AMLDataObject.package(elements)
     }
 
 
