@@ -48,20 +48,86 @@ protocol AMLTarget {
 }
 
 
+
 protocol AMLSuperName: AMLTarget {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext)
 }
 
-extension AMLSuperName {
+protocol AMLType6Opcode: AMLSuperName {}
+
+enum AMLSimpleName: AMLSuperName {
+    case nameString(AMLNameString)
+    case argObj(AMLArgObj)
+    case localObj(AMLLocalObj)
+
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        switch self {
+            case .nameString(let name): return name
+            case .argObj(let object): return object.evaluate(context: &context)
+            case .localObj(let object): return object.evaluate(context: &context)
+        }
+    }
+
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        fatalError("\(self) can not be written to")
+        switch self {
+            case .nameString(let name): name.updateValue(to: to, context: &context)
+            case .argObj(let object): object.updateValue(to: to, context: &context)
+            case .localObj(let object): object.updateValue(to: to, context: &context)
+        }
     }
 }
 
 
-protocol AMLSimpleName: AMLSuperName {}
-protocol AMLType6Opcode: AMLSuperName {}
+#if false
+// FIXME: 'indirect enum' causes a GP fault at the moment, most likely due to a bug in
+// converting the runtime to negative address space - the faulting address has the
+// high bit clear. Enable this one the runtime is fixed
+indirect enum AMLSuperName: AMLTarget {
+    case simpleName(AMLSimpleName)
+    case debugObj(AMLDebugObj)
+
+    // Type6 Opcodes
+    case defRefOf(AMLDefRefOf)
+    case defDerefOf(AMLDefDerefOf)
+    case defIndex(AMLDefIndex)
+    case userTermObj(AMLUserTermObj)
+
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        switch self {
+            case .simpleName(let name):
+                switch name {
+                    case .nameString(let name): return name
+                    case .argObj(let object): return object.evaluate(context: &context)
+                    case .localObj(let object): return object.evaluate(context: &context)
+                }
+
+            case .debugObj(let object): return object.evaluate(context: &context)
+            case .defRefOf(let ref): return ref.evaluate(context: &context)
+            case .defDerefOf(let ref): return ref.evaluate(context: &context)
+            case .defIndex(let index): return index.evaluate(context: &context)
+            case .userTermObj(let object): return object.evaluate(context: &context)
+        }
+    }
+
+    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+        switch self {
+            case .simpleName(let name):
+                switch name {
+                    case .nameString(let name): name.updateValue(to: to, context: &context)
+                    case .argObj(let object): object.updateValue(to: to, context: &context)
+                    case .localObj(let object): object.updateValue(to: to, context: &context)
+                }
+
+            case .debugObj(let object): object.updateValue(to: to, context: &context)
+            case .defRefOf(let ref): ref.updateValue(to: to, context: &context)
+            case .defDerefOf(let ref): ref.updateValue(to: to, context: &context)
+            case .defIndex(let index): index.updateValue(to: to, context: &context)
+            case .userTermObj(let object): object.updateValue(to: to, context: &context)
+        }
+    }
+}
+#endif
 
 
 final class AMLSharedBuffer: RandomAccessCollection {
@@ -218,7 +284,7 @@ enum AMLDataObject: AMLTermArg {
         return self
     }
 
-    case package(AMLPackageElementList)
+    case package(AMLPackage)
     case buffer(AMLSharedBuffer)
     case integer(AMLInteger)
     case string(AMLString)
@@ -244,7 +310,7 @@ enum AMLDataObject: AMLTermArg {
         }
     }
 
-    var packageValue: AMLPackageElementList? {
+    var packageValue: AMLPackage? {
         switch self {
             case .package(let value): return value
             default: return nil
@@ -320,6 +386,7 @@ enum AMLDataRefObject {
 
 
 enum AMLPackageElement {
+    case uninitialised  // FIXME, might need to be used in other places
     case dataRefObject(AMLDataRefObject)
     case nameString(AMLNameString)
 
@@ -329,6 +396,18 @@ enum AMLPackageElement {
 
     init(string: AMLNameString) {
         self = .nameString(string)
+    }
+
+    init?(termarg: AMLTermArg) {
+        if let dro = termarg as? AMLDataObject {
+            self = .dataRefObject(.dataObject(dro))
+        }
+        else if let ns = termarg as? AMLNameString {
+            self = .nameString(ns)
+        }
+        else {
+            return nil
+        }
     }
 
     var dataRefObject: AMLDataRefObject? {
@@ -352,15 +431,58 @@ typealias AMLDDBHandleObject = AMLSuperName
 typealias AMLMutexObject = AMLSuperName
 typealias AMLEventObject = AMLSuperName
 typealias AMLObjectReference = AMLInteger
-typealias AMLPackageElementList = [AMLPackageElement]
 typealias AMLDefVarPackage = AMLDataRefObject
 
+
+protocol AMLIndexableObject: AnyObject, Sequence {
+    associatedtype Element
+    associatedtype Index
+    var count: Int { get }
+    subscript(position: Self.Index) -> Self.Element { get set }
+}
+
+
+final class AMLPackage: AMLIndexableObject {
+    typealias Index = Int
+    typealias Element = AMLPackageElement
+    typealias Iterator = IndexingIterator<Array<Element>>
+
+    private var elements: [AMLPackageElement]
+    var count: Int { self.elements.count }
+
+    init(numElements: Int, elements: [AMLPackageElement]) {
+        guard numElements >= elements.count else {
+            fatalError("AMLPackage: numElements: \(numElements), elements.count: \(elements.count)")
+        }
+        self.elements = elements
+
+        // numElements may be greater then elements.count in which case fill the
+        // other elements with AMLPackageElement.uninitialised
+        if numElements > elements.count {
+            self.elements.reserveCapacity(numElements)
+            for _ in (elements.count)..<numElements {
+                self.elements.append(.uninitialised)
+            }
+        }
+        precondition(numElements == self.elements.count)
+    }
+
+    func makeIterator() -> IndexingIterator<Array<Element>> {
+        return self.elements.makeIterator()
+    }
+
+
+    subscript(position: Index) -> Element {
+        get { self.elements[position] }
+        set { self.elements[position] = newValue }
+    }
+}
 
 
 func AMLIntegerData(_ value: AMLInteger) -> AMLDataObject { .integer(value) }
 
 
-struct AMLNameString: AMLSimpleName, AMLTermArg, Hashable {
+struct AMLNameString: AMLTermArg, Hashable {
 
     let value: String
     var isNameSeg: Bool { return (value.count <= 4) }
@@ -382,6 +504,10 @@ struct AMLNameString: AMLSimpleName, AMLTermArg, Hashable {
         value = name
     }
 
+
+    var stringValue: AMLString? {
+        AMLString(value)
+    }
 
     // The last segment. If only one segment, removes the root '\\'
     var shortName: AMLNameString {
@@ -469,13 +595,17 @@ struct AMLNameString: AMLSimpleName, AMLTermArg, Hashable {
 
         let scope = context.scope
         guard let globalObjects = system.deviceManager.acpiTables.globalObjects,
-            let (node, _) = globalObjects.getGlobalObject(currentScope: scope,
-                                                                           name: self) else {
+            let (node, fullPath) = globalObjects.getGlobalObject(currentScope: scope, name: self) else {
             fatalError("Cant find node: \(value)")
         }
 
-        //print(node.fullname(), newValue, "context:", context)
-        node.updateValue(to: newValue, context: &context)
+        // Create a new scope with the context 1 level above the resolved path. This is because the object
+        // being updated may have a different path to the current context so any getGlobalObject calls
+        // need to be against the new path
+        let resolvedScope = AMLNameString(fullPath).removeLastSeg()
+        var tmpContext = context.withNewScope(resolvedScope)
+        //print("AMLNameString:", node.fullname(), newValue, "context.scope:", context.scope, "tmpContext.scope:", tmpContext.scope)
+        node.updateValue(to: newValue, context: &tmpContext)
     }
 }
 
@@ -535,11 +665,10 @@ struct AMLMutexFlags {
 
 
 // AMLTermArg
-struct AMLArgObj: AMLTermArg, AMLSimpleName, AMLTermObj {
+struct AMLArgObj: AMLTermArg, AMLTermObj {
     func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
         fatalError("\(self) is readOnly")
     }
-
 
     let opcode: AMLOpcode      // FIXME needs better type
     var argIdx: Int { return Int(opcode.rawValue - AMLOpcode.arg0Op.rawValue) }
@@ -559,7 +688,7 @@ struct AMLArgObj: AMLTermArg, AMLSimpleName, AMLTermObj {
 }
 
 
-struct AMLLocalObj: AMLTermArg, AMLSimpleName, AMLTermObj {
+struct AMLLocalObj: AMLTermArg,  AMLTermObj {
     let opcode: AMLOpcode      // FIXME needs better type
     var argIdx: Int { return Int(opcode.rawValue - AMLOpcode.local0Op.rawValue) }
 
@@ -591,7 +720,7 @@ struct AMLLocalObj: AMLTermArg, AMLSimpleName, AMLTermObj {
 }
 
 
-struct AMLDebugObj: AMLSuperName, AMLTarget {
+struct AMLDebugObj: AMLTarget, AMLType6Opcode {
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         fatalError("ACPI: Read from Debug Object")

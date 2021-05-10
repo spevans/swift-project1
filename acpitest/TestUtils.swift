@@ -74,8 +74,10 @@ func outl(_ port: UInt16, _ value: UInt32) {
     ioSpace[index + 3] = UInt8(truncatingIfNeeded: value >> 24)
 }
 
+protocol Device: AnyObject {}
 
 struct PCIConfigSpace {
+    let pciConfigAccess = "Dummy Config Access"
     let busId: UInt8
     let device: UInt8
     let function: UInt8

@@ -92,6 +92,20 @@ extension ACPI {
         }
 
 
+        func asTermArg() -> AMLTermArg? {
+            if let namedValue = self as? AMLNamedValue {
+                return namedValue.value.dataObject
+            }
+
+            if let method = self as? AMLMethod {
+                print("method:", method)
+                var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullname()))
+                return method.readValue(context: &context)
+            }
+            return nil
+        }
+
+
         // Create an initial ACPI tree with default nodes
         static func createGlobalObjects() -> ACPIObjectNode {
 

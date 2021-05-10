@@ -11,7 +11,7 @@
 typealias AMLByteBuffer = UnsafeRawBufferPointer
 
 #if TEST
-private func hexDump(buffer: UnsafeRawBufferPointer) {
+func hexDump<C: RandomAccessCollection>(buffer: C, offset: UInt = 0) where C.Element == UInt8, C.Index == Int {
 
     func byteAsChar(value: UInt8) -> Character {
         if value >= 0x21 && value <= 0x7e {
@@ -67,7 +67,7 @@ enum AMLError: Error {
     case invalidSymbol(reason: String)
     case invalidMethod(reason: String)
     case invalidData(reason: String)
-    case endOfStream
+    case endOfStream(reason: String)
     case parseError
     case unimplementedError(reason: String)
 
@@ -97,7 +97,7 @@ struct AMLByteStream {
 
     init(buffer: AMLByteBuffer) throws {
         guard buffer.count > 0 else {
-            throw AMLError.endOfStream
+            throw AMLError.endOfStream(reason: "Buffer count is 0")
         }
         self.buffer = buffer
     }
@@ -132,10 +132,9 @@ struct AMLByteStream {
     }
 
     func dump() {
-#if TEST
-        hexDump(buffer: UnsafeRawBufferPointer(start: buffer.baseAddress!.advanced(by: position),
-                                               count: bytesRemaining))
-#endif
+        print("AMLByteStream count: \(buffer.count), position: \(position)")
+        hexDump(buffer: UnsafeRawBufferPointer(start: buffer.baseAddress!.advanced(by: 0),
+                                               count: buffer.count))
     }
 
     mutating func substreamOf(length: Int) throws -> AMLByteStream {
@@ -156,7 +155,7 @@ struct AMLByteStream {
 
             return try AMLByteStream(buffer: substream)
         }
-        throw AMLError.endOfStream
+        throw AMLError.endOfStream(reason: "buffer has nil baseAddress")
     }
 }
 
@@ -167,6 +166,7 @@ final class AMLParser {
         var currentChar: AMLCharSymbol? = nil
 
     }
+
     private var byteStream: AMLByteStream!
     private var currentScope: AMLNameString
     let acpiGlobalObjects: ACPI.ACPIObjectNode
@@ -203,7 +203,7 @@ final class AMLParser {
 
 
     // Called by subParser
-    private init(byteStream: AMLByteStream, scope: AMLNameString,
+    init(byteStream: AMLByteStream, scope: AMLNameString,
                  globalObjects: ACPI.ACPIObjectNode, parsingMethod: Bool) {
         self.byteStream = byteStream
         self.currentScope = scope
@@ -254,7 +254,7 @@ final class AMLParser {
         if let byte = byteStream.nextByte() {
             return byte
         } else {
-            throw AMLError.endOfStream
+            throw AMLError.endOfStream(reason: "nextByte() returned nil")
         }
     }
 
@@ -299,7 +299,7 @@ final class AMLParser {
                     }
                 } else {
                     // This is an error since opcode is missing 2nd byte
-                    throw AMLError.endOfStream
+                    throw AMLError.endOfStream(reason: "byte2 is nil")
                 }
             } else {
                 currentOpcode = op
@@ -322,8 +322,9 @@ final class AMLParser {
                 let termObj = try parseTermObj(symbol: symbol)
                 termList.append(termObj)
             } catch {
+                print("Error processing buffer")
+                byteStream.dump()
                 fatalError("\(error)")
-                //print("Skipping invalid method:", error)
             }
         }
         return termList
@@ -428,7 +429,7 @@ final class AMLParser {
 
     private func parseTermArg() throws -> AMLTermArg {
         guard let symbol = try nextSymbol() else {
-            throw AMLError.endOfStream
+            throw AMLError.endOfStream(reason: "parseTermArg: no nextSymbol()")
         }
 
         if let ch = symbol.currentChar, ch.charType != .nullChar {
@@ -455,15 +456,22 @@ final class AMLParser {
     private func parseSuperName(symbol s: ParsedSymbol? = nil) throws -> AMLSuperName {
 
         if let symbol = try s ?? nextSymbol() {
-            if let x: AMLSuperName = try? parseSimpleName(symbol: symbol) {
+            if let x: AMLSuperName = try parseSimpleName(symbol: symbol) {
                 return x
             }
+
             if let x = try parseSymbol(symbol: symbol) as? AMLSuperName {
                 return x
             }
-            print(symbol)
+            /***
+            if let debug = object as? AMLDebugObj { return .debugObj(debug) }
+            if let refOf = object as? AMLDefRefOf { return .defRefOf(refOf) }
+            if let derefOf = object as? AMLDefDerefOf { return .defDerefOf(derefOf) }
+            if let defIndex = object as? AMLDefIndex { return .defIndex(defIndex) }
+            if let userTermObj = object as? AMLUserTermObj { return .userTermObj(userTermObj) }
+            **/
         }
-        throw AMLError.invalidData(reason: "Cant find supername")
+        throw AMLError.invalidSymbol(reason: "Expected a SuperName")
     }
 
 
@@ -662,7 +670,7 @@ final class AMLParser {
     }
 
 
-    private func parsePackageElementList(numElements: UInt8) throws -> AMLPackageElementList {
+    private func parsePackageElementList(numElements: UInt8) throws -> AMLPackage {
 
         func parsePackageElement(_ symbol: ParsedSymbol) throws -> AMLPackageElement {
             if let ch = symbol.currentChar, ch.charType != .nullChar {
@@ -678,7 +686,7 @@ final class AMLParser {
             throw AMLError.invalidSymbol(reason: "\(symbol) is not an AMLDataRefObject")
         }
 
-        var elements: AMLPackageElementList = []
+        var elements: [AMLPackageElement] = []
         while let symbol = try nextSymbol() {
             let element = try parsePackageElement(symbol)
             elements.append(element)
@@ -686,7 +694,7 @@ final class AMLParser {
                 break
             }
         }
-        return elements
+        return AMLPackage(numElements: Int(numElements), elements: elements)
     }
 
 
@@ -788,7 +796,7 @@ final class AMLParser {
     }
 
 
-    private func parseDefMethod() throws -> AMLMethod {
+    func parseDefMethod() throws -> AMLMethod {
         let parser = try subParser(parsingMethod: true)
         let name = try parser.parseNameString()
         let fullPath = resolveNameToCurrentScope(path: name)
@@ -1054,7 +1062,12 @@ final class AMLParser {
 
     private func parseDefCopyObject() throws -> AMLDefCopyObject {
         let arg = try parseTermArg()
-        let name = try parseSimpleName(symbol: nextSymbol())
+        guard let symbol = try nextSymbol() else {
+            throw AMLError.endOfStream(reason: "parseDefCopyObject: end of stream")
+        }
+        guard let name = try parseSimpleName(symbol: symbol) else {
+            throw AMLError.invalidSymbol(reason: "parseDefCopyObject expected a SimplName, not \(symbol)")
+        }
         return AMLDefCopyObject(object: arg, target: name)
     }
 
@@ -1274,7 +1287,7 @@ final class AMLParser {
     // MARK: Name / String / Target parsing
     private func parseTarget() throws -> AMLTarget {
         guard let symbol = try nextSymbol() else {
-            throw AMLError.endOfStream
+            throw AMLError.endOfStream(reason: "parseTarget: no nextSymbol")
         }
         if symbol.currentChar?.charType == .nullChar {
             return AMLNullName()
@@ -1295,18 +1308,24 @@ final class AMLParser {
 
 
     // Lead byte could be opcode or char
-    private func parseSimpleName(symbol: ParsedSymbol?) throws -> AMLSimpleName {
-        guard let s = symbol else {
-            throw AMLError.endOfStream
-        }
-        if s.currentChar != nil {
-            return try parseNameStringWith(character: s.currentChar!)
+    private func parseSimpleName(symbol: ParsedSymbol) throws -> AMLSimpleName? {
+        if let char = symbol.currentChar {
+            return .nameString(try parseNameStringWith(character: char))
         }
 
-        if let obj = try parseSymbol(symbol: s) as? AMLSimpleName {
-            return obj
+        if let opcode = symbol.currentOpcode {
+            switch opcode {
+                case .local0Op, .local1Op, .local2Op, .local3Op, .local4Op, .local5Op, .local6Op, .local7Op:
+                    return try .localObj(AMLLocalObj(localOp: opcode))
+
+                case .arg0Op, .arg1Op, .arg2Op, .arg3Op, .arg4Op, .arg5Op, .arg6Op:
+                    return .argObj(try AMLArgObj(argOp: opcode))
+
+                default: break
+            }
         }
-        throw AMLError.invalidSymbol(reason: "shouldnt get here")
+
+        return nil // Not a SimpleName
     }
 
 
@@ -1314,7 +1333,7 @@ final class AMLParser {
         if let ch = try nextCharOrEOS() {
             return ch
         } else {
-            throw AMLError.endOfStream // End Of stream
+            throw AMLError.endOfStream(reason: "nextChar() has not next character") // End Of stream
         }
     }
 

@@ -47,8 +47,8 @@
 		B9568C8C2548E87600C3F49B /* usb-hiddescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568C8B2548E87600C3F49B /* usb-hiddescriptor.swift */; };
 		B9568CB12551819E00C3F49B /* BitmapAllocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568CB02551819E00C3F49B /* BitmapAllocator.swift */; };
 		B962BDAC1FD3116B00D42D70 /* amlresourcedata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */; };
-		B96BBE50262B5502009756A8 /* ACPIGenericAddressStructure.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96BBE4F262B5502009756A8 /* ACPIGenericAddressStructure.swift */; };
 		B98DE1B1264D02280003775C /* IRQSetting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96D9CAA26411FB30079E5AD /* IRQSetting.swift */; };
+		B98DE1BA264D052F0003775C /* ACPIGenericAddressStructure.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96BBE4F262B5502009756A8 /* ACPIGenericAddressStructure.swift */; };
 		B9AF69D61FBDEB8B0049CB98 /* ACPIReadWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9AF69D51FBDEB8B0049CB98 /* ACPIReadWriteTests.swift */; };
 		B9C2AF2B1FD84CB300E6EFEB /* KlibTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF2A1FD84CB300E6EFEB /* KlibTests.swift */; };
 		B9C2AF2C1FD84D9000E6EFEB /* ReservationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */; };
@@ -876,6 +876,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B98DE1BA264D052F0003775C /* ACPIGenericAddressStructure.swift in Sources */,
 				B98DE1B1264D02280003775C /* IRQSetting.swift in Sources */,
 				B9F3DADC262188A900971474 /* MemoryRange.swift in Sources */,
 				B9568C7D2548C0A400C3F49B /* usb-configdescriptor.swift in Sources */,
@@ -923,7 +924,6 @@
 				B933A7901F2F8F2100FE6846 /* integer.swift in Sources */,
 				B933A77C1F2F8F0700FE6846 /* address.swift in Sources */,
 				B9362EF024DD681000856B47 /* amlnamespacemodifier.swift in Sources */,
-				B96BBE50262B5502009756A8 /* ACPIGenericAddressStructure.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

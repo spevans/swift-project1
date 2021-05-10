@@ -115,11 +115,14 @@ struct AMLDefCondRefOf: AMLType2Opcode {
     var target: AMLTarget
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        guard let n = name as? AMLNameString else {
+
+        guard let n = name.evaluate(context: &context).stringValue else {
+            print("AMLDefCondRef \(name) does not evanulate to a string")
             return AMLIntegerData(0)
         }
+
         let globalObjects = system.deviceManager.acpiTables.globalObjects!
-        guard let (obj, _) = globalObjects.getGlobalObject(currentScope: context.scope, name: n) else {
+        guard let (obj, _) = globalObjects.getGlobalObject(currentScope: context.scope, name: AMLNameString(n)) else {
             return AMLIntegerData(0)
         }
         let ref = AMLNameString(obj.fullname())
@@ -160,6 +163,10 @@ struct AMLDefDerefOf: AMLType2Opcode, AMLType6Opcode {
     let name: AMLSuperName
 
     // FIXME: Implement
+
+    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+        fatalError("AMLDefDerefOf.updateValue not implemented")
+    }
 }
 
 
@@ -278,6 +285,31 @@ struct AMLDefIndex: AMLType2Opcode, AMLType6Opcode {
             fatalError("ACPI: Index passed an integer as the source")
         }
         fatalError("Implement Index (Index Reference to Member objecr")
+    }
+
+    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+        guard let object = operand1.evaluate(context: &context) as? AMLDataObject else {
+            fatalError("\(operand1) does not evaluate to an AMLDataObject")
+        }
+        let index = operandAsInteger(operand: operand2, context: &context)
+
+        switch object {
+            case .buffer(let buffer):
+                fatalError("buffer [index=\(index)] \(buffer)")
+
+            case .package(let package):
+                guard let element = AMLPackageElement(termarg: to) else {
+                    fatalError("\(to) cant be stored as a package element")
+                }
+                print("Storing into package: \(package) index: \(index)")
+                package[Int(index)] = element
+
+            case .string(let string):
+                fatalError("string [index=\(index)] \(string)")
+
+            default:
+            fatalError("ACPI: DefIndex attempt to update \(object) with index: \(index)")
+        }
     }
 }
 
@@ -553,6 +585,13 @@ struct AMLDefRefOf: AMLType2Opcode, AMLType6Opcode {
     // RefOfOp SuperName
     let name: AMLSuperName
 
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        fatalError("AMLDefRefOf.evaluate not implemented")
+    }
+
+    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
+        fatalError("AMLDefRefOf.updateValue not implenented")
+    }
 }
 
 
@@ -603,34 +642,18 @@ struct AMLDefStore: AMLType2Opcode {
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         var source = arg
+
+        // FIXME: Is this required or can it just be replaced with the evaluate?
         if let args2 = arg as? AMLArgObj {
             guard args2.argIdx < context.args.count else {
                 fatalError("Tried to access arg \(args2.argIdx) but only have \(context.args.count) args")
             }
             source = context.args[Int(args2.argIdx)]
         }
-        let v = source.evaluate(context: &context)
 
-        //print("AMLDefStore: \(name):", v)
-
-        if let localObj = name as? AMLLocalObj {
-            context.localObjects[localObj.argIdx] = v
-            return v
-
-        }
-        guard let sname = name as? AMLNameString else {
-            //throw AMLError.invalidData(reason: "\(name) is not a string")
-            fatalError("\(name) is not a string")
-        }
-        guard let globalObjects = system.deviceManager.acpiTables.globalObjects,
-            let (dest, fullPath) = globalObjects.getGlobalObject(currentScope: context.scope,
-                                                                 name: sname) else {
-            fatalError("Cant find \(sname)")
-        }
-        let resolvedScope = AMLNameString(fullPath).removeLastSeg()
-        var tmpContext = context.withNewScope(resolvedScope)
-        dest.updateValue(to: source, context: &tmpContext)
-        return v
+        let value = source.evaluate(context: &context)
+        name.updateValue(to: value, context: &context)
+        return value
     }
 }
 

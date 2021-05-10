@@ -203,7 +203,7 @@ final class AMLDefExternal: AMLNamedObj {
 final class AMLMethod: AMLNamedObj {
     //let name: AMLNameString
     let flags: AMLMethodFlags
-    private var parser: AMLParser!
+    var parser: AMLParser!
     private var _termList: AMLTermList?
 
 
