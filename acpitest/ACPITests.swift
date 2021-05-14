@@ -29,25 +29,6 @@ final class System {
 var system: System!
 
 
-fileprivate func invokeMethod(name: String, _ args: Any...) throws -> AMLTermArg? {
-    var methodArgs: AMLTermArgList = []
-    for arg in args {
-        if let arg = arg as? String {
-            methodArgs.append(AMLDataObject.string(AMLString(arg)))
-        } else if let arg = arg as? AMLInteger {
-            methodArgs.append(AMLIntegerData(AMLInteger(arg)))
-        } else {
-            throw AMLError.invalidData(reason: "Bad data: \(arg)")
-        }
-    }
-    let mi = try AMLMethodInvocation(method: AMLNameString(name),
-                                     args: methodArgs)
-    var context = ACPI.AMLExecutionContext(scope: mi.method)
-
-    return mi.evaluate(context: &context)
-}
-
-
 fileprivate struct Resources {
     let ioPorts: [ClosedRange<UInt16>]
     let interrupts: [IRQSetting]
@@ -187,36 +168,45 @@ class ACPITests: XCTestCase {
     }
 
 
-    func testMethod_PIC() {
+    func testMethod_PIC() throws {
         let acpi = ACPITests.macbookACPI()
         guard let gpic = acpi.globalObjects.get("\\GPIC") as? AMLNamedValue else {
-            XCTFail("Cant find object \\_PIC")
+            XCTFail("Cant find object \\GPIC")
             return
         }
         XCTAssertNotNil(gpic)
         XCTAssertEqual(gpic.value.integerValue, 0)
-        let invocation = try? AMLMethodInvocation(method: AMLNameString("\\_PIC"),
-                                                  AMLIntegerData(1)) // APIC
-        XCTAssertNotNil(invocation)
-        var context = ACPI.AMLExecutionContext(scope: invocation!.method)
-        _ = invocation?.evaluate(context: &context)
+        try ACPI.invoke(method: "\\_PIC", AMLIntegerData(1))
 
         guard let gpic2 = acpi.globalObjects.get("\\GPIC") as? AMLNamedValue else {
-            XCTFail("Cant find object \\_PIC")
+            XCTFail("Cant find object \\GPIC")
             return
         }
         XCTAssertEqual(gpic2.value.integerValue, 1)
+
+        // Now read the _PRT to check it is using the correct table based on the GPIC value
+        guard let pci0 = acpi.globalObjects.get("\\_SB.PCI0")! as? AMLDefDevice else {
+            XCTFail("Cant find \\_SB.PCI0")
+            return
+        }
+        let interruptRoutingTable = PCIRoutingTable(acpi: pci0)
+        guard let table = interruptRoutingTable?.table else {
+            XCTFail("Cant read _PRT")
+            return
+        }
+
+        XCTAssertEqual(table.count, 19)
+        XCTAssertEqual(table.first, PCIRoutingTable.Entry(pciDevice: 1, pin: .intA, source: .value(0), sourceIndex: 16))
+        XCTAssertEqual(table.last, PCIRoutingTable.Entry(pciDevice: 31, pin: .intD, source: .value(0), sourceIndex: 16))
     }
 
 
     func testMethod_OSI() {
         do {
-            let result = try invokeMethod(name: "\\_OSI", "Linux")?.integerValue
-            XCTAssertNotNil(result)
+            let result = try ACPI.invoke(method: "\\_OSI", AMLNameString("Linux"))?.integerValue
             XCTAssertEqual(result, 0)
 
-            let result2 = try invokeMethod(name: "\\_OSI", "Darwin")?.integerValue
-            XCTAssertNotNil(result2)
+            let result2 = try ACPI.invoke(method: "\\_OSI", AMLNameString("Darwin"))?.integerValue
             XCTAssertEqual(result2, 0xffffffff)
         } catch {
             XCTFail(String(describing: error))
@@ -228,24 +218,18 @@ class ACPITests: XCTestCase {
         let acpi = ACPITests.macbookACPI()
 
         do {
-            guard let mi = try? AMLMethodInvocation(method: AMLNameString("\\_SB._INI")) else {
-                XCTFail("Cant create method invocation")
-                return
-            }
-            var context = ACPI.AMLExecutionContext(scope: mi.method)
-            _ = mi.evaluate(context: &context)
+            try ACPI.invoke(method: "\\_SB._INI")
             guard let osys = acpi.globalObjects.get("\\OSYS") else {
                 XCTFail("Cant find object \\OSYS")
                 return
             }
 
-            context = ACPI.AMLExecutionContext(scope: AMLNameString("\\"))
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString("\\"))
             let x = osys.readValue(context: &context).integerValue
             XCTAssertNotNil(x)
             XCTAssertEqual(x, 10000)
 
-            let ret = try invokeMethod(name: "\\OSDW")?.integerValue
-            XCTAssertNotNil(ret)
+            let ret = try ACPI.invoke(method: "\\OSDW")?.integerValue
             XCTAssertEqual(ret, 1)
         } catch {
             XCTFail(String(describing: error))
@@ -269,7 +253,15 @@ class ACPITests: XCTestCase {
         XCTAssertEqual(devices.count, 17)
         var deviceResourceSettings: [(String, String, [AMLResourceSetting])] = []
 
-
+        // _PIC doesnt exist in QEMU DSDT, so check invoking it fails
+        do {
+            try ACPI.invoke(method: "\\_PIC", AMLIntegerData(1))
+            XCTFail("\\_PIC invokation should not have succeeded")
+        } catch AMLError.invalidMethod(let reason) {
+            XCTAssertEqual(reason, "Cant find method: \\_PIC")
+        } catch {
+            XCTFail("\(error)")
+        }
 
         // Find all of the PNP devices and call a closure with the PNP name and resource settings
         devices.forEach { (fullName, node) in
@@ -518,38 +510,61 @@ class ACPITests: XCTestCase {
         ])
         defer { allData.deallocate()}
 
-        // Call \_SB.INI and then \_SB.PCI0.INI
-        do {
-            _ = try invokeMethod(name: "\\_PIC", AMLInteger(1))
-        } catch {
-            XCTFail("Cant set _PIC to GPIC \(error)")
+        guard let pci0 = acpi.globalObjects.get("\\_SB.PCI0")! as? AMLDefDevice else {
+            XCTFail("Cant find \\_SB.PCI0")
+            return
         }
 
+        guard let gpic = acpi.globalObjects.get("\\GPIC") as? AMLNamedValue else {
+            XCTFail("Cant find object \\GPIC")
+            return
+        }
+        XCTAssertEqual(gpic.value.integerValue, 0)
+
         do {
-            _ = try invokeMethod(name: "\\_SB._INI")
+            // Read the _PRT to check it is using GPIC=0 form
+            let interruptRoutingTable = PCIRoutingTable(acpi: pci0)
+            guard let table = interruptRoutingTable?.table else {
+                XCTFail("Cant read _PRT")
+                return
+            }
+            XCTAssertEqual(table.count, 72)
+            XCTAssertEqual(table.first, PCIRoutingTable.Entry(pciDevice: 15, pin: .intA, source: .namePath(AMLNameString("^ISA.LNKA")), sourceIndex: 0))
+            XCTAssertEqual(table.last, PCIRoutingTable.Entry(pciDevice: 7, pin: .intD, source: .namePath(AMLNameString("^ISA.LNKD")), sourceIndex: 0))
+        }
+
+
+        // Call \_SB.INI and then \_SB.PCI0.INI
+        try ACPI.invoke(method: "\\_PIC", AMLIntegerData(1))
+        XCTAssertEqual(gpic.value.integerValue, 1)
+
+        do {
+            // Now read the _PRT to check it is using GPIC=1 form
+            let interruptRoutingTable = PCIRoutingTable(acpi: pci0)
+            guard let table = interruptRoutingTable?.table else {
+                XCTFail("Cant read _PRT")
+                return
+            }
+            XCTAssertEqual(table.count, 72)
+            XCTAssertEqual(table.first, PCIRoutingTable.Entry(pciDevice: 15, pin: .intA, source: .value(0), sourceIndex: 16))
+            XCTAssertEqual(table.last, PCIRoutingTable.Entry(pciDevice: 7, pin: .intD, source: .value(0), sourceIndex: 19))
+        }
+
+
+        do {
+            try ACPI.invoke(method: "\\_SB._INI")
         } catch {
             XCTFail("Cant run \\_SB.INI \(error)")
         }
 
         do {
-            _ = try invokeMethod(name: "\\_SB.PCI0._INI")
+            try ACPI.invoke(method: "\\_SB.PCI0._INI")
         } catch {
             XCTFail("Cant run \\_SB.PCI0.INI: \(error)")
         }
 
 
-        let fullName = "\\_SB.PCI0"
-        guard let pci0 = acpi.globalObjects.get(fullName) else {
-            XCTFail("Cant find \(fullName)")
-            return
-        }
-
-        guard let device = pci0 as? AMLDefDevice else {
-            XCTFail("PCI0 is not an AMLDefDevice")
-            return
-        }
-
-        let status = device.status()
+        let status = pci0.status()
         XCTAssertTrue(status.present)
         XCTAssertTrue(status.enabled)
 
@@ -571,7 +586,7 @@ class ACPITests: XCTestCase {
 
 
         let scrsMethod = "\\_SB.PCI0.ISA.SCRS"
-        if let scrs = try invokeMethod(name: scrsMethod, AMLInteger(2)) {
+        if let scrs = try ACPI.invoke(method: scrsMethod, AMLIntegerData(2)) {
             guard let obj = scrs as? AMLDataObject, case .buffer(_) = obj else {
                 XCTFail("\(scrsMethod) did not return a buffer")
                 throw AMLError.invalidData(reason: "Not a buffer")
@@ -581,7 +596,7 @@ class ACPITests: XCTestCase {
         }
 
         let com3sMethod = "\\_SB.PCI0.ISA.COM3._CRS"
-        if let com3crs = try invokeMethod(name: com3sMethod) {
+        if let com3crs = try ACPI.invoke(method: com3sMethod) {
             guard let obj = com3crs as? AMLDataObject, case .buffer(_) = obj else {
                 XCTFail("\(com3sMethod) did not return a buffer")
                 throw AMLError.invalidData(reason: "Not a buffer")

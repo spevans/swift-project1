@@ -96,7 +96,7 @@ final class MasterBus: Bus {
     func initialiseDevices(acpiDevice: AMLDefDevice?) {
         // Run \\_SB.INI() before initialising devices.
         do {
-            _ = try AMLMethodInvocation(method: AMLNameString("\\_SB._INI"))
+            try ACPI.invoke(method: "\\_SB._INI")
         } catch {
             print("ACPI: Error running \\_SB.INI:", error)
         }

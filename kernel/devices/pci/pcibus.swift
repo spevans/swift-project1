@@ -203,7 +203,7 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
 
         print("PCI: Found routing entry \(entry), pin: \(entry.pin)")
 
-        if case .string(let namePath) = entry.source {
+        if case .namePath(let namePath) = entry.source {
             print("NamePath: \(namePath)")
             // FIXME, should have better way of walking up the tree
             guard let (node, fullname) = itr.prtAcpiNode.topParent().getGlobalObject(currentScope: AMLNameString(itr.prtAcpiNode.fullname()), name: namePath) else {

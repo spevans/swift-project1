@@ -25,15 +25,6 @@ final class DeviceManager {
         self.acpiTables = acpiTables
         interruptManager = InterruptManager(acpiTables: acpiTables)
         set_interrupt_manager(&interruptManager)
-
-        // Set _PIC mode to APIC (1)
-        do {
-            // APIC
-            _ = try AMLMethodInvocation(method: AMLNameString("\\_PIC"), AMLDataObject.integer(1))
-            print("ACPI: _PIC mode set to APIC")
-        } catch {
-            print("ACPI: Cant set _PIC mode to APIC:", error)
-        }
         masterBus = MasterBus(acpiSystemBus: sb)
     }
 
@@ -63,12 +54,12 @@ final class DeviceManager {
     }
 
 
-
     // Setup devices required for other device setup. This includes timers which are used to
     // implement sleep() etc, used by more complex devices eg USB Host Controllers when initialising.
     // Currently this setups all of the pnp ISA devices but this should be restricted to timers.
     func initialiseEarlyDevices() {
         print("initialiseEarlyDevices start")
+        interruptManager.enableGpicMode()
         masterBus.initialiseDevices(acpiDevice: nil)
         dumpPNPDevices()
         findPNPDevice(withName: "PNP0100")  // Look for a PIT timer and add to device tree if found

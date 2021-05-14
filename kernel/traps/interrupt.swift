@@ -26,7 +26,6 @@ protocol InterruptController {
 public final class InterruptManager {
 
     fileprivate let irqController: InterruptController
-
     fileprivate var irqHandlers: [IRQHandler] = Array(repeating: InterruptManager.unexpectedInterrupt, count: NR_IRQS)
 
 
@@ -60,6 +59,18 @@ public final class InterruptManager {
         irqController.disableAllIRQs()
     }
 
+
+    func enableGpicMode() {
+        // Set _PIC mode to APIC (1)
+        do {
+            try ACPI.invoke(method: "\\_PIC", AMLDataObject.integer(1))
+            print("ACPI: _PIC mode set to APIC")
+        } catch AMLError.invalidMethod {
+            // ignore, _PIC is optional
+        } catch {
+            fatalError("Cant set ACPI mode: \(error)")
+        }
+    }
 
     func enableIRQs() {
         print("INT: Enabling IRQs")

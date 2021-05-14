@@ -85,7 +85,7 @@ extension ACPI {
         guard args.count == 1 else {
             throw AMLError.invalidData(reason: "_OSI: Should only be 1 arg")
         }
-        guard let arg = (args[0] as? AMLDataObject)?.stringValue else {
+        guard let arg = args[0].stringValue else {
             throw AMLError.invalidData(reason: "_OSI: is not a string")
         }
         if arg == "Darwin" {

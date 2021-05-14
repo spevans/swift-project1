@@ -803,24 +803,23 @@ struct AMLMethodInvocation: AMLType2Opcode {
     }
 
 
-    private func _invokeMethod(invocation: AMLMethodInvocation,
-                               context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg? {
+    fileprivate func _invokeMethod(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg? {
 
-        let name = invocation.method.value
+        let name = self.method.value
         if name == "\\_OSI" || name == "_OSI" {
-            return try ACPI._OSI_Method(invocation.args)
+            return try ACPI._OSI_Method(args)
         }
 
         guard let globalObjects = system.deviceManager.acpiTables.globalObjects,
             let (obj, fullPath) = globalObjects.getGlobalObject(currentScope: context.scope,
-                                                                name: invocation.method) else {
+                                                                name: method) else {
                 throw AMLError.invalidMethod(reason: "Cant find method: \(name)")
         }
         guard let method = obj as? AMLMethod else {
             throw AMLError.invalidMethod(reason: "\(name) [\(String(describing:obj))] is not an AMLMethod")
         }
         let termList = try method.termList()
-        let newArgs = invocation.args.map { $0.evaluate(context: &context) }
+        let newArgs = args.map { $0.evaluate(context: &context) }
         var newContext = ACPI.AMLExecutionContext(scope: AMLNameString(fullPath),
                                                   args: newArgs)
         try newContext.execute(termList: termList)
@@ -829,14 +828,30 @@ struct AMLMethodInvocation: AMLType2Opcode {
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         do {
-            if let result = try _invokeMethod(invocation: self, context: &context) {
+            if let result = try _invokeMethod(context: &context) {
                 context.returnValue = result
                 return result
             } else {
                 return AMLIntegerData(0)
             }
         } catch {
-            fatalError("cant evaluate: \(self): \(error)")
+            fatalError("Cant run method: \(self): \(error)")
+        }
+    }
+}
+
+extension ACPI {
+
+    @discardableResult
+    static func invoke(method: String, _ args: AMLTermArg...) throws -> AMLTermArg? {
+        let mi = try AMLMethodInvocation(method: AMLNameString(method), args: args)
+        var context = ACPI.AMLExecutionContext(scope: mi.method)
+
+        if let result = try mi._invokeMethod(context: &context) {
+            context.returnValue = result
+            return result
+        } else {
+            return nil
         }
     }
 }

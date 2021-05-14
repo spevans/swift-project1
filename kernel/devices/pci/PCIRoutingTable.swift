@@ -10,7 +10,7 @@
 
 
 // INTA - INTD
-enum PCIInterruptPin: CustomStringConvertible {
+enum PCIInterruptPin: Equatable, CustomStringConvertible {
     case intA
     case intB
     case intC
@@ -52,26 +52,28 @@ enum PCIInterruptPin: CustomStringConvertible {
     }
 }
 
-struct PCIRoutingTableEntry: CustomStringConvertible {
-    enum Source: CustomStringConvertible {
-        case value(UInt8)
-        case string(AMLNameString)
+extension PCIRoutingTable {
+    struct Entry: Equatable, CustomStringConvertible {
+        enum Source: Equatable, CustomStringConvertible {
+            case value(UInt8)
+            case namePath(AMLNameString)
 
-        var description: String {
-            switch self {
-                case .value(let irq): return "IRQ \(irq)"
-                case .string(let name): return name.value
+            var description: String {
+                switch self {
+                    case .value(let irq): return "IRQ \(irq)"
+                    case .namePath(let name): return name.value
+                }
             }
         }
-    }
 
-    let pciDevice: UInt16
-    let pin: PCIInterruptPin
-    let source: Source
-    let sourceIndex: UInt32
+        let pciDevice: UInt16
+        let pin: PCIInterruptPin
+        let source: Source
+        let sourceIndex: UInt32
 
-    var description: String {
-        "_PRT Entry: device: \(String(pciDevice, radix: 16)), pin: \(pin) source: \(source), sourceIndex: \(sourceIndex)"
+        var description: String {
+            "_PRT Entry: device: \(String(pciDevice, radix: 16)), pin: \(pin) source: \(source), sourceIndex: \(sourceIndex)"
+        }
     }
 }
 
@@ -79,7 +81,7 @@ struct PCIRoutingTableEntry: CustomStringConvertible {
 struct PCIRoutingTable {
 
     let prtAcpiNode: ACPI.ACPIObjectNode
-    let table: [PCIRoutingTableEntry]
+    let table: [PCIRoutingTable.Entry]
 
     init?(acpi: AMLDefDevice) {
 
@@ -99,7 +101,7 @@ struct PCIRoutingTable {
         }
 
         prtAcpiNode = prtNode
-        var _table: [PCIRoutingTableEntry] = []
+        var _table: [PCIRoutingTable.Entry] = []
         _table.reserveCapacity(routingTable.count)
 
         for packageEntry in routingTable {
@@ -120,10 +122,10 @@ struct PCIRoutingTable {
                 fatalError("PCI Interrupt: pin value is too large")
             }
 
-            let source: PCIRoutingTableEntry.Source
+            let source: Entry.Source
             if let sourceName = entry[2].nameString {
                 // Determine the full name
-                source = .string(sourceName)
+                source = .namePath(sourceName)
             } else {
                 guard let sourceValue = entry[2].dataRefObject?.dataObject?.integerValue, sourceValue <= UInt8.max else {
                     fatalError("PCI Interrupt: Source is not a String or Byte")
@@ -135,14 +137,14 @@ struct PCIRoutingTable {
                 fatalError("PCI Interrupt: Source index is too large")
             }
 
-            _table.append(PCIRoutingTableEntry(pciDevice: UInt16(address >> 16), pin: pin,
-                                               source: source, sourceIndex: UInt32(sourceIndex)))
+            _table.append(Entry(pciDevice: UInt16(address >> 16), pin: pin,
+                                source: source, sourceIndex: UInt32(sourceIndex)))
         }
         table = _table
     }
 
 #if !TEST
-    func findEntryByDevice(pciDevice: PCIDevice) -> PCIRoutingTableEntry? {
+    func findEntryByDevice(pciDevice: PCIDevice) -> PCIRoutingTable.Entry? {
 
         let device = pciDevice.deviceFunction.device
         guard let pin = pciDevice.deviceFunction.interruptPin else {
