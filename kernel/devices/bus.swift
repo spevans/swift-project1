@@ -143,7 +143,9 @@ extension ACPI {
             switch pnpName {
 
                 case "PNP0A00", // ISABus
-                     "PNP0A08": // PCIBus, PCI Express
+                     "PNP0A08" // PCIBus, PCI Express
+                        where parentBus is PCIBus:
+
                     guard let address = node.addressResource() else {
                         print("Cant get addressResource for \(node.fullname())")
                         return
@@ -158,7 +160,8 @@ extension ACPI {
                         print("Cant add bridge: \(pnpName) onto bus: \(parentBus)")
                     }
 
-                case "PNP0A03": // PCI Host bridge
+                case "PNP0A03", // PCI Host bridge
+                     "PNP0A08": // PCIBus, PCI Express
                     guard let address = node.addressResource() else {
                         print("Cant get addressResource for \(node.fullname())")
                         return

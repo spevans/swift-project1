@@ -241,7 +241,7 @@ private let commands: [String: ShellCommand] = {
 // If a keyboard is present, wait and read from it, looping indefinitely
 func commandShell() {
     guard let kbd = system.deviceManager.keyboard else {
-        print("No keyboard found")
+        print("commandShell: No keyboard found")
         return
     }
 

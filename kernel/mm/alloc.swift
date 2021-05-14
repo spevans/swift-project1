@@ -98,6 +98,16 @@ func freePages(pages: PhysPageRange) {
 }
 
 private func addPagesToFreeList(physPage: PhysPageRange) {
+    // FIXME: Ignore any pages over the 4GB address. This is a bodge to allow USB
+    // UHCI driver to work on a host with RAM above the 32bit address space.
+    // At some point alloc(pages:) needs to be able to allocate pages in the first
+    // 32bit region
+
+    guard physPage.endAddress <= PhysAddress(0xffff_ffff) else {
+        print("addPagesToFreeList: Ignoring pages above 4GB:", physPage)
+        return
+    }
+
     let ptr = FreePageListEntryPtr(bitPattern: physPage.vaddr)!
     let entry = FreePageListEntry(region: physPage, next: freePageListHead)
     ptr.pointee = entry

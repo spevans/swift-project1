@@ -54,18 +54,13 @@ final class System {
         // gitBuildVersion defined in kernel/init/version.swift, created
         // by kernel/Makefile
         print("Version: \(gitBuildVersion)\n")
-        if system.deviceManager.keyboard == nil {
-            system.deviceManager.dumpDevices()
-            print("No keyboard attached, HLTing")
-            hlt()
-        }
     }
 
 
     fileprivate func runSystem() {
-        _ = addTask(name: "IRQ Queue runner", task: mainLoop)
-        _ = addTask(name: "KeyboardInput", task: keyboardInput)
-        run_first_task()
+        addTask(name: "IRQ Queue runner", task: mainLoop)
+        addTask(name: "KeyboardInput", task: keyboardInput)
+        run_first_task() // This jumps straight into mainLoop
     }
 }
 
@@ -95,8 +90,13 @@ fileprivate func keyboardInput() {
     // (used for testing on macbook where there is no PS/2 keyboard)
 
     commandShell()
-    print("No keyboard!")
+    print("commandShell exited")
+    if system.deviceManager.keyboard == nil {
+        print("Devices:")
+        system.deviceManager.dumpDevices()
+    }
 
+    print("HLTing")
     while true {
         hlt()
     }

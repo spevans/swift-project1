@@ -223,7 +223,8 @@ final class AMLDefDevice: AMLNamedObj, CustomStringConvertible {
     func addressResource() -> AMLInteger? {
         guard let adr = childNode(named: "_ADR") as? AMLNamedValue else {
             print("Cant find _ADR in", self.fullname())
-            return nil
+            // Override missing _ADR for Root PCIBus
+            return self.fullname() == "\\_SB.PCI0" ? AMLInteger(0) : nil
         }
 
         return adr.value.integerValue
