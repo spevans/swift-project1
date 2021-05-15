@@ -110,3 +110,9 @@ struct PCIConfigSpace {
     func writeConfigByte(atByteOffset offset: UInt, value: UInt8) {
     }
 }
+
+func mapIORegion(region: PhysPageRange, cacheType: Int = 7 /* Uncacheable */) -> MMIORegion {
+    let vaddr = UnsafeMutableRawPointer.allocate(byteCount: Int(region.regionSize), alignment: 16)
+
+    return MMIORegion(physicalRegion: region, virtualAddress: VirtualAddress(vaddr.address))
+}

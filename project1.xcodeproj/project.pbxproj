@@ -46,6 +46,7 @@
 		B9568C822548C0A400C3F49B /* usb-interfacedescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568C732548BDBC00C3F49B /* usb-interfacedescriptor.swift */; };
 		B9568C8C2548E87600C3F49B /* usb-hiddescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568C8B2548E87600C3F49B /* usb-hiddescriptor.swift */; };
 		B9568CB12551819E00C3F49B /* BitmapAllocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568CB02551819E00C3F49B /* BitmapAllocator.swift */; };
+		B95A1853264FEC3A00B2CB97 /* MMIORegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96BBE5626309218009756A8 /* MMIORegion.swift */; };
 		B962BDAC1FD3116B00D42D70 /* amlresourcedata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */; };
 		B98DE1B1264D02280003775C /* IRQSetting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96D9CAA26411FB30079E5AD /* IRQSetting.swift */; };
 		B98DE1BA264D052F0003775C /* ACPIGenericAddressStructure.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96BBE4F262B5502009756A8 /* ACPIGenericAddressStructure.swift */; };
@@ -881,10 +882,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B95A1853264FEC3A00B2CB97 /* MMIORegion.swift in Sources */,
 				B98DE1CC264D11490003775C /* PCIRoutingTable.swift in Sources */,
 				B98DE1BA264D052F0003775C /* ACPIGenericAddressStructure.swift in Sources */,
 				B98DE1B1264D02280003775C /* IRQSetting.swift in Sources */,
-				B96D9CC026414D3A0079E5AD /* MMIORegion.swift in Sources */,
 				B9F3DADC262188A900971474 /* MemoryRange.swift in Sources */,
 				B9568C7D2548C0A400C3F49B /* usb-configdescriptor.swift in Sources */,
 				B9568C7E2548C0A400C3F49B /* usb-controlrequest.swift in Sources */,

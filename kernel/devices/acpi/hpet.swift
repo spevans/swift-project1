@@ -10,6 +10,7 @@
 struct HPET: ACPITable, CustomStringConvertible {
 
     private let table: acpi_hpet_table
+    private let mmioRegion: MMIORegion
 
     // ACPI Fields
     var pciVendorId: UInt16 {
@@ -84,9 +85,14 @@ struct HPET: ACPITable, CustomStringConvertible {
 
     init(_ ptr: UnsafeRawPointer) {
         table = ptr.load(as: acpi_hpet_table.self)
-        guard table.header.length >= MemoryLayout<acpi_hpet_table>.size else {
-            fatalError("ACPI: FACS table is too short \(table.header.length) bytes")
+        let length = table.header.length
+        guard length >= MemoryLayout<acpi_hpet_table>.size else {
+            fatalError("ACPI: FACS table is too short at \(length) bytes")
         }
+
+        let gas = ACPIGenericAddressStrucure(table.base_address)
+        let physicalRegion = PhysPageRange(gas.physicalAddress, pageSize: PAGE_SIZE, pageCount: 1)
+        mmioRegion = mapIORegion(region: physicalRegion)
     }
 
     // HPET capabilities
@@ -96,25 +102,9 @@ struct HPET: ACPITable, CustomStringConvertible {
         baseAddress.rawPointer.load(fromByteOffset: 4, as: UInt32.self)
     }
 
-    private func read32Bit(fromByteOffset offset : Int) -> UInt32 {
-        return mmio_read_uint32(baseAddress.rawPointer.advanced(by: offset))
-    }
-
-    private func write32Bit(value: UInt32, toByteOffset offset: Int) {
-        mmio_write_uint32(baseAddress.rawPointer.advanced(by: offset), value)
-    }
-
-    private func read64Bit(fromByteOffset offset : Int) -> UInt64 {
-        return mmio_read_uint64(baseAddress.rawPointer.advanced(by: offset))
-    }
-
-    private func write64Bit(value: UInt64, toByteOffset offset: Int) {
-        mmio_write_uint64(baseAddress.rawPointer.advanced(by: offset), value)
-    }
-
     private var generalConfigurationRegister: UInt32 {
-        get { read32Bit(fromByteOffset: 0x10) }
-        set { write32Bit(value: newValue, toByteOffset: 0x10) }
+        get { mmioRegion.read(fromByteOffset: 0x10) }
+        set { mmioRegion.write(value: newValue, toByteOffset: 0x10) }
     }
 
     // GLOBAL_ENABLE_CNF
@@ -145,8 +135,8 @@ struct HPET: ACPITable, CustomStringConvertible {
 
 
     var mainCounterRegister: UInt64 {
-        get { read64Bit(fromByteOffset: 0xf0) }
-        set { write64Bit(value: newValue, toByteOffset: 0xf0) }
+        get { mmioRegion.read(fromByteOffset: 0xf0) }
+        set { mmioRegion.write(value: newValue, toByteOffset: 0xf0) }
     }
 
 
@@ -154,27 +144,27 @@ struct HPET: ACPITable, CustomStringConvertible {
     func configFor(timer: Int) -> TimerConfiguration {
         precondition(timer <= maxComparatorIndex)
         let offset = 0x100 + (timer * 0x20)
-        let low = read32Bit(fromByteOffset: offset)
-        let high = read32Bit(fromByteOffset: offset + 4)
+        let low: UInt32 = mmioRegion.read(fromByteOffset: offset)
+        let high: UInt32 = mmioRegion.read(fromByteOffset: offset + 4)
         return TimerConfiguration(low: low, high: high)
     }
 
     func setConfigFor(timer: Int, config: TimerConfiguration) {
         precondition(timer <= maxComparatorIndex)
         let offset = 0x100 + (timer * 0x20)
-        write32Bit(value: config.rawValue, toByteOffset: offset)
+        mmioRegion.write(value: config.rawValue, toByteOffset: offset)
     }
 
     func comparatorValueFor(timer: Int) -> UInt64 {
         precondition(timer <= maxComparatorIndex)
         let offset = 0x108 + (timer * 0x20)
-        return read64Bit(fromByteOffset: offset)
+        return mmioRegion.read(fromByteOffset: offset)
     }
 
     func setComparatorValueFor(timer: Int, value: UInt64) {
         precondition(timer <= maxComparatorIndex)
         let offset = 0x108 + (timer * 0x20)
-        write64Bit(value: value, toByteOffset: offset)
+        mmioRegion.write(value: value, toByteOffset: offset)
     }
 
     func fsbInterruptRouteRegisterFor(timer: Int) -> (address: UInt32, value: UInt32) {
