@@ -32,14 +32,13 @@ final class System {
         CPU.getInfo()
         // BootParams must come first to find memory regions for MM
         bootParams = parse(bootParamsAddr: VirtualAddress(bootParamsAddr))
+        // Setup the new page tables and add the free RAM to the free list so that
+        // ACPI parsing etc has more memory available.
         setupMM(bootParams: bootParams)
 
-        // SystemTables() needs the MM setup so that the memory can be mapped
+        // SystemTables() needs the MM setup so that the memory can be mapped. This will also parse
+        // all of the ACPI tables including the DSDT.
         systemTables = SystemTables(bootParams: bootParams)
-        let freeMemoryRanges = bootParams.memoryRanges.filter {
-            $0.type == MemoryType.Conventional
-        }
-        addPagesToFreePageList(freeMemoryRanges)
         // symbolLookupInit uses a sort() so may require more free memory, do it after all the free
         // RAM has been added to the free list.
         symbolLookupInit(bootParams: bootParams)

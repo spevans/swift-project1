@@ -51,6 +51,20 @@ public func alloc_pages(pages: Int) -> UnsafeMutableRawPointer {
 }
 
 
+func freePageCount() -> Int {
+    var count = 0
+
+    var head = freePageListHead
+    while let ptr = head {
+        let entry = ptr.pointee
+        let region = entry.region
+        count += region.pageCount
+        head = entry.next
+    }
+    return count
+}
+
+
 func alloc(pages: Int) -> PhysPageRange {
     precondition(pages > 0)
 

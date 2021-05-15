@@ -170,6 +170,17 @@ func setupMM(bootParams: BootParams) {
     setCR3(pml4paddr)
     CPU.enableWP(true)
     printf("MM: CR3 Updated to %p\n", pml4paddr)
+
+    // Now add in all the RAM memory ranges
+    let freeMemoryRanges = bootParams.memoryRanges.filter {
+        $0.type == MemoryType.Conventional
+    }
+    print("MM: Before adding pages to freelist, freePageCount:", freePageCount())
+    addPagesToFreePageList(freeMemoryRanges)
+    print("MM: After adding pages to freelist, freePageCount:", freePageCount())
+
+    // TODO: Reclaim any memory used in the boot process that can now be used as free RAM
+    // eg initial page maps, or EFI memory.
 }
 
 
@@ -179,7 +190,7 @@ private func mapPhysicalMemory(_ maxAddress: PhysAddress) {
     var inc: UInt = 0
     var mapper: (UInt, PhysAddress) -> ()
 
-    printf("MM: Mapping physical memory from 0 - %p\n", maxAddress.value)
+    printf("MM: Mapping physical memory from 0 - %p , freePageCount: %ld\n", maxAddress.value, freePageCount())
     // Map physical memory using 1GB pages if available else 2MB pages
     if CPU.capabilities.pages1G {
         inc = 0x40000000    // 1GB
@@ -201,7 +212,7 @@ private func mapPhysicalMemory(_ maxAddress: PhysAddress) {
         vaddr += inc
         paddr = paddr.advanced(by: inc)
     }
-    printf("MM: Added mappings upto: %p [%p]\n", vaddr, paddr.value)
+    printf("MM: Added mappings upto: %p [%p] freePageCount: %ld\n", vaddr, paddr.value, freePageCount())
 }
 
 
