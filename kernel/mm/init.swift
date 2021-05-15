@@ -252,10 +252,21 @@ func mapIORegion(physicalAddr: PhysAddress, size: Int,
 }
 
 
-func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
-    readWrite: Bool, noExec: Bool, cacheType: Int = 0 /* WriteBack */) {
+func mapIORegion(region: PhysPageRange, cacheType: Int = 7 /* Uncacheable */) -> MMIORegion {
+    let vaddr = nextIOVirtualAddress
+    //print("Adding IO mapping for \(region) at 0x\(String(vaddr, radix: 16))")
+    addMapping(start: vaddr, size: region.regionSize, physStart: region.address,
+               readWrite: true, noExec: true, cacheType: cacheType)
+    nextIOVirtualAddress += region.regionSize
+    nextIOVirtualAddress += PAGE_SIZE // Add an extra page to catch overruns
 
-    let endAddress = start + size - 1
+    return MMIORegion(physicalRegion: region, virtualAddress: vaddr)
+}
+
+
+func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
+                readWrite: Bool, noExec: Bool, cacheType: Int = 0 /* WriteBack */) {
+
     let pageCnt = ((size + PAGE_SIZE - 1) / PAGE_SIZE)
     var physAddress = physStart
     var addr = start
@@ -288,7 +299,7 @@ func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
         addr += PAGE_SIZE
         physAddress = physAddress.advanced(by: PAGE_SIZE)
     }
-    printf("MM: Added kernel mapping from %p-%p [%p-%p]\n", start, endAddress,
+    printf("MM: Added kernel mapping from %p-%p [%p-%p]\n", start, addr - 1,
         physStart.value, physAddress.value - 1)
 }
 

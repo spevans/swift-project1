@@ -223,6 +223,7 @@
 		B963DA1322FD85BC00E7F8B3 /* cmos.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = cmos.swift; sourceTree = "<group>"; };
 		B96BBE4F262B5502009756A8 /* ACPIGenericAddressStructure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPIGenericAddressStructure.swift; sourceTree = "<group>"; };
 		B96BBE53262CA85F009756A8 /* Timer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Timer.swift; sourceTree = "<group>"; };
+		B96BBE5626309218009756A8 /* MMIORegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MMIORegion.swift; sourceTree = "<group>"; };
 		B96D9CAA26411FB30079E5AD /* IRQSetting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IRQSetting.swift; sourceTree = "<group>"; };
 		B9793D4E200A571B0013E03B /* symbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = symbols.swift; sourceTree = "<group>"; };
 		B97C3A8024D0D10F00E3602C /* shell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = shell.swift; sourceTree = "<group>"; };
@@ -437,6 +438,7 @@
 				B933A7491F2F4ABC00FE6846 /* Makefile */,
 				B933A7471F2F4ABC00FE6846 /* page.swift */,
 				B9793D4E200A571B0013E03B /* symbols.swift */,
+				B96BBE5626309218009756A8 /* MMIORegion.swift */,
 			);
 			path = mm;
 			sourceTree = "<group>";
@@ -882,6 +884,7 @@
 				B98DE1CC264D11490003775C /* PCIRoutingTable.swift in Sources */,
 				B98DE1BA264D052F0003775C /* ACPIGenericAddressStructure.swift in Sources */,
 				B98DE1B1264D02280003775C /* IRQSetting.swift in Sources */,
+				B96D9CC026414D3A0079E5AD /* MMIORegion.swift in Sources */,
 				B9F3DADC262188A900971474 /* MemoryRange.swift in Sources */,
 				B9568C7D2548C0A400C3F49B /* usb-configdescriptor.swift in Sources */,
 				B9568C7E2548C0A400C3F49B /* usb-controlrequest.swift in Sources */,

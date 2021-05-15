@@ -28,6 +28,7 @@ _SWIFT_SRCS :=	init/startup.swift				\
 		mm/page.swift					\
 		mm/alloc.swift					\
 		mm/symbols.swift				\
+		mm/MMIORegion.swift				\
 		devices/acpi/acpi.swift				\
 		devices/acpi/ACPIGenericAddressStructure.swift	\
 		devices/acpi/boot.swift				\
