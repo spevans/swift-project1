@@ -129,7 +129,7 @@ public func asHex<T : UnsignedInteger>(_ x: T) -> String {
 
 
 #if KERNEL
-func hexDump(buffer: UnsafeRawBufferPointer, offset: UInt = 0) {
+func hexDump<C: RandomAccessCollection>(buffer: C, offset: UInt = 0) where C.Element == UInt8, C.Index == Int {
 
     func byteAsChar(value: UInt8) -> Character {
         if value >= 0x21 && value <= 0x7e {

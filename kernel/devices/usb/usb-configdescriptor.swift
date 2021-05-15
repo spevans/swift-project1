@@ -60,7 +60,7 @@ extension USB {
 
         // This will parse either a packet of size(usb_standard_interface_descriptor), sufficient to obtain wTotalLength,
         // or a packet of size wTotalLength which will include all of the sub structures.
-        init(from buffer: UnsafeRawBufferPointer) throws {
+        init(from buffer: MMIOSubRegion) throws {
             guard  buffer.count >= MemoryLayout<usb_standard_interface_descriptor>.size else {
                 throw ParsingError.packetTooShort
             }

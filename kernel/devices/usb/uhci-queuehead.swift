@@ -26,7 +26,7 @@ extension HCD_UHCI {
             bits = BitArray32(address)
         }
 
-        private init(rawValue: UInt32) {
+        init(rawValue: UInt32) {
             bits = BitArray32(rawValue)
         }
 
@@ -40,9 +40,10 @@ extension HCD_UHCI {
         var isTransferDescriptor: Bool { !isQueueHead }
         // FIXME: This should be a PhyiscalAddress in the 1st 4G with correct type
         var address: UInt32 { bits.rawValue & 0xffff_fff0 }
-        var physQueueHead: PhysQueueHead? {
+        var physQueueHeadAddress: PhysAddress? {
             if isQueueHead && !isTerminator {
-                return PhysQueueHead(address: PhysAddress(RawAddress(address)))
+                //return PhysQueueHead(address: PhysAddress(RawAddress(address)))
+                return PhysAddress(RawAddress(address))
             } else {
                 return nil
             }
@@ -70,7 +71,7 @@ extension HCD_UHCI {
                 self.bits = BitArray32(transferDescriptorAddress)
             }
 
-            private init(rawValue: UInt32) {
+            fileprivate init(rawValue: UInt32) {
                 bits = BitArray32(rawValue)
             }
 
@@ -83,9 +84,10 @@ extension HCD_UHCI {
             var isTransferDescriptor: Bool { !isQueueHead }
             var address: UInt32 { bits.rawValue & 0xffff_fff0 }
 
-            var nextQH: PhysQueueHead? {
+            var nextQHAddress: PhysAddress? {
                 if isQueueHead && !isTerminator {
-                    return PhysQueueHead(address: PhysAddress(RawAddress(address)))
+                    //return PhysQueueHead(address: PhysAddress(RawAddress(address)))
+                    return PhysAddress(RawAddress(address))
                 } else {
                     return nil
                 }
@@ -140,8 +142,8 @@ extension HCD_UHCI {
         var headLinkPointer: QueueHeadLinkPointer
         var elementLinkPointer: QueueElementLinkPointer
         // QueueHeads are on 16byte boundaries so there is unused space that the driver can use
-        private let unused1: UInt32 = 0
-        private let unused2: UInt32 = 0
+        let unused1: UInt32 = 0
+        let unused2: UInt32 = 0
 
         init(headLinkPointer: QueueHeadLinkPointer, elementLinkPointer: QueueElementLinkPointer) {
             self.headLinkPointer = headLinkPointer
@@ -179,41 +181,48 @@ extension HCD_UHCI {
         }
     }
 
-    typealias QueueHeadPtr = UnsafeMutablePointer<QueueHead>
 
     struct PhysQueueHead: CustomStringConvertible {
-        let address: PhysAddress
+        let mmioSubRegion: MMIOSubRegion
 
-        init(address: PhysAddress) {
-            self.address = address
+        init(mmioSubRegion: MMIOSubRegion) {
+            self.mmioSubRegion = mmioSubRegion
         }
 
-        var pointer: QueueHeadPtr {
-            return address.rawPointer.bindMemory(to: QueueHead.self, capacity: 1)
-        }
-
-        var physAddress: UInt32 { UInt32(address.value) }
+        var physAddress: UInt32 { UInt32(mmioSubRegion.physicalAddress.value) }
 
         func setQH(_ queueHead: QueueHead) {
-            self.address.rawPointer.storeBytes(of: queueHead, as: QueueHead.self)
+            mmioSubRegion.write(value: queueHead.headLinkPointer.bits.rawValue, toByteOffset: 0)
+            mmioSubRegion.write(value: queueHead.elementLinkPointer.bits.rawValue, toByteOffset: 4)
+            mmioSubRegion.write(value: queueHead.unused1, toByteOffset: 8)
+            mmioSubRegion.write(value: queueHead.unused2, toByteOffset: 12)
+            writeMemoryBarrier()
         }
 
         // Forward properties to the QueueHead
         var headLinkPointer: QueueHead.QueueHeadLinkPointer {
-            get { pointer.pointee.headLinkPointer }
-            set { pointer.pointee.headLinkPointer = newValue }
+            get { QueueHead.QueueHeadLinkPointer(rawValue: mmioSubRegion.read(fromByteOffset: 0)) }
+            set {
+                mmioSubRegion.write(value: newValue.bits.rawValue, toByteOffset: 0)
+                writeMemoryBarrier()
+            }
         }
         var elementLinkPointer: QueueHead.QueueElementLinkPointer {
-            get { pointer.pointee.elementLinkPointer }
-            set { pointer.pointee.elementLinkPointer = newValue }
+            get { QueueHead.QueueElementLinkPointer(rawValue: mmioSubRegion.read(fromByteOffset: 4)) }
+            set {
+                mmioSubRegion.write(value: newValue.bits.rawValue, toByteOffset: 4)
+                writeMemoryBarrier()
+            }
         }
 
         var description: String {
-            return "PhysQH: \(address): " + pointer.pointee.description
+            let queueHead = QueueHead(headLinkPointer: headLinkPointer, elementLinkPointer: elementLinkPointer)
+            return "PhysQH: \(mmioSubRegion.physicalAddress): \(queueHead)"
         }
 
         func dump() -> String {
-            pointer.pointee.dump()
+            let queueHead = QueueHead(headLinkPointer: headLinkPointer, elementLinkPointer: elementLinkPointer)
+            return queueHead.dump()
         }
     }
 }

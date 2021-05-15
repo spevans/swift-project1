@@ -24,9 +24,9 @@ protocol USBHub {
 
 
 protocol USBPipe {
-    func allocateBuffer(length: Int) -> UnsafeRawBufferPointer
-    func freeBuffer()
-    func send(request: USB.ControlRequest, withBuffer: Bool) -> Bool
+    func allocateBuffer(length: Int) -> MMIOSubRegion
+    func freeBuffer(_ buffer: MMIOSubRegion)
+    func send(request: USB.ControlRequest, withBuffer: MMIOSubRegion?) -> Bool
     func pollInterruptPipe() -> [UInt8]?
 }
 

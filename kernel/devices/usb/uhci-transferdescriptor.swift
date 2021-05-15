@@ -12,8 +12,8 @@
 extension HCD_UHCI {
 
     struct TransferDescriptor: CustomStringConvertible {
-        struct LinkPointer {
-            let bits: BitArray32
+        struct LinkPointer: CustomStringConvertible {
+             let bits: BitArray32
 
             init(queueHead address: UInt32) {
                 precondition(address & 0xf == 0)
@@ -27,7 +27,7 @@ extension HCD_UHCI {
                 bits = lp
             }
 
-            private init(rawValue: UInt32) {
+            fileprivate init(rawValue: UInt32) {
                 bits = BitArray32(rawValue)
             }
 
@@ -37,16 +37,25 @@ extension HCD_UHCI {
 
             var terminate: Bool { bits[0] == 1 }
             var isQueueHead: Bool { bits[1] == 1 }
+            var depthFirst: Bool { bits[2] == 1 }
             var isTransferDescriptor: Bool { !isQueueHead }
             var address: UInt32 { bits.rawValue & 0xffff_fff0 }
             var physAddress: PhysAddress { PhysAddress(RawAddress(address)) }
+
+            var description: String {
+                "isTerm: \(bits[0]) isQH: \(bits[1]) depth: \(bits[2])"
+            }
         }
 
         struct ControlStatus: CustomStringConvertible {
-            private var bits: BitArray32
+            private(set) fileprivate var bits: BitArray32
 
             init() {
                 bits = BitArray32(0)
+            }
+
+            init(rawValue: UInt32) {
+                bits = BitArray32(rawValue)
             }
 
             init(active: Bool, lowSpeedDevice: Bool, maxErrorCount: Int) {
@@ -101,7 +110,7 @@ extension HCD_UHCI {
 
             var description: String {
                 var result = "actLen: \(actualLength) active: \(active ? 1 : 0) IOC: \(interruptOnComplete ? 1 : 0) isoTD: \(isochronousTransferDescriptor ? 1 : 0) "
-                    + "LoSD: \(lowSpeedDevice ? 1 : 0) maxErrorCount: \(maxErrorCount) shortPacket: \(shortPacketDetect ? 1 : 0)"
+                    + "LoSD: \(lowSpeedDevice ? 1 : 0) maxErr: \(maxErrorCount) SPD: \(shortPacketDetect ? 1 : 0)"
                 if bitstuffError { result += " bitStuffError" }
                 if crcTimeoutError { result += " crcToError" }
                 if nakReceived { result += " NAK" }
@@ -113,7 +122,7 @@ extension HCD_UHCI {
         }
 
         struct Token: CustomStringConvertible {
-            private let bits: BitArray32
+            fileprivate let bits: BitArray32
 
             enum PID: UInt8 {
                 case pidIn = 0x69
@@ -135,6 +144,10 @@ extension HCD_UHCI {
                 self.bits = bits
             }
 
+            fileprivate init(rawValue: UInt32) {
+                bits = BitArray32(rawValue)
+            }
+
             var pid: PID { PID(rawValue: UInt8(bits[0...7]))! }
             var deviceAddress: UInt8 { UInt8(bits[8...14]) }
             var endpoint: UInt { UInt(bits[15...18]) }
@@ -146,7 +159,7 @@ extension HCD_UHCI {
                 return (len == 0x7ff) ? 0 : len + 1
             }
 
-            var description: String { "\(pid) addr: \(deviceAddress).\(endpoint) data\(data0 ? "0" : "1") maxLen: \(maximumLength)" }
+            var description: String { "\(pid) addr: \(deviceAddress).\(endpoint) data\(data0 ? "0" : "1") maxLen: \(maximumLength) [\(String(bits.rawValue, radix: 16))]" }
         }
 
 
@@ -156,38 +169,58 @@ extension HCD_UHCI {
         let bufferPointer: UInt32
 
         var description: String {
-            return token.description + " " + controlStatus.description + " buffer: \(String(bufferPointer, radix: 16))"
+            return "\(linkPointer) \(token) \(controlStatus) buffer: \(String(bufferPointer, radix: 16))"
         }
     }
 
-    typealias TransferDescriptorPtr = UnsafeMutablePointer<TransferDescriptor>
 
     struct PhysTransferDescriptor: CustomStringConvertible {
-        let address: PhysAddress
 
-        init(address: PhysAddress) {
-            self.address = address
+        let mmioSubRegion: MMIOSubRegion
+
+        init(mmioSubRegion: MMIOSubRegion) {
+            self.mmioSubRegion = mmioSubRegion
         }
 
-        var pointer: TransferDescriptorPtr {
-            return address.rawPointer.bindMemory(to: TransferDescriptor.self, capacity: 1)
-        }
-
-        var physAddress: UInt32 { UInt32(address.value) }
+        var physAddress: UInt32 { UInt32(mmioSubRegion.physicalAddress.value) }
 
         func setTD(_ transferdescriptor: TransferDescriptor) {
-            self.address.rawPointer.storeBytes(of: transferdescriptor, as: TransferDescriptor.self)
+            mmioSubRegion.write(value: transferdescriptor.linkPointer.bits.rawValue, toByteOffset: 0 )
+            mmioSubRegion.write(value: transferdescriptor.controlStatus.bits.rawValue, toByteOffset: 4)
+            mmioSubRegion.write(value: transferdescriptor.token.bits.rawValue, toByteOffset: 8)
+            mmioSubRegion.write(value: transferdescriptor.bufferPointer, toByteOffset: 12)
+            writeMemoryBarrier()
         }
 
-        var linkPointer: TransferDescriptor.LinkPointer { pointer.pointee.linkPointer }
+
+        func getTD() -> TransferDescriptor {
+            TransferDescriptor(linkPointer: self.linkPointer, controlStatus: self.controlStatus,
+                               token: self.token, bufferPointer: self.bufferPointer)
+        }
+
+        var linkPointer: TransferDescriptor.LinkPointer {
+            TransferDescriptor.LinkPointer(rawValue: mmioSubRegion.read(fromByteOffset: 0))
+        }
+
         var controlStatus: TransferDescriptor.ControlStatus {
-            get { pointer.pointee.controlStatus }
-            set { pointer.pointee.controlStatus = newValue }
+            get { TransferDescriptor.ControlStatus(rawValue: mmioSubRegion.read(fromByteOffset: 4)) }
+            set {
+                mmioSubRegion.write(value: newValue.bits.rawValue, toByteOffset: 4)
+                writeMemoryBarrier()
+            }
+        }
+
+        var token: TransferDescriptor.Token {
+            TransferDescriptor.Token(rawValue: mmioSubRegion.read(fromByteOffset: 8))
+        }
+
+        var bufferPointer: UInt32 {
+            mmioSubRegion.read(fromByteOffset: 12)
         }
 
 
         var description: String {
-            return "PhysTD: \(address): " + pointer.pointee.description
+            return "PhysTD: \(asHex(physAddress)): " + getTD().description
         }
     }
 }

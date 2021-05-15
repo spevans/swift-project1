@@ -28,11 +28,8 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
     private var deviceFunction: PCIDeviceFunction       // The device (upstream) side of the bridge
     fileprivate let ioBasePort: UInt16
     private var maxAddress: UInt8 = 1
-    private(set) var controlQH = PhysQueueHead(address: PhysAddress(0))
+    private(set) var controlQH = PhysQueueHead(mmioSubRegion: MMIOSubRegion(virtualAddress: 0, physicalAddress: PhysAddress(0), count: 0))
     let allocator: UHCIAllocator
-
-    // FIXME: Should guarantee being 32bit phys
-    let frameListPage = alloc(pages: 1)
 
     let acpiDevice: AMLDefDevice?
     var enabled = true
@@ -98,12 +95,9 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
 
 
         // Setup the framelist, with default QueueHeads
-        uhciDebug("frameListPage:", frameListPage, "vaddr:", String(frameListPage.vaddr, radix: 16))
-        let ptr = UnsafeMutablePointer<FrameListPointer>(bitPattern: frameListPage.vaddr)!
-        uhciDebug("ptr:", ptr)
-        let frameList = UnsafeMutableBufferPointer(start: ptr, count: Int(frameListPage.regionSize) / MemoryLayout<FrameListPointer>.stride)
-        uhciDebug("frameList:", frameList)
-        assert(frameList.count == 1024)
+        let frameListPage = allocator.frameListPage
+        uhciDebug("frameListPage:", frameListPage, String(frameListPage.physicalAddress, radix: 16))
+        precondition(frameListPage.count == 1024)
 
         // Create a QueueHead which teminates both the QH and Element Links and store this in the every elemet of the frame list
         // This forms the last node in a list of Control QueueHeads. The QueueHeads points to a terminating TransferDescriptor.
@@ -120,7 +114,7 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
 
         // FIXME: Dealloc this
         let terminatingQH = allocator.allocQueueHead()
-        uhciDebug("Allocated terminatingQH with terminatingTD:", terminatingTD.physAddress)
+        uhciDebug("Allocated terminatingQH with terminatingTD:", asHex(terminatingTD.physAddress))
         terminatingQH.setQH(QueueHead(
             headLinkPointer: QueueHead.QueueHeadLinkPointer.terminator(),
             elementLinkPointer: QueueHead.QueueElementLinkPointer(transferDescriptorAddress: terminatingTD.physAddress)
@@ -129,7 +123,7 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
 
         // Create the start node in the list which has a terminating element and points to the last node as the link pointer
         controlQH = allocator.allocQueueHead()
-        uhciDebug("allocated controlQH, with terminatingQH:", terminatingQH.physAddress)
+        uhciDebug("allocated controlQH, with terminatingQH:", asHex(terminatingQH.physAddress))
         controlQH.setQH(QueueHead(
             headLinkPointer: QueueHead.QueueHeadLinkPointer(queueHeadAddress: terminatingQH.physAddress),
             elementLinkPointer: QueueHead.QueueElementLinkPointer.terminator()
@@ -138,11 +132,14 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
 
         let flp = FrameListPointer(queueHead: controlQH.physAddress)
         uhciDebug("flp:", flp)
-        frameList.assign(repeating: flp)
+        startOfFrame = 64
+        frameListPage.setAllPointers(to: flp)
         dumpAndCheckFrameList()
+        writeMemoryBarrier()
 
         // Point to the frame list and set frame number to 0
-        frameListBaseAddress = UInt32(frameListPage.address.value)
+        uhciDebug("setting frameListBaseAddress to \(String(frameListPage.physicalAddress, radix: 16))")
+        frameListBaseAddress = frameListPage.physicalAddress
         frameNumberRegister = 0
 
         statusRegister = Status(rawValue: 0)
@@ -170,34 +167,30 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
                 controlQH.headLinkPointer = QueueHead.QueueHeadLinkPointer(queueHeadAddress: queueHead.physAddress)
 
             case .interrupt:
+                var frameList = allocator.frameListPage
+                precondition(frameList.count == 1024)
                 // Determine the frequency of the interrupt to know which slots to add it to
-                let frequency = 1024 / Int(interval)
+                let frequency = frameList.count / Int(interval)
                 uhciDebug("interval: \(interval)ms frequency: \(frequency)")
-                let ptr = UnsafeMutablePointer<FrameListPointer>(bitPattern: frameListPage.vaddr)!
-                let frameList = UnsafeMutableBufferPointer(start: ptr, count: Int(frameListPage.regionSize) / MemoryLayout<FrameListPointer>.stride)
-                assert(frameList.count == 1024)
 
                 queueHead.headLinkPointer = QueueHead.QueueHeadLinkPointer(queueHeadAddress: controlQH.physAddress)
+                let flp = FrameListPointer(queueHead: queueHead.physAddress)
                 for idx in stride(from: 0, to: frameList.count, by: frequency) {
-                    frameList[idx] = FrameListPointer(queueHead: queueHead.physAddress)
+                    frameList[idx] = flp
                 }
 
             default:
                 fatalError("UHCI: Pipes of type \(transferType) are not currently supported")
         }
-        dumpAndCheckFrameList()
-        uhciDebug("Added QH")
     }
 
 
     func removeQueueHead(_ queueHead: PhysQueueHead, transferType: USB.EndpointDescriptor.TransferType) {
         uhciDebug("removeQueueHEad", queueHead)
-        dumpAndCheckFrameList()
 
         switch transferType {
             case .control:
                 // The queueHead that is being searched for
-                //let queueHeadLP = QueueHead.QueueHeadLinkPointer(queueHeadAddress: queueHead.physAddress)
                 var qh = controlQH
                 var qhlp = qh.headLinkPointer
 
@@ -213,10 +206,11 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
                         return
                     }
 
-                    guard let next = qh.headLinkPointer.nextQH else {
+                    guard let address = qh.headLinkPointer.nextQHAddress else {
                         fatalError("UHCI-HCD: removeQueueHead: Reached end of QHs")
                     }
-                    qh = next
+                    let region = allocator.fromPhysical(address: address)
+                    qh = PhysQueueHead(mmioSubRegion: region)
                     qhlp = qh.headLinkPointer
                 }
                 fatalError("Cant find QH \(queueHead) in list of control queueheads")
@@ -231,7 +225,6 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
         }
 
         uhciDebug("Removed QH")
-        dumpAndCheckFrameList()
     }
 
 
@@ -243,23 +236,24 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
         var previousFLEntries: [UInt32] = []
         previousFLEntries.reserveCapacity(16)
 
-        let ptr = UnsafeMutablePointer<FrameListPointer>(bitPattern: frameListPage.vaddr)!
-        let frameList = UnsafeMutableBufferPointer(start: ptr, count: Int(frameListPage.regionSize) / MemoryLayout<FrameListPointer>.stride)
-        print("UHCI: Dumping frame list at:", ptr)
+        let frameList = allocator.frameListPage
+        print("UHCI: Dumping frame list at:", frameList, terminator: "")
 
         for idx in 0..<frameList.count {
             let entry = frameList[idx]
             if previousFLEntries.contains(entry.address) { continue }
-            print("UHCI:\(idx): \(entry): ", terminator: " ")
-            var next = entry.physQueueHead
+            print("\nUHCI:\(idx): \(entry): ", terminator: " ")
+
+            var nextQHAddress = entry.physQueueHeadAddress
             var maxDepth = 32
 
-            while maxDepth >= 0, let qhlp = next {
+            while maxDepth >= 0, let qhAddress = nextQHAddress {
+                let region = allocator.fromPhysical(address: qhAddress)
+                let qhlp = PhysQueueHead(mmioSubRegion: region)
                 maxDepth -= 1
-                print("UHCI: ->", qhlp, terminator: "")
-                next = qhlp.headLinkPointer.nextQH
+                print("\nUHCI: ->", qhlp, terminator: "")
+                nextQHAddress = qhlp.headLinkPointer.nextQHAddress
             }
-
             previousFLEntries.append(entry.address)
         }
         print("\n")

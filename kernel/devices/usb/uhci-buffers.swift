@@ -9,113 +9,159 @@
  *
  */
 
-struct PhysBuffer32 {
-    let address: PhysAddress    // FIXME, need a PhysAddress32
-    var length: UInt32
-
-    init(address: PhysAddress, length: UInt32) {
-        precondition(address.value <= UInt64(UInt32.max))
-        self.address = address
-        self.length = length
-    }
-
-    var mutableRawPointer: UnsafeMutableRawPointer {
-        address.rawPointer
-    }
-
-    var rawBufferPointer: UnsafeRawBufferPointer {
-        UnsafeRawBufferPointer(start: address.rawPointer, count: Int(length))
-    }
-
-    var physAddress: UInt32 { UInt32(address.value) }
-}
-
-
 extension HCD_UHCI {
-      class UHCIAllocator {
+
+    struct FrameListPage: RandomAccessCollection {
+        fileprivate let region: MMIORegion
+
+        typealias Index = Int
+        typealias Element = FrameListPointer
+        let count = 1024
+        let startIndex = 0
+        let endIndex = 1024
+
+
+        init(region: MMIORegion) {
+            self.region = region
+        }
+
+        subscript(index: Index) -> Element {
+            get {
+                precondition(index >= startIndex && index < endIndex)
+                let value: UInt32 = region.read(fromByteOffset: index * 4)
+                return FrameListPointer(rawValue: value)
+            }
+            set {
+                precondition(index >= startIndex && index < endIndex)
+                region.write(value: newValue.rawValue, toByteOffset: index * 4)
+            }
+        }
+
+        func setAllPointers(to flp: FrameListPointer) {
+            let value = flp.rawValue
+            for index in startIndex..<endIndex {
+                region.write(value: value, toByteOffset: index * 4)
+            }
+        }
+
+        var physicalAddress: UInt32 { UInt32(region.physicalRegion.address.value) }
+    }
+
+
+    final class UHCIAllocator {
 
         // For QHs and TDs - 128x 32 byte blocks
-        private let bufferPool32 = alloc(pages: 1)
+        private let bufferPool32: MMIORegion
         private var bufferPool32Bitmap = BitmapAllocator128()
 
         // For data buffers - 8x 512 byte blocks
-        private let bufferPool512 = alloc(pages: 1)
+        private let bufferPool512: MMIORegion
         private var bufferPool512Bitmap = BitmapAllocator8()
+
+        let frameListPage: FrameListPage
+
+        init() {
+            let flp = alloc(pages: 1)
+            frameListPage = FrameListPage(region: mapIORegion(region: flp))
+
+            // FIXME: these 2 allocations should be from a 32bit regions, ie alloc32(pages: ...)
+            // Need to add a call to for that
+            let _bufferPool32 = alloc(pages: 1)
+            bufferPool32 = mapIORegion(region: _bufferPool32)
+
+            let _bufferPool512 = alloc(pages: 1)
+            bufferPool512 = mapIORegion(region: _bufferPool512)
+
+        }
 
         deinit {
             // Validate that all buffers were freed and nothing leaked
             assert(bufferPool32Bitmap.freeEntryCount() == bufferPool32Bitmap.entryCount)
             assert(bufferPool512Bitmap.freeEntryCount() == bufferPool512Bitmap.entryCount)
-            freePages(pages: bufferPool32)
-            freePages(pages: bufferPool512)
+
+            // FIXME, unmap the pages.
+            freePages(pages: bufferPool32.physicalRegion)
+            freePages(pages: bufferPool512.physicalRegion)
+            freePages(pages: frameListPage.region.physicalRegion)
         }
 
 
         // 512byte aligned 512 bytes buffer in 32bit physical space
-        func allocPhysBuffer(length: Int) -> PhysBuffer32 {
+        func allocPhysBuffer(length: Int) -> MMIOSubRegion {
             precondition(length <= 512)
-            let buffer = next512ByteBuffer()
-            return PhysBuffer32(address: buffer, length: UInt32(length))
+            let region = next512ByteBuffer()
+            return  MMIOSubRegion(virtualAddress: region.virtualAddress, physicalAddress: region.physicalAddress, count: length)
         }
 
 
-        func freePhysBuffer(_ buffer: PhysBuffer32) {
-            free512ByteBuffer(address: buffer.address)
+        func freePhysBuffer(_ region: MMIOSubRegion) {
+            free512ByteBuffer(region: region)
         }
 
 
         func allocTransferDescriptor() -> PhysTransferDescriptor {
             let buffer = next32ByteBuffer()
-            return PhysTransferDescriptor(address: buffer)
+            return PhysTransferDescriptor(mmioSubRegion: buffer)
         }
 
 
         func freeTransferDescriptor(_ descriptor: PhysTransferDescriptor) {
-            free32ByteBuffer(address: descriptor.address)
+            precondition(descriptor.mmioSubRegion.count == 32)
+            free32ByteBuffer(region: descriptor.mmioSubRegion)
         }
 
 
         func allocQueueHead() -> PhysQueueHead {
             let buffer = next32ByteBuffer()
-            return PhysQueueHead(address: buffer)
+            return PhysQueueHead(mmioSubRegion: buffer)
         }
 
 
         func freeQueueHead(_ queueHead: PhysQueueHead) {
-            free32ByteBuffer(address: queueHead.address)
+            precondition(queueHead.mmioSubRegion.count == 32)
+            free32ByteBuffer(region: queueHead.mmioSubRegion)
+        }
+
+
+        // Returns an MMIOSubRegion which covers the specified physical address.
+        // It must be known in the MMIORegions already allocated
+        func fromPhysical(address: PhysAddress) -> MMIOSubRegion {
+            if let region = bufferPool32.mmioSubRegion(containing: address, count: 32) { return region }
+            else if let region = bufferPool512.mmioSubRegion(containing: address, count: 512) { return region }
+            else { fatalError("UHCI: Bufers: No MMIORegion contains physical address \(address)") }
         }
 
 
         // 16byte aligned 32 bytes buffer in 32bit physical space
-        private func next32ByteBuffer() -> PhysAddress {
+        private func next32ByteBuffer() -> MMIOSubRegion {
             guard let entry = bufferPool32Bitmap.allocate() else {
                 fatalError("Used up allocation of 32 byte buffers")
             }
-            return bufferPool32.address + UInt(entry * 32)
+            return bufferPool32.mmioSubRegion(offset: entry * 32, count: 32)
         }
 
 
-        private func free32ByteBuffer(address: PhysAddress) {
-            let entry = (address - bufferPool32.address) / 32
+        private func free32ByteBuffer(region: MMIOSubRegion) {
+            let entry = (region.virtualAddress - bufferPool32.virtualAddress) / 32
             precondition(entry >= 0)
             precondition(entry < 128)
-            bufferPool32Bitmap.free(entry: entry)
+            bufferPool32Bitmap.free(entry: Int(entry))
         }
 
 
         // 512byte aligned 512 bytes buffer in 32bit physical space
-        private func next512ByteBuffer() -> PhysAddress {
+        private func next512ByteBuffer() -> MMIOSubRegion {
             guard let entry = bufferPool512Bitmap.allocate() else {
                 fatalError("Used up allocation of 512 byte buffers")
             }
-            return bufferPool512.address + UInt(entry * 512)
+            return bufferPool512.mmioSubRegion(offset: entry * 512, count: 512)
         }
 
-        private func free512ByteBuffer(address: PhysAddress) {
-            let entry = (address - bufferPool512.address) / 512
+        private func free512ByteBuffer(region: MMIOSubRegion) {
+            let entry = (region.virtualAddress - bufferPool512.virtualAddress) / 512
             precondition(entry >= 0)
             precondition(entry < 8)
-            bufferPool512Bitmap.free(entry: entry)
+            bufferPool512Bitmap.free(entry: Int(entry))
         }
     }
 }

@@ -79,4 +79,20 @@ mmio_write_uint64(volatile void *address, uint64_t value) {
 }
 
 
+static inline void
+memoryBarrier() {
+    asm volatile("mfence" : : : "memory");
+}
+
+static inline void
+readMemoryBarrier() {
+    asm volatile("lfence" : : : "memory");
+}
+
+static inline void
+writeMemoryBarrier() {
+    asm volatile("sfence" : : : "memory");
+}
+
+
 #endif // __IO_H__

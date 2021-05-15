@@ -49,7 +49,7 @@ extension USB {
 
 
         // Pass in a buffer that maybe shorter than a full packet
-        init(from buffer: UnsafeRawBufferPointer) {
+        init(from buffer: MMIOSubRegion) {
             precondition(buffer.count >= 8)
             precondition(buffer.count <= MemoryLayout<usb_standard_device_descriptor>.size)
 

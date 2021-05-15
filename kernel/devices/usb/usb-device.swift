@@ -54,7 +54,7 @@ final class USBDevice {
         print(requestStr)
         let pipe = controlPipe()
 
-        return pipe.send(request: request, withBuffer: false)
+        return pipe.send(request: request, withBuffer: nil)
     }
 
 
@@ -67,7 +67,8 @@ final class USBDevice {
         }
 
         let infoBuffer = pipe.allocateBuffer(length: Int(request.wLength))
-        guard pipe.send(request: request, withBuffer: true) else { return nil }
+        defer { pipe.freeBuffer(infoBuffer) }
+        guard pipe.send(request: request, withBuffer: infoBuffer) else { return nil }
         var result: [UInt8] = []
         result.reserveCapacity(Int(request.wLength))
 //        print("USBDEV: reasing \(infoBuffer.count) bytes from response")
@@ -83,7 +84,7 @@ final class USBDevice {
         print("USBDEV: Setting address to:", newAddress)
         let request = USB.ControlRequest.setAddress(address: newAddress)
         for _ in 1...2 {
-            if controlPipe().send(request: request, withBuffer: false) {
+            if controlPipe().send(request: request, withBuffer: nil) {
                 address = newAddress
                 sleep(milliseconds: 10) // Device may require some time before address takes effect
                 return true
@@ -99,10 +100,11 @@ final class USBDevice {
         let pipe = controlPipe()
 
         let descriptorRequest = USB.ControlRequest.getDescriptor(descriptorType: .DEVICE, descriptorIndex: 0, length: length)
-        let infoBuffer = pipe.allocateBuffer(length: Int(length))
-        // defer { infoBuffer.free() }
+        var infoBuffer = pipe.allocateBuffer(length: Int(length))
+        infoBuffer.clearBuffer()
+        defer { pipe.freeBuffer(infoBuffer) }
 
-        guard pipe.send(request: descriptorRequest, withBuffer: true) else {
+        guard pipe.send(request: descriptorRequest, withBuffer: infoBuffer) else {
             print("USBDEV: getDeviceConfig: Cant get descriptor length:", length)
             return nil
         }
@@ -115,23 +117,25 @@ final class USBDevice {
         let pipe = controlPipe()
 
         let length = MemoryLayout<usb_standard_config_descriptor>.size
-        var infoBuffer = pipe.allocateBuffer(length: length)
-        // defer { infoBuffer.free() }
+        let descriptorBuffer = pipe.allocateBuffer(length: length)
+        defer { pipe.freeBuffer(descriptorBuffer) }
 
         let deviceConfigRequest1 = USB.ControlRequest.getDescriptor(descriptorType: .CONFIGURATION, descriptorIndex: 0, length: UInt16(length))
-        guard pipe.send(request: deviceConfigRequest1, withBuffer: true) else {
+        guard pipe.send(request: deviceConfigRequest1, withBuffer: descriptorBuffer) else {
             return nil
         }
 
-        guard let configDescriptor1 =  try? USB.ConfigDescriptor(from: infoBuffer) else {
+        guard let configDescriptor1 = try? USB.ConfigDescriptor(from: descriptorBuffer) else {
             print("USBDEV: Cant decode CONFIGURATION descriptor packet")
                 return nil
         }
         print("USBDEV:", configDescriptor1)
-        infoBuffer = pipe.allocateBuffer(length: Int(configDescriptor1.wTotalLength))
+        let infoBuffer = pipe.allocateBuffer(length: Int(configDescriptor1.wTotalLength))
+        defer { pipe.freeBuffer(infoBuffer) }
+
 
         let deviceConfigRequest2 = USB.ControlRequest.getDescriptor(descriptorType: .CONFIGURATION, descriptorIndex: 0, length: configDescriptor1.wTotalLength)
-        guard pipe.send(request: deviceConfigRequest2, withBuffer: true) else {
+        guard pipe.send(request: deviceConfigRequest2, withBuffer: infoBuffer) else {
             return nil
         }
 
@@ -149,7 +153,7 @@ final class USBDevice {
         let pipe = controlPipe()
     
         let request = USB.ControlRequest.setConfiguration(configuration: configuration)
-        guard pipe.send(request: request, withBuffer: false) else {
+        guard pipe.send(request: request, withBuffer: nil) else {
             print("USBDEV: Failed to set configuration")
             return false
         }

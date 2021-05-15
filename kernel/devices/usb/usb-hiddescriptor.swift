@@ -28,7 +28,7 @@ extension USB {
         }
 
 
-        init(from iterator: inout UnsafeMutableRawBufferPointer.Iterator) throws {
+        init(from iterator: inout MMIOSubRegion.Iterator) throws {
             // Validate the initial bytes
             guard let lengthByte = iterator.next(), let descriptorByte = iterator.next() else { throw ParsingError.packetTooShort }
             guard Int(lengthByte) == MemoryLayout<usb_hid_descriptor>.size else { throw ParsingError.invalidLengthByte }
