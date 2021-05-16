@@ -149,13 +149,11 @@
 		B933A7001F2F493800FE6846 /* efiboot.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = efiboot.swift; sourceTree = "<group>"; };
 		B933A7011F2F493800FE6846 /* biosboot.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = biosboot.swift; sourceTree = "<group>"; };
 		B933A7021F2F493800FE6846 /* bss.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = bss.c; sourceTree = "<group>"; };
-		B933A7031F2F493800FE6846 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 		B933A7041F2F493800FE6846 /* GDT.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GDT.swift; sourceTree = "<group>"; };
 		B933A7051F2F493800FE6846 /* smbios.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = smbios.swift; sourceTree = "<group>"; };
 		B933A7061F2F493800FE6846 /* main.asm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm.asm; path = main.asm; sourceTree = "<group>"; };
 		B933A7071F2F493800FE6846 /* bootparams.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = bootparams.swift; sourceTree = "<group>"; };
 		B933A7081F2F493800FE6846 /* startup.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = startup.swift; sourceTree = "<group>"; };
-		B933A7121F2F497800FE6846 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 		B933A7131F2F497800FE6846 /* kbd8042.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = kbd8042.swift; sourceTree = "<group>"; };
 		B933A7141F2F497800FE6846 /* cpu.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = cpu.swift; sourceTree = "<group>"; };
 		B933A7151F2F497800FE6846 /* pic8259.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = pic8259.swift; sourceTree = "<group>"; };
@@ -168,12 +166,10 @@
 		B933A7271F2F499000FE6846 /* entry.asm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm.asm; path = entry.asm; sourceTree = "<group>"; };
 		B933A7281F2F499000FE6846 /* exceptions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = exceptions.swift; sourceTree = "<group>"; };
 		B933A7291F2F499000FE6846 /* IDT.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = IDT.swift; sourceTree = "<group>"; };
-		B933A72A1F2F499000FE6846 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 		B933A7301F2F49C700FE6846 /* CircularBuffer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CircularBuffer.swift; sourceTree = "<group>"; };
 		B933A7311F2F49C700FE6846 /* Extensions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		B933A7321F2F49C700FE6846 /* MemoryBufferReader.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MemoryBufferReader.swift; sourceTree = "<group>"; };
 		B933A7331F2F49C700FE6846 /* printf.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = printf.swift; sourceTree = "<group>"; };
-		B933A7341F2F49C700FE6846 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 		B933A73C1F2F4A0600FE6846 /* bytearray.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = bytearray.swift; sourceTree = "<group>"; };
 		B933A73D1F2F4A0600FE6846 /* dwordarray.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = dwordarray.swift; sourceTree = "<group>"; };
 		B933A73E1F2F4A0600FE6846 /* integer.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = integer.swift; sourceTree = "<group>"; };
@@ -182,7 +178,6 @@
 		B933A7461F2F4ABC00FE6846 /* init.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = init.swift; sourceTree = "<group>"; };
 		B933A7471F2F4ABC00FE6846 /* page.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = page.swift; sourceTree = "<group>"; };
 		B933A7481F2F4ABC00FE6846 /* address.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = address.swift; sourceTree = "<group>"; };
-		B933A7491F2F4ABC00FE6846 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 		B933A74A1F2F4ABC00FE6846 /* alloc.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = alloc.swift; sourceTree = "<group>"; };
 		B933A7501F2F511100FE6846 /* test.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = test.h; sourceTree = "<group>"; };
 		B933A7741F2F8D6A00FE6846 /* tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -217,7 +212,6 @@
 		B95867F322E5D4BC005FA3BF /* vmx.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = vmx.swift; path = vm/vmx.swift; sourceTree = "<group>"; };
 		B95867F522E635EA005FA3BF /* vmcs.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = vmcs.swift; path = vm/vmcs.swift; sourceTree = "<group>"; };
 		B95867F622E635EA005FA3BF /* vmentry.asm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm.asm; name = vmentry.asm; path = vm/vmentry.asm; sourceTree = "<group>"; };
-		B95867F722E635EA005FA3BF /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; name = Makefile; path = vm/Makefile; sourceTree = "<group>"; };
 		B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amlresourcedata.swift; sourceTree = "<group>"; };
 		B963DA0F22FC8A0600E7F8B3 /* run_qemu.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = run_qemu.sh; sourceTree = "<group>"; };
 		B963DA1022FC8A0600E7F8B3 /* gdb-cmds-bochs */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "gdb-cmds-bochs"; sourceTree = "<group>"; };
@@ -374,7 +368,6 @@
 		B933A6B91F2F46B900FE6846 /* devices */ = {
 			isa = PBXGroup;
 			children = (
-				B933A7121F2F497800FE6846 /* Makefile */,
 				B9568C6E2548BD6A00C3F49B /* usb */,
 				B933A6DB1F2F491C00FE6846 /* acpi */,
 				B9A2FB9824CEBCB800B3DB75 /* pci */,
@@ -407,7 +400,6 @@
 				B933A7001F2F493800FE6846 /* efiboot.swift */,
 				B933A7041F2F493800FE6846 /* GDT.swift */,
 				B933A7061F2F493800FE6846 /* main.asm */,
-				B933A7031F2F493800FE6846 /* Makefile */,
 				B933A7081F2F493800FE6846 /* startup.swift */,
 				B933A7051F2F493800FE6846 /* smbios.swift */,
 				B9F3DAD72621887100971474 /* MemoryRange.swift */,
@@ -421,7 +413,6 @@
 				B933A73B1F2F49F300FE6846 /* extensions */,
 				B933A7301F2F49C700FE6846 /* CircularBuffer.swift */,
 				B933A7311F2F49C700FE6846 /* Extensions.swift */,
-				B933A7341F2F49C700FE6846 /* Makefile */,
 				B933A7321F2F49C700FE6846 /* MemoryBufferReader.swift */,
 				B933A7331F2F49C700FE6846 /* printf.swift */,
 				B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */,
@@ -436,7 +427,6 @@
 				B933A7481F2F4ABC00FE6846 /* address.swift */,
 				B933A74A1F2F4ABC00FE6846 /* alloc.swift */,
 				B933A7461F2F4ABC00FE6846 /* init.swift */,
-				B933A7491F2F4ABC00FE6846 /* Makefile */,
 				B933A7471F2F4ABC00FE6846 /* page.swift */,
 				B9793D4E200A571B0013E03B /* symbols.swift */,
 				B96BBE5626309218009756A8 /* MMIORegion.swift */,
@@ -460,7 +450,6 @@
 				B933A7281F2F499000FE6846 /* exceptions.swift */,
 				B933A7291F2F499000FE6846 /* IDT.swift */,
 				B933A7261F2F499000FE6846 /* interrupt.swift */,
-				B933A72A1F2F499000FE6846 /* Makefile */,
 				B96D9CAA26411FB30079E5AD /* IRQSetting.swift */,
 			);
 			path = traps;
@@ -536,7 +525,6 @@
 		B95867F222E5D34F005FA3BF /* vm */ = {
 			isa = PBXGroup;
 			children = (
-				B95867F722E635EA005FA3BF /* Makefile */,
 				B95867F522E635EA005FA3BF /* vmcs.swift */,
 				B95867F622E635EA005FA3BF /* vmentry.asm */,
 				B95867F322E5D4BC005FA3BF /* vmx.swift */,
