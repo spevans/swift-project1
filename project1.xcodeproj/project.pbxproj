@@ -271,7 +271,6 @@
 		B9F5D2CB24C1F58D00A6114C /* vmware11-facp.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-facp.aml"; sourceTree = "<group>"; };
 		B9F5D2CC24C1F58D00A6114C /* vmware11-facs.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-facs.dsl"; sourceTree = "<group>"; };
 		B9F5D2CD24C1F58D00A6114C /* vmware11-dsdt.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-dsdt.dsl"; sourceTree = "<group>"; };
-		B9F831801F38BBA9009F24AE /* DSDT.asl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = DSDT.asl; path = acpitest/test_files/DSDT.asl; sourceTree = SOURCE_ROOT; };
 		B9F831821F38BC33009F24AE /* vmware-SRAT.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware-SRAT.dsl"; sourceTree = "<group>"; };
 		B9F831831F38BC33009F24AE /* vmware-HPET.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware-HPET.aml"; sourceTree = "<group>"; };
 		B9F831841F38BC33009F24AE /* vmware-WAET.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware-WAET.dsl"; sourceTree = "<group>"; };
@@ -549,7 +548,7 @@
 				B9DEE4F52323BBC30010F7A0 /* bochsrc */,
 				B963DA1022FC8A0600E7F8B3 /* gdb-cmds-bochs */,
 				B933A6B81F2F469900FE6846 /* kernel */,
-				B9EE704B1D3D536B006B6AB7 /* acpitest */,
+				B9EE704B1D3D536B006B6AB7 /* Tests */,
 				B9A2C1B61F30EEF4003D4D92 /* klibc */,
 				B9A2C1B51F30EEEA003D4D92 /* include */,
 				B9A2C1B31F30EEC7003D4D92 /* boot */,
@@ -569,7 +568,7 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		B9EE704B1D3D536B006B6AB7 /* acpitest */ = {
+		B9EE704B1D3D536B006B6AB7 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
 				B9568C682548BA9B00C3F49B /* USBTests.swift */,
@@ -583,7 +582,7 @@
 				B933A7781F2F8D6A00FE6846 /* Info.plist */,
 				B933A7501F2F511100FE6846 /* test.h */,
 			);
-			path = acpitest;
+			path = Tests;
 			sourceTree = "<group>";
 		};
 		B9F5D29124C1F4EC00A6114C /* vmware11 */ = {
@@ -617,7 +616,6 @@
 			isa = PBXGroup;
 			children = (
 				B9F5D29124C1F4EC00A6114C /* vmware11 */,
-				B9F831801F38BBA9009F24AE /* DSDT.asl */,
 				B9F8317F1F38BA01009F24AE /* vmware */,
 				B9F8317E1F38B9F6009F24AE /* macbook31 */,
 				B9F8317D1F38B9F0009F24AE /* qemu */,
@@ -935,14 +933,14 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
-				INFOPLIST_FILE = acpitest/Info.plist;
+				INFOPLIST_FILE = Tests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.14;
 				OTHER_SWIFT_FLAGS = "-DTEST";
 				PRODUCT_BUNDLE_IDENTIFIER = "org.si.acpi-tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
-				SWIFT_OBJC_BRIDGING_HEADER = acpitest/test.h;
+				SWIFT_OBJC_BRIDGING_HEADER = Tests/test.h;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -956,13 +954,13 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
-				INFOPLIST_FILE = acpitest/Info.plist;
+				INFOPLIST_FILE = Tests/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.14;
 				OTHER_SWIFT_FLAGS = "-DTEST";
 				PRODUCT_BUNDLE_IDENTIFIER = "org.si.acpi-tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_OBJC_BRIDGING_HEADER = acpitest/test.h;
+				SWIFT_OBJC_BRIDGING_HEADER = Tests/test.h;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
