@@ -1,8 +1,7 @@
 TOPDIR := .
 include $(TOPDIR)/Makedefs
 
-GITVER := $(shell git rev-parse --short=8 HEAD)
-DATE := $(shell date '+%F')
+ALL_SOURCES := $(shell find boot klibc kernel include -name '*.swift' -o -name '*.asm' -o -name '*.[ch]')
 KERNEL_OBJS := kernel/kernel.o klibc/klibc.o
 SUBDIRS := boot kernel klibc utils
 EXTRA_LIBS := $(KSWIFTDIR)/usr/lib/swift/clang/lib/linux/libclang_rt.builtins-x86_64.a
@@ -13,9 +12,8 @@ all: iso
 
 iso: output/boot-cd.iso
 
-# Build kernel/kernel.o - This just build klibc.o and kernel.o which is sufficient for compile testing the
-# kernel, as used when the tests are run under Xcode. This doesnt produce anything bootable.
-kernel:
+
+output/kernel.elf: $(ALL_SOURCES)
 ifneq ($(UNAME_S), Linux)
 	@echo This only builds on linux && exit 1
 endif
@@ -23,12 +21,9 @@ endif
 	$(MAKE) -C boot
 	$(MAKE) -C klibc
 	$(MAKE) -C kernel
-
-
-output/kernel.elf: kernel
+	$(MAKE) -C utils
 	# initial link must be via ELF to produce a GOT
 	ld --no-demangle -static -Tlinker.script -Map=output/kernel.map -z max-page-size=0x1000 -o output/kernel.elf $(KERNEL_OBJS) $(KSWIFTLIBS) $(EXTRA_LIBS)
-	$(MAKE) -C utils
 
 
 output/kernel.dmp: output/kernel.elf
@@ -39,6 +34,7 @@ output/kernel.efi: output/kernel.elf
 	objcopy	-I binary -O elf64-x86-64 -B i386:x86-64 output/kernel.elf output/kernel.elf.obj
 	ld --no-demangle -static -Tboot/efi_linker.script -Map=output/efi_body.map -o output/efi_body.bin boot/efi_entry.o boot/efi_main.o boot/efi_elf.o boot/kprintf.o
 	utils/.build/release/efi_patch boot/efi_header.bin output/efi_body.bin output/kernel.map output/kernel.efi
+
 
 output/kernel.bin: output/kernel.elf
 	echo Converting output/kernel.elf to output/kernel.bin
