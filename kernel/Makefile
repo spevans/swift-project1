@@ -5,7 +5,7 @@ GITVER := $(shell git rev-parse HEAD)
 
 SWIFT_MODULE := SwiftKernel
 SWIFT_OBJS := SwiftKernel.o
-SWIFT_SRCS := $(shell find `pwd` -name '*.swift') init/version.swift
+SWIFT_SRCS := $(shell find `pwd` -name '*.swift' | grep -v version.swift) init/version.swift
 
 all: kernel.o
 
@@ -30,8 +30,11 @@ kernel.o: $(KERNEL_OBJS)
 	ld -r -no_eh_labels -o $@ $(KERNEL_OBJS)
 
 SwiftKernel.o: $(SWIFT_SRCS) $(HEADERS)
+	# swiftc doesnt always seem to update the timestamp after building the delete the output file to be
+	# sure that a new file is created
+	rm -f $@
 	$(KSWIFTC) $(KSWIFTC_FLAGS) -whole-module-optimization -module-name $(SWIFT_MODULE) -emit-object -o $@ $(SWIFT_SRCS)
 
 clean:
-	rm -f *.bin *.o *.s *.sil
+	find . -name '*.bin' -o -name '*.o' |xargs rm
 	rm -f init/version.swift

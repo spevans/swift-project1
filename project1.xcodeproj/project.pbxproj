@@ -848,7 +848,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		B95867EE22E5D094005FA3BF /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
+			buildActionMask = 12;
 			files = (
 			);
 			inputFileListPaths = (
@@ -861,7 +861,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\ndocker run --rm -v $SRCROOT:$SRCROOT -w $SRCROOT -t -e TERM= swift-kstdlib make iso\n\n";
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\ndocker run --rm -v $SRCROOT:$SRCROOT -w $SRCROOT -t -e TERM= swift-kstdlib make kernel\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
