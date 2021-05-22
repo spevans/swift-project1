@@ -11,6 +11,9 @@
 
 protocol PCIConfigAccessProtocol {
     var busId: UInt8 { get }
+
+    // Size of the configuration space
+    var size: Int { get }
     func readConfigByte(device: UInt8, function: UInt8, offset: UInt) -> UInt8
     func readConfigWord(device: UInt8, function: UInt8, offset: UInt) -> UInt16
     func readConfigDword(device: UInt8, function: UInt8, offset: UInt) -> UInt32
@@ -39,7 +42,7 @@ struct PCIConfigSpace {
     }
 
 
-    private init(access: PCIConfigAccessProtocol, device: UInt8, function: UInt8) {
+    init(access: PCIConfigAccessProtocol, device: UInt8, function: UInt8) {
         self.pciConfigAccess = access
         self.device = device
         self.function = function
@@ -98,6 +101,7 @@ extension PCIConfigSpace {
     fileprivate struct PCIMMIOConfigAccess: PCIConfigAccessProtocol, CustomStringConvertible {
         private let baseAddress: VirtualAddress
         let busId: UInt8
+        let size = 4096
 
         var description: String { String.sprintf("PCIBusMMIO @ %p", baseAddress) }
 
@@ -160,6 +164,7 @@ extension PCIConfigSpace {
         private let PCI_CONFIG_DATA:    UInt16 = 0xCFC
         private let baseAddress: UInt32
         let busId: UInt8
+        let size = 256
 
         var description: String {
             return String.sprintf("PCIBusPIO @ %8.8X", baseAddress)

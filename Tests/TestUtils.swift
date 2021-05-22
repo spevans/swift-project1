@@ -76,39 +76,9 @@ func outl(_ port: UInt16, _ value: UInt32) {
 
 protocol Device: AnyObject {}
 
-struct PCIConfigSpace {
-    let pciConfigAccess = "Dummy Config Access"
-    let busId: UInt8
-    let device: UInt8
-    let function: UInt8
-
-
-    init(busId: UInt8, device: UInt8, function: UInt8) {
-        self.busId = busId
-        self.device = device
-        self.function = function
-    }
-
-    func readConfigByte(atByteOffset offset: UInt) -> UInt8 {
-        return 0
-    }
-
-    func readConfigWord(atByteOffset offset: UInt) -> UInt16 {
-        return 0
-    }
-
-    func readConfigDword(atByteOffset offset: UInt) -> UInt32 {
-        return 0
-    }
-
-    func writeConfigDword(atByteOffset offset: UInt, value: UInt32) {
-    }
-
-    func writeConfigWord(atByteOffset offset: UInt, value: UInt16) {
-    }
-
-    func writeConfigByte(atByteOffset offset: UInt, value: UInt8) {
-    }
+func noInterrupt<Result>(_ task: () -> Result) -> Result {
+    let result: Result = task()
+    return result
 }
 
 func mapIORegion(region: PhysPageRange, cacheType: Int = 7 /* Uncacheable */) -> MMIORegion {

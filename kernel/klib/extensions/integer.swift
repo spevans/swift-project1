@@ -90,3 +90,32 @@ extension FixedWidthInteger {
         }
     }
 }
+
+
+extension FixedWidthInteger {
+
+    init<C: Collection>(littleEndianBytes: C) where C.Element == UInt8, C.Index == Int {
+        let count = Self.bitWidth / 8
+        precondition(littleEndianBytes.count >= count)
+
+        var value = Self(0)
+        var shift = 0
+        for idx in littleEndianBytes.startIndex..<(littleEndianBytes.startIndex + count) {
+            value |= Self(littleEndianBytes[idx]) << shift
+            shift += 8
+        }
+        self = value
+    }
+
+    init<C: Collection>(bigEndianBytes: C) where C.Element == UInt8, C.Index == Int {
+        let count = Self.bitWidth / 8
+        precondition(bigEndianBytes.count >= count)
+
+        var value = Self(0)
+        for idx in bigEndianBytes.startIndex..<(bigEndianBytes.startIndex + count) {
+            value <<= 8
+            value |= Self(bigEndianBytes[idx])
+        }
+        self = value
+    }
+}
