@@ -196,8 +196,8 @@ class ACPITests: XCTestCase {
         }
 
         XCTAssertEqual(table.count, 19)
-        XCTAssertEqual(table.first, PCIRoutingTable.Entry(pciDevice: 1, pin: .intA, source: .value(0), sourceIndex: 16))
-        XCTAssertEqual(table.last, PCIRoutingTable.Entry(pciDevice: 31, pin: .intD, source: .value(0), sourceIndex: 16))
+        XCTAssertEqual(table.first, PCIRoutingTable.Entry(pciDevice: 1, pin: .intA, source: .globalSystemInterrupt(16)))
+        XCTAssertEqual(table.last, PCIRoutingTable.Entry(pciDevice: 31, pin: .intD, source: .globalSystemInterrupt(16)))
     }
 
 
@@ -298,7 +298,7 @@ class ACPITests: XCTestCase {
             return
         }
         guard let table = prtDataObject.packageValue else {
-            XCTFail("Cant fet _PRT package")
+            XCTFail("Cant get _PRT package")
             return
         }
         print(table)
@@ -412,13 +412,13 @@ class ACPITests: XCTestCase {
             ]
 
 
-        func parsePRT(_ data: [UInt8], _ count: Int) throws {
+        func parsePRT(_ data: [UInt8], _ count: Int) throws -> PCIRoutingTable {
             try data.withUnsafeBytes {
                 let byteStream = try AMLByteStream(buffer: $0)
 
                 guard let pci0 = acpi.globalObjects.get("\\_SB.PCI0")! as? AMLDefDevice else {
                     XCTFail("Cant find \\_SB.PCI0")
-                    return
+                    throw AMLError.invalidData(reason: "Cant find \\_SB.PCI0")
                 }
 
                 // Delete the current \_SB.PCI0._PRT, parse the data block and insert as the new \_SB.PCI0._PRT
@@ -432,25 +432,36 @@ class ACPITests: XCTestCase {
                 let termArg = m.readValue(context: &context)
                 guard let prt = termArg as? AMLDataObject else {
                     XCTFail("_PRT is not a DataObject")
-                    return
+                    throw AMLError.parseError
                 }
                 guard let table = prt.packageValue else {
                     XCTFail("_PRT table is not a package")
-                    return
+                    throw AMLError.parseError
                 }
                 XCTAssertEqual(table.count, count)
                 XCTAssertNotNil(table[0].dataRefObject)
 
                 guard let pciRT = PCIRoutingTable(acpi: pci0) else {
                     XCTFail("Cant parse PCIRoutingTable")
-                    return
+                    throw AMLError.parseError
                 }
                 XCTAssertEqual(pciRT.table.count, count)
+                return pciRT
             }
         }
 
-        try parsePRT(testData1, 64)
-        try parsePRT(testData2, 128)
+        do {
+            let table = try parsePRT(testData1, 64).table
+            XCTAssertEqual(table[0], PCIRoutingTable.Entry(pciDevice: 0, pin: .intA, source: .namePath(AMLNameString("^LPC.LNKD"), 0)))
+            XCTAssertEqual(table[63], PCIRoutingTable.Entry(pciDevice: 15, pin: .intD, source: .namePath(AMLNameString("^LPC.LNKB"), 0)))
+        }
+
+        do {
+            let table = try parsePRT(testData2, 128).table
+            XCTAssertEqual(table[0], PCIRoutingTable.Entry(pciDevice: 0, pin: .intA, source: .namePath(AMLNameString("LNKD"), 0)))
+            XCTAssertEqual(table[127], PCIRoutingTable.Entry(pciDevice: 31, pin: .intD, source: .namePath(AMLNameString("LNKB"), 0)))
+
+        }
     }
 
     func testVMWareDevices() {
@@ -529,8 +540,9 @@ class ACPITests: XCTestCase {
                 return
             }
             XCTAssertEqual(table.count, 72)
-            XCTAssertEqual(table.first, PCIRoutingTable.Entry(pciDevice: 15, pin: .intA, source: .namePath(AMLNameString("^ISA.LNKA")), sourceIndex: 0))
-            XCTAssertEqual(table.last, PCIRoutingTable.Entry(pciDevice: 7, pin: .intD, source: .namePath(AMLNameString("^ISA.LNKD")), sourceIndex: 0))
+
+            XCTAssertEqual(table.first, PCIRoutingTable.Entry(pciDevice: 15, pin: .intA, source: .namePath(AMLNameString("^ISA.LNKA"), 0)))
+            XCTAssertEqual(table.last, PCIRoutingTable.Entry(pciDevice: 7, pin: .intD, source: .namePath(AMLNameString("^ISA.LNKD"), 0)))
         }
 
 
@@ -546,8 +558,8 @@ class ACPITests: XCTestCase {
                 return
             }
             XCTAssertEqual(table.count, 72)
-            XCTAssertEqual(table.first, PCIRoutingTable.Entry(pciDevice: 15, pin: .intA, source: .value(0), sourceIndex: 16))
-            XCTAssertEqual(table.last, PCIRoutingTable.Entry(pciDevice: 7, pin: .intD, source: .value(0), sourceIndex: 19))
+            XCTAssertEqual(table.first, PCIRoutingTable.Entry(pciDevice: 15, pin: .intA, source: .globalSystemInterrupt(16)))
+            XCTAssertEqual(table.last, PCIRoutingTable.Entry(pciDevice: 7, pin: .intD, source: .globalSystemInterrupt(19)))
         }
 
 

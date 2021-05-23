@@ -32,6 +32,22 @@ final class PCIDevice: Device, CustomStringConvertible {
     func initialiseDevice() {
         pciDeviceDriver?.initialiseDevice()
     }
+
+    func msiCapability() -> PCICapability.MSI? {
+        guard let msiOffset = self.deviceFunction.findOffsetOf(capability: .msi) else {
+            return nil
+        }
+
+        return PCICapability.MSI(offset: msiOffset, configSpace: deviceFunction.configSpace)
+    }
+
+    func msixCapability() -> PCICapability.MSIX? {
+        guard let msixOffset = self.deviceFunction.findOffsetOf(capability: .msix) else {
+            return nil
+        }
+
+        return PCICapability.MSIX(offset: msixOffset, configSpace: deviceFunction.configSpace)
+    }
 }
 
 // Base Address Register pointing to I/O space

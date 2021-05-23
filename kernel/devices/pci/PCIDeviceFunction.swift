@@ -13,6 +13,7 @@ struct PCIDeviceFunction: CustomStringConvertible {
     let configSpace: PCIConfigSpace
 
     var device:         UInt8  { configSpace.device }
+    var slot:           UInt8  { device }
     var function:       UInt8  { configSpace.function }
     var deviceFunction: UInt8  { device << 3 | function }
     var vendor:         UInt16 { configSpace.readConfigWord(atByteOffset: 0x0) }

@@ -16,6 +16,15 @@ enum PCIInterruptPin: Equatable, CustomStringConvertible {
     case intC
     case intD
 
+    private var rawValue: UInt8 {
+        switch self {
+            case .intA: return 1
+            case .intB: return 2
+            case .intC: return 3
+            case .intD: return 4
+        }
+    }
+
     // The Interrupt Pin from offset 0x3D of the PCI config area. 0 = No interrupt, 1-4 => A-D
     init?(pin: UInt8) {
         switch pin {
@@ -30,6 +39,7 @@ enum PCIInterruptPin: Equatable, CustomStringConvertible {
         }
     }
 
+
     // The pin value from the _PRT PCI Routing Table: 0-3 -> A-D
     init?(routingTablePin pin: UInt8) {
         switch pin {
@@ -41,7 +51,6 @@ enum PCIInterruptPin: Equatable, CustomStringConvertible {
         }
     }
 
-
     var description: String {
         switch self {
             case .intA: return "INT #A"
@@ -50,18 +59,28 @@ enum PCIInterruptPin: Equatable, CustomStringConvertible {
             case .intD: return "INT #D"
         }
     }
+
+
+    // Swizzle according to 'System Interrupt Mapping' in PCI Express spec section 2.2.8.1.
+    func swizzle(slot: UInt8, ariEnabled: Bool = false) -> Self {
+        let _slot = ariEnabled ? 0 : slot
+        let newPin = ((self.rawValue - 1) + _slot) % 4
+        let result = Self(pin: newPin + 1)!
+        print("SWIZZLE: slot: \(slot) _slot: \(_slot) pin: \(self) newPin: \(result)")
+        return result
+    }
 }
 
 extension PCIRoutingTable {
     struct Entry: Equatable, CustomStringConvertible {
         enum Source: Equatable, CustomStringConvertible {
-            case value(UInt8)
-            case namePath(AMLNameString)
+            case namePath(AMLNameString, UInt32)
+            case globalSystemInterrupt(UInt32)
 
             var description: String {
                 switch self {
-                    case .value(let irq): return "IRQ \(irq)"
-                    case .namePath(let name): return name.value
+                    case .globalSystemInterrupt(let irq): return "GSIRQ \(irq)"
+                    case .namePath(let name, let index): return "\(name.value) [\(index)]"
                 }
             }
         }
@@ -69,10 +88,9 @@ extension PCIRoutingTable {
         let pciDevice: UInt16
         let pin: PCIInterruptPin
         let source: Source
-        let sourceIndex: UInt32
 
         var description: String {
-            "_PRT Entry: device: \(String(pciDevice, radix: 16)), pin: \(pin) source: \(source), sourceIndex: \(sourceIndex)"
+            "_PRT Entry: device: \(String(pciDevice, radix: 16)), pin: \(pin) source: \(source)"
         }
     }
 }
@@ -122,37 +140,35 @@ struct PCIRoutingTable {
                 fatalError("PCI Interrupt: pin value is too large")
             }
 
+            guard let sourceIndex = entry[3].dataRefObject?.dataObject?.integerValue, sourceIndex <= UInt32.max else {
+                fatalError("PCI Interrupt: Source index is invalid: \(entry[3])")
+            }
+
             let source: Entry.Source
             if let sourceName = entry[2].nameString {
                 // Determine the full name
-                source = .namePath(sourceName)
+                source = .namePath(sourceName, UInt32(sourceIndex))
+            } else if let byteValue = entry[2].dataRefObject?.dataObject?.integerValue, byteValue == 0 {
+                source = .globalSystemInterrupt(UInt32(sourceIndex))
             } else {
-                guard let sourceValue = entry[2].dataRefObject?.dataObject?.integerValue, sourceValue <= UInt8.max else {
-                    fatalError("PCI Interrupt: Source is not a String or Byte")
-                }
-                source = .value(UInt8(sourceValue))
+                fatalError("PCI Interrupt: Source is not a String or 0: \(entry[2])")
             }
 
-            guard let sourceIndex = entry[3].dataRefObject?.dataObject?.integerValue, sourceIndex <= UInt32.max else {
-                fatalError("PCI Interrupt: Source index is too large")
-            }
-
-            _table.append(Entry(pciDevice: UInt16(address >> 16), pin: pin,
-                                source: source, sourceIndex: UInt32(sourceIndex)))
+            _table.append(Entry(pciDevice: UInt16(address >> 16), pin: pin, source: source))
         }
         table = _table
     }
 
 #if !TEST
-    func findEntryByDevice(pciDevice: PCIDevice) -> PCIRoutingTable.Entry? {
+    func findEntryByDevice(slot: UInt8, pin: PCIInterruptPin) -> PCIRoutingTable.Entry? {
 
-        let device = pciDevice.deviceFunction.device
-        guard let pin = pciDevice.deviceFunction.interruptPin else {
-            print("PCI: \(pciDevice) has no valid interruptPin")
-            return nil
+        print("PCI: findEntryByDevice, slot: \(String(slot, radix: 16)), pin: \(pin)")
+        let entry = table.first { $0.pciDevice == slot && $0.pin == pin }
+        if entry != nil {
+            return entry
         }
-        print("PCI: findEntryByDevice, device:\(String(device, radix: 16)), pin: \(pin)")
-        return table.first { $0.pciDevice == device && $0.pin == pin }
+        table.forEach { print($0) }
+        fatalError("Cant find entry")
     }
 #endif
 }

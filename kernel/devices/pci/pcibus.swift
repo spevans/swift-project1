@@ -32,7 +32,7 @@ final class PCIHostBus: Device, CustomStringConvertible {
         self.fullName = acpiDevice.fullname()
         self.deviceFunction = deviceFunction
         let configSpace = PCIConfigSpace(busId: 0, device: 0, function: 0)
-        self.pciBus = PCIBus(pciConfigSpace: configSpace, deviceFunction: deviceFunction, acpiDevice: acpiDevice)
+        self.pciBus = PCIBus(parentBus: parentBus, pciConfigSpace: configSpace, deviceFunction: deviceFunction, acpiDevice: acpiDevice)
     }
 
     func initialiseDevice() {
@@ -45,6 +45,7 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
     private let deviceFunction: PCIDeviceFunction
     private let acpiDevice: AMLDefDevice?
     private let interruptRoutingTable: PCIRoutingTable?
+    unowned let parentBus: Bus
 
     var resources: [MotherBoardResource] = []
     let pciConfigSpace: PCIConfigSpace
@@ -54,10 +55,11 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
     var description: String { "PCIBus: \(pciConfigSpace) busId: \(pciConfigSpace.busId) \(deviceFunction.description) \(acpiDevice?.fullname() ?? "")" }
 
 
-    fileprivate init(pciConfigSpace: PCIConfigSpace, deviceFunction: PCIDeviceFunction, acpiDevice: AMLDefDevice? = nil) {
+    fileprivate init(parentBus: Bus, pciConfigSpace: PCIConfigSpace, deviceFunction: PCIDeviceFunction, acpiDevice: AMLDefDevice? = nil) {
         self.pciConfigSpace = pciConfigSpace
         self.deviceFunction = deviceFunction
         self.acpiDevice = acpiDevice
+        self.parentBus = parentBus
 
         if let acpi = acpiDevice {
             interruptRoutingTable = PCIRoutingTable(acpi: acpi)
@@ -79,6 +81,7 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
         self.deviceFunction = pciDevice.deviceFunction
         self.acpiDevice = pciDevice.acpiDevice
         interruptRoutingTable = nil
+        self.parentBus = pciDevice.parentBus
     }
 
     // Non PCI Devices (eg ACPIDevice) may get added to this bus as it is in the ACPI device tree under a PCI bus
@@ -169,7 +172,7 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
 
                 case .pci:
                     let configSpace = PCIConfigSpace(busId: pciDevice.deviceFunction.bridgeDevice!.secondaryBusId, device: 0, function: 0)
-                    pciDevice.pciDeviceDriver = PCIBus(pciConfigSpace: configSpace, deviceFunction: deviceFunction, acpiDevice: acpiDevice)
+                    pciDevice.pciDeviceDriver = PCIBus(parentBus: self, pciConfigSpace: configSpace, deviceFunction: deviceFunction, acpiDevice: acpiDevice)
                     return pciDevice
 
                 default:
@@ -188,43 +191,77 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
     }
 
 
+    // Look for MSI-X, then MSI, then the INTA-D IRQs
     func findInterruptFor(pciDevice: PCIDevice) -> IRQSetting? {
         print("PCI: Looking for interrupt for device: \(pciDevice)")
 
+        if let msixCapability = pciDevice.msixCapability() {
+            fatalError("TODO - implement MSI-X interrupts: \(msixCapability)")
+        }
 
-        guard let itr = interruptRoutingTable else {
-            print("No interrupt routing table found")
+        if let msiCapability = pciDevice.msiCapability() {
+            fatalError("TODO - implement MSI interrupts: \(msiCapability)")
+        }
+
+
+        // Walk up the PCI busses to find the Root Bridge, where the _PRT Interrupt Routing Table
+        // should be. As we walk up the busses, swizzle the intterupt PIN according to
+        // 'System Interrupt Mapping' in PCI Express spec section 2.2.8.1.
+
+        guard var pin = pciDevice.deviceFunction.interruptPin else {
+            print("PCI: \(pciDevice) has no valid interruptPin")
             return nil
         }
-        guard let entry = itr.findEntryByDevice(pciDevice: pciDevice) else {
+        var slot = pciDevice.deviceFunction.slot
+        var bus = self
+
+        print("PCI: slot: \(slot) device: \(pciDevice.deviceFunction.device) df: \(pciDevice.deviceFunction), pin: \(pin)")
+
+        while let parent = bus.parentBus as? PCIBus {   // FIXME, add , !bus.isRootBridge test
+            pin = pin.swizzle(slot: slot)
+            slot = bus.deviceFunction.slot
+            print("PCI: bus: \(bus), interruptPin: \(pin)")
+            bus = parent
+        }
+
+        print("PCI: final slot: \(slot), pin: \(pin)")
+
+        guard let itr = bus.interruptRoutingTable else {
+            fatalError("PCI: \(self) cant find an Interrupt Routing Table")
+        }
+
+        guard let entry = itr.findEntryByDevice(slot: slot, pin: pin) else {
             print("Cant find interrupt routing table entry for \(pciDevice)")
             return nil
         }
 
-        print("PCI: Found routing entry \(entry), pin: \(entry.pin)")
+        print("PCI: Found routing entry: \(entry)")
 
-        if case .namePath(let namePath) = entry.source {
-            print("NamePath: \(namePath)")
-            // FIXME, should have better way of walking up the tree
-            guard let (node, fullname) = itr.prtAcpiNode.topParent().getGlobalObject(currentScope: AMLNameString(itr.prtAcpiNode.fullname()), name: namePath) else {
-                print("PCI: Cant find object for \(namePath) under \(itr.prtAcpiNode.fullname())")
-                return nil
-            }
+        switch entry.source {
+            case .namePath(let namePath, let sourceIndex):
+                print("NamePath: \(namePath)")
+                // FIXME, should have better way of walking up the tree
+                guard let (node, fullname) = itr.prtAcpiNode.topParent().getGlobalObject(currentScope: AMLNameString(itr.prtAcpiNode.fullname()), name: namePath) else {
+                    print("PCI: Cant find object for \(namePath) under \(itr.prtAcpiNode.fullname())")
+                    return nil
+                }
 
-            print("Link device:", fullname, node)
-            guard let devNode = node as? AMLDefDevice else {
-                print("\(fullname) is not an AMLDefDevice")
-                return nil
-            }
+                print("Link device: \(fullname), sourceIndex: \(sourceIndex), \(node)")
+                guard let devNode = node as? AMLDefDevice else {
+                    print("\(fullname) is not an AMLDefDevice")
+                    return nil
+                }
 
-            guard let device = devNode.device?.deviceDriver as? PCIInterruptLinkDevice else {
-                print("\(fullname) has no attached PCI InterruptLink device")
-                return nil
-            }
-            print("devNode: \(devNode) device: \(devNode.device as Any), LNK Device: \(device), irq:", device.irq)
-            return device.irq
+                guard let device = devNode.device?.deviceDriver as? PCIInterruptLinkDevice else {
+                    print("\(fullname) has no attached PCI InterruptLink device")
+                    return nil
+                }
+                print("devNode: \(devNode) device: \(devNode.device as Any), LNK Device: \(device), irq:", device.irq)
+                return device.irq
+
+            case .globalSystemInterrupt(let gsi):
+                fatalError("Need to implement support for GlobalSystemInterrupt: \(gsi)")
         }
-        return nil
     }
 
     // Convert an ACPI _ADR PCI address and busId. Only returns if the PCI device has valid vendor/device codes.
