@@ -144,6 +144,10 @@ final class AMLSharedBuffer: RandomAccessCollection {
         buffer = bytes
     }
 
+    func copy() -> Self {
+        return Self(bytes: buffer)
+    }
+
     func copyBuffer() -> AMLBuffer {
         let copy = buffer
         return copy
@@ -280,14 +284,24 @@ enum AMLComputationalData {
 }
 
 enum AMLDataObject: AMLTermArg {
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        return self
-    }
 
     case package(AMLPackage)
     case buffer(AMLSharedBuffer)
     case integer(AMLInteger)
     case string(AMLString)
+
+    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
+        return self
+    }
+
+    func copy() -> Self {
+        // Return a copy of the object, used by AMLPackage to copy objects that are being stored.
+        switch self {
+            case .package(let value): return AMLDataObject.package(value.copy())
+            case .buffer(let value):  return AMLDataObject.buffer(value.copy())
+            default: return self    // These are value types, implicitly copied
+        }
+    }
 
     var integerValue: AMLInteger? {
         switch self {
@@ -355,6 +369,13 @@ enum AMLDataRefObject {
         self = .dataObject(.string(string))
     }
 
+    func copy() -> Self {
+        switch self {
+            case .dataObject(let value): return .dataObject(value.copy())
+            default: return self
+        }
+    }
+
     var dataObject: AMLDataObject? {
         switch self {
             case .dataObject(let value): return value
@@ -407,6 +428,13 @@ enum AMLPackageElement {
         }
         else {
             return nil
+        }
+    }
+
+    func copy() -> Self {
+        switch self {
+            case .dataRefObject(let value): return .dataRefObject(value.copy())
+            default: return self
         }
     }
 
@@ -467,6 +495,14 @@ final class AMLPackage: AMLIndexableObject {
         precondition(numElements == self.elements.count)
     }
 
+    private init(elements: [AMLPackageElement]) {
+        self.elements = elements
+    }
+
+    func copy() -> Self {
+        return Self(elements: elements)
+    }
+
     func makeIterator() -> IndexingIterator<Array<Element>> {
         return self.elements.makeIterator()
     }
@@ -474,7 +510,7 @@ final class AMLPackage: AMLIndexableObject {
 
     subscript(position: Index) -> Element {
         get { self.elements[position] }
-        set { self.elements[position] = newValue }
+        set { self.elements[position] = newValue.copy() }
     }
 }
 
