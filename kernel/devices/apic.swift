@@ -135,7 +135,7 @@ extension LocalInterruptEntry {
 }
 
 
-final class APIC: InterruptController {
+final class APIC {
 
     // 256 bit register composed of 8x32bit values
     // Each 32bit value is on a 128bit (16byte) boundary
@@ -262,8 +262,6 @@ final class APIC: InterruptController {
     }
 
 
-    private let ioapics: [IOAPIC]
-
     init?(madtEntries: [MADTEntry]) {
         guard CPU.capabilities.apic else {
             print("APIC: No APIC installed")
@@ -300,49 +298,10 @@ final class APIC: InterruptController {
             count: APIC_REGISTER_SPACE_SIZE)
         print("APIC: boot \(bootProcessor) maxPhyAddrBits: \(maxPhyAddrBits)")
 
-        var ioapicEntries: [MADT.IOApicTable] = []
-        var overrideEntries: [MADT.InterruptSourceOverrideTable] = []
-
-        madtEntries.forEach {
-            if let entry = $0 as? MADT.IOApicTable {
-                ioapicEntries.append(entry)
-            } else if let entry = $0 as? MADT.InterruptSourceOverrideTable {
-                overrideEntries.append(entry)
-            }
-        }
-
-        guard ioapicEntries.count > 0 else {
-            fatalError("Cant find any IO-APICs in the ACPI:MADT tables")
-            return nil
-        }
-        var _ioapics: [IOAPIC] = []
-        for entry in ioapicEntries {
-            if let ioapic = IOAPIC(apic: entry,
-                intSourceOverrides: overrideEntries) {
-                print("ioapic: ", ioapic)
-                _ioapics.append(ioapic)
-            }
-        }
-        ioapics = _ioapics
-        print("APIC: Have \(ioapics.count) IO-APICs")
-
         printStatus()
         setupTimer()
         spuriousIntVector = 0x1ff
     }
-
-
-    func enableIRQ(_ irqSetting: IRQSetting) {
-        print("APIC: enableIRQ:", irqSetting)
-        ioapics[0].enableIRQ(irqSetting)
-    }
-
-
-    func disableIRQ(_ irqSetting: IRQSetting) {
-        print("APIC: disableIRQ:", irqSetting)
-        ioapics[0].disableIRQ(irqSetting)
-    }
-
 
     func disableAllIRQs() {
     }
@@ -377,7 +336,8 @@ final class APIC: InterruptController {
 
         var newLvtTimer = lvtTimer
         newLvtTimer.deliveryMode = .Fixed
-        newLvtTimer.vector = 48
+        // The 7 APIC interrupts start at IDT entry 240
+        newLvtTimer.vector = 240
         newLvtTimer.masked = false
         newLvtTimer.timerMode = .periodic
         lvtTimer = newLvtTimer

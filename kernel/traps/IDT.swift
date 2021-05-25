@@ -108,6 +108,7 @@ func setupIDT() {
     trap_dispatch_table.19 = simdException
     lidt(&idtInfo)
 
+    // 24 IRQ / GSI interrupts connected to IO-APICs
     idt.32 = IDTEntry(function: irq00_stub, gateType: .INTR_GATE)
     idt.33 = IDTEntry(function: irq01_stub, gateType: .INTR_GATE)
     idt.34 = IDTEntry(function: irq02_stub, gateType: .INTR_GATE)
@@ -124,14 +125,24 @@ func setupIDT() {
     idt.45 = IDTEntry(function: irq13_stub, gateType: .INTR_GATE)
     idt.46 = IDTEntry(function: irq14_stub, gateType: .INTR_GATE)
     idt.47 = IDTEntry(function: irq15_stub, gateType: .INTR_GATE)
+    idt.48 = IDTEntry(function: irq16_stub, gateType: .INTR_GATE)
+    idt.49 = IDTEntry(function: irq17_stub, gateType: .INTR_GATE)
+    idt.50 = IDTEntry(function: irq18_stub, gateType: .INTR_GATE)
+    idt.51 = IDTEntry(function: irq19_stub, gateType: .INTR_GATE)
+    idt.52 = IDTEntry(function: irq20_stub, gateType: .INTR_GATE)
+    idt.53 = IDTEntry(function: irq21_stub, gateType: .INTR_GATE)
+    idt.54 = IDTEntry(function: irq22_stub, gateType: .INTR_GATE)
+    idt.55 = IDTEntry(function: irq23_stub, gateType: .INTR_GATE)
 
-    idt.48 = IDTEntry(function: apic_int0_stub, gateType: .INTR_GATE)
-    idt.49 = IDTEntry(function: apic_int1_stub, gateType: .INTR_GATE)
-    idt.50 = IDTEntry(function: apic_int2_stub, gateType: .INTR_GATE)
-    idt.51 = IDTEntry(function: apic_int3_stub, gateType: .INTR_GATE)
-    idt.52 = IDTEntry(function: apic_int4_stub, gateType: .INTR_GATE)
-    idt.53 = IDTEntry(function: apic_int5_stub, gateType: .INTR_GATE)
-    idt.54 = IDTEntry(function: apic_int6_stub, gateType: .INTR_GATE)
+
+    // Local APIC interrupts
+    idt.240 = IDTEntry(function: apic_int0_stub, gateType: .INTR_GATE)
+    idt.241 = IDTEntry(function: apic_int1_stub, gateType: .INTR_GATE)
+    idt.242 = IDTEntry(function: apic_int2_stub, gateType: .INTR_GATE)
+    idt.243 = IDTEntry(function: apic_int3_stub, gateType: .INTR_GATE)
+    idt.244 = IDTEntry(function: apic_int4_stub, gateType: .INTR_GATE)
+    idt.245 = IDTEntry(function: apic_int5_stub, gateType: .INTR_GATE)
+    idt.246 = IDTEntry(function: apic_int6_stub, gateType: .INTR_GATE)
 
     // Below is not needed except to validate that the setup worked ok
     // and test some exceptions

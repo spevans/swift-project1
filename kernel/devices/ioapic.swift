@@ -14,37 +14,27 @@ final class IOAPIC {
     fileprivate let registerSelect: UnsafeMutablePointer<UInt32>
     fileprivate let registerData: UnsafeMutablePointer<UInt32>
 
-    private let apic: MADT.IOApicTable
     private let registerBase: VirtualAddress
-    private let overrideTable: [MADT.InterruptSourceOverrideTable]
+    let globalSystemInterruptBase: UInt32
     
 
-    init?(apic: MADT.IOApicTable,
-        intSourceOverrides: [MADT.InterruptSourceOverrideTable]) {
-        self.apic = apic
-        print("IOAPIC: ID: \(apic.ioApicID) ",
-            "Address: \(asHex(apic.ioApicAddress)) ",
-            " interrupt base: \(apic.globalSystemInterruptBase)")
+    init(ioApicId: UInt8, baseAddress: PhysAddress, gsiBase: UInt32) {
+        self.globalSystemInterruptBase = gsiBase
 
-        let baseAddress = PhysAddress(RawAddress(apic.ioApicAddress))
-        registerBase = mapIORegion(physicalAddr: baseAddress,
-            size: 0x20, cacheType: 7)
+        print("IOAPIC: ID: \(ioApicId) Address: \(baseAddress) interrupt base: \(gsiBase)")
+
+        // FIXME: Use MMIO
+        registerBase = mapIORegion(physicalAddr: baseAddress, size: 0x20, cacheType: 7)
         registerSelect = UnsafeMutablePointer<UInt32>(bitPattern: registerBase)!
         registerData = UnsafeMutablePointer<UInt32>(bitPattern: registerBase + 0x10)!
-
-        overrideTable = intSourceOverrides
     }
 
 
-    func enableIRQ(_ irqSetting: IRQSetting) {
+    func enableIRQ(_ irqSetting: IRQSetting, vector: UInt8) {
         let irq = irqSetting.irq
-        var register = redirectionRegisterFor(irq: irq)
-        if let entry = overrideEntryFor(irq: irq) {
-            register = redirectionRegisterFor(irq: Int(entry.globalInterrupt))
-        }
-        
-        print(self, "IO-APIC: Enabling IRQ:", irq)
-        let vector = UInt8(irq) + 0x20
+        print("IO-APIC: Enabling:", irq)
+        let register = redirectionRegisterFor(irq: irq)
+        print("IO-APIC: vector: \(vector) redirectionRegister: \(register)")
 
         var data = IORedirectionRegister()
         data.idtVector = vector 
@@ -53,41 +43,42 @@ final class IOAPIC {
         data.inputPinPolarity = irqSetting.activeHigh ? .activeHigh : .activeLow
         data.triggerMode = irqSetting.levelTriggered ? .level : .edge
         data.maskInterrupt = false
-        data.destinationField = 0
+        data.destinationField = 0   // APIC ID
         writeWideRegister(register, data: data)
     }
 
 
     func disableIRQ(_ irqSetting: IRQSetting) {
         let irq = irqSetting.irq
-        var register = redirectionRegisterFor(irq: irq)
-        if let entry = overrideEntryFor(irq: irq) {
-            register = redirectionRegisterFor(irq: Int(entry.globalInterrupt))
-        }
-        
-        print(self, "IO-APIC: disabling IRQ:", irq)
+        let register = redirectionRegisterFor(irq: irq)
+
+        print("IO-APIC: disabling IRQ:", irq, "register:", register)
         var data = readWideRegister(register)
         data.maskInterrupt = true
         writeWideRegister(register, data: data)
     }
 
 
-    private func overrideEntryFor(irq: Int) -> MADT.InterruptSourceOverrideTable? {
-        for entry in overrideTable {
-            if entry.sourceIRQ == UInt8(irq) {
-                return entry
+    func canHandleIrq(_ irqSetting: IRQSetting) -> Bool {
+        let irq = irqSetting.irq
+        print("IO-APIC: CanHandleIrq:", irq, "gsiBase:", globalSystemInterruptBase)
+        if irq >= globalSystemInterruptBase {
+            let mre = Int(versionRegister.maximumRedirectionEntry)
+            print("IO-APIC: maximumRedirectionEntry:", mre)
+            if Int(irq) < Int(globalSystemInterruptBase) + mre {
+                return true
             }
         }
-        return nil
+        return false
     }
 
 
     private func redirectionRegisterFor(irq: Int) -> UInt8 {
+        // Redirection Table Registers start at offset 10h
         let irqEntry = UInt8(irq)
         return UInt8(0x10 + (irqEntry * 2))
     }
 }
-
 
 
 fileprivate extension IOAPIC {
@@ -220,6 +211,33 @@ fileprivate extension IOAPIC {
     /// Registers are 32bits wide and indexed using an 8 bit address
     /// WideRegisters are 64bits wide using 2 32bit reads at address
     /// and address+1
+
+    struct IOAPICID {
+        private var bits: BitArray32
+        var rawValue: UInt32 { bits.rawValue }
+        var identification: Int {
+            get { Int(bits[24...27]) }
+            set { bits[24...27] = UInt32(newValue) }
+        }
+
+        init(_ rawValue: UInt32) { bits = BitArray32(rawValue) }
+    }
+
+    struct IOAPICVER {
+        private let bits: BitArray32
+        var version: Int { Int(bits[0...7]) }
+        var maximumRedirectionEntry: Int { Int(bits[16...23]) }
+
+        init(_ rawValue: UInt32) { bits = BitArray32(rawValue) }
+    }
+
+    struct IOAPICArbitrationID {
+        private let bits: BitArray32
+        var identification: Int { Int(bits[24...27]) }
+
+        init(_ rawValue: UInt32) { bits = BitArray32(rawValue) }
+    }
+
     func readRegister(_ register: UInt8) -> UInt32 {
         let f = UInt32(register)
         registerSelect.pointee = f
@@ -246,4 +264,12 @@ fileprivate extension IOAPIC {
         writeRegister(register + 0, data: UInt32(data[0...31]))
         writeRegister(register + 1, data: UInt32(data[32...63]))
     }
+
+    var idRegister: IOAPICID {
+        get { IOAPICID(readRegister(0)) }
+        set { writeRegister(0, data: newValue.rawValue) }
+    }
+
+    var versionRegister: IOAPICVER { IOAPICVER(readRegister(1)) }
+    var arbitrationIdRegister: IOAPICArbitrationID { IOAPICArbitrationID(readRegister(2)) }
 }

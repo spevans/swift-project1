@@ -117,6 +117,14 @@ _run_handler:
         IRQ_STUB        13
         IRQ_STUB        14
         IRQ_STUB        15
+        IRQ_STUB        16
+        IRQ_STUB        17
+        IRQ_STUB        18
+        IRQ_STUB        19
+        IRQ_STUB        20
+        IRQ_STUB        21
+        IRQ_STUB        22
+        IRQ_STUB        23
 
         APIC_INT_STUB   0
         APIC_INT_STUB   1

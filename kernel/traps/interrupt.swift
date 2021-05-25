@@ -12,7 +12,7 @@
 
 typealias IRQHandler = (Int) -> ()
 
-private(set) var localAPIC: APIC?
+private(set) var localAPIC: APIC!
 
 protocol InterruptController {
     func enableIRQ(_ irqSetting: IRQSetting)
@@ -25,38 +25,41 @@ protocol InterruptController {
 
 public final class InterruptManager {
 
-    fileprivate let irqController: InterruptController
     fileprivate var irqHandlers: [IRQHandler] = Array(repeating: InterruptManager.unexpectedInterrupt, count: NR_IRQS)
+    private let ioapics: [IOAPIC]
+    private let overrideEntries: [MADT.InterruptSourceOverrideTable]
 
 
     init(acpiTables: ACPI) {
 
-        func initAPIC() -> InterruptController? {
-            if let madtEntries = acpiTables.madt?.madtEntries {
-                return APIC(madtEntries: madtEntries)
-            } else {
-                return nil
+        guard let madtEntries = acpiTables.madt?.madtEntries else {
+            fatalError("Cant find MADT Table")
+        }
+        localAPIC = APIC(madtEntries: madtEntries)
+
+        // Find the IO-APICS and interrupt overrides
+        var _ioapics: [IOAPIC] = []
+        var _overrideEntries: [MADT.InterruptSourceOverrideTable] = []
+
+        madtEntries.forEach {
+            if let entry = $0 as? MADT.IOApicTable {
+                let baseAddress = PhysAddress(RawAddress(entry.ioApicAddress))
+                let ioapic = IOAPIC(ioApicId: entry.ioApicID, baseAddress: baseAddress,
+                                    gsiBase: entry.globalSystemInterruptBase)
+                _ioapics.append(ioapic)
+            } else if let entry = $0 as? MADT.InterruptSourceOverrideTable {
+                _overrideEntries.append(entry)
             }
         }
+        ioapics = _ioapics
+        overrideEntries = _overrideEntries
 
-        func initPIC() -> InterruptController? {
-            if acpiTables.madt?.hasCompatDual8259 == false {
-                return nil
-            } else {
-                return PIC8259()
-            }
+        guard _ioapics.count > 0 else {
+            fatalError("Cant find any IO-APICs in the ACPI: MADT tables")
         }
 
-        guard let controller = initAPIC() ?? initPIC() else {
-            fatalError("Cannot initialise IRQ controller")
-        }
-        irqController = controller
-
-        localAPIC = controller as? APIC
-        print("localAPIC:", localAPIC as Any)
-
-        print("kernel: Using \(irqController.self) as interrupt controller")
-        irqController.disableAllIRQs()
+        print("INT-MAN: Have \(ioapics.count) IO-APICs")
+        localAPIC.disableAllIRQs()
     }
 
 
@@ -64,39 +67,99 @@ public final class InterruptManager {
         // Set _PIC mode to APIC (1)
         do {
             try ACPI.invoke(method: "\\_PIC", AMLDataObject.integer(1))
-            print("ACPI: _PIC mode set to APIC")
+            print("INT-MAN: _PIC mode set to APIC")
         } catch AMLError.invalidMethod {
             // ignore, _PIC is optional
         } catch {
-            fatalError("Cant set ACPI mode: \(error)")
+            fatalError("INT-MAN: Cant set ACPI mode: \(error)")
         }
     }
 
     func enableIRQs() {
-        print("INT: Enabling IRQs")
+        print("INT-MAN: Enabling IRQs")
         sti()
     }
 
 
+    private func overrideEntryFor(irq: Int) -> MADT.InterruptSourceOverrideTable? {
+        for entry in overrideEntries {
+            if entry.sourceIRQ == UInt8(irq) {
+                return entry
+            }
+        }
+        return nil
+    }
+
+
+    // IRQs might require remapping. The resultant value can be used as a GSI.
+    // If the interrupt pin is already a GSI then no remapping is required.
+    private func remapIrqIfNeeded(_ irqSetting: IRQSetting) -> IRQSetting {
+        let newIrqSetting: IRQSetting
+        if irqSetting.isIRQ, let entry = overrideEntryFor(irq: irqSetting.irq) {
+            newIrqSetting = entry.irqSetting
+            guard newIrqSetting.isGSI else {
+                fatalError("INT-MAN: Remapped \(irqSetting) to \(newIrqSetting) but it is not a GSI")
+            }
+            print("INT-MAN: Remap IRQ:", irqSetting, "overriden to:", newIrqSetting)
+        } else {
+            newIrqSetting = irqSetting
+        }
+
+        guard newIrqSetting.irq < NR_IRQS else {
+            fatalError("INT-MAN: setIrqHandler: Invalid IRQ \(newIrqSetting.irq) > \(NR_IRQS)")
+        }
+        return newIrqSetting
+    }
+
+
+    private func ioapicForIrq(_ irqSetting: IRQSetting) -> IOAPIC? {
+        print("INT-MAN: looking for ioapic for IRQ", irqSetting)
+        if let ioapic = ioapics.first(where: { $0.canHandleIrq(irqSetting) }) {
+            return ioapic
+        }
+        print("INT-MAN: cant find an IOAPIC!")
+        return nil
+    }
+
+
+    func enableIRQ(_ irqSetting: IRQSetting) {
+        let actualIrq = remapIrqIfNeeded(irqSetting)
+        if let ioapic = ioapicForIrq(actualIrq) {
+            // Global System Interrupts are mapped into the IDT starting at entry 32
+            let vector = UInt8(irqSetting.irq) + 0x20
+            ioapic.enableIRQ(actualIrq, vector: vector)
+        }
+    }
+
+    func disableIRQ(_ irqSetting: IRQSetting) {
+        let actualIrq = remapIrqIfNeeded(irqSetting)
+        if let ioapic = ioapicForIrq(actualIrq) {
+            ioapic.disableIRQ(actualIrq)
+        }
+    }
+
+    func ackIRQ(_ irq: Int) {
+        localAPIC.ackIRQ(irq)
+    }
+
     func setIrqHandler(_ irqSetting: IRQSetting, handler: @escaping IRQHandler) {
         // FIXME, deal with shared interrupts
+        print("INT-MAN: Setting IRQ handler for \(irqSetting.irq)")
         irqHandlers[irqSetting.irq] = handler
-        irqController.enableIRQ(irqSetting)
+        enableIRQ(irqSetting)
     }
-
 
     func removeIrqHandler(_ irqSetting: IRQSetting) {
-        irqController.disableIRQ(irqSetting)
+        disableIRQ(irqSetting)
         irqHandlers[irqSetting.irq] = InterruptManager.unexpectedInterrupt
     }
-
 
     // The following functions all run inside an IRQ so cannot call malloc().
     // The irqHandler does everything except save/restore the registers and
     // the IRET. The IRQ number is passed on the stack in the ExceptionRegisters
     // (include/x86defs.h:excpetion_regs) as the error_code.
     static private func unexpectedInterrupt(irq: Int) {
-        printf("unexpected interrupt: %d\n")
+        printf("INT-MAN: Unexpected interrupt: %d\n", irq)
     }
 }
 
@@ -117,5 +180,5 @@ public func irqHandler(registers: ExceptionRegisters,
     }
     interruptManager.irqHandlers[irq](irq)
     // EOI
-    interruptManager.irqController.ackIRQ(irq)
+    interruptManager.ackIRQ(irq)
 }

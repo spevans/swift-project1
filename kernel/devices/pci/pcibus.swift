@@ -268,7 +268,7 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
                 return device.irq
 
             case .globalSystemInterrupt(let gsi):
-                fatalError("Need to implement support for GlobalSystemInterrupt: \(gsi)")
+                return IRQSetting(gsi: gsi, activeHigh: false, levelTriggered: true, shared: true, wakeCapable: false) // FIXME: try and determine wakeCapable status.
         }
     }
 

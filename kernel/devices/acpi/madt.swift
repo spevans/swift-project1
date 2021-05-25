@@ -160,16 +160,11 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
 
         let tableType = IntControllerTableType.interruptSourceOverride
         let tableLength = 10
-        let bus: UInt8
         let sourceIRQ: UInt8
-        let globalInterrupt: UInt32
-        let flags: UInt16
+        let irqSetting: IRQSetting
+
         var debugDescription: String {
-            let desc: String = String(describing: tableType)
-                + ": bus: \(asHex(bus)) irq: \(asHex(sourceIRQ)) "
-                + "globalInterrupt: \(asHex(globalInterrupt)) "
-                + "flags: \(asHex(flags))"
-            return desc
+            return String(describing: tableType) + ": irq: \(sourceIRQ) -> \(irqSetting)"
         }
 
 
@@ -177,11 +172,38 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
             guard table.count == tableLength else {
                 fatalError("Invalid InterruptSourceOverrideTable size")
             }
-            bus = table[2]
+            let bus = table[2]
+            // 0 = ISA, all other values invalid
+            guard bus == 0 else {
+                fatalError("InterruptSourceOverrideTable has a bus value of \(bus)")
+            }
+
             sourceIRQ = table[3]
-            globalInterrupt = UInt32(withBytes: table[4], table[5],
+            let globalInterrupt = UInt32(withBytes: table[4], table[5],
                 table[6], table[7]);
-            flags = UInt16(withBytes: table[8], table[9])
+            let flags = BitArray16(UInt16(withBytes: table[8], table[9]))
+
+            let polarity = flags[0...1]
+            let activeHigh: Bool
+            switch polarity {
+                case 0: activeHigh = true   // 0b00 Conforms to the specifications of the bus
+                case 1: activeHigh = true   // 0b01 Active high
+                case 3: activeHigh = false  // 0b11 Active low
+                                            // 0b10 Reserved
+                default: fatalError("InterruptSourceOverrideTable has flags value: \(asHex(flags.rawValue))")
+            }
+
+            let triggerMode = flags[2...3]
+            let levelTriggered: Bool
+            switch triggerMode {
+                case 0: levelTriggered = false  // 0b00 Conforms to the specifications of the bus
+                case 1: levelTriggered = false  // 0b01 Edge-triggered
+                case 3: levelTriggered = true   // 0b11 Level-Triggered
+                                                // 0b10 Reserved
+                default: fatalError("InterruptSourceOverrideTable has flags value: \(asHex(flags.rawValue))")
+            }
+
+            irqSetting = IRQSetting(gsi: globalInterrupt, activeHigh: activeHigh, levelTriggered: levelTriggered, shared: false, wakeCapable: false)
         }
     }
 
