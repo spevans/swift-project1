@@ -14,7 +14,7 @@ protocol DeviceDriver: AnyObject {
 protocol PNPDeviceDriver: DeviceDriver {
 //    var pnpDevice: ISADevice { get }
 //    var supportedPnpIds: Set<String> { get }
-    init?(pnpDevice: ISADevice)
+    init?(pnpDevice: PNPDevice)
 }
 
 

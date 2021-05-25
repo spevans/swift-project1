@@ -177,8 +177,8 @@ final class KBD8042: PNPDeviceDriver, CustomStringConvertible {
 
     var description: String { return "KBD8042 \(pnpDevice.resources)" }
 
-    init?(pnpDevice: ISADevice) {
-        self.pnpDevice = pnpDevice
+    init?(pnpDevice: PNPDevice) {
+        self.pnpDevice = pnpDevice as! ISADevice
         print("i8042:", pnpDevice.pnpName, pnpDevice.resources)
 
         // 1. Flush output buffer

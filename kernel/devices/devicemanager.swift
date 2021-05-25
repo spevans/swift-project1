@@ -42,14 +42,23 @@ final class DeviceManager {
 
 
     func findPNPDevice(withName pnpName: String) {
-        pnpDevices(on: masterBus, pnpName: pnpName) {
-            guard let pnpDevice = $0 as? ISADevice, pnpDevice.pnpDeviceDriver == nil else { return }
-            if let driverType = pnpDriverById(pnpName: pnpDevice.pnpName), let driver = driverType.init(pnpDevice: pnpDevice) {
-                print("Found early PNP device:", driverType)
-                pnpDevice.pnpDeviceDriver = driver
-                pnpDevice.acpiDevice?.setDevice(pnpDevice)
-                system.deviceManager.addDevice(driver)
+        pnpDevices(on: masterBus, pnpName: pnpName) { pnpDevice in
+            guard pnpDevice.deviceDriver == nil else { return }
+
+            guard let driverType = pnpDriverById(pnpName: pnpDevice.pnpName) else {
+                print("PNP: Cant find driver for device:", pnpDevice.pnpName)
+                return
             }
+
+            guard let driver = driverType.init(pnpDevice: pnpDevice) else {
+                print("PNP: Cant init \(pnpDevice.pnpName) with driver:", driverType)
+                return
+            }
+
+            print("Found early PNP device: \(driverType) on \(pnpDevice)")
+            pnpDevice.setDriver(driver)
+            pnpDevice.acpiDevice?.setDevice(pnpDevice)
+            system.deviceManager.addDevice(driver)
         }
     }
 
@@ -78,7 +87,7 @@ final class DeviceManager {
             for device in bus.devices {
                 if let pnpDevice = device as? ISADevice, device.deviceDriver == nil {
                     if let driverType = pnpDriverById(pnpName: pnpDevice.pnpName), let driver = driverType.init(pnpDevice: pnpDevice) {
-                        pnpDevice.pnpDeviceDriver = driver
+                        pnpDevice.setDriver(driver)
                         pnpDevice.acpiDevice?.setDevice(pnpDevice)
                         system.deviceManager.addDevice(driver)
                     }
@@ -97,7 +106,7 @@ final class DeviceManager {
 
         if let rootPCIBus = masterBus.rootPCIBus() {
             rootPCIBus.devicesMatching() { (device: PCIDevice, deviceClass: PCIDeviceClass) in
-                guard device.pciDeviceDriver == nil else { return }
+                guard device.deviceDriver == nil else { return }
             }
         } else {
             print("Error: Cant Find ROOT PCI Bus")

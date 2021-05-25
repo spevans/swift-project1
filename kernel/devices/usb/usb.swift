@@ -57,7 +57,7 @@ final class USB: Bus {
                 switch progIf {
                     case .uhci:
                         if let driver = HCD_UHCI(pciDevice: $0) {
-                            $0.pciDeviceDriver = driver
+                            $0.setDriver(driver)
                             driver.initialiseDevice()
                             let hcd = driver as USBHCD
                             hcds.append(hcd)
@@ -65,7 +65,7 @@ final class USB: Bus {
 
                     case .ehci:
                         if let driver = HCD_EHCI(pciDevice: $0) {
-                            $0.pciDeviceDriver = driver
+                            $0.setDriver(driver)
                             driver.initialiseDevice()
                             let hcd = driver as USBHCD
                             hcds.append(hcd)
@@ -73,7 +73,7 @@ final class USB: Bus {
 
                     case .xhci:
                         if let driver = HCD_XHCI(pciDevice: $0) {
-                            $0.pciDeviceDriver = driver
+                            $0.setDriver(driver)
                             driver.initialiseDevice()
                             let hcd = driver as USBHCD
                             hcds.append(hcd)

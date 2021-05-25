@@ -15,9 +15,9 @@ final class PCIDevice: Device, CustomStringConvertible {
     let fullName: String
     var enabled = false
     let deviceFunction: PCIDeviceFunction
-    var pciDeviceDriver: PCIDeviceDriver?   // FIXME: setter should be private
+    private(set) var pciDeviceDriver: PCIDeviceDriver?
+    var deviceDriver: DeviceDriver? { pciDeviceDriver }
 
-    var deviceDriver: DeviceDriver? { pciDeviceDriver as DeviceDriver? }
     var description: String { "PCI \(fullName) \(deviceFunction.description)" }
 
     init?(parentBus: PCIBus, deviceFunction: PCIDeviceFunction, acpiDevice: AMLDefDevice? = nil) {
@@ -28,8 +28,20 @@ final class PCIDevice: Device, CustomStringConvertible {
         self.fullName = acpiDevice?.fullname() ?? "PCI Device"
     }
 
+    func setDriver(_ driver: DeviceDriver) {
+        if let deviceDriver = deviceDriver {
+            fatalError("\(self) already has a device driver: \(deviceDriver)")
+        }
+
+        guard let pciDriver = driver as? PCIDeviceDriver else {
+            fatalError("\(self): \(driver) is not for a PCI Device")
+        }
+        pciDeviceDriver = pciDriver
+    }
 
     func initialiseDevice() {
+        // FIXME: Should the caller be calling it directly, and should this only be called
+        // by the device driver?
         pciDeviceDriver?.initialiseDevice()
     }
 
@@ -48,6 +60,7 @@ final class PCIDevice: Device, CustomStringConvertible {
 
         return PCICapability.MSIX(offset: msixOffset, configSpace: deviceFunction.configSpace)
     }
+
 }
 
 // Base Address Register pointing to I/O space

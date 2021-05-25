@@ -13,7 +13,7 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver, CustomStringConvertible {
     var description: String { "PCI Link Device: [IRQ: \(irq)]" }
 
 
-    init?(pnpDevice: ISADevice) {
+    init?(pnpDevice: PNPDevice) {
         let resources = pnpDevice.resources
 
         let f = pnpDevice.acpiDevice?.fullname() ?? "[no name]"

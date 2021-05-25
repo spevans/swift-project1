@@ -9,10 +9,12 @@
 // https://github.com/qemu/qemu/blob/master/docs/specs/fw_cfg.txt
 
 final class QEMUFWCFG: PNPDeviceDriver {
+    let pnpName: String
     let baseIOPort: UInt16
     private(set) var hasDMAInterface = false
 
-    init?(pnpDevice: ISADevice) {
+    init?(pnpDevice: PNPDevice) {
+        self.pnpName = pnpDevice.pnpName
         let resources = pnpDevice.resources
         print(pnpDevice.fullName, "Resources:", resources)
         guard let ioPorts = resources.ioPorts.first, ioPorts.count > 6 else {

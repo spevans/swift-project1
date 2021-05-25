@@ -35,6 +35,11 @@ final class PCIHostBus: Device, CustomStringConvertible {
         self.pciBus = PCIBus(parentBus: parentBus, pciConfigSpace: configSpace, deviceFunction: deviceFunction, acpiDevice: acpiDevice)
     }
 
+    func setDriver(_ driver: DeviceDriver) {
+        // The PCIBus is a driver already
+        fatalError("PCIHostBus already has a driver")
+    }
+
     func initialiseDevice() {
         pciBus.initialiseDevice()
     }
@@ -162,7 +167,9 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
         if let busClass = deviceFunction.deviceClass?.bridgeSubClass {
             switch busClass {
                 case .isa:
-                    pciDevice.pciDeviceDriver = ISABus(pciDevice: pciDevice)
+                    if let driver = ISABus(pciDevice: pciDevice) {
+                        pciDevice.setDriver(driver)
+                    }
                     return pciDevice
 
                 case .host:
@@ -172,7 +179,8 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
 
                 case .pci:
                     let configSpace = PCIConfigSpace(busId: pciDevice.deviceFunction.bridgeDevice!.secondaryBusId, device: 0, function: 0)
-                    pciDevice.pciDeviceDriver = PCIBus(parentBus: self, pciConfigSpace: configSpace, deviceFunction: deviceFunction, acpiDevice: acpiDevice)
+                    let driver = PCIBus(parentBus: self, pciConfigSpace: configSpace, deviceFunction: deviceFunction, acpiDevice: acpiDevice)
+                    pciDevice.setDriver(driver)
                     return pciDevice
 
                 default:
@@ -183,7 +191,7 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
         if let driverType = pciDriverById(vendor: deviceFunction.vendor, device: deviceFunction.deviceId) {
             print("Found driver type: \(driverType) for \(deviceFunction)")
             if let driver = driverType.init(pciDevice: pciDevice) {
-                pciDevice.pciDeviceDriver = driver
+                pciDevice.setDriver(driver)
             }
         }
 

@@ -10,16 +10,15 @@
 // which is defined as ports 0 - 0xffff accessed via the IN & OUT instructions.
 
 
-final class ISADevice: Device, PNPDevice, CustomStringConvertible {
+final class ISADevice: PNPDevice {
     unowned let parentBus: Bus
     let acpiDevice: AMLDefDevice?
     let fullName: String
-    var enabled = false
-
     let pnpName: String
     let resources: ISABus.Resources
-    var pnpDeviceDriver: PNPDeviceDriver?   // FIXME: setter should be private
-    var deviceDriver: DeviceDriver? { pnpDeviceDriver as DeviceDriver? }
+    private(set) var pnpDeviceDriver: PNPDeviceDriver?
+    var deviceDriver: DeviceDriver? { pnpDeviceDriver }
+    var enabled = false
 
     var description: String { "ISA: \(pnpName) \(fullName) \(resources)" }
 
@@ -43,6 +42,17 @@ final class ISADevice: Device, PNPDevice, CustomStringConvertible {
             self.resources = (resources == nil) ? ISABus.Resources([]) : resources!
             self.fullName = pnpName
         }
+    }
+
+    func setDriver(_ driver: DeviceDriver) {
+        if let deviceDriver = deviceDriver {
+            fatalError("\(self) already has a device driver: \(deviceDriver)")
+        }
+
+        guard let pnpDriver = driver as? PNPDeviceDriver else {
+            fatalError("\(self): \(driver) is not for a PNP Device")
+        }
+        pnpDeviceDriver = pnpDriver
     }
 
     func initialiseDevice() {
@@ -123,7 +133,7 @@ final class ISABus: PCIDeviceDriver, Bus, CustomStringConvertible {
             let resources = ISABus.Resources(ps2keyboard)
             let device = ISADevice(parentBus: self, pnpName: "PNP0303", acpiDevice: acpiDevice, resources: resources)
             if let driverType = pnpDriverById(pnpName: "PNP0303"), let driver = driverType.init(pnpDevice: device) {
-                device.pnpDeviceDriver = driver
+                device.setDriver(driver)
                 self.addDevice(device)
                 if let keyboard = (driver as? KBD8042)?.keyboardDevice {
                     system.deviceManager.addDevice(keyboard)

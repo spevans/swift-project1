@@ -22,7 +22,7 @@ final class CMOSRTC: PNPDeviceDriver, CustomStringConvertible {
                               addressPort, dataPort, irq.description)
     }
 
-    init?(pnpDevice: ISADevice) {
+    init?(pnpDevice: PNPDevice) {
         print("CMOS: init:", pnpDevice.resources)
         guard let ports = pnpDevice.resources.ioPorts.first, ports.count > 1
                 && pnpDevice.resources.interrupts.count > 0 else {

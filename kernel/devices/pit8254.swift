@@ -119,7 +119,7 @@ final class PIT8254: PNPDeviceDriver, Timer, CustomStringConvertible {
     }
 
 
-    init?(pnpDevice: ISADevice) {
+    init?(pnpDevice: PNPDevice) {
         let resources = pnpDevice.resources
         print("PIT8254: init:", resources)
 
