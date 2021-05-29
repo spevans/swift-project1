@@ -49,7 +49,7 @@ final class PCIHostBus: Device, CustomStringConvertible {
 final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
     private let deviceFunction: PCIDeviceFunction
     private let acpiDevice: AMLDefDevice?
-    private let interruptRoutingTable: PCIRoutingTable?
+    let interruptRoutingTable: PCIRoutingTable?
     unowned let parentBus: Bus
 
     var resources: [MotherBoardResource] = []
@@ -57,6 +57,7 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
 
     private(set) var devices: [Device] = []
     var busId: UInt8 { pciConfigSpace.busId }
+    var slot: UInt8 { deviceFunction.slot }
     var description: String { "PCIBus: \(pciConfigSpace) busId: \(pciConfigSpace.busId) \(deviceFunction.description) \(acpiDevice?.fullname() ?? "")" }
 
 
@@ -199,78 +200,6 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
     }
 
 
-    // Look for MSI-X, then MSI, then the INTA-D IRQs
-    func findInterruptFor(pciDevice: PCIDevice) -> IRQSetting? {
-        print("PCI: Looking for interrupt for device: \(pciDevice)")
-
-        if let msixCapability = pciDevice.msixCapability() {
-            fatalError("TODO - implement MSI-X interrupts: \(msixCapability)")
-        }
-
-        if let msiCapability = pciDevice.msiCapability() {
-            fatalError("TODO - implement MSI interrupts: \(msiCapability)")
-        }
-
-
-        // Walk up the PCI busses to find the Root Bridge, where the _PRT Interrupt Routing Table
-        // should be. As we walk up the busses, swizzle the intterupt PIN according to
-        // 'System Interrupt Mapping' in PCI Express spec section 2.2.8.1.
-
-        guard var pin = pciDevice.deviceFunction.interruptPin else {
-            print("PCI: \(pciDevice) has no valid interruptPin")
-            return nil
-        }
-        var slot = pciDevice.deviceFunction.slot
-        var bus = self
-
-        print("PCI: slot: \(slot) device: \(pciDevice.deviceFunction.device) df: \(pciDevice.deviceFunction), pin: \(pin)")
-
-        while let parent = bus.parentBus as? PCIBus {   // FIXME, add , !bus.isRootBridge test
-            pin = pin.swizzle(slot: slot)
-            slot = bus.deviceFunction.slot
-            print("PCI: bus: \(bus), interruptPin: \(pin)")
-            bus = parent
-        }
-
-        print("PCI: final slot: \(slot), pin: \(pin)")
-
-        guard let itr = bus.interruptRoutingTable else {
-            fatalError("PCI: \(self) cant find an Interrupt Routing Table")
-        }
-
-        guard let entry = itr.findEntryByDevice(slot: slot, pin: pin) else {
-            print("Cant find interrupt routing table entry for \(pciDevice)")
-            return nil
-        }
-
-        print("PCI: Found routing entry: \(entry)")
-
-        switch entry.source {
-            case .namePath(let namePath, let sourceIndex):
-                print("NamePath: \(namePath)")
-                // FIXME, should have better way of walking up the tree
-                guard let (node, fullname) = itr.prtAcpiNode.topParent().getGlobalObject(currentScope: AMLNameString(itr.prtAcpiNode.fullname()), name: namePath) else {
-                    print("PCI: Cant find object for \(namePath) under \(itr.prtAcpiNode.fullname())")
-                    return nil
-                }
-
-                print("Link device: \(fullname), sourceIndex: \(sourceIndex), \(node)")
-                guard let devNode = node as? AMLDefDevice else {
-                    print("\(fullname) is not an AMLDefDevice")
-                    return nil
-                }
-
-                guard let device = devNode.device?.deviceDriver as? PCIInterruptLinkDevice else {
-                    print("\(fullname) has no attached PCI InterruptLink device")
-                    return nil
-                }
-                print("devNode: \(devNode) device: \(devNode.device as Any), LNK Device: \(device), irq:", device.irq)
-                return device.irq
-
-            case .globalSystemInterrupt(let gsi):
-                return IRQSetting(gsi: gsi, activeHigh: false, levelTriggered: true, shared: true, wakeCapable: false) // FIXME: try and determine wakeCapable status.
-        }
-    }
 
     // Convert an ACPI _ADR PCI address and busId. Only returns if the PCI device has valid vendor/device codes.
     static func pciDeviceFunctionFor(address: AMLInteger, withBusId busId: UInt8) -> PCIDeviceFunction? {
