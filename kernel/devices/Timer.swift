@@ -45,8 +45,9 @@ func setupPeriodicTimer() -> Bool {
 }
 
 
-private func timerInterrupt(irq: Int) {
+private func timerInterrupt() -> Bool {
     timer_callback()
+    return true
 }
 
 

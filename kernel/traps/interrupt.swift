@@ -10,7 +10,9 @@
  */
 
 
-typealias IRQHandler = (Int) -> ()
+// IRQHandler returns `true` if the interrupt was handled, `false`
+// otherwise. This if for when shared interrupts are used.
+typealias IRQHandler = () -> Bool
 
 private(set) var localAPIC: APIC!
 
@@ -25,7 +27,7 @@ protocol InterruptController {
 
 public final class InterruptManager {
 
-    fileprivate var irqHandlers: [IRQHandler] = Array(repeating: InterruptManager.unexpectedInterrupt, count: NR_IRQS)
+    fileprivate var irqHandlers: [IRQHandler?] = Array(repeating: nil, count: NR_IRQS)
     private let ioapics: [IOAPIC]
     private let overrideEntries: [MADT.InterruptSourceOverrideTable]
 
@@ -151,20 +153,16 @@ public final class InterruptManager {
 
     func removeIrqHandler(_ irqSetting: IRQSetting) {
         disableIRQ(irqSetting)
-        irqHandlers[irqSetting.irq] = InterruptManager.unexpectedInterrupt
-    }
-
-    // The following functions all run inside an IRQ so cannot call malloc().
-    // The irqHandler does everything except save/restore the registers and
-    // the IRET. The IRQ number is passed on the stack in the ExceptionRegisters
-    // (include/x86defs.h:excpetion_regs) as the error_code.
-    static private func unexpectedInterrupt(irq: Int) {
-        printf("INT-MAN: Unexpected interrupt: %d\n", irq)
+        irqHandlers[irqSetting.irq] = nil
     }
 }
 
 
 // Called from entry.asm:_irq_handlers
+// The following function runs inside an IRQ so cannot call malloc().
+// The irqHandler does everything except save/restore the registers and
+// the IRET. The IRQ number is passed on the stack in the ExceptionRegisters
+// (include/x86defs.h:excpetion_regs) as the error_code.
 @_silgen_name("irqHandler")
 public func irqHandler(registers: ExceptionRegisters,
     interruptManager: inout InterruptManager) {
@@ -178,7 +176,11 @@ public func irqHandler(registers: ExceptionRegisters,
     if c > 1 {
         printf("\nint_nest_count: %d\n", c)
     }
-    interruptManager.irqHandlers[irq](irq)
+    if let handler = interruptManager.irqHandlers[irq] {
+        _ = handler()
+    } else {
+        printf("INT-MAN: Unexpected interrupt: %d\n", irq)
+    }
     // EOI
     interruptManager.ackIRQ(irq)
 }

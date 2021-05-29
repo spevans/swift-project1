@@ -447,7 +447,7 @@ final class KBD8042: PNPDeviceDriver, CustomStringConvertible {
     }
 
 
-    private func kbdInterrupt(irq: Int) {
+    private func kbdInterrupt() -> Bool {
         sendCommand(.Disable1stPort)
         while readStatus().outputFull {
             let scanCode = readData()
@@ -456,12 +456,14 @@ final class KBD8042: PNPDeviceDriver, CustomStringConvertible {
             }
         }
         sendCommand(.Enable1stPort)
+        return true
     }
 
-    private func mouseInterrupt(irq: Int) {
+    private func mouseInterrupt() -> Bool {
         // Empty the buffer
         while readStatus().outputFull {
             _ = readData()
         }
+        return true
     }
 }
