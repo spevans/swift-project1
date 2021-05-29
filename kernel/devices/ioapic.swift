@@ -1,12 +1,12 @@
  /*
- * kernel/devices/ioapic.swift
- *
- * Created by Simon Evans on 11/02/2017.
- * Copyright © 2017 Simon Evans. All rights reserved.
- *
- * IO-APIC IO-Advanced Programmable Interrupt Controller
- *
- */
+  * kernel/devices/ioapic.swift
+  *
+  * Created by Simon Evans on 11/02/2017.
+  * Copyright © 2017 Simon Evans. All rights reserved.
+  *
+  * IO-APIC IO-Advanced Programmable Interrupt Controller
+  *
+  */
 
 
 final class IOAPIC {
@@ -78,16 +78,20 @@ final class IOAPIC {
         let irqEntry = UInt8(irq)
         return UInt8(0x10 + (irqEntry * 2))
     }
+
+    func showIRRs() {
+        for irq in 0..<Int(versionRegister.maximumRedirectionEntry) {
+            let register = redirectionRegisterFor(irq: irq)
+            let irr = readWideRegister(register)
+            let remoteIRR = (irr.remoteIRR == .levelInterruptAccepted) ? 1 : 0
+            print("\(irq): \(remoteIRR) ", terminator: "")
+        }
+        print("")
+    }
 }
 
 
-fileprivate extension IOAPIC {
-    enum IORedirectionRegisterBits: Int {
-        case destinationMode = 11
-        case maskInterrupt = 16
-    }
-
-
+fileprivate extension IOAPIC.IORedirectionRegister {
     // Bits 10:8
     enum DeliveryMode: Int { 
         case fixed = 0b000
@@ -134,75 +138,58 @@ fileprivate extension IOAPIC {
     }
 }
 
-fileprivate typealias IORedirectionRegister = BitArray64
-fileprivate extension IORedirectionRegister {
-    var idtVector: UInt8 {
-        get {
-            return UInt8(self[0...7])
-        }
-        set {
-            self[0...7] = UInt64(newValue)
-        }
-    }
 
-    var deliveryMode: IOAPIC.DeliveryMode {
-        get {
-            let mode = BitArray64(self[8...10]).toInt()
-            return IOAPIC.DeliveryMode(rawValue: mode) ?? IOAPIC.DeliveryMode.fixed
+fileprivate extension IOAPIC {
+    struct IORedirectionRegister {
+        private var bits: BitArray64
+        var rawValue: UInt64 { bits.rawValue }
+
+        init() {
+            bits = BitArray64(0)
         }
-        set {
-            //self.replaceSubrange([8...10], with: BitArray64(newValue.rawValue))
+
+        init(rawValue: UInt64) {
+            bits = BitArray64(rawValue)
         }
-    }
 
-    var destinationMode: IOAPIC.DestinationMode {
-        get {
-            let mode = self[11]
-            return IOAPIC.DestinationMode(rawValue: mode)
-            ?? IOAPIC.DestinationMode.physical
+        var idtVector: UInt8 {
+            get { UInt8(bits[0...7]) }
+            set { bits[0...7] = UInt64(newValue) }
         }
-        set {
-            self[11] = newValue.rawValue
+
+        var deliveryMode: DeliveryMode {
+            get { DeliveryMode(rawValue: Int(bits[8...10])) ?? DeliveryMode.fixed }
+            set { bits[8...10] = UInt64(newValue.rawValue) }
         }
-    }
 
-    var deliveryStatus: IOAPIC.DeliveryStatus {
-        return IOAPIC.DeliveryStatus(rawValue: self[12])
-        ?? IOAPIC.DeliveryStatus.idle
-    }
-
-    var inputPinPolarity: IOAPIC.InputPinPolarity {
-        get {
-            let mode = self[13]
-            return IOAPIC.InputPinPolarity(rawValue: mode) ?? IOAPIC.InputPinPolarity.activeHigh
+        var destinationMode: DestinationMode {
+            get { DestinationMode(rawValue: bits[11])! }
+            set { bits[11] = newValue.rawValue }
         }
-        set {
-            self[13] = newValue.rawValue
-        }            
-    }
 
-    var remoteIRR: IOAPIC.RemoteIRR {
-        let value = self[14]
-        return IOAPIC.RemoteIRR(rawValue: value)
-        ?? IOAPIC.RemoteIRR.eoiReceived
-    }
+        var deliveryStatus: DeliveryStatus { DeliveryStatus(rawValue: bits[12])! }
 
-    var triggerMode: IOAPIC.TriggerMode {
-        get {
-            let value = self[15]
-            return IOAPIC.TriggerMode(rawValue: value) ?? IOAPIC.TriggerMode.edge
+        var inputPinPolarity: InputPinPolarity {
+            get { InputPinPolarity(rawValue: bits[13])! }
+            set { bits[13] = newValue.rawValue }
         }
-        set { self[15] = newValue.rawValue }
-    }
 
-    var maskInterrupt: Bool {
-        get { self[16] == 1 }
-        set { self[16] = newValue ? 1 : 0 }
-    }
+        var remoteIRR: RemoteIRR { RemoteIRR(rawValue: bits[14])! }
 
-    var destinationField: UInt8 {
-        get { UInt8(self[56...63]) }
-        set { self[56...63] = UInt64(newValue) }
+        var triggerMode: TriggerMode {
+            get { TriggerMode(rawValue: bits[15])! }
+            set { bits[15] = newValue.rawValue }
+        }
+
+        var maskInterrupt: Bool {
+            get { bits[16] == 1 }
+            set { bits[16] = newValue ? 1 : 0 }
+        }
+
+        var destinationField: UInt8 {
+            get { UInt8(bits[56...63]) }
+            set { bits[56...63] = UInt64(newValue) }
+        }
     }
 }
 
@@ -256,13 +243,14 @@ fileprivate extension IOAPIC {
     func readWideRegister(_ register: UInt8) -> IORedirectionRegister {
         let lo = UInt64(readRegister(register))
         let hi = UInt64(readRegister(register + 1)) << 32
-        return IORedirectionRegister(hi | lo)
+        return IORedirectionRegister(rawValue: hi | lo)
     }
 
 
     func writeWideRegister(_ register: UInt8, data: IORedirectionRegister) {
-        writeRegister(register + 0, data: UInt32(data[0...31]))
-        writeRegister(register + 1, data: UInt32(data[32...63]))
+        let value = data.rawValue
+        writeRegister(register + 0, data: UInt32(value & 0xffff_ffff))
+        writeRegister(register + 1, data: UInt32(value >> 32))
     }
 
     var idRegister: IOAPICID {
