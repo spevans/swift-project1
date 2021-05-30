@@ -9,227 +9,171 @@
  */
 
 
-protocol PCIConfigAccessProtocol {
-    var busId: UInt8 { get }
+// For PIO access to PCI configuration space. PCI_CONFIG_DATA is a 32bit register so when reading BYTES or WORDs,
+// add the appropiate offset to the port address bytes: (offset & 3), words: (offset & 2).
+private let PCI_CONFIG_ADDRESS: UInt16 = 0xCF8
+private let PCI_CONFIG_DATA:    UInt16 = 0xCFC
 
-    // Size of the configuration space
-    var size: Int { get }
-    func readConfigByte(device: UInt8, function: UInt8, offset: UInt) -> UInt8
-    func readConfigWord(device: UInt8, function: UInt8, offset: UInt) -> UInt16
-    func readConfigDword(device: UInt8, function: UInt8, offset: UInt) -> UInt32
-    func writeConfigByte(device: UInt8, function: UInt8, offset: UInt, value: UInt8)
-    func writeConfigWord(device: UInt8, function: UInt8, offset: UInt, value: UInt16)
-    func writeConfigDword(device: UInt8, function: UInt8, offset: UInt, value: UInt32)
-}
+enum PCIConfigSpace: CustomStringConvertible {
+    case pio(baseAddress: UInt32)
+    case mmio(mmioRegion: MMIORegion)
+    case bytes([UInt8])
 
-
-struct PCIConfigSpace {
-    let pciConfigAccess: PCIConfigAccessProtocol
-    let device:     UInt8
-    let function:   UInt8
-    var busId:      UInt8 { pciConfigAccess.busId }
 
     init(busId: UInt8, device: UInt8, function: UInt8) {
-        self.device = device
-        self.function = function
-
         let mcfgTable = system.deviceManager.acpiTables.mcfg
         if let mmioBaseAddress = mcfgTable?.baseAddressFor(bus: busId) {
-            pciConfigAccess = PCIMMIOConfigAccess(busId: busId, mmiobase: mmioBaseAddress)
+            let regionAddress = mmioBaseAddress + (UInt(device) << 15 | UInt(function) << 12)
+            let pageRange = PhysPageRange(regionAddress, pageSize: 4096, pageCount: 1)
+            print("PCIConfigSpace, mapping regions @ \(pageRange) for base address \(mmioBaseAddress), bus: \(busId), \(device)/\(function) => \(regionAddress)")
+            self = .mmio(mmioRegion: mapIORegion(region: pageRange))
         } else {
-            pciConfigAccess = PCIPIOConfigAccess(busId: busId)
+            self = .pio(baseAddress: UInt32(busId) << 16 | 0x80000000)
         }
     }
 
-
-    init(access: PCIConfigAccessProtocol, device: UInt8, function: UInt8) {
-        self.pciConfigAccess = access
-        self.device = device
-        self.function = function
+    func releaseMMIORegion() {
     }
 
-    func configSpaceFor(device newDevice: UInt8, function newFunction: UInt8) -> PCIConfigSpace {
-        // Check this is run on the 'base' PCIConfigSpace for the given bus
-        precondition(device == 0)
-        precondition(function == 0)
-        return PCIConfigSpace(access: pciConfigAccess, device: newDevice, function: newFunction)
+    var description: String {
+        switch self {
+            case .pio(let baseAddress): return String.sprintf("PCIBusPIO @ %8.8X", baseAddress)
+            case .mmio(let mmioRegion): return "PCIBusMMIO @ \(mmioRegion.physicalRegion.address)"
+            case .bytes(let data): return "TestData \(data.count) bytes"
+        }
     }
 
-
-    // Reading
-    func readConfigByte(atByteOffset offset: UInt) -> UInt8 {
-        return pciConfigAccess.readConfigByte(device: device, function: function, offset: offset)
+    var size: Int {
+        switch self {
+            case .pio: return 256
+            case .mmio: return 4096
+            case .bytes(let array): return array.count
+            }
     }
 
-    func readConfigWord(atByteOffset offset: UInt) -> UInt16 {
+    private func setPIOConfigAddress(baseAddress: UInt32, device: UInt8, function: UInt8, offset: UInt) {
+        let address = baseAddress | UInt32(device) << 11 | UInt32(function) << 8 | UInt32(offset & 0xfc)
+        outl(PCI_CONFIG_ADDRESS, address)
+    }
+
+    func readConfigByte(device: UInt8, function: UInt8, offset: UInt) -> UInt8 {
+        switch self {
+            case .pio(let baseAddress):
+                precondition(offset < 256)
+                return noInterrupt {
+                    setPIOConfigAddress(baseAddress: baseAddress, device: device, function: function, offset: offset)
+                    return inb(PCI_CONFIG_DATA + UInt16(offset & 0x3))
+                }
+
+            case .mmio(let mmioRegion):
+                precondition(offset < 4096)
+                return mmioRegion.read(fromByteOffset: Int(offset))
+
+            case .bytes(let data):
+                return data[Int(offset)]
+        }
+    }
+
+    func readConfigWord(device: UInt8, function: UInt8, offset: UInt) -> UInt16 {
         if offset & UInt(0x1) != 0 {
             fatalError("PCIConfigSpace.readConfigWord(device: \(String(device, radix: 16)), function: \(String(function, radix: 16)), offset: \(String(offset, radix: 16))")
         }
-        return pciConfigAccess.readConfigWord(device: device, function: function, offset: offset)
+        switch self {
+            case .pio(let baseAddress):
+            precondition(offset < 256)
+            return noInterrupt {
+                setPIOConfigAddress(baseAddress: baseAddress, device: device, function: function, offset: offset)
+                return inw(PCI_CONFIG_DATA + UInt16(offset & 0x2))
+            }
+
+            case .mmio(let mmioRegion):
+                precondition(offset < 4096)
+                return mmioRegion.read(fromByteOffset: Int(offset))
+
+            case .bytes(let data):
+                return UInt16(littleEndianBytes: data[Int(offset)...])
+
+        }
     }
 
-    func readConfigDword(atByteOffset offset: UInt) -> UInt32 {
+    func readConfigDword(device: UInt8, function: UInt8, offset: UInt) -> UInt32 {
         if offset & UInt(0x3) != 0 {
             fatalError("PCIConfigSpace.readConfigDword(device: \(String(device, radix: 16)), function: \(String(function, radix: 16)), offset: \(String(offset, radix: 16))")
         }
-        return pciConfigAccess.readConfigDword(device: device, function: function, offset: offset)
+        switch self {
+            case .pio(let baseAddress):
+            precondition(offset < 256)
+            return noInterrupt {
+                setPIOConfigAddress(baseAddress: baseAddress, device: device, function: function, offset: offset)
+                return inl(PCI_CONFIG_DATA)
+            }
+
+            case .mmio(let mmioRegion):
+                precondition(offset < 4096)
+                return mmioRegion.read(fromByteOffset: Int(offset))
+
+            case .bytes(let data):
+                return UInt32(littleEndianBytes: data[Int(offset)...])
+        }
     }
 
+    func writeConfigByte(device: UInt8, function: UInt8, offset: UInt, value: UInt8) {
+        switch self {
+            case .pio(let baseAddress):
+            precondition(offset < 256)
+            return noInterrupt {
+                setPIOConfigAddress(baseAddress: baseAddress, device: device, function: function, offset: offset)
+                outb(PCI_CONFIG_DATA + UInt16(offset & 0x3), value)
+            }
 
-    // Writing
-    func writeConfigByte(atByteOffset offset: UInt, value: UInt8) {
-        pciConfigAccess.writeConfigByte(device: device, function: function, offset: offset, value: value)
+            case .mmio(let mmioRegion):
+                precondition(offset < 4096)
+                mmioRegion.write(value: value, toByteOffset: Int(offset))
+
+            case .bytes:
+                fatalError()
+        }
     }
 
-    func writeConfigWord(atByteOffset offset: UInt, value: UInt16) {
+    func writeConfigWord(device: UInt8, function: UInt8, offset: UInt, value: UInt16) {
         if offset & UInt(0x1) != 0 {
             fatalError("PCIConfigSpace.writeConfigWord(device: \(String(device, radix: 16)), function: \(String(function, radix: 16)), offset: \(String(offset, radix: 16))")
         }
-        pciConfigAccess.writeConfigWord(device: device, function: function, offset: offset, value: value)
+        switch self {
+            case .pio(let baseAddress):
+            precondition(offset < 256)
+            return noInterrupt {
+                setPIOConfigAddress(baseAddress: baseAddress, device: device, function: function, offset: offset)
+                outw(PCI_CONFIG_DATA + UInt16(offset & 0x2), value)
+            }
+
+            case .mmio(let mmioRegion):
+                precondition(offset < 4096)
+                mmioRegion.write(value: value, toByteOffset: Int(offset))
+
+            case .bytes:
+                fatalError()
+        }
     }
 
-    func writeConfigDword(atByteOffset offset: UInt, value: UInt32) {
+    func writeConfigDword(device: UInt8, function: UInt8, offset: UInt, value: UInt32) {
         if offset & UInt(0x3) != 0 {
             fatalError("PCIConfigSpace.writeConfigDword(device: \(String(device, radix: 16)), function: \(String(function, radix: 16)), offset: \(String(offset, radix: 16))")
         }
-        pciConfigAccess.writeConfigDword(device: device, function: function, offset: offset, value: value)
-    }
-}
-
-
-extension PCIConfigSpace {
-    fileprivate struct PCIMMIOConfigAccess: PCIConfigAccessProtocol, CustomStringConvertible {
-        private let baseAddress: VirtualAddress
-        let busId: UInt8
-        let size = 4096
-
-        var description: String { String.sprintf("PCIBusMMIO @ %p", baseAddress) }
-
-        init(busId: UInt8, mmiobase: PhysAddress) {
-            self.busId = busId
-            let address = mmiobase.advanced(by: UInt(busId) << 20)
-            baseAddress = address.vaddr
-        }
-
-        private func configAddress(device: UInt8, function: UInt8, offset: UInt) -> UnsafeMutableRawPointer {
-            precondition(offset < 4096)
-            let address = baseAddress | UInt(device) << 15 | UInt(function) << 12 | (offset & 0xfff)
-            return UnsafeMutableRawPointer(bitPattern: address)!
-        }
-
-
-        // Reading
-        func readConfigByte(device: UInt8, function: UInt8, offset: UInt) -> UInt8 {
-            let address = configAddress(device: device, function: function, offset: offset)
-            return address.load(as: UInt8.self)
-        }
-
-        func readConfigWord(device: UInt8, function: UInt8, offset: UInt) -> UInt16 {
-            precondition(offset & 0x1 == 0)
-            let address = configAddress(device: device, function: function, offset: offset)
-            return address.load(as: UInt16.self)
-        }
-
-        func readConfigDword(device: UInt8, function: UInt8, offset: UInt) -> UInt32 {
-            precondition(offset & 0x3 == 0)
-            let address = configAddress(device: device, function: function, offset: offset)
-            return address.load(as: UInt32.self)
-        }
-
-        // Writing
-        func writeConfigByte(device: UInt8, function: UInt8, offset: UInt, value: UInt8) {
-            let address = configAddress(device: device, function: function, offset: offset)
-            print("PCIMMIO.writeConfigByte 0x\(String(address.address, radix: 16)) = \(value)")
-            address.storeBytes(of: value, as: UInt8.self)
-        }
-
-        func writeConfigWord(device: UInt8, function: UInt8, offset: UInt, value: UInt16) {
-            precondition(offset & 0x1 == 0)
-            let address = configAddress(device: device, function: function, offset: offset)
-            print("PCIMMIO.writeConfigByte 0x\(String(address.address, radix: 16)) = \(value)")
-            address.storeBytes(of: value, as: UInt16.self)
-        }
-
-        func writeConfigDword(device: UInt8, function: UInt8, offset: UInt, value: UInt32) {
-            precondition(offset & 0x3 == 0)
-            let address = configAddress(device: device, function: function, offset: offset)
-            print("PCIMMIO.writeConfigByte 0x\(String(address.address, radix: 16)) = \(value)")
-            address.storeBytes(of: value, as: UInt32.self)
-        }
-    }
-
-
-    fileprivate struct PCIPIOConfigAccess: PCIConfigAccessProtocol, CustomStringConvertible {
-        private let PCI_CONFIG_ADDRESS: UInt16 = 0xCF8
-        private let PCI_CONFIG_DATA:    UInt16 = 0xCFC
-        private let baseAddress: UInt32
-        let busId: UInt8
-        let size = 256
-
-        var description: String {
-            return String.sprintf("PCIBusPIO @ %8.8X", baseAddress)
-        }
-
-
-        init(busId: UInt8) {
-            self.busId = busId
-            baseAddress = UInt32(busId) << 16 | 0x80000000;
-        }
-
-        private func setConfigAddress(device: UInt8, function: UInt8, offset: UInt) {
+        switch self {
+            case .pio(let baseAddress):
             precondition(offset < 256)
-            let address = baseAddress | UInt32(device) << 11 | UInt32(function) << 8 | UInt32(offset & 0xfc)
-            outl(PCI_CONFIG_ADDRESS, address)
-        }
-
-
-        // Reading
-        func readConfigByte(device: UInt8, function: UInt8, offset: UInt) -> UInt8 {
             return noInterrupt {
-                setConfigAddress(device: device, function: function, offset: offset)
-                return inb(PCI_CONFIG_DATA + UInt16(offset & 0x3))
+                setPIOConfigAddress(baseAddress: baseAddress, device: device, function: function, offset: offset)
+                outl(PCI_CONFIG_DATA, value)
             }
-        }
 
-        func readConfigWord(device: UInt8, function: UInt8, offset: UInt) -> UInt16 {
-            precondition(offset & 0x1 == 0)
-            return noInterrupt {
-                setConfigAddress(device: device, function: function, offset: offset)
-                return inw(PCI_CONFIG_DATA + UInt16(offset & 0x2))
-            }
-        }
+            case .mmio(let mmioRegion):
+                precondition(offset < 4096)
+                mmioRegion.write(value: value, toByteOffset: Int(offset))
 
-        func readConfigDword(device: UInt8, function: UInt8, offset: UInt) -> UInt32 {
-            precondition(offset & 0x3 == 0)
-            return noInterrupt {
-                setConfigAddress(device: device, function: function, offset: offset)
-                return inl(PCI_CONFIG_DATA)
-            }
-        }
-
-
-        // Writing
-        func writeConfigByte(device: UInt8, function: UInt8, offset: UInt, value: UInt8) {
-            return noInterrupt {
-                setConfigAddress(device: device, function: function, offset: offset)
-                return outb(PCI_CONFIG_DATA + UInt16(offset & 0x3), value)
-            }
-        }
-
-        func writeConfigWord(device: UInt8, function: UInt8, offset: UInt, value: UInt16) {
-            precondition(offset & 0x1 == 0)
-            return noInterrupt {
-                setConfigAddress(device: device, function: function, offset: offset)
-                return outw(PCI_CONFIG_DATA + UInt16(offset & 0x2), value)
-            }
-        }
-
-        func writeConfigDword(device: UInt8, function: UInt8, offset: UInt, value: UInt32) {
-            precondition(offset & 0x3 == 0)
-            return noInterrupt {
-                setConfigAddress(device: device, function: function, offset: offset)
-                return outl(PCI_CONFIG_DATA, value)
-            }
+            case .bytes:
+                fatalError()
         }
     }
 }

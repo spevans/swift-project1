@@ -10,29 +10,35 @@
 
 
 final class PCIHostBus: Device, CustomStringConvertible {
-    let pciBus: PCIBus                  // The bus (downstream) side of the bridge
+    private(set) var pciBus: PCIBus?                  // The bus (downstream) side of the bridge
+    var enabled = false
 
     unowned let parentBus: Bus
     let acpiDevice: AMLDefDevice?
     let fullName: String
-    let deviceFunction: PCIDeviceFunction       // The device (upstream) side of the bridge
-    var enabled = true
+    let busId: UInt8
 
-    var deviceDriver: DeviceDriver? { pciBus as DeviceDriver }
-    var description: String { "PCI Host BUS \(deviceFunction.description) \(acpiDevice?.fullname() ?? "")" }
+    var deviceDriver: DeviceDriver? {
+        // FIXME, why isnt this just pciBus as? DeviceDriver ??
+        guard let bus = pciBus else { return nil }
+        return bus as DeviceDriver
+    }
 
+    var description: String {
+        let desc = pciBus?.description ?? "not initialised"
+        return "Host BUS \(desc)"
+    }
 
-    init(parentBus: Bus, deviceFunction: PCIDeviceFunction, acpiDevice: AMLDefDevice) {
-        guard deviceFunction.deviceClass?.bridgeSubClass == .host else {
-            fatalError("bridgeDevice is nil or not a Host-PCI bridge \(deviceFunction)")
-        }
-
+    init(parentBus: Bus, busId: UInt8, acpiDevice: AMLDefDevice) {
         self.parentBus = parentBus
         self.acpiDevice = acpiDevice
         self.fullName = acpiDevice.fullname()
-        self.deviceFunction = deviceFunction
-        let configSpace = PCIConfigSpace(busId: 0, device: 0, function: 0)
-        self.pciBus = PCIBus(parentBus: parentBus, pciConfigSpace: configSpace, deviceFunction: deviceFunction, acpiDevice: acpiDevice)
+        self.busId = busId
+    }
+
+    func addBus() {
+        self.pciBus = PCIBus(busId: busId, device: self, acpiDevice: acpiDevice!)
+
     }
 
     func setDriver(_ driver: DeviceDriver) {
@@ -40,54 +46,54 @@ final class PCIHostBus: Device, CustomStringConvertible {
         fatalError("PCIHostBus already has a driver")
     }
 
-    func initialiseDevice() {
-        pciBus.initialiseDevice()
+    func initialiseDevice() -> Bool {
+        guard let acpi = acpiDevice, acpi.initialiseIfPresent() else {
+            return false
+        }
+        self.enabled = true
+        return true
     }
 }
 
 
 final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
-    private let deviceFunction: PCIDeviceFunction
-    private let acpiDevice: AMLDefDevice?
+    private unowned let device: Device
     let interruptRoutingTable: PCIRoutingTable?
-    unowned let parentBus: Bus
-
+    let busId: UInt8
     var resources: [MotherBoardResource] = []
     let pciConfigSpace: PCIConfigSpace
 
+    var pciDevice: PCIDevice? { device as? PCIDevice }
+    var parentBus: Bus? { device.parentBus }
+    var acpiDevice: AMLDefDevice? { device.acpiDevice }
+
     private(set) var devices: [Device] = []
-    var busId: UInt8 { pciConfigSpace.busId }
-    var slot: UInt8 { deviceFunction.slot }
-    var description: String { "PCIBus: \(pciConfigSpace) busId: \(pciConfigSpace.busId) \(deviceFunction.description) \(acpiDevice?.fullname() ?? "")" }
+    var slot: UInt8? { pciDevice?.deviceFunction.slot }
+    var description: String { "PCIBus: busId: \(asHex(busId)) \(acpiDevice?.fullname() ?? "")" }
 
+    // Root Bus
+    init(busId: UInt8, device: Device, acpiDevice: AMLDefDevice) {
+        self.busId = busId
+        self.device = device
+        self.pciConfigSpace = PCIConfigSpace(busId: busId, device: 0, function: 0)
 
-    fileprivate init(parentBus: Bus, pciConfigSpace: PCIConfigSpace, deviceFunction: PCIDeviceFunction, acpiDevice: AMLDefDevice? = nil) {
-        self.pciConfigSpace = pciConfigSpace
-        self.deviceFunction = deviceFunction
-        self.acpiDevice = acpiDevice
-        self.parentBus = parentBus
-
-        if let acpi = acpiDevice {
-            interruptRoutingTable = PCIRoutingTable(acpi: acpi)
-        } else {
-            print("PCIBus: \(pciConfigSpace) has no ACPI device")
-            interruptRoutingTable = nil
-        }
+        let name = device.acpiDevice?.fullname() ?? "no name"
+        print("PCIBus.init \(name): busId: \(busId)")
+        // FIXME: Determine if root bus
+        interruptRoutingTable = PCIRoutingTable(acpi: acpiDevice)
+        print("PCIBus.init:", self.description)
     }
 
     init?(pciDevice: PCIDevice) {
-
+        // FIXME for PCI express root port
         guard let busClass = pciDevice.deviceFunction.deviceClass?.bridgeSubClass, busClass == .pci else {
             print("PCIBus: \(pciDevice) is not a PCI-PCI Bridge")
             return nil
         }
-
-        let configSpace = PCIConfigSpace(busId: pciDevice.deviceFunction.bridgeDevice!.secondaryBusId, device: 0, function: 0)
-        self.pciConfigSpace = configSpace
-        self.deviceFunction = pciDevice.deviceFunction
-        self.acpiDevice = pciDevice.acpiDevice
-        interruptRoutingTable = nil
-        self.parentBus = pciDevice.parentBus
+        self.busId = pciDevice.deviceFunction.bridgeDevice!.secondaryBusId
+        self.device = pciDevice
+        self.pciConfigSpace = PCIConfigSpace(busId: busId, device: 0, function: 0)
+        self.interruptRoutingTable = nil
     }
 
     // Non PCI Devices (eg ACPIDevice) may get added to this bus as it is in the ACPI device tree under a PCI bus
@@ -95,14 +101,20 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
         devices.append(device)
     }
 
-    func initialiseDevice() {
-        // Look for devices in ACPI tree
-        initialiseDevices(acpiDevice: acpiDevice)
+    func initialise() -> Bool {
+        print("PCIBus.initialiseDevice:", self)
+        if let device = pciDevice {
+            guard device.initialiseDevice() else { return false }
+        }
         // Scan PCI bus for any remaining devices
         for deviceFunction in scanBus() {
+            print("Adding \(deviceFunction)")
             if let device = self.device(deviceFunction: deviceFunction, acpiDevice: acpiDevice) {
                 addDevice(device)
+            } else {
+                print("PCIBus: Could not add \(deviceFunction)")
             }
+
         }
         devices.sort {
             let dev0 = $0 as? PCIDevice
@@ -117,6 +129,7 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
                 return $0.fullName < $1.fullName
             }
         }
+        return true
     }
 
     // Find PCI Devices matching a specific classCode and optional subClassCode and progInterface
@@ -142,17 +155,21 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
     }
 
 
-    func device(acpiDevice: AMLDefDevice, pnpName: String? = nil) -> Device? {
+    func device(acpiDevice: AMLDefDevice) -> Device? {
         // Is it a normal PCI Device
-        if let address = acpiDevice.addressResource() {
+        if let address = acpiDevice.addressResource() {// (address >> 16) != 0 { // _ADR slot == 0 is either the Root PCI bus or not a PCI device
             guard let deviceFunction = PCIBus.pciDeviceFunctionFor(address: address, withBusId: self.busId) else {
                 // Inactive or missing PCI device
                 return nil
             }
             return device(deviceFunction: deviceFunction, acpiDevice: acpiDevice)
-        } else if let pnpName = pnpName {
-            return ACPIDevice(parentBus: self, pnpName: pnpName, acpiDevice: acpiDevice)
+        }
+
+        let pnpName = acpiDevice.deviceId
+        if let pnpName = pnpName {
+            return PNPDevice(parentBus: self, acpiDevice: acpiDevice, pnpName: pnpName)
         } else {
+            let pnpName = acpiDevice.pnpName()
             print("PCI: Cant add device \(acpiDevice.fullname()) with pnpName:", pnpName ?? "nil")
             return nil
         }
@@ -169,30 +186,26 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
             switch busClass {
                 case .isa:
                     if let driver = ISABus(pciDevice: pciDevice) {
+                        print("ISABus setting driver")
                         pciDevice.setDriver(driver)
                     }
                     return pciDevice
 
                 case .host:
-                    print("PCI: Error: Found a PCI Host bus on a PCI bus, bridgeDevice:", deviceFunction.bridgeDevice as Any)
-                    print(pciDevice)
+                    // FIXME - this could be a PCIExpress Root bus
+                    print("PCI: Error: Found a PCI Host bus \(pciDevice) on a PCI bus \(self), bridgeDevice:", deviceFunction.bridgeDevice as Any)
                     return nil
 
                 case .pci:
-                    let configSpace = PCIConfigSpace(busId: pciDevice.deviceFunction.bridgeDevice!.secondaryBusId, device: 0, function: 0)
-                    let driver = PCIBus(parentBus: self, pciConfigSpace: configSpace, deviceFunction: deviceFunction, acpiDevice: acpiDevice)
+                    guard let driver = PCIBus(pciDevice: pciDevice) else {
+                        print("PCI: Cant Crete PCBus from:", pciDevice)
+                        return nil
+                    }
                     pciDevice.setDriver(driver)
                     return pciDevice
 
                 default:
                     print("PCI Ignoring bus of type \(deviceFunction)")
-            }
-        }
-
-        if let driverType = pciDriverById(vendor: deviceFunction.vendor, device: deviceFunction.deviceId) {
-            print("Found driver type: \(driverType) for \(deviceFunction)")
-            if let driver = driverType.init(pciDevice: pciDevice) {
-                pciDevice.setDriver(driver)
             }
         }
 
@@ -205,7 +218,8 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
     static func pciDeviceFunctionFor(address: AMLInteger, withBusId busId: UInt8) -> PCIDeviceFunction? {
         let device = UInt8(address >> 16)
         let function = UInt8(truncatingIfNeeded: address)
-        return PCIDeviceFunction(busId: busId, device: device, function: function)
+        let deviceFunction = PCIDeviceFunction(busId: busId, device: device, function: function)
+        return deviceFunction.hasValidVendor ? deviceFunction : nil
     }
 
     // Scan the PCI bus for devices but ignore any that have already been added to the `devices` array by ACPI
@@ -224,31 +238,29 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
 
         var pciDeviceFunctions: [PCIDeviceFunction] = []
         for device: UInt8 in 0..<32 {
-            if pciConfigSpace.busId == 0 && device == deviceFunction.device {
-                print("PCI: scanbus: Skipping \(deviceFunction) PCIBus on busId: 0")
-                continue
-            }
-
             if let curDevices = currentPCIDevices[device], curDevices == 0 {
                 // Already found this non-multifunction device
                 continue
             }
             let currentFunctions = currentPCIDevices[device] ?? 0   // currentFuntions has bitX set where functionX is already known
 
-            if let pciDev = PCIDeviceFunction(bus: self, device: device, function: 0) {
-                if currentFunctions & 1 == 0 { // subFunctions() doesnt return function 0 so check it seperately.
+            let pciDev = PCIDeviceFunction(busId: busId, device: device, function: 0)
+            if pciDev.hasValidVendor {
+                // Doesnt return function 0 so check it seperately.
+                if currentFunctions & 1 == 0 {
                     pciDeviceFunctions.append(pciDev)
                 }
-                if let subFuncs = pciDev.subFunctions() {
-                    for dev in subFuncs {
-                        if (1 << dev.function) & currentFunctions == 0 {
+
+                if pciDev.hasSubFunction {
+                    for fidx: UInt8 in 1..<8 {
+                        let dev = PCIDeviceFunction(busId: busId, device: device, function: fidx)
+                        if dev.hasValidVendor,  (1 << dev.function) & currentFunctions == 0 {
                             pciDeviceFunctions.append(dev)
                         }
                     }
                 }
             }
         }
-
         return pciDeviceFunctions
     }
 }

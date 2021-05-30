@@ -7,18 +7,16 @@
 //
 
 import XCTest
-
+/*
 struct PCITestConfigSpace: PCIConfigAccessProtocol, CustomStringConvertible {
     private let data: [UInt8]
-    let busId: UInt8
     var size: Int { data.count }
 
     var description: String {
         "PCI Test data, \(data.count) bytes"
     }
 
-    init(busId: UInt8, bytes: [UInt8]) {
-        self.busId = busId
+    init(bytes: [UInt8]) {
         data = bytes
     }
 
@@ -45,7 +43,7 @@ struct PCITestConfigSpace: PCIConfigAccessProtocol, CustomStringConvertible {
     func writeConfigDword(device: UInt8, function: UInt8, offset: UInt, value: UInt32) {
         fatalError()
     }
-}
+}*/
 
 class PCITests: XCTestCase {
 
@@ -70,9 +68,11 @@ class PCITests: XCTestCase {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ]
 
-        let testConfig = PCITestConfigSpace(busId: 0, bytes: pciDump)
-        let configSpace = PCIConfigSpace(access: testConfig, device: 1, function: 0)
-        guard let deviceFunction = PCIDeviceFunction(busId: 0, configSpace: configSpace) else {
+//        let testConfig = PCITestConfigSpace(bytes: pciDump)
+//        let configSpace = PCIConfigSpace(access: testConfig, device: 1, function: 0)
+        let configSpace = PCIConfigSpace.bytes(pciDump)
+        let deviceFunction = PCIDeviceFunction(busId: 0, device: 1, function: 0, configSpace: configSpace)
+        guard deviceFunction.hasValidVendor else {
             XCTFail("Invalid PCIDeviceFunction")
             return
         }
@@ -83,7 +83,7 @@ class PCITests: XCTestCase {
             XCTFail("Cant find offset of MSI capability")
             return
         }
-        let msi = PCICapability.MSI(offset: msiOffset, configSpace: deviceFunction.configSpace)
+        let msi = PCICapability.MSI(offset: msiOffset, deviceFunction: deviceFunction)
         XCTAssertFalse(msi.messageControl.enabled)
         XCTAssertEqual(msi.messageControl.requestVectors, 1)
         XCTAssertTrue(msi.messageControl.is64Bit)
@@ -98,7 +98,7 @@ class PCITests: XCTestCase {
             XCTFail("Cant find offset of MSI-X capability")
             return
         }
-        let msix = PCICapability.MSIX(offset: msixOffset, configSpace: deviceFunction.configSpace)
+        let msix = PCICapability.MSIX(offset: msixOffset, deviceFunction: deviceFunction)
         print(msix.messageControl)
         XCTAssertEqual(msix.messageControl.tableSize, 2)
         XCTAssertFalse(msix.messageControl.functionMask)

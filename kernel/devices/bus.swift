@@ -11,7 +11,8 @@ protocol Bus: AnyObject {
     var devices: [Device] { get }
     var resources: [MotherBoardResource] { get set }
     func initialiseDevices(acpiDevice: AMLDefDevice?)
-    func device(acpiDevice: AMLDefDevice, pnpName: String?) -> Device?
+    func initialise() -> Bool
+    func device(acpiDevice: AMLDefDevice) -> Device?
     func addDevice(_ device: Device)
     func addResource(_ resource: MotherBoardResource)
 }
@@ -43,7 +44,7 @@ extension Bus {
             print(self, "No ACPI node, not calling initialiseDevices")
             return
         }
-        for (_, value) in acpi.childNodes {
+        for value in acpi.childNodes {
             if let device = value as? AMLDefDevice {
                 ACPI.processNode(parentBus: self, device)
             }
@@ -68,12 +69,12 @@ final class MasterBus: Bus {
         self.acpiSystemBus = acpiSystemBus
     }
 
-    func device(acpiDevice: AMLDefDevice, pnpName: String?) -> Device? {
-        guard let pnpName = pnpName else {
+    func device(acpiDevice: AMLDefDevice) -> Device? {
+        guard let pnpName = acpiDevice.deviceId else {
             print("MasterBus: cant add device \(acpiDevice.fullname()) with no pnpName")
             return nil
         }
-        return ACPIDevice(parentBus: self, pnpName: pnpName, acpiDevice: acpiDevice)
+        return PNPDevice(parentBus: self, acpiDevice: acpiDevice, pnpName: pnpName)
     }
 
     func addDevice(_ device: Device) {
@@ -93,7 +94,8 @@ final class MasterBus: Bus {
     }
 
 
-    func initialiseDevices(acpiDevice: AMLDefDevice?) {
+  //  func initialiseDevices(acpiDevice: AMLDefDevice?) {
+    func initialise() -> Bool {
         // Run \\_SB.INI() before initialising devices.
         do {
             try ACPI.invoke(method: "\\_SB._INI")
@@ -101,7 +103,7 @@ final class MasterBus: Bus {
             print("ACPI: Error running \\_SB.INI:", error)
         }
 
-        for (_, value) in acpiSystemBus.childNodes {
+        for value in acpiSystemBus.childNodes {
             if let device = value as? AMLDefDevice {
                 ACPI.processNode(parentBus: self, device)
             }
@@ -114,6 +116,7 @@ final class MasterBus: Bus {
             else if bus0 == nil && bus1 != nil { return false }
             else { return $0.fullName < $1.fullName }
         }
+        return true
     }
 }
 
@@ -122,20 +125,6 @@ extension ACPI {
     // Scan an ACPI Node for devices and add them to the parentBus
 
     static func processNode(parentBus: Bus, _ node: AMLDefDevice) {
-
-        let status = node.status()
-        if !status.present {
-            //print("DEV: Ignoring", node.fullname(), "as status present:", status.present, "enabled:", status.enabled)
-            return
-        }
-
-        do {
-            try node.initialise()
-        } catch {
-            print("ACPI: Error running _INI for", node.fullname(), error)
-            return
-        }
-
         var foundDevice: Device? = nil
         let deviceId = node.hardwareId() ?? node.pnpName()
 
@@ -156,12 +145,11 @@ extension ACPI {
                        deviceFunction.deviceClass?.classCode == .bridgeDevice {
 
                         foundDevice = pciBus.device(deviceFunction: deviceFunction, acpiDevice: node)
-                    } else {
-                        print("Cant add bridge: \(pnpName) onto bus: \(parentBus)")
                     }
 
                 case "PNP0A03", // PCI Host bridge
                      "PNP0A08": // PCIBus, PCI Express
+                    print("Found a PCI bridge")
                     guard let address = node.addressResource() else {
                         print("Cant get addressResource for \(node.fullname())")
                         return
@@ -169,6 +157,7 @@ extension ACPI {
 
                     // Get the Bus number
                     // FIXME: _BBN should be a method 'busNumbers()' on a DefDevice
+                    // FIXME: Add method to walk up the tree finding a given node by name
                     var busId: UInt8 = 0
                     var p: ACPI.ACPIObjectNode? = node
                     while let _node = p {
@@ -180,43 +169,53 @@ extension ACPI {
                         }
                         p = _node.parent
                     }
+                    print("Creating deviceFunction for address: \(address), busId: \(busId)")
+                    let dev = PCIHostBus(parentBus: parentBus, busId: busId, acpiDevice: node)
+                    dev.addBus()
+                    //_ = foundDevice?.initialiseDevice()
+                    print("Found a PCIHostBus:", dev)
+                    foundDevice = dev
 
-                    if let deviceFunction = PCIBus.pciDeviceFunctionFor(address: address, withBusId: busId), deviceFunction.deviceClass?.bridgeSubClass == .host {
-                        foundDevice = PCIHostBus(parentBus: parentBus, deviceFunction: deviceFunction, acpiDevice: node)
-                    } else {
-                        print("Cant add Host bridge \(pnpName), cant get device/function")
-                        return
-                    }
+                    #if false
 
                 case "PNP0C01", "PNP0C02":
-                    if let resource = MotherBoardResource(acpiDevice: node) {
-                        parentBus.addResource(resource)
-                    }
+                    break
+//                   if let resource = MotherBoardResource(acpiDevice: node) {
+//                        parentBus.addResource(resource)
+//                    }
 
                 case "PNP0A05", "PNP0A06", "ACPI0004":  // Generic Container
-                    if let resource = MotherBoardResource(acpiDevice: node) {
-                        parentBus.addResource(resource)
-                    }
+                    // FIXME: Add this into the device initialisation
+                    //if let resource = MotherBoardResource(acpiDevice: node) {
+                    //    parentBus.addResource(resource)
+                    //}
+
+
+
                     // Look for subdevices
-                    for (_, value) in node.childNodes {
+                    for value in node.childNodes {
                         if let device = value as? AMLDefDevice {
                             ACPI.processNode(parentBus: parentBus, device)
                         }
                     }
+                    #endif
 
                 default:
-                    foundDevice = parentBus.device(acpiDevice: node, pnpName: pnpName)
+                    foundDevice = parentBus.device(acpiDevice: node)
             }
-        } else if let device = parentBus.device(acpiDevice: node, pnpName: nil) {
-            foundDevice = device
+        } else {
+            if let device = parentBus.device(acpiDevice: node) {
+                foundDevice = device
+            }
         }
 
         if let device = foundDevice {
-            device.enabled = status.enabled
+            node.setDevice(device)
             parentBus.addDevice(device)
-            if status.enabled {
-                device.enabled = true
-                device.initialiseDevice()
+
+            if let driver = device.deviceDriver as? Bus {
+                print("\(driver) \(node.fullname()) driver is a Bus")
+                driver.initialiseDevices(acpiDevice: node)
             }
         }
     }

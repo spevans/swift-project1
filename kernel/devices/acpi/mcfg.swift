@@ -86,7 +86,8 @@ struct MCFG: ACPITable {
     func baseAddressFor(bus: UInt8) -> PhysAddress? {
         for entry in allocations {
             if bus >= entry.startBus && bus <= entry.endBus {
-                return entry.baseAddress
+                let offset = UInt(bus - entry.startBus) << 20
+                return entry.baseAddress + offset
             }
         }
 

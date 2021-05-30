@@ -74,8 +74,6 @@ func outl(_ port: UInt16, _ value: UInt32) {
     ioSpace[index + 3] = UInt8(truncatingIfNeeded: value >> 24)
 }
 
-protocol Device: AnyObject {}
-
 func noInterrupt<Result>(_ task: () -> Result) -> Result {
     let result: Result = task()
     return result

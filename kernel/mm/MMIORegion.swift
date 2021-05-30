@@ -28,6 +28,10 @@ struct MMIORegion: CustomStringConvertible {
     @inline(__always)
     func read<T: FixedWidthInteger & UnsignedInteger>(fromByteOffset offset: Int) -> T {
         let bytes = T.bitWidth / 8
+
+        if offset + bytes > physicalRegion.regionSize {
+            fatalError("MMIORegion.read: offset \(offset) + bytes \(bytes) > regionSize \(physicalRegion.regionSize)")
+        }
         precondition(offset + bytes <= physicalRegion.regionSize)
         let address = UnsafeRawPointer(bitPattern: virtualAddress + UInt(offset))
         switch bytes {
@@ -42,6 +46,9 @@ struct MMIORegion: CustomStringConvertible {
     @inline(__always)
     func write<T: FixedWidthInteger & UnsignedInteger>(value: T, toByteOffset offset: Int) {
         let bytes = T.bitWidth / 8
+        if offset + bytes > physicalRegion.regionSize {
+            fatalError("MMIORegion.read: offset \(offset) + bytes \(bytes) > regionSize \(physicalRegion.regionSize)")
+        }
         precondition(offset + bytes <= physicalRegion.regionSize)
         let address = UnsafeMutableRawPointer(bitPattern: virtualAddress + UInt(offset))
         switch bytes {

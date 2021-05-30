@@ -41,6 +41,8 @@ final class USB: Bus {
 
     }
 
+    func initialise() -> Bool { return true }
+
     func initialiseDevices(acpiDevice: AMLDefDevice? = nil) {
 
         guard let  rootPCIBus = system.deviceManager.masterBus.rootPCIBus() else {
@@ -86,7 +88,7 @@ final class USB: Bus {
     }
 
     // Bus Protocol
-    func device(acpiDevice: AMLDefDevice, pnpName: String?) -> Device? { return nil }
+    func device(acpiDevice: AMLDefDevice) -> Device? { return nil }
     func addDevice(_ device: Device) {}
     func addResource(_ resource: MotherBoardResource) {}
 

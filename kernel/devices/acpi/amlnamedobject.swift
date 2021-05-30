@@ -55,7 +55,7 @@ final class AMLDefDevice: AMLNamedObj, CustomStringConvertible {
     // DeviceOp PkgLength NameString TermList
     //let name: AMLNameString
     let value: AMLTermList
-    private(set) weak var device: Device? = nil
+    private(set) var device: Device? = nil
 
     var description: String {
         var result = "ACPI Device:"
@@ -73,7 +73,6 @@ final class AMLDefDevice: AMLNamedObj, CustomStringConvertible {
     }
 
     func setDevice(_ device: Device) {
-        print("Adding \(device) to \(fullname())")
         if let curDevice = self.device {
             fatalError("\(fullname()) already has a device \(curDevice), cant set to \(device)")
         }
@@ -95,6 +94,24 @@ final class AMLDefDevice: AMLNamedObj, CustomStringConvertible {
         guard let ini = childNode(named: "_INI") as? AMLMethod else { return }
         var context = ACPI.AMLExecutionContext(scope: AMLNameString(ini.fullname()))
         try ini.execute(context: &context)
+    }
+
+    func initialiseIfPresent() -> Bool {
+        let status = self.status()
+        if !status.present {
+            print("DEV: Ignoring", self.fullname(), "as status present:", status.present, "enabled:", status.enabled)
+            return false
+        }
+        do {
+            print("ACPI: calling \(self.fullname())._INI")
+            try self.initialise()
+        } catch {
+            print("ACPI: Error running _INI for", self.fullname(), error)
+            return false
+        }
+        let newStatus = self.status()
+        print("initialiseIfPresent:", newStatus.enabled)
+        return newStatus.enabled
     }
 
     func currentResourceSettings() -> [AMLResourceSetting]? {
@@ -131,6 +148,8 @@ final class AMLDefDevice: AMLNamedObj, CustomStringConvertible {
         return decodeResourceData(buffer)
     }
 
+    // _CID or _HID, uses for PNP
+    lazy var deviceId: String? = { hardwareId() ?? pnpName() }()
 
     func hardwareId() -> String? {
         guard let hid = childNode(named: "_HID") else {
@@ -678,7 +697,7 @@ struct SystemIO: OpRegionSpace, CustomStringConvertible {
 
 
 private struct PCIConfigRegionSpace: OpRegionSpace, CustomStringConvertible {
-    let config: PCIConfigSpace
+    let config: PCIDeviceFunction
     let offset: UInt
     let length: Int
 
@@ -686,7 +705,7 @@ private struct PCIConfigRegionSpace: OpRegionSpace, CustomStringConvertible {
         return "PCIConfigSpace: offset: 0x\(String(offset, radix: 16)), length: \(length)"
     }
 
-    init(config: PCIConfigSpace, offset: AMLInteger, length: AMLInteger) {
+    init(config: PCIDeviceFunction, offset: AMLInteger, length: AMLInteger) {
         precondition(length > 0)
         precondition(offset + length <= 256)
 
@@ -788,29 +807,32 @@ final class AMLDefOpRegion: AMLNamedObj, CustomStringConvertible {
                 regionSpace = SystemIO(port: regionOffset, length: regionLength)
 
             case .pciConfig:
-                guard let dev = self.parent as? AMLDefDevice else {
-                    fatalError("\(parent!.fullname()) is not am AMLDefDevice")
-                }
-
-                guard let adr = dev.addressResource() else {
-                    fatalError("Cant get addressResource for \(dev.fullname())")
-                }
-
-                var busId: UInt8 = 0
-                var p: ACPI.ACPIObjectNode? = dev
-                while let node = p {
-                    if let bbnNode = node.childNode(named: "_BBN") as? AMLNamedValue {
-                        let bbnValue = bbnNode.value.integerValue!
-                        busId = UInt8(bbnValue)
-                        break
+                var node: AMLNamedObj? = self
+                var configSpace: PCIDeviceFunction?
+                while let n2 = node {
+                    if let device = (n2 as? AMLDefDevice)?.device {
+                        if let pciDevice = device as? PCIDevice {
+                            configSpace = pciDevice.deviceFunction
+                            break
+                        } else if let pciHostBus = device as? PCIHostBus {
+                            guard let pciBusDevice = pciHostBus.pciBus?.pciDevice else {
+                                fatalError("\(self.fullname()) does not have a PCI Device")
+                            }
+                            configSpace = pciBusDevice.deviceFunction
+                            break
+                        } else {
+                            fatalError("\(device): is not PCI but a \(type(of: device))")
+                        }
                     }
-                    p = node.parent
+                    node = node?.parent
                 }
 
-                let device = UInt8(adr >> 16)
-                let function = UInt8(truncatingIfNeeded: adr)
-                let configSpace = PCIConfigSpace(busId: busId, device: device, function: function)
-                regionSpace = PCIConfigRegionSpace(config: configSpace, offset: regionOffset, length: regionLength)
+                if let configSpace = configSpace {
+                    print("\(self.fullname()): Using \(configSpace) for PCI_Region")
+                    regionSpace = PCIConfigRegionSpace(config: configSpace, offset: regionOffset, length: regionLength)
+                } else {
+                    fatalError("ACPI: Cant determine PCI_Region for \(self)")
+                }
 
             case .embeddedControl:
                 regionSpace = EmbeddedControlRegionSpace(offset: regionOffset, length: regionLength)

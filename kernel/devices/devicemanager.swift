@@ -50,6 +50,11 @@ final class DeviceManager {
                 return
             }
 
+            guard pnpDevice.initialiseDevice() else {
+                print("PNP: Cant initialise \(pnpDevice.pnpName)")
+                return
+            }
+
             guard let driver = driverType.init(pnpDevice: pnpDevice) else {
                 print("PNP: Cant init \(pnpDevice.pnpName) with driver:", driverType)
                 return
@@ -57,7 +62,6 @@ final class DeviceManager {
 
             print("Found early PNP device: \(driverType) on \(pnpDevice)")
             pnpDevice.setDriver(driver)
-            pnpDevice.acpiDevice?.setDevice(pnpDevice)
             system.deviceManager.addDevice(driver)
         }
     }
@@ -69,14 +73,43 @@ final class DeviceManager {
     func initialiseEarlyDevices() {
         print("initialiseEarlyDevices start")
         interruptManager.enableGpicMode()
-        masterBus.initialiseDevices(acpiDevice: nil)
+
+        // Step 1. Assign a Device (PCIDevice, PNPDevice) to every ACPI AMLDefDevice Node
+        // Devices arent initialised except for Buses/Bridges which are needed to allow the Devices under them
+        // to have the correct resource (esp PCIDevices)
+        //masterBus.initialiseDevices(acpiDevice: nil)
+        _ = masterBus.initialise()
+
+        // Step 2.
+        // Check that every AMLDefDevice in the ACPI tree has a Device set
+        masterBus.acpiSystemBus.walkNode { (name, object) in
+            guard let amldev = object as? AMLDefDevice else { return }
+            if let device = amldev.device {
+                print("DEV: \(name): \(device)")
+            } else {
+                print("DEV: \(name) has no device set")
+            }
+        }
+
+        // Step 3:
+        // Walk the device tree and for any Buses, call initialiseDevice() to allow
+        // the underlying hardware to be setup correectly (calling ._INI) and also
+        // scan the buss for extra devices not in ACPI (eg on PCI busses)
+        walkDeviceTree() { device in
+            if let bus = device.deviceDriver as? Bus {
+                print("DEV: Secondary initialisation of \(bus)")
+                if !bus.initialise() {
+                    print("DEV: Failed to initialise \(bus)")
+                }
+            }
+        }
+
         dumpPNPDevices()
         findPNPDevice(withName: "PNP0100")  // Look for a PIT timer and add to device tree if found
         findPNPDevice(withName: "PNP0C0F")  // PCI Interrupt Link Devices
         guard setupPeriodicTimer() else {
             koops("Cant find a timer to use for periodic clock")
         }
-        print("initialiseEarlyDevices done")
     }
 
     // Setup the rest of the devices.
@@ -85,14 +118,20 @@ final class DeviceManager {
         // Now load device drivers for any known devices, ISA/PNP first
         func initPnpDevices(on bus: Bus) {
             for device in bus.devices {
-                if let pnpDevice = device as? ISADevice, device.deviceDriver == nil {
-                    if let driverType = pnpDriverById(pnpName: pnpDevice.pnpName), let driver = driverType.init(pnpDevice: pnpDevice) {
-                        pnpDevice.setDriver(driver)
-                        pnpDevice.acpiDevice?.setDevice(pnpDevice)
-                        system.deviceManager.addDevice(driver)
+                if let pnpDevice = device as? PNPDevice, device.deviceDriver == nil {
+                    if let driverType = pnpDriverById(pnpName: pnpDevice.pnpName) {
+                        if pnpDevice.initialiseDevice(),
+                           let driver = driverType.init(pnpDevice: pnpDevice) {
+                            pnpDevice.setDriver(driver)
+                            system.deviceManager.addDevice(driver)
+                        } else {
+                            print("Couldnt initialise device")
+                        }
+                    } else {
+                        print("Cant find driver for:", pnpDevice.pnpName)
                     }
                 }
-                if let bus = device.deviceDriver as? Bus {
+                else if let bus = device.deviceDriver as? Bus {
                     initPnpDevices(on: bus)
                 }
             }
@@ -124,7 +163,9 @@ final class DeviceManager {
     private func dumpBus(_ bus: Bus, depth: Int) {
         let spaces = String(repeating: " ", count: depth * 6)
         for device in bus.devices {
-            print("\(spaces)+--- \(device)")
+            var driverName = ""
+            if let driver = device.deviceDriver { driverName = ": [\(driver)]" }
+            print("\(spaces)+--- \(device)\(driverName)")
             if let bus = device.deviceDriver as? Bus {
                 dumpBus(bus, depth: depth + 1)
             }
@@ -143,24 +184,29 @@ final class DeviceManager {
         }
     }
 
-    func dumpPCIDevices(bus: Bus? = nil) {
+
+    func walkDeviceTree(bus: Bus? = nil, body: (Device) -> ()) {
         for device in (bus ?? masterBus).devices {
+            body(device)
+            if let bus = device.deviceDriver as? Bus {
+                walkDeviceTree(bus: bus, body: body)
+            }
+        }
+    }
+
+
+    func dumpPCIDevices(bus: Bus? = nil) {
+        walkDeviceTree(bus: bus) { device in
             if let pciDevice = device as? PCIDevice {
                 print(pciDevice)
-            }
-            if let bus = device.deviceDriver as? Bus {
-                dumpPCIDevices(bus: bus)
             }
         }
     }
 
     func dumpPNPDevices(bus: Bus? = nil) {
-        for device in (bus ?? masterBus).devices {
+        walkDeviceTree(bus: bus) { device in
             if let pnpDevice = device as? PNPDevice {
                 print(pnpDevice)
-            }
-            if let bus = device.deviceDriver as? Bus {
-                dumpPNPDevices(bus: bus)
             }
         }
     }

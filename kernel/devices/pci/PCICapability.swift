@@ -101,28 +101,28 @@ enum PCICapability {
         var pendingBits: UInt32? { messageControl.vectorMaskingCapable ? _pendingBits : nil }
 
 
-        init(offset: UInt, configSpace: PCIConfigSpace) {
+        init(offset: UInt, deviceFunction: PCIDeviceFunction) {
             var offset = offset + 2
-            messageControl = MessageControl(bits: configSpace.readConfigWord(atByteOffset: offset))
+            messageControl = MessageControl(bits: deviceFunction.readConfigWord(atByteOffset: offset))
             offset += 2
 
-            let messageAddressLow = configSpace.readConfigDword(atByteOffset: offset)
+            let messageAddressLow = deviceFunction.readConfigDword(atByteOffset: offset)
             offset += 4
 
             var messageAddressHigh: UInt32
             if messageControl.is64Bit {
-                messageAddressHigh = configSpace.readConfigDword(atByteOffset: offset)
+                messageAddressHigh = deviceFunction.readConfigDword(atByteOffset: offset)
                 offset += 4
             } else {
                 messageAddressHigh = 0
             }
             _messageAddress = UInt64(messageAddressHigh) << 32 | UInt64(messageAddressLow)
-            messageData = configSpace.readConfigWord(atByteOffset: offset)
+            messageData = deviceFunction.readConfigWord(atByteOffset: offset)
 
             if messageControl.vectorMaskingCapable {
                 offset += 4
-                _maskBits = configSpace.readConfigDword(atByteOffset: offset)
-                _pendingBits = configSpace.readConfigDword(atByteOffset: offset + 4)
+                _maskBits = deviceFunction.readConfigDword(atByteOffset: offset)
+                _pendingBits = deviceFunction.readConfigDword(atByteOffset: offset + 4)
             } else {
                 _maskBits = 0
                 _pendingBits = 0
@@ -152,10 +152,10 @@ enum PCICapability {
         var pendingBitArrayOffset: UInt32 { pbaOffsetBIR & ~0b111 }
 
 
-        init(offset: UInt, configSpace: PCIConfigSpace) {
-            messageControl = MessageControl(bits: configSpace.readConfigWord(atByteOffset: offset + 2))
-            tableOffsetBIR = configSpace.readConfigDword(atByteOffset: offset + 4)
-            pbaOffsetBIR = configSpace.readConfigDword(atByteOffset: offset + 8)
+        init(offset: UInt, deviceFunction: PCIDeviceFunction) {
+            messageControl = MessageControl(bits: deviceFunction.readConfigWord(atByteOffset: offset + 2))
+            tableOffsetBIR = deviceFunction.readConfigDword(atByteOffset: offset + 4)
+            pbaOffsetBIR = deviceFunction.readConfigDword(atByteOffset: offset + 8)
         }
     }
 }
@@ -169,13 +169,13 @@ extension PCIDeviceFunction {
         guard self.status.hasCapabilities else { return nil }
 
         var ptr = UInt(self.capabilitiesPtr)
-        while ptr != 0 && ptr + 2 < configSpace.pciConfigAccess.size {
-            let id = configSpace.readConfigByte(atByteOffset: ptr)
+        while ptr != 0 && ptr + 2 < configSpaceSize {
+            let id = readConfigByte(atByteOffset: ptr)
             if let _capability = PCICapability.CapabilityID(rawValue: id), capability == _capability {
                 return ptr
             }
 
-            let nextPtr = configSpace.readConfigByte(atByteOffset: ptr + 1)
+            let nextPtr = readConfigByte(atByteOffset: ptr + 1)
             if nextPtr <= ptr {
                 print("PCI: capabilities, nextPtr \(nextPtr) <= currentPtr \(ptr)")
                 break
@@ -190,23 +190,23 @@ extension PCIDeviceFunction {
     // Returns the offset from the start of the configuration space of the
     // PCI Extended Capability if it exists.
     func findOffsetOf(extendedCapability: PCICapability.ExtendedCapabilityID) -> UInt? {
-        guard self.status.hasCapabilities && configSpace.pciConfigAccess.size > 0x104 else { return nil }
+        guard self.status.hasCapabilities && configSpaceSize > 0x104 else { return nil }
 
         var ptr = UInt(0x100)
-        var id = configSpace.readConfigWord(atByteOffset: ptr)
+        var id = readConfigWord(atByteOffset: ptr)
         while id != 0 {
             if let _extendedCapability = PCICapability.ExtendedCapabilityID(rawValue: id),
                extendedCapability == _extendedCapability {
                 return ptr
             }
 
-            let upperWord = configSpace.readConfigWord(atByteOffset: ptr + 2)
+            let upperWord = readConfigWord(atByteOffset: ptr + 2)
             let nextPtr = UInt(upperWord >> 4)
-            if nextPtr == 0 || nextPtr < ptr || ptr + 2 > configSpace.pciConfigAccess.size { // terminating, 0 = end
+            if nextPtr == 0 || nextPtr < ptr || ptr + 2 > configSpaceSize { // terminating, 0 = end
                 break
             }
             ptr = nextPtr
-            id = configSpace.readConfigWord(atByteOffset: ptr)
+            id = readConfigWord(atByteOffset: ptr)
         }
         return nil
     }

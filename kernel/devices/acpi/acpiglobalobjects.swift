@@ -10,12 +10,16 @@
 extension ACPI {
     class ACPIObjectNode: AMLTermObj, Hashable {
         let name: AMLNameString
-        fileprivate(set) var childNodes: [AMLNameString: ACPIObjectNode]
         unowned private(set) var parent: ACPIObjectNode?
+        // Use an array for the childnodes even though the lookups are on the name
+        // segment as this keeps the order and the number of entries is small enough
+        // that a linear scan is ok.
+        fileprivate(set) var childNodes: [ACPIObjectNode]
+
 
         init(name: AMLNameString, parent: ACPIObjectNode? = nil) {
             self.name = name
-            self.childNodes = [:]
+            self.childNodes = []
             self.parent = parent
             guard name.isNameSeg else {
                 fatalError("\(type(of: self)) has invalid name: \(name.value)")
@@ -48,24 +52,30 @@ extension ACPI {
 
 
         fileprivate func addChildNode(_ node: ACPIObjectNode) {
-            if let child = childNodes[node.name] {
+            if let index = childNodes.firstIndex(where: { $0.name == node.name }) {
+                // A generic ACPIObjectNode may have been added first to allow adding
+                // child nodes, but now the node of its correct type (eg AMLDefDevice)
+                // needs to replace it.
+                let child = childNodes[index]
                 node.childNodes = child.childNodes
-                node.childNodes.forEach { (key, value) in
-                    value.parent = node
+                node.childNodes.forEach {
+                    $0.parent = node
                 }
-                child.childNodes = [:]
+                child.childNodes = []
                 child.parent = nil
+                childNodes[index] = node
+            } else {
+                childNodes.append(node)
             }
-            childNodes[node.name] = node
             node.parent = self
         }
 
 
         func removeChildNode(_ name: AMLNameString) {
-            if childNodes[name] == nil {
+            guard let index = childNodes.firstIndex(where: { $0.name == name}) else {
                 fatalError("Cant remove unknown child node: \(name)")
             }
-            childNodes.removeValue(forKey: name)
+            childNodes.remove(at: index)
         }
 
 
@@ -88,7 +98,7 @@ extension ACPI {
 
 
         func childNode(named: String) -> ACPIObjectNode? {
-            childNodes[AMLNameString(named)]
+            return childNodes.first(where: { $0.name == AMLNameString(named) })
         }
 
 
@@ -139,7 +149,7 @@ extension ACPI {
 
 
         private func findNode(named: String, parent: ACPIObjectNode) -> ACPIObjectNode? {
-            parent.childNodes[AMLNameString(named)]
+            return parent.childNodes.first(where: { $0.name == AMLNameString(named) })
         }
 
 
@@ -251,7 +261,7 @@ extension ACPI {
 
         func walkNode(name: String, node: ACPIObjectNode, _ body: (String, ACPIObjectNode) -> Void) {
             body(name, node)
-            for (_, child) in node.childNodes {
+            for child in node.childNodes {
                 let fullName = (name == "\\") ? name + child.name.value :
                     name + String(AMLNameString.pathSeparatorChar) + child.name.value
                 walkNode(name: fullName, node: child, body)
@@ -260,7 +270,7 @@ extension ACPI {
 
         func walkNode( _ body: (String, ACPIObjectNode) -> Void) {
             body(self.fullname(), self)
-            for (_, child) in self.childNodes {
+            for child in self.childNodes {
                 child.walkNode(body)
             }
         }

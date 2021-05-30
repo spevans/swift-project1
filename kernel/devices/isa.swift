@@ -10,38 +10,24 @@
 // which is defined as ports 0 - 0xffff accessed via the IN & OUT instructions.
 
 
-final class ISADevice: PNPDevice {
-    unowned let parentBus: Bus
-    let acpiDevice: AMLDefDevice?
-    let fullName: String
-    let pnpName: String
-    let resources: ISABus.Resources
+final class PNPDevice: Device {
+    private unowned let _acpiDevice: AMLDefDevice
     private(set) var pnpDeviceDriver: PNPDeviceDriver?
-    var deviceDriver: DeviceDriver? { pnpDeviceDriver }
+    unowned let parentBus: Bus
     var enabled = false
+    let pnpName: String
 
+    var acpiDevice: AMLDefDevice? { _acpiDevice }
+    var fullName: String { _acpiDevice.fullname() }
+    var deviceDriver: DeviceDriver? { pnpDeviceDriver }
     var description: String { "ISA: \(pnpName) \(fullName) \(resources)" }
+    private(set) var resources = ISABus.Resources([])
 
-    init(parentBus: Bus, pnpName: String, acpiDevice: AMLDefDevice? = nil, resources: ISABus.Resources? = nil) {
-        self.acpiDevice = acpiDevice
+
+    init(parentBus: Bus, acpiDevice: AMLDefDevice, pnpName: String) {
+        self._acpiDevice = acpiDevice
         self.parentBus = parentBus
         self.pnpName = pnpName
-
-        if let acpi = acpiDevice {
-            if let resources = resources {
-                self.resources = resources
-            } else {
-                if let crs = acpi.currentResourceSettings() {
-                    self.resources = ISABus.Resources(crs)
-                } else {
-                    self.resources = ISABus.Resources([])
-                }
-            }
-            self.fullName = acpi.fullname()
-        } else {
-            self.resources = (resources == nil) ? ISABus.Resources([]) : resources!
-            self.fullName = pnpName
-        }
     }
 
     func setDriver(_ driver: DeviceDriver) {
@@ -55,14 +41,23 @@ final class ISADevice: PNPDevice {
         pnpDeviceDriver = pnpDriver
     }
 
-    func initialiseDevice() {
+    func initialiseDevice() -> Bool {
+        guard _acpiDevice.initialiseIfPresent() else {
+            print("\(fullName): initialiseIfPresent() failed")
+            return false
+        }
+        if let crs = _acpiDevice.currentResourceSettings() {
+            resources = ISABus.Resources(crs)
+        }
+        self.enabled = true
+        return true
     }
 }
 
 
 final class ISABus: PCIDeviceDriver, Bus, CustomStringConvertible {
     private unowned let pciDevice: PCIDevice
-    private var isaDevices: [ISADevice] = []
+    private var isaDevices: [PNPDevice] = []
 
     var resources: [MotherBoardResource] = []
     var devices: [Device] { isaDevices.map { $0 as Device }}
@@ -76,71 +71,22 @@ final class ISABus: PCIDeviceDriver, Bus, CustomStringConvertible {
         print("Initialising ISABus, acpi:", pciDevice.acpiDevice?.fullname() ?? "unknown")
     }
 
-    func device(acpiDevice: AMLDefDevice, pnpName: String? = nil) -> Device? {
-        guard let pnpName = pnpName else { return nil }
-        return ISADevice(parentBus: self, pnpName: pnpName, acpiDevice: acpiDevice)
+    func device(acpiDevice: AMLDefDevice) -> Device? {
+        guard let pnpName = acpiDevice.deviceId else { return nil }
+        return PNPDevice(parentBus: self, acpiDevice: acpiDevice, pnpName: pnpName)
     }
 
     func addDevice(_ device: Device) {
-        guard let isaDevice = device as? ISADevice else {
+        guard let isaDevice = device as? PNPDevice else {
             fatalError("\(self): trying to add device of type \(device) to ISABus")
         }
         isaDevices.append(isaDevice)
     }
 
-    func initialiseDevice() {
-        initialiseDevices(acpiDevice: pciDevice.acpiDevice)
-    }
-
-    func initialiseDevices(acpiDevice: AMLDefDevice?) {
-        guard let acpi = acpiDevice else {
-            print("ISABus: initialiseDevices: No ACPI node")
-            return
-        }
-
-        // PS2 is split over 2 devices (keyboard, mouse) so need to gather these
-        // up beforehand.
-        var ps2keyboard: [AMLResourceSetting] = []
-        var ps2mouse: [AMLResourceSetting] = []
-
-        for (_, node) in acpi.childNodes {
-            guard let child = node as? AMLDefDevice else {
-                continue
-            }
-
-            if let deviceId = child.pnpName() ?? child.hardwareId(),
-                let crs = child.currentResourceSettings() {
-                switch deviceId {
-                    case "PNP0303", "PNP030B":
-                        ps2keyboard = crs
-                        continue
-
-                    case "PNP0F03", "PNP0F13":
-                        ps2mouse = crs
-                        continue
-
-                    default:
-                        break
-                }
-            }
-            ACPI.processNode(parentBus: self, child)
-        }
-
-        if !ps2keyboard.isEmpty {
-            ps2keyboard.append(contentsOf: ps2mouse)
-            // FIXME: KBD8042 should really be some sort of BusDevice that adds its
-            // sub devices.
-            let resources = ISABus.Resources(ps2keyboard)
-            let device = ISADevice(parentBus: self, pnpName: "PNP0303", acpiDevice: acpiDevice, resources: resources)
-            if let driverType = pnpDriverById(pnpName: "PNP0303"), let driver = driverType.init(pnpDevice: device) {
-                device.setDriver(driver)
-                self.addDevice(device)
-                if let keyboard = (driver as? KBD8042)?.keyboardDevice {
-                    system.deviceManager.addDevice(keyboard)
-                }
-            }
-        }
+    func initialise() -> Bool {
+        guard pciDevice.initialiseDevice() else { return false }
         isaDevices.sort { $0.fullName < $1.fullName }
+        return true
     }
 }
 

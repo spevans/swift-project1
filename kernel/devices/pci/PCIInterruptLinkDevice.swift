@@ -14,14 +14,14 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver, CustomStringConvertible {
 
 
     init?(pnpDevice: PNPDevice) {
-        let resources = pnpDevice.resources
+        guard let acpiDevice = pnpDevice.acpiDevice else {
+            print("PCIInterruptLinkDevice: \(pnpDevice) has no ACPI information")
+            return nil
+        }
 
-        let f = pnpDevice.acpiDevice?.fullname() ?? "[no name]"
-        print("PCIInterruptLinkDevice: \(f) \(resources)")
 
-
-        guard let uid = pnpDevice.acpiDevice?.uniqueId() else {
-            print("PCI LNK: cant get _UID")
+        guard let uid = acpiDevice.uniqueId() else {
+            print("PCIInterruptLinkDevice: cant get _UID")
             return nil
         }
 
@@ -29,6 +29,15 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver, CustomStringConvertible {
             print("PCI LNK: uid is not an integer: \(uid)")
             return nil
         }
+
+        guard let crs = acpiDevice.currentResourceSettings() else {
+            print("PCIInterruptLinkDevice: Cant get resources")
+            return nil
+        }
+
+        let resources = ISABus.Resources(crs)
+        let f = acpiDevice.fullname()
+        print("PCIInterruptLinkDevice: \(f) \(resources)")
 
         if let prs = pnpDevice.acpiDevice?.possibleResourceSettings() {
             print("PCI LNK \(f): _PRS:", prs)

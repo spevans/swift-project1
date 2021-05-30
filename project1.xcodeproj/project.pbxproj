@@ -49,6 +49,13 @@
 		B9568CB12551819E00C3F49B /* BitmapAllocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568CB02551819E00C3F49B /* BitmapAllocator.swift */; };
 		B95A1853264FEC3A00B2CB97 /* MMIORegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96BBE5626309218009756A8 /* MMIORegion.swift */; };
 		B962BDAC1FD3116B00D42D70 /* amlresourcedata.swift in Sources */ = {isa = PBXBuildFile; fileRef = B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */; };
+		B98A0E7926679717006898DF /* pcidevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = B94ABE9B263F02E1008B05CE /* pcidevice.swift */; };
+		B98A0E7A26679A15006898DF /* pcibus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B94ABEAA263F03AB008B05CE /* pcibus.swift */; };
+		B98A0E7B26679A60006898DF /* driver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568C95254D92E300C3F49B /* driver.swift */; };
+		B98A0E7C26679A85006898DF /* device.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568C97254D92E300C3F49B /* device.swift */; };
+		B98A0E7D26679AB1006898DF /* bus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568C96254D92E300C3F49B /* bus.swift */; };
+		B98A0E8126679C31006898DF /* PCIInterruptLinkDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98A0E8026679C30006898DF /* PCIInterruptLinkDevice.swift */; };
+		B98A0E8226679D96006898DF /* isa.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF261FD818D000E6EFEB /* isa.swift */; };
 		B98DE1B1264D02280003775C /* IRQSetting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96D9CAA26411FB30079E5AD /* IRQSetting.swift */; };
 		B98DE1BA264D052F0003775C /* ACPIGenericAddressStructure.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96BBE4F262B5502009756A8 /* ACPIGenericAddressStructure.swift */; };
 		B98DE1CC264D11490003775C /* PCIRoutingTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98DE1CB264D11490003775C /* PCIRoutingTable.swift */; };
@@ -194,7 +201,6 @@
 		B94ABE9B263F02E1008B05CE /* pcidevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = pcidevice.swift; path = kernel/devices/pci/pcidevice.swift; sourceTree = "<group>"; };
 		B94ABEAA263F03AB008B05CE /* pcibus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = pcibus.swift; path = kernel/devices/pci/pcibus.swift; sourceTree = "<group>"; };
 		B94ABEB1263F0465008B05CE /* pcideviceclass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = pcideviceclass.swift; path = kernel/devices/pci/pcideviceclass.swift; sourceTree = "<group>"; };
-		B94ABEBF263FD54B008B05CE /* PCIInterruptLinkDevice.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PCIInterruptLinkDevice.swift; sourceTree = "<group>"; };
 		B9568C682548BA9B00C3F49B /* USBTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBTests.swift; sourceTree = "<group>"; };
 		B9568C6F2548BDA500C3F49B /* hcd-ehci.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "hcd-ehci.swift"; sourceTree = "<group>"; };
 		B9568C702548BDBC00C3F49B /* usb-devicequalifier.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "usb-devicequalifier.swift"; sourceTree = "<group>"; };
@@ -232,6 +238,7 @@
 		B96D9CAA26411FB30079E5AD /* IRQSetting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IRQSetting.swift; sourceTree = "<group>"; };
 		B9793D4E200A571B0013E03B /* symbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = symbols.swift; sourceTree = "<group>"; };
 		B97C3A8024D0D10F00E3602C /* shell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = shell.swift; sourceTree = "<group>"; };
+		B98A0E8026679C30006898DF /* PCIInterruptLinkDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PCIInterruptLinkDevice.swift; path = kernel/devices/pci/PCIInterruptLinkDevice.swift; sourceTree = "<group>"; };
 		B98DE1CB264D11490003775C /* PCIRoutingTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PCIRoutingTable.swift; path = kernel/devices/pci/PCIRoutingTable.swift; sourceTree = "<group>"; };
 		B9A2C1B01F30ECF9003D4D92 /* TODO */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = TODO; sourceTree = "<group>"; };
 		B9A2C1B11F30ECF9003D4D92 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -394,7 +401,6 @@
 				B933A7191F2F497800FE6846 /* ioapic.swift */,
 				B9C2AF261FD818D000E6EFEB /* isa.swift */,
 				B933A7131F2F497800FE6846 /* kbd8042.swift */,
-				B94ABEBF263FD54B008B05CE /* PCIInterruptLinkDevice.swift */,
 				B933A7151F2F497800FE6846 /* pic8259.swift */,
 				B933A7171F2F497800FE6846 /* pit8254.swift */,
 				B933A7161F2F497800FE6846 /* ps2keyboard.swift */,
@@ -549,6 +555,7 @@
 		B9EE70401D3D536B006B6AB7 = {
 			isa = PBXGroup;
 			children = (
+				B98A0E8026679C30006898DF /* PCIInterruptLinkDevice.swift */,
 				B945F65F265978B9008D6A9A /* PCICapability.swift */,
 				B9BDA4302654400C00A2BCB4 /* pcideviceclass.swift */,
 				B9BDA42A26543F8A00A2BCB4 /* PCIDeviceFunction.swift */,
@@ -891,6 +898,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B98A0E8226679D96006898DF /* isa.swift in Sources */,
+				B98A0E8126679C31006898DF /* PCIInterruptLinkDevice.swift in Sources */,
+				B98A0E7D26679AB1006898DF /* bus.swift in Sources */,
+				B98A0E7C26679A85006898DF /* device.swift in Sources */,
+				B98A0E7B26679A60006898DF /* driver.swift in Sources */,
+				B98A0E7A26679A15006898DF /* pcibus.swift in Sources */,
+				B98A0E7926679717006898DF /* pcidevice.swift in Sources */,
 				B945F660265978B9008D6A9A /* PCICapability.swift in Sources */,
 				B9BDA4312654400C00A2BCB4 /* pcideviceclass.swift in Sources */,
 				B9BDA42B26543F8B00A2BCB4 /* PCIDeviceFunction.swift in Sources */,

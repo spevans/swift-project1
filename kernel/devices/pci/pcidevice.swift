@@ -39,10 +39,14 @@ final class PCIDevice: Device, CustomStringConvertible {
         pciDeviceDriver = pciDriver
     }
 
-    func initialiseDevice() {
+    func initialiseDevice() -> Bool {
         // FIXME: Should the caller be calling it directly, and should this only be called
         // by the device driver?
-        pciDeviceDriver?.initialiseDevice()
+        guard let acpi = acpiDevice, acpi.initialiseIfPresent() else {
+            return false
+        }
+        self.enabled = true
+        return true
     }
 
     func msiCapability() -> PCICapability.MSI? {
@@ -50,7 +54,7 @@ final class PCIDevice: Device, CustomStringConvertible {
             return nil
         }
 
-        return PCICapability.MSI(offset: msiOffset, configSpace: deviceFunction.configSpace)
+        return PCICapability.MSI(offset: msiOffset, deviceFunction: deviceFunction)
     }
 
     func msixCapability() -> PCICapability.MSIX? {
@@ -58,7 +62,7 @@ final class PCIDevice: Device, CustomStringConvertible {
             return nil
         }
 
-        return PCICapability.MSIX(offset: msixOffset, configSpace: deviceFunction.configSpace)
+        return PCICapability.MSIX(offset: msixOffset, deviceFunction: deviceFunction)
     }
 
     // Look for MSI-X, then MSI, then the INTA-D IRQs
@@ -87,9 +91,9 @@ final class PCIDevice: Device, CustomStringConvertible {
 
         print("PCI: slot: \(slot) device: \(self.deviceFunction.device) df: \(self.deviceFunction), pin: \(pin)")
 
-        while let parent = bus.parentBus as? PCIBus {   // FIXME, add , !bus.isRootBridge test
+        while let parent = bus.pciDevice?.parentBus as? PCIBus, let busSlot = bus.slot {   // FIXME, add , !bus.isRootBridge test
             pin = pin.swizzle(slot: slot)
-            slot = bus.slot
+            slot = busSlot
             print("PCI: bus: \(bus), interruptPin: \(pin)")
             bus = parent
         }

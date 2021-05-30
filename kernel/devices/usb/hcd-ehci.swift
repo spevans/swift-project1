@@ -45,7 +45,7 @@ final class HCD_EHCI: PCIDeviceDriver, USBHCD, CustomStringConvertible {
         self.deviceFunction = pciDevice.deviceFunction
         self.acpiDevice = pciDevice.acpiDevice
 
-        let sbrn = deviceFunction.configSpace.readConfigByte(atByteOffset: 0x60)
+        let sbrn = deviceFunction.readConfigByte(atByteOffset: 0x60)
         print("EHCI: bus release number 0x\(String(sbrn, radix: 16))")
     }
 

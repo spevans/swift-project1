@@ -173,12 +173,12 @@ final class KBD8042: PNPDeviceDriver, CustomStringConvertible {
     private var keyboardBuffer = CircularBuffer<UInt8>(item: 0, capacity: 16)
     private var port1device: PS2Device? = nil
     private var port2device: PS2Device? = nil
-    private unowned let pnpDevice: ISADevice
+    unowned let pnpDevice: PNPDevice
 
     var description: String { return "KBD8042 \(pnpDevice.resources)" }
 
     init?(pnpDevice: PNPDevice) {
-        self.pnpDevice = pnpDevice as! ISADevice
+        self.pnpDevice = pnpDevice
         print("i8042:", pnpDevice.pnpName, pnpDevice.resources)
 
         // 1. Flush output buffer
@@ -277,6 +277,9 @@ final class KBD8042: PNPDeviceDriver, CustomStringConvertible {
             port2device = nil
         }
         print("i8042: kbd initialised")
+        if let kbd = port1device as? (DeviceDriver & Keyboard) {
+            system.deviceManager.addDevice(kbd)
+        }
     }
 
 

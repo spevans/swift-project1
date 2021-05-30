@@ -63,7 +63,7 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
         self.deviceFunction = pciDevice.deviceFunction
         self.acpiDevice = pciDevice.acpiDevice
 
-        let sbrn = deviceFunction.configSpace.readConfigByte(atByteOffset: 0x60)
+        let sbrn = deviceFunction.readConfigByte(atByteOffset: 0x60)
         uhciDebug("bus release number 0x\(String(sbrn, radix: 16))")
 
         // Disable PCI interrupts, set IOSpace and busMaster active
@@ -82,7 +82,7 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
         // Disable Legacy Support (SMI/PS2 emulation) and PIRQ
         uhciDebug("PCIStatus:", deviceFunction.status)
         uhciDebug("PCICommand:", deviceFunction.command)
-        deviceFunction.configSpace.writeConfigWord(atByteOffset: 0xC0, value: 0x8F00)
+        deviceFunction.writeConfigWord(atByteOffset: 0xC0, value: 0x8F00)
 
         // Save SOF to restore after reset
         let savedSOF = self.startOfFrame
