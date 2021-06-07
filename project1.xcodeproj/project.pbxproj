@@ -55,7 +55,7 @@
 		B98A0E7C26679A85006898DF /* device.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568C97254D92E300C3F49B /* device.swift */; };
 		B98A0E7D26679AB1006898DF /* bus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568C96254D92E300C3F49B /* bus.swift */; };
 		B98A0E8126679C31006898DF /* PCIInterruptLinkDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98A0E8026679C30006898DF /* PCIInterruptLinkDevice.swift */; };
-		B98A0E8226679D96006898DF /* isa.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF261FD818D000E6EFEB /* isa.swift */; };
+		B98A0E8226679D96006898DF /* ISABus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF261FD818D000E6EFEB /* ISABus.swift */; };
 		B98DE1B1264D02280003775C /* IRQSetting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96D9CAA26411FB30079E5AD /* IRQSetting.swift */; };
 		B98DE1BA264D052F0003775C /* ACPIGenericAddressStructure.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96BBE4F262B5502009756A8 /* ACPIGenericAddressStructure.swift */; };
 		B98DE1CC264D11490003775C /* PCIRoutingTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98DE1CB264D11490003775C /* PCIRoutingTable.swift */; };
@@ -66,6 +66,7 @@
 		B9BDA4312654400C00A2BCB4 /* pcideviceclass.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9BDA4302654400C00A2BCB4 /* pcideviceclass.swift */; };
 		B9C2AF2B1FD84CB300E6EFEB /* KlibTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF2A1FD84CB300E6EFEB /* KlibTests.swift */; };
 		B9C2AF2C1FD84D9000E6EFEB /* ReservationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */; };
+		B9D2AC14266E52B8002DA8DD /* PNPDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = B981795B266E329D0043D38C /* PNPDevice.swift */; };
 		B9DEE4F42323BA960010F7A0 /* lldb-cmds in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F32323BA960010F7A0 /* lldb-cmds */; };
 		B9DEE4F92323BBC40010F7A0 /* bochsrc in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F52323BBC30010F7A0 /* bochsrc */; };
 		B9DEE4FA2323BBC40010F7A0 /* gdb-cmds in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F62323BBC30010F7A0 /* gdb-cmds */; };
@@ -238,6 +239,7 @@
 		B96D9CAA26411FB30079E5AD /* IRQSetting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IRQSetting.swift; sourceTree = "<group>"; };
 		B9793D4E200A571B0013E03B /* symbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = symbols.swift; sourceTree = "<group>"; };
 		B97C3A8024D0D10F00E3602C /* shell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = shell.swift; sourceTree = "<group>"; };
+		B981795B266E329D0043D38C /* PNPDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PNPDevice.swift; sourceTree = "<group>"; };
 		B98A0E8026679C30006898DF /* PCIInterruptLinkDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PCIInterruptLinkDevice.swift; path = kernel/devices/pci/PCIInterruptLinkDevice.swift; sourceTree = "<group>"; };
 		B98DE1CB264D11490003775C /* PCIRoutingTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PCIRoutingTable.swift; path = kernel/devices/pci/PCIRoutingTable.swift; sourceTree = "<group>"; };
 		B9A2C1B01F30ECF9003D4D92 /* TODO */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = TODO; sourceTree = "<group>"; };
@@ -256,7 +258,7 @@
 		B9BDA42426543BAF00A2BCB4 /* pciconfigspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = pciconfigspace.swift; path = kernel/devices/pci/pciconfigspace.swift; sourceTree = "<group>"; };
 		B9BDA42A26543F8A00A2BCB4 /* PCIDeviceFunction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PCIDeviceFunction.swift; path = kernel/devices/pci/PCIDeviceFunction.swift; sourceTree = "<group>"; };
 		B9BDA4302654400C00A2BCB4 /* pcideviceclass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = pcideviceclass.swift; path = kernel/devices/pci/pcideviceclass.swift; sourceTree = "<group>"; };
-		B9C2AF261FD818D000E6EFEB /* isa.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = isa.swift; sourceTree = "<group>"; };
+		B9C2AF261FD818D000E6EFEB /* ISABus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ISABus.swift; sourceTree = "<group>"; };
 		B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReservationManager.swift; sourceTree = "<group>"; };
 		B9C2AF2A1FD84CB300E6EFEB /* KlibTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KlibTests.swift; sourceTree = "<group>"; };
 		B9C2AF2D1FD9FA0A00E6EFEB /* devicemanager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = devicemanager.swift; sourceTree = "<group>"; };
@@ -399,7 +401,7 @@
 				B9568C97254D92E300C3F49B /* device.swift */,
 				B9568C95254D92E300C3F49B /* driver.swift */,
 				B933A7191F2F497800FE6846 /* ioapic.swift */,
-				B9C2AF261FD818D000E6EFEB /* isa.swift */,
+				B9C2AF261FD818D000E6EFEB /* ISABus.swift */,
 				B933A7131F2F497800FE6846 /* kbd8042.swift */,
 				B933A7151F2F497800FE6846 /* pic8259.swift */,
 				B933A7171F2F497800FE6846 /* pit8254.swift */,
@@ -407,6 +409,7 @@
 				B9C6DF0B22FF0629006BD245 /* qemufwcf.swift */,
 				B933A71A1F2F497800FE6846 /* tty.swift */,
 				B96BBE53262CA85F009756A8 /* Timer.swift */,
+				B981795B266E329D0043D38C /* PNPDevice.swift */,
 			);
 			path = devices;
 			sourceTree = "<group>";
@@ -898,7 +901,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B98A0E8226679D96006898DF /* isa.swift in Sources */,
+				B9D2AC14266E52B8002DA8DD /* PNPDevice.swift in Sources */,
+				B98A0E8226679D96006898DF /* ISABus.swift in Sources */,
 				B98A0E8126679C31006898DF /* PCIInterruptLinkDevice.swift in Sources */,
 				B98A0E7D26679AB1006898DF /* bus.swift in Sources */,
 				B98A0E7C26679A85006898DF /* device.swift in Sources */,

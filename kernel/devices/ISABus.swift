@@ -1,5 +1,5 @@
 //
-//  kernel/devices/isa.swift
+//  kernel/devices/ISABus.swift
 //
 //
 //  Created by Simon Evans on 06/12/2017.
@@ -8,52 +8,6 @@
 
 // There is only one ISA (EISA) bus and it owns all of the I/O address space
 // which is defined as ports 0 - 0xffff accessed via the IN & OUT instructions.
-
-
-final class PNPDevice: Device {
-    private unowned let _acpiDevice: AMLDefDevice
-    private(set) var pnpDeviceDriver: PNPDeviceDriver?
-    unowned let parentBus: Bus
-    var enabled = false
-    let pnpName: String
-
-    var acpiDevice: AMLDefDevice? { _acpiDevice }
-    var fullName: String { _acpiDevice.fullname() }
-    var deviceDriver: DeviceDriver? { pnpDeviceDriver }
-    var description: String { "ISA: \(pnpName) \(fullName) \(resources)" }
-    private(set) var resources = ISABus.Resources([])
-
-
-    init(parentBus: Bus, acpiDevice: AMLDefDevice, pnpName: String) {
-        self._acpiDevice = acpiDevice
-        self.parentBus = parentBus
-        self.pnpName = pnpName
-    }
-
-    func setDriver(_ driver: DeviceDriver) {
-        if let deviceDriver = deviceDriver {
-            fatalError("\(self) already has a device driver: \(deviceDriver)")
-        }
-
-        guard let pnpDriver = driver as? PNPDeviceDriver else {
-            fatalError("\(self): \(driver) is not for a PNP Device")
-        }
-        pnpDeviceDriver = pnpDriver
-    }
-
-    func initialiseDevice() -> Bool {
-        guard _acpiDevice.initialiseIfPresent() else {
-            print("\(fullName): initialiseIfPresent() failed")
-            return false
-        }
-        if let crs = _acpiDevice.currentResourceSettings() {
-            resources = ISABus.Resources(crs)
-        }
-        self.enabled = true
-        return true
-    }
-}
-
 
 final class ISABus: PCIDeviceDriver, Bus, CustomStringConvertible {
     private unowned let pciDevice: PCIDevice
