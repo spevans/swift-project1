@@ -46,7 +46,7 @@ final class PCIHostBus: Device, CustomStringConvertible {
         fatalError("PCIHostBus already has a driver")
     }
 
-    func initialiseDevice() -> Bool {
+    func initialise() -> Bool {
         guard let acpi = acpiDevice, acpi.initialiseIfPresent() else {
             return false
         }
@@ -104,7 +104,7 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
     func initialise() -> Bool {
         print("PCIBus.initialiseDevice:", self)
         if let device = pciDevice {
-            guard device.initialiseDevice() else { return false }
+            guard device.initialise() else { return false }
         }
         // Scan PCI bus for any remaining devices
         for deviceFunction in scanBus() {

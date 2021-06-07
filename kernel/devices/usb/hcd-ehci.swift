@@ -10,14 +10,12 @@
 
 
 final class HCD_EHCI: PCIDeviceDriver, USBHCD, CustomStringConvertible {
-    private let deviceFunction: PCIDeviceFunction       // The device (upstream) side of the bridge
+    private let pciDevice: PCIDevice       // The device (upstream) side of the bridge
     private let baseAddress: UInt32
     private let allows64BitMapping: Bool
 
-    let acpiDevice: AMLDefDevice?
-    var enabled = true
-
     var description: String { "EHCI driver @ 0x\(String(baseAddress, radix: 16))" }
+
 
     init?(pciDevice: PCIDevice) {
         print("EHCI init:", pciDevice)
@@ -39,19 +37,18 @@ final class HCD_EHCI: PCIDeviceDriver, USBHCD, CustomStringConvertible {
             return nil
         }
 
+        self.pciDevice = pciDevice
         allows64BitMapping = base & 0b110 == 0b100
         baseAddress = base & 0xffff_ff00
         print("EHCI: 0x\(String(baseAddress, radix: 16)) allows64BitMapping: \(allows64BitMapping)")
-        self.deviceFunction = pciDevice.deviceFunction
-        self.acpiDevice = pciDevice.acpiDevice
-
-        let sbrn = deviceFunction.readConfigByte(atByteOffset: 0x60)
-        print("EHCI: bus release number 0x\(String(sbrn, radix: 16))")
     }
 
 
-    func initialiseDevice() {
+    func initialise() -> Bool {
         print("EHCI driver")
+        let sbrn = pciDevice.deviceFunction.readConfigByte(atByteOffset: 0x60)
+        print("EHCI: bus release number 0x\(String(sbrn, radix: 16))")
+        return false
     }
 
     func allocatePipe(device: USBDevice, endpointDescriptor: USB.EndpointDescriptor) -> USBPipe {

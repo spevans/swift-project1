@@ -195,6 +195,8 @@ final class PS2Keyboard: DeviceDriver, PS2Device, Keyboard {
         print("kbd: initialised")
     }
 
+    func initialise() -> Bool { true }
+
 
     public func readKeyboard() -> UnicodeScalar? {
         while let scanCode = inputBuffer.remove() {

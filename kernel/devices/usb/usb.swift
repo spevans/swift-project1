@@ -58,27 +58,30 @@ final class USB: Bus {
                 print("USB: Found a USB HCD, progIf:", progIf)
                 switch progIf {
                     case .uhci:
-                        if let driver = HCD_UHCI(pciDevice: $0) {
-                            $0.setDriver(driver)
-                            driver.initialiseDevice()
-                            let hcd = driver as USBHCD
-                            hcds.append(hcd)
+                        if $0.initialise(), let driver = HCD_UHCI(pciDevice: $0) {
+                            if driver.initialise() {
+                                $0.setDriver(driver)
+                                let hcd = driver as USBHCD
+                                hcds.append(hcd)
+                            }
                         }
 
                     case .ehci:
-                        if let driver = HCD_EHCI(pciDevice: $0) {
-                            $0.setDriver(driver)
-                            driver.initialiseDevice()
-                            let hcd = driver as USBHCD
-                            hcds.append(hcd)
+                        if $0.initialise(), let driver = HCD_EHCI(pciDevice: $0) {
+                            if driver.initialise() {
+                                $0.setDriver(driver)
+                                let hcd = driver as USBHCD
+                                hcds.append(hcd)
+                            }
                         }
 
                     case .xhci:
-                        if let driver = HCD_XHCI(pciDevice: $0) {
-                            $0.setDriver(driver)
-                            driver.initialiseDevice()
-                            let hcd = driver as USBHCD
-                            hcds.append(hcd)
+                        if $0.initialise(), let driver = HCD_XHCI(pciDevice: $0) {
+                            if driver.initialise() {
+                                $0.setDriver(driver)
+                                let hcd = driver as USBHCD
+                                hcds.append(hcd)
+                            }
                         }
 
                     default: print("USB: unsupported HCD:", progIf)

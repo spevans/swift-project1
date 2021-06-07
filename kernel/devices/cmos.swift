@@ -41,6 +41,11 @@ final class CMOSRTC: PNPDeviceDriver, CustomStringConvertible {
     }
 
 
+    func initialise() -> Bool {
+        return true
+    }
+
+
     private func bcdToInt(_ value: UInt8) -> Int {
         let tens = (value & 0xF0) >> 4
         let ones = (value & 0x0F)

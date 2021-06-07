@@ -8,11 +8,7 @@
 
 
 protocol DeviceDriver: AnyObject {
-    func initialiseDevice() -> Bool
-}
-
-extension DeviceDriver {
-    func initialiseDevice() -> Bool  { return false }
+    func initialise() -> Bool
 }
 
 

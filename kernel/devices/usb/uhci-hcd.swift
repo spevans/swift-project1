@@ -25,13 +25,12 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
 
     static private let GLOBAL_RESET_TRIES = 5
 
-    private var deviceFunction: PCIDeviceFunction       // The device (upstream) side of the bridge
+    private let pciDevice: PCIDevice    // The device (upstream) side of the bridge
     fileprivate let ioBasePort: UInt16
     private var maxAddress: UInt8 = 1
     private(set) var controlQH = PhysQueueHead(mmioSubRegion: MMIOSubRegion(virtualAddress: 0, physicalAddress: PhysAddress(0), count: 0))
     let allocator: UHCIAllocator
 
-    let acpiDevice: AMLDefDevice?
     var enabled = true
 
     var description: String { "UHCI: driver @ IO 0x\(String(ioBasePort, radix: 16))" }
@@ -56,13 +55,15 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
             return nil
         }
 
+        self.pciDevice = pciDevice
         ioBasePort = pciIOBar.ioPort
         uhciDebug("IO 0x\(String(ioBasePort, radix: 16))")
         allocator = UHCIAllocator()
+    }
 
-        self.deviceFunction = pciDevice.deviceFunction
-        self.acpiDevice = pciDevice.acpiDevice
 
+    func initialise() -> Bool {
+        let deviceFunction = pciDevice.deviceFunction
         let sbrn = deviceFunction.readConfigByte(atByteOffset: 0x60)
         uhciDebug("bus release number 0x\(String(sbrn, radix: 16))")
 
@@ -73,11 +74,6 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
         pciCommand.busMaster = true
         deviceFunction.command = pciCommand
         uhciDebug("PCICommand:", deviceFunction.command)
-    }
-
-
-    func initialiseDevice() {
-        uhciDebug("driver init")
 
         // Disable Legacy Support (SMI/PS2 emulation) and PIRQ
         uhciDebug("PCIStatus:", deviceFunction.status)
@@ -88,11 +84,10 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
         let savedSOF = self.startOfFrame
         // Disable interrupts
         self.interruptEnableRegister = InterruptEnable(rawValue: 0)
-        globalReset()
+        //globalReset()
         hcdReset()
         // Restore SOF
         self.startOfFrame = savedSOF
-
 
         // Setup the framelist, with default QueueHeads
         let frameListPage = allocator.frameListPage
@@ -152,13 +147,12 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
         sleep(milliseconds: 10)
         registerDump()
         usbBus!.enumerate(hub: self)
+        return true
     }
 
 
     func addQueueHead(_ queueHead: PhysQueueHead, transferType: USB.EndpointDescriptor.TransferType, interval: UInt8) {
         uhciDebug("addQueueHead:", queueHead, transferType)
-        dumpAndCheckFrameList()
-
         var queueHead = queueHead
         switch transferType {
             case .control:
@@ -402,7 +396,6 @@ fileprivate extension HCD_UHCI {
         set {
             precondition(newValue & 0xf800 == 0)
             outw(ioBasePort + 6, newValue)
-
         }
     }
 

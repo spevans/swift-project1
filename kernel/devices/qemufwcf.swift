@@ -17,26 +17,31 @@ final class QEMUFWCFG: PNPDeviceDriver {
         self.pnpName = pnpDevice.pnpName
         let resources = pnpDevice.resources
         print(pnpDevice.fullName, "Resources:", resources)
-        guard let ioPorts = resources.ioPorts.first, ioPorts.count > 6 else {
+        guard let ioPorts = resources.ioPorts.first, ioPorts.count > 6,
+              let basePort = ioPorts.first else {
             print("QEMU: port range is to small:", resources.ioPorts.count)
             return nil
         }
-        baseIOPort = ioPorts.first!
+        baseIOPort = basePort
+    }
 
+
+    func initialise() -> Bool {
         let signature = readSignature()
         guard signature == "QEMU" else {
             print("QEMU: Invalid signature", signature)
-            return nil
+            return false
         }
 
         let features = featureBitmap()
         print("Signature:", signature, "features", asHex(features))
         guard features & 1 == 1 else {
             print("QEMU device feature bit doesnt have IO access")
-            return nil
+            return false
         }
         hasDMAInterface = (features & 2) != 0
         print("QEMU: DMA interface available")
+        return true
     }
 
 

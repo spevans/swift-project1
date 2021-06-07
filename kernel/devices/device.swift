@@ -12,7 +12,7 @@ protocol Device: AnyObject, CustomStringConvertible {
     var enabled: Bool { get set }
     var deviceDriver: DeviceDriver? { get }
 
-    func initialiseDevice() -> Bool
+    func initialise() -> Bool
     func setDriver(_ driver: DeviceDriver)
 }
 

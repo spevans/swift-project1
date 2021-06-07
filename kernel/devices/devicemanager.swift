@@ -29,40 +29,10 @@ final class DeviceManager {
     }
 
 
-    private func pnpDevices(on bus: Bus, pnpName: String, body: (PNPDevice) -> ()) {
-        for device in bus.devices {
-            if let pnpDevice = device as? PNPDevice, pnpDevice.pnpName == pnpName {
-                body(pnpDevice)
-            }
-            if let bus = device.deviceDriver as? Bus {
-                pnpDevices(on: bus, pnpName: pnpName, body: body)
-            }
-        }
-    }
-
-
     func findPNPDevice(withName pnpName: String) {
         pnpDevices(on: masterBus, pnpName: pnpName) { pnpDevice in
-            guard pnpDevice.deviceDriver == nil else { return }
-
-            guard let driverType = pnpDriverById(pnpName: pnpDevice.pnpName) else {
-                print("PNP: Cant find driver for device:", pnpDevice.pnpName)
-                return
-            }
-
-            guard pnpDevice.initialiseDevice() else {
-                print("PNP: Cant initialise \(pnpDevice.pnpName)")
-                return
-            }
-
-            guard let driver = driverType.init(pnpDevice: pnpDevice) else {
-                print("PNP: Cant init \(pnpDevice.pnpName) with driver:", driverType)
-                return
-            }
-
-            print("Found early PNP device: \(driverType) on \(pnpDevice)")
-            pnpDevice.setDriver(driver)
-            system.deviceManager.addDevice(driver)
+            print("Found early PNP device:", pnpDevice)
+            initPnpDevice(pnpDevice)
         }
     }
 
@@ -96,7 +66,7 @@ final class DeviceManager {
         // the underlying hardware to be setup correectly (calling ._INI) and also
         // scan the buss for extra devices not in ACPI (eg on PCI busses)
         walkDeviceTree() { device in
-            if let bus = device.deviceDriver as? Bus {
+            if let bus = device.deviceDriver, bus is Bus {
                 print("DEV: Secondary initialisation of \(bus)")
                 if !bus.initialise() {
                     print("DEV: Failed to initialise \(bus)")
@@ -112,30 +82,58 @@ final class DeviceManager {
         }
     }
 
+
+    private func pnpDevices(on bus: Bus, pnpName: String, body: (PNPDevice) -> ()) {
+        for device in bus.devices {
+            if let pnpDevice = device as? PNPDevice, pnpDevice.pnpName == pnpName {
+                body(pnpDevice)
+            }
+            if let bus = device.deviceDriver as? Bus {
+                pnpDevices(on: bus, pnpName: pnpName, body: body)
+            }
+        }
+    }
+
+
+    private func initPnpDevices(on bus: Bus) {
+        for device in bus.devices {
+            if let bus = device.deviceDriver as? Bus {
+                initPnpDevices(on: bus)
+                continue
+            }
+            guard let pnpDevice = device as? PNPDevice else { continue }
+            initPnpDevice(pnpDevice)
+        }
+    }
+
+
+    private func initPnpDevice(_ pnpDevice: PNPDevice) {
+        guard pnpDevice.deviceDriver == nil else { return }
+        guard let driverType = pnpDriverById(pnpName: pnpDevice.pnpName) else {
+            print("Cant find driver for:", pnpDevice.pnpName)
+            return
+        }
+        guard pnpDevice.initialise() else {
+            print("PNP: Cant initialise \(pnpDevice.pnpName)")
+            return
+        }
+        guard let driver = driverType.init(pnpDevice: pnpDevice) else {
+            print("PNP: Cant init \(pnpDevice.pnpName) with driver:", driverType)
+            return
+        }
+        if driver.initialise() {
+            pnpDevice.setDriver(driver)
+            system.deviceManager.addDevice(driver)
+        } else {
+            print("Couldnt initialise device")
+        }
+    }
+
+
     // Setup the rest of the devices.
     func initialiseDevices() {
         print("MasterBus.initialiseDevices")
         // Now load device drivers for any known devices, ISA/PNP first
-        func initPnpDevices(on bus: Bus) {
-            for device in bus.devices {
-                if let pnpDevice = device as? PNPDevice, device.deviceDriver == nil {
-                    if let driverType = pnpDriverById(pnpName: pnpDevice.pnpName) {
-                        if pnpDevice.initialiseDevice(),
-                           let driver = driverType.init(pnpDevice: pnpDevice) {
-                            pnpDevice.setDriver(driver)
-                            system.deviceManager.addDevice(driver)
-                        } else {
-                            print("Couldnt initialise device")
-                        }
-                    } else {
-                        print("Cant find driver for:", pnpDevice.pnpName)
-                    }
-                }
-                else if let bus = device.deviceDriver as? Bus {
-                    initPnpDevices(on: bus)
-                }
-            }
-        }
         initPnpDevices(on: masterBus)
 
         print("Initialising USB")

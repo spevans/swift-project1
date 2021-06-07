@@ -39,7 +39,7 @@ final class PNPDevice: Device {
         pnpDeviceDriver = pnpDriver
     }
 
-    func initialiseDevice() -> Bool {
+    func initialise() -> Bool {
         guard _acpiDevice.initialiseIfPresent() else {
             print("\(fullName): initialiseIfPresent() failed")
             return false

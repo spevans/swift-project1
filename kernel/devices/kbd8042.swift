@@ -178,13 +178,21 @@ final class KBD8042: PNPDeviceDriver, CustomStringConvertible {
     var description: String { return "KBD8042 \(pnpDevice.resources)" }
 
     init?(pnpDevice: PNPDevice) {
+        print("kbd8042 init")
         self.pnpDevice = pnpDevice
+    }
+
+    func initialise() -> Bool {
         print("i8042:", pnpDevice.pnpName, pnpDevice.resources)
+        guard pnpDevice.initialise() else {
+            print("i8042: Cant initialise PNPDevice")
+            return false
+        }
 
         // 1. Flush output buffer
         if flushOutput() == false { // No device
             print("i8042: Cant find i8042")
-            return nil
+            return false
         }
 
         // 2. Disable devices
@@ -207,7 +215,7 @@ final class KBD8042: PNPDeviceDriver, CustomStringConvertible {
             //sendCommand(.Disable2ndPort)
         } else {
             print("i8042: Cant get command byte")
-            return nil
+            return false
         }
 
         // 4. Send POST to controller
@@ -216,7 +224,7 @@ final class KBD8042: PNPDeviceDriver, CustomStringConvertible {
                 print("i8042: POST ok")
             } else {
                 printf("i8042: POST returned: %X\n", postResult)
-                return nil
+                return false
             }
         } else {
             print("i8042: cant send POST")
@@ -280,6 +288,7 @@ final class KBD8042: PNPDeviceDriver, CustomStringConvertible {
         if let kbd = port1device as? (DeviceDriver & Keyboard) {
             system.deviceManager.addDevice(kbd)
         }
+        return true
     }
 
 

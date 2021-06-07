@@ -10,13 +10,11 @@
 
 
 final class HCD_XHCI: PCIDeviceDriver, USBHCD, CustomStringConvertible {
-    private let deviceFunction: PCIDeviceFunction       // The device (upstream) side of the bridge
+    private let pciDevice: PCIDevice        // The device (upstream) side of the bridge
     private let baseAddress: UInt32
 
-    let acpiDevice: AMLDefDevice?
-    var enabled = true
-
     var description: String { "XHCI driver @ 0x\(String(baseAddress, radix: 16))" }
+
 
     init?(pciDevice: PCIDevice) {
         print("XHCI init")
@@ -38,20 +36,19 @@ final class HCD_XHCI: PCIDeviceDriver, USBHCD, CustomStringConvertible {
             return nil
         }
 
+        self.pciDevice = pciDevice
         baseAddress = base & 0xffff_ff00
         print("XHCI: 0x\(String(baseAddress, radix: 16))")
-        self.deviceFunction = pciDevice.deviceFunction
-        self.acpiDevice = pciDevice.acpiDevice
-
-        let sbrn = deviceFunction.readConfigByte(atByteOffset: 0x60)
-        print("XHCI: bus release number 0x\(String(sbrn, radix: 16))")
     }
 
 
-    func initialiseDevice() {
+    func initialise() -> Bool {
         print("XHCI driver")
-
+        let sbrn = pciDevice.deviceFunction.readConfigByte(atByteOffset: 0x60)
+        print("XHCI: bus release number 0x\(String(sbrn, radix: 16))")
+        return false
     }
+
 
     func allocatePipe(device: USBDevice, endpointDescriptor: USB.EndpointDescriptor) -> USBPipe {
         fatalError("xhci: allocatePipe not implemented")

@@ -11,7 +11,6 @@ protocol Bus: AnyObject {
     var devices: [Device] { get }
     var resources: [MotherBoardResource] { get set }
     func initialiseDevices(acpiDevice: AMLDefDevice?)
-    func initialise() -> Bool
     func device(acpiDevice: AMLDefDevice) -> Device?
     func addDevice(_ device: Device)
     func addResource(_ resource: MotherBoardResource)

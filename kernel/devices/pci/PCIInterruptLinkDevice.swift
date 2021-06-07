@@ -53,4 +53,10 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver, CustomStringConvertible {
 
         print("PCI INT Link \(f) [_UID=\(uidValue)]: resources:", resources)
     }
+
+    // FIXME: Maybe select a better IRQ to use to balance them out better or make
+    // .irq into a funtion to do lazy irq allocation
+    func initialise() -> Bool {
+        true
+    }
 }

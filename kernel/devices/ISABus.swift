@@ -38,7 +38,7 @@ final class ISABus: PCIDeviceDriver, Bus, CustomStringConvertible {
     }
 
     func initialise() -> Bool {
-        guard pciDevice.initialiseDevice() else { return false }
+        guard pciDevice.initialise() else { return false }
         isaDevices.sort { $0.fullName < $1.fullName }
         return true
     }
