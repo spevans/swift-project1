@@ -13,26 +13,29 @@ final class CMOSRTC: PNPDeviceDriver, CustomStringConvertible {
 
     private let addressPort: UInt16
     private let dataPort: UInt16
-    private let irq: IRQSetting
+    private let irq: IRQSetting?
     private let centuryIndex: UInt8
 
 
     var description: String {
         return String.sprintf("CMOS RTC addr: 0x%2.2x data: 0x%2.2x irq: %s",
-                              addressPort, dataPort, irq.description)
+                              addressPort, dataPort, irq?.description ?? "none" )
     }
 
     init?(pnpDevice: PNPDevice) {
         print("CMOS: init:", pnpDevice.resources)
-        guard let ports = pnpDevice.resources.ioPorts.first, ports.count > 1
-                && pnpDevice.resources.interrupts.count > 0 else {
-            print("CMOS: Requires 2 IO ports and 1 IRQ")
+        guard let ports = pnpDevice.resources.ioPorts.first, ports.count > 1 else {
+            print("CMOS: Requires at least 2 IO ports:", pnpDevice.resources)
             return nil
         }
+
         let idx = ports.startIndex
         addressPort = ports[ports.index(idx, offsetBy: 0)]
         dataPort = ports[ports.index(idx, offsetBy: 1)]
-        irq = pnpDevice.resources.interrupts[0]
+
+        // Might be nil if no interrupt is specified in ACPI.
+        irq = pnpDevice.resources.interrupts.first
+
         if let century = system.deviceManager.acpiTables.facp?.rtcCenturyIndex, century < 64 {
             centuryIndex = century
         } else {
@@ -98,40 +101,36 @@ final class CMOSRTC: PNPDeviceDriver, CustomStringConvertible {
                 )
             }
         }
-
     }
 
 
-    private var seconds: UInt8 { return readMemory(0x00) }
-    private var minutes: UInt8 { return readMemory(0x02) }
-    private var hours: UInt8 { return readMemory(0x04) }
-    private var dayOfMonth: UInt8 { return readMemory(0x07) }
-    private var month: UInt8 { return readMemory(0x08) }
-    private var year: UInt8 { return readMemory(0x09) }
-    private var century: UInt8 {
-        return centuryIndex > 0 ? readMemory(centuryIndex) : 0
-    }
-    private var statusRegA: UInt8 { return readMemory(0x0A) }
-    private var statusRegB: UInt8 { return readMemory(0x0B) }
-    private var statusRegC: UInt8 { return readMemory(0x0C) }
-    private var statusRegD: UInt8 { return readMemory(0x0D) }
+    private var seconds: UInt8 { readMemory(0x00) }
+    private var minutes: UInt8 { readMemory(0x02) }
+    private var hours: UInt8 { readMemory(0x04) }
+    private var dayOfMonth: UInt8 { readMemory(0x07) }
+    private var month: UInt8 { readMemory(0x08) }
+    private var year: UInt8 { readMemory(0x09) }
+    private var century: UInt8 { centuryIndex > 0 ? readMemory(centuryIndex) : 0 }
+    private var statusRegA: UInt8 { readMemory(0x0A) }
+    private var statusRegB: UInt8 { readMemory(0x0B) }
+    private var statusRegC: UInt8 { readMemory(0x0C) }
+    private var statusRegD: UInt8 { readMemory(0x0D) }
 
 
     private func readMemory(_ index: UInt8) -> UInt8 {
         precondition(index >= 0 && index < 64)
-        let flags = local_irq_save()
-        outb(addressPort, index)
-        let data: UInt8 = inb(dataPort)
-        load_eflags(flags)
-        return data
+        return noInterrupt {
+            outb(addressPort, index)
+            return inb(dataPort)
+        }
     }
 
 
     private func writeMemory(_ index: UInt8, data: UInt8) {
         precondition(index >= 0 && index < 64)
-        let flags = local_irq_save()
-        outb(addressPort, index)
-        outb(dataPort, data)
-        load_eflags(flags)
+        noInterrupt {
+            outb(addressPort, index)
+            outb(dataPort, data)
+        }
     }
 }
