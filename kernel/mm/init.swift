@@ -239,8 +239,7 @@ private func getPageAtIndex(_ dirPage: PageTableDirectory, _ idx: Int)
 
 
 private var nextIOVirtualAddress: VirtualAddress = 0x4000000000 // 256GB
-func mapIORegion(physicalAddr: PhysAddress, size: Int,
-    cacheType: Int = 7 /* Uncacheable */) -> VirtualAddress {
+func mapIORegion(physicalAddr: PhysAddress, size: Int, cacheType: CPU.CacheType = .uncacheable) -> VirtualAddress {
     let newSize = roundToPage(UInt(size))
     let vaddr = nextIOVirtualAddress
     addMapping(start: vaddr, size: newSize, physStart: physicalAddr,
@@ -252,7 +251,7 @@ func mapIORegion(physicalAddr: PhysAddress, size: Int,
 }
 
 
-func mapIORegion(region: PhysPageRange, cacheType: Int = 7 /* Uncacheable */) -> MMIORegion {
+func mapIORegion(region: PhysPageRange, cacheType: CPU.CacheType = .uncacheable) -> MMIORegion {
     let vaddr = nextIOVirtualAddress
     //print("Adding IO mapping for \(region) at 0x\(String(vaddr, radix: 16))")
     addMapping(start: vaddr, size: region.regionSize, physStart: region.address,
@@ -265,14 +264,15 @@ func mapIORegion(region: PhysPageRange, cacheType: Int = 7 /* Uncacheable */) ->
 
 
 func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
-                readWrite: Bool, noExec: Bool, cacheType: Int = 0 /* WriteBack */) {
+                readWrite: Bool, noExec: Bool, cacheType: CPU.CacheType = .writeBack) {
 
     let pageCnt = ((size + PAGE_SIZE - 1) / PAGE_SIZE)
     var physAddress = physStart
     var addr = start
     let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_addr)
 
-    // Encode cacheType (0 - 7) PAT Enrty index
+    // Encode cacheType (0 - 7) PAT Entry index
+    let cacheType = cacheType.patEntry
     let writeThrough = (cacheType & 1) == 1
     let cacheDisable = (cacheType & 2) == 2
     let pat = (cacheType & 4) == 4

@@ -185,13 +185,31 @@ private let cpuId = CPUID()
 
 struct CPU {
 
+    // These are the values stored in the PAT MSRs
     enum PATEntry: UInt8 {
-        case Uncacheable = 0
-        case WriteCombining = 1
-        case WriteThrough = 4
-        case WriteProtected = 5
-        case WriteBack = 6
-        case Uncached = 7
+        case uncacheable = 0
+        case writeCombining = 1
+        case writeThrough = 4
+        case writeProtected = 5
+        case writeBack = 6
+        case weakUncacheable = 7 // Uncacheable (UC-), Overrideable by MTRRs
+    }
+
+    // The Page Attribute Table (PAT) entries will be setup so that the cache type rawValues get setup to match the MTRR values.
+    // weakUncacheable will be ignored here as it isnt useful at the moment
+    // These are the indexes of the PAT MSRs. Not all are used, some are reserved
+    enum CacheType: Int {
+        case writeBack = 0
+        case writeCombining = 1
+        case weakUncacheable = 2
+        case uncacheable = 3
+        case reserved1 = 4 // WriteBack
+        case writeProtected = 5
+        case reserved2 = 6 // weakUncacheable
+        case writeThrough = 7
+
+        // This value is stored as three bits in a Page Table Entry mapping a page.
+        var patEntry: Int { rawValue }
     }
 
 
@@ -288,19 +306,26 @@ struct CPU {
             koops("CPU doesnt support PAT")
         }
         // Update PAT to add a WriteCombining and WriteProtected entry
-        var pats = ByteArray8(readMSR(0x277)).map { PATEntry(rawValue: $0)! }
-        pats[2] = PATEntry.WriteCombining
-        pats[3] = PATEntry.WriteProtected
-
         // New PAT
-        // 0: WriteBack
-        // 1: WriteThrough
-        // 2: WriteCombining
-        // 3: WriteProtected
-        // 4: WriteBack
-        // 5: WriteThrough
-        // 6: Uncached
-        // 7: Uncacheable
+        // 0: WriteBack        (WB)
+        // 1: WriteCombining   (WC)
+        // 2: Weak Uncacheable (UC-)
+        // 3: Uncacheable      (UC)
+        // 4: WriteBack        (WP)
+        // 5: WriteProtected   (WP)
+        // 6: Weak Uncacheable (UC-)
+        // 7: WriteThrough     (WT)
+
+        print("Setting up new PAT Array")
+        var pats = ByteArray8(readMSR(0x277)).map { PATEntry(rawValue: $0)! }
+        pats[CacheType.writeBack.patEntry] = PATEntry.writeBack
+        pats[CacheType.writeCombining.patEntry] = PATEntry.writeCombining
+        pats[CacheType.weakUncacheable.patEntry] = PATEntry.weakUncacheable
+        pats[CacheType.uncacheable.patEntry] = PATEntry.uncacheable
+        pats[CacheType.reserved1.patEntry] = PATEntry.writeBack
+        pats[CacheType.writeProtected.patEntry] = PATEntry.writeProtected
+        pats[CacheType.reserved2.patEntry] = PATEntry.weakUncacheable
+        pats[CacheType.writeThrough.patEntry] = PATEntry.writeThrough
 
         writeMSR(0x277, UInt64(withBytes: pats.map { $0.rawValue }))
         let newPat = ByteArray8(readMSR(0x277)).map { PATEntry(rawValue: $0)! }
@@ -308,6 +333,12 @@ struct CPU {
         for (idx, entry) in newPat.enumerated() {
             print("CPU: \(idx): \(entry)")
         }
+        let msr: UInt64 = readMSR(0x277)
+        printf("PAT MSR: %16.16lx\n", msr)
+        // Disable PCIDE in CR4
+        var cr4 = CPU.cr4
+        cr4.pcide = false
+        CPU.cr4 = cr4
     }
 
     static func readMSR(_ msr: UInt32) -> (UInt32, UInt32) {
@@ -973,4 +1004,3 @@ struct VMXVMFunc {
             bits = BitArray64(CPU.readMSR(0x48C))
         }
 }
-

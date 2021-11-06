@@ -291,8 +291,7 @@ final class APIC {
         let baseAddress = PhysAddress(address)
         printf("APIC: base address: 0x%X\n", baseAddress.value)
 
-        apicRegistersVaddr = mapIORegion(physicalAddr: baseAddress,
-            size: APIC_REGISTER_SPACE_SIZE, cacheType: 7)
+        apicRegistersVaddr = mapIORegion(physicalAddr: baseAddress, size: APIC_REGISTER_SPACE_SIZE)
         let ptr = UnsafeMutableRawPointer(bitPattern: apicRegistersVaddr)!
         apicRegisters = UnsafeMutableRawBufferPointer(start: ptr,
             count: APIC_REGISTER_SPACE_SIZE)

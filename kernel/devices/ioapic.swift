@@ -24,7 +24,7 @@ final class IOAPIC {
         print("IOAPIC: ID: \(ioApicId) Address: \(baseAddress) interrupt base: \(gsiBase)")
 
         // FIXME: Use MMIO
-        registerBase = mapIORegion(physicalAddr: baseAddress, size: 0x20, cacheType: 7)
+        registerBase = mapIORegion(physicalAddr: baseAddress, size: 0x20)
         registerSelect = UnsafeMutablePointer<UInt32>(bitPattern: registerBase)!
         registerData = UnsafeMutablePointer<UInt32>(bitPattern: registerBase + 0x10)!
     }
