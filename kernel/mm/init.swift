@@ -104,9 +104,20 @@ func setupMM(bootParams: BootParams) {
     let dataSize = roundToPage(guardPage - dataStart)
     let stackHeapSize = bssEnd - VirtualAddress(_stack_start_addr)
 
+    // Show status of MTRRs
+    print("Reading MTRR settings")
+    let mtrrs = MTRRS()
+    print("MTRR: capabilities: \(mtrrs.capabilities)")
+    print("MTRR: control: \(mtrrs.control)")
+
     // Enable No Execute so data mappings can be set XD (Execute Disable)
     _ = CPU.enableNXE(true)
-    CPU.setupPAT()
+    // Disble MTRRs
+    disableMTRRsetupPAT()
+
+    let mtrrs2 = MTRRS()
+    print("MTRR: capabilities: \(mtrrs2.capabilities)")
+    print("MTRR: control: \(mtrrs2.control)")
 
     // Add 4 mappings for text, rodata, data + bss and the stack
     // with appropiate protections. There is a guard page between
@@ -354,4 +365,65 @@ private func printSections() {
     print("kernel: _guard_page:   ", asHex(_guard_page_addr))
     print("kernel: _stack_start:  ", asHex(_stack_start_addr))
     print("kernel: initial_pml4:  ", asHex(initial_pml4_addr))
+}
+
+
+// 11.11.8 MTRR Considerations in MP Systems
+// Disable MTRR and setup the PAT entries
+// NOTE/FIXME This doent disable the MTRR anymore as it appears that when it is disabled
+// all of the memorydefaults to UC. Im not sure if this is as intended, the SDM doesnt make
+// it clear whether PAT is the only source of memory type information or if the MTRR Control
+// Register field Default Type still has any effect even if the field Enable MTRRs is disabled.
+private func disableMTRRsetupPAT() {
+    noInterrupt {
+        // Enter the no-fill cache mode. (Set the CD flag in control register CR0 to 1 and the NW flag to 0.)
+        var cr0 = CPU.cr0
+        var cr4 = CPU.cr4
+        let pge = cr4.pge
+
+        cr0.cacheDisable = true
+        cr0.notWriteThrough = false
+        CPU.cr0 = cr0
+
+        // Flush all caches using the WBINVD instructions. Note on a processor that supports self-snooping,
+        // CPUID feature flag bit 27, this step is unnecessary.
+        // if !CPU.hasSelfSnoop {
+        wbinvd()
+
+        // If the PGE flag is set in control register CR4, flush all TLBs by clearing that flag.
+        if CPU.capabilities.pge {
+            cr4.pge = false
+            CPU.cr4 = cr4
+        }
+
+        // If the PGE flag is clear in control register CR4, flush all TLBs by executing a MOV from control
+        // register CR3 to another register and then a MOV from that register back to CR3.
+        let cr3 = CPU.cr3
+        CPU.cr3 = cr3
+
+        // Disable all range registers (by clearing the E flag in register MTRRdefType).
+        //If only variable ranges are being modified, software may clear the valid bits for the affected register pairs instead.
+        // (Note see above)
+        //MTRRS.disableMTRRs()
+
+        // Flush all caches and all TLBs a second time.
+        wbinvd()
+
+        CPU.setupPAT()
+        do {
+            let cr3 = CPU.cr3
+            CPU.cr3 = cr3
+        }
+
+        // Enter the normal cache mode to re-enable caching.
+        cr0.cacheDisable = false
+        cr0.notWriteThrough = false
+        CPU.cr0 = cr0
+
+        // Set PGE flag in control register CR4, if cleared
+        if CPU.capabilities.pge {
+            cr4.pge = pge
+            CPU.cr4 = cr4
+        }
+    }
 }

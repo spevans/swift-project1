@@ -623,6 +623,10 @@ struct CPU {
         set { setCR0(newValue.value) }
     }
 
+    static var cr3: CR3Register {
+        get { CR3Register() }
+        set { setCR3(newValue.value) }
+    }
 
     static var cr4: CR4Register {
         get { CR4Register() }

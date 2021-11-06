@@ -303,6 +303,12 @@ rdtsc()
         return (edx << 32) | eax;
 }
 
+static inline void
+wbinvd(void)
+{
+        asm volatile ("wbinvd" : : : "memory");
+}
+
 // kernel/klib/x86.asm functions
 void reload_segments(void);
 void test_breakpoint(void);
