@@ -22,7 +22,7 @@ private var freePageListHead = initFreeList()
 
 // This is called the first time alloc_pages() is called, usually by malloc()
 private func initFreeList() -> FreePageListEntryPtr? {
-    let heap_phys = virtualToPhys(address: _heap_start_addr)
+    let heap_phys = virtualToPhys(address: _heap_start_addr)!
     let pageCount = Int((_heap_end_addr - _heap_start_addr) / PAGE_SIZE)
     kprintf("init_free_list: heap_start: %p ", _heap_start_addr)
     kprintf("heap_end: %p ", _heap_end_addr)
@@ -102,7 +102,7 @@ func alloc(pages: Int) -> PhysPageRange {
 
 @_cdecl("free_pages")
 public func freePages(at address: VirtualAddress, count: Int) {
-    let paddr = virtualToPhys(address: address)
+    let paddr = virtualToPhys(address: address)!
     addPagesToFreeList(physPage: PhysPageRange(paddr, pageSize: PAGE_SIZE, pageCount: count))
 }
 

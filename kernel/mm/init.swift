@@ -82,9 +82,9 @@ func setupMM(bootParams: BootParams) {
     }
 
     // Show the current memory ranges
-    for range in bootParams.memoryRanges {
-        print("MM:", bootParams.source, ":", range)
-    }
+//    for range in bootParams.memoryRanges {
+//        print("MM:", bootParams.source, ":", range)
+//    }
 
     let lastEntry = bootParams.memoryRanges[bootParams.memoryRanges.count - 1]
     let highestMemoryAddress = lastEntry.start.advanced(by: lastEntry.size - 1)
@@ -199,17 +199,16 @@ func setupMM(bootParams: BootParams) {
 // and map the reserved mem as RO etc
 private func mapPhysicalMemory(_ maxAddress: PhysAddress) {
     var inc: UInt = 0
-    var mapper: (UInt, PhysAddress) -> ()
 
     printf("MM: Mapping physical memory from 0 - %p , freePageCount: %ld\n", maxAddress.value, freePageCount())
     // Map physical memory using 1GB pages if available else 2MB pages
+    var mapper = add2MBMapping
     if CPU.capabilities.pages1G {
         inc = 0x40000000    // 1GB
-        print("MM: Using 1GB mappings: ")
         mapper = add1GBMapping
+        print("MM: Using 1GB mappings: ")
     } else {
         inc = 0x200000      // 2MB
-        mapper = add2MBMapping
         print("MM: Using 2MB mappings: ")
     }
 
@@ -219,7 +218,7 @@ private func mapPhysicalMemory(_ maxAddress: PhysAddress) {
     var paddr = PhysAddress(0)
 
     for _ in 1...pages {
-        mapper(vaddr, paddr)
+        mapper(vaddr, paddr, true, false)
         vaddr += inc
         paddr = paddr.advanced(by: inc)
     }
@@ -229,23 +228,6 @@ private func mapPhysicalMemory(_ maxAddress: PhysAddress) {
 
 private func roundToPage(_ size: UInt) -> UInt {
     return (size + PAGE_MASK) & ~PAGE_MASK
-}
-
-
-private func getPageAtIndex(_ dirPage: PageTableDirectory, _ idx: Int)
-    -> PageTableDirectory {
-    if !pagePresent(dirPage[idx]) {
-        let newPage = alloc(pages: 1)
-        newPage.rawBufferPointer.initializeMemory(as: UInt8.self, repeating: 0)
-        let paddr = newPage.address
-        let entry = makePDE(address: paddr, readWrite: true, userAccess: false,
-            writeThrough: true, cacheDisable: false, noExec: false)
-        dirPage[idx] = entry
-        return pageTableBuffer(virtualAddress: paddr.vaddr)
-    }
-
-    let paddr = PhysAddress(dirPage[idx] & 0x0000fffffffff000)
-    return pageTableBuffer(virtualAddress: paddr.vaddr)
 }
 
 
@@ -280,28 +262,29 @@ func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
     let pageCnt = ((size + PAGE_SIZE - 1) / PAGE_SIZE)
     var physAddress = physStart
     var addr = start
-    let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_addr)
+    let pmlPage = PageMapLevel4Table(at: initial_pml4_addr)
 
     // Encode cacheType (0 - 7) PAT Entry index
-    let cacheType = cacheType.patEntry
-    let writeThrough = (cacheType & 1) == 1
-    let cacheDisable = (cacheType & 2) == 2
-    let pat = (cacheType & 4) == 4
+    let patIndex = cacheType.patEntry
+
     for _ in 0..<pageCnt {
         let idx0 = pml4Index(addr)
         let idx1 = pdpIndex(addr)
         let idx2 = pdIndex(addr)
         let idx3 = ptIndex(addr)
 
-        let pdpPage = getPageAtIndex(pmlPage, idx0)
-        let pdPage = getPageAtIndex(pdpPage, idx1)
-        let ptPage = getPageAtIndex(pdPage, idx2)
+        let pdpPage = pmlPage.pageDirectoryPointerTable(at: idx0, readWrite: true, userAccess: false,
+            writeThrough: true, cacheDisable: false, noExec: false)
 
-        if !pagePresent(ptPage[idx3]) {
-            let entry = makePTE(address: physAddress, readWrite: readWrite,
-                userAccess: false, writeThrough: writeThrough,
-                cacheDisable: cacheDisable, global: false, noExec: noExec,
-                largePage: false, PAT: pat)
+        let pdPage = pdpPage.pageDirectory(at: idx1, readWrite: true, userAccess: false,
+            writeThrough: true, cacheDisable: false, noExec: false)
+
+        var ptPage = pdPage.pageTable(at: idx2, readWrite: true, userAccess: false,
+            writeThrough: true, cacheDisable: false, noExec: false)
+
+        if !ptPage[idx3].present {
+            let entry = PageTableEntry(address: physAddress, readWrite: readWrite,
+                userAccess: false, patIndex: patIndex, global: false, noExec: noExec)
             ptPage[idx3] = entry
         } else {
             koops("MM: page is already present!")
@@ -310,24 +293,53 @@ func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
         addr += PAGE_SIZE
         physAddress = physAddress.advanced(by: PAGE_SIZE)
     }
-    printf("MM: Added kernel mapping from %p-%p [%p-%p]\n", start, addr - 1,
-        physStart.value, physAddress.value - 1)
+    printf("MM: Added kernel mapping from %p-%p [%p-%p]\n", start, addr - 1, physStart.value, physAddress.value - 1)
 }
 
 
-private func add2MBMapping(_ addr: VirtualAddress, physAddress: PhysAddress) {
+private func add4KMapping(_ addr: VirtualAddress, physAddress: PhysAddress, readWrite: Bool, noExec: Bool) {
+    let idx0 = pml4Index(addr)
+    let idx1 = pdpIndex(addr)
+    let idx2 = pdIndex(addr)
+    let idx3 = ptIndex(addr)
+
+    let pmlPage = PageMapLevel4Table(at: initial_pml4_addr)
+    let pdpPage = pmlPage.pageDirectoryPointerTable(at: idx0, readWrite: readWrite, userAccess: false,
+        writeThrough: true, cacheDisable: false, noExec: noExec)
+
+    let pdPage = pdpPage.pageDirectory(at: idx1, readWrite: readWrite, userAccess: false,
+        writeThrough: true, cacheDisable: false, noExec: noExec)
+
+    var ptPage = pdPage.pageTable(at: idx2, readWrite: readWrite, userAccess: false,
+        writeThrough: true, cacheDisable: false, noExec: noExec)
+
+    if !ptPage[idx3].present {
+        let patIndex = CPU.CacheType.writeBack.patEntry
+        let entry = PageTableEntry(address: physAddress, readWrite: readWrite,
+                userAccess: false, patIndex: patIndex, global: false, noExec: noExec)
+        ptPage[idx3] = entry
+    } else {
+        koops("MM: page is already present!")
+    }
+}
+
+
+private func add2MBMapping(_ addr: VirtualAddress, physAddress: PhysAddress, readWrite: Bool, noExec: Bool) {
     let idx0 = pml4Index(addr)
     let idx1 = pdpIndex(addr)
     let idx2 = pdIndex(addr)
 
-    let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_addr)
-    let pdpPage = getPageAtIndex(pmlPage, idx0)
-    let pdPage = getPageAtIndex(pdpPage, idx1)
+    let pmlPage = PageMapLevel4Table(at: initial_pml4_addr)
+    let pdpPage = pmlPage.pageDirectoryPointerTable(at: idx0, readWrite: readWrite, userAccess: false,
+        writeThrough: true, cacheDisable: false, noExec: noExec)
 
-    if !pagePresent(pdPage[idx2]) {
-        let entry = makePTE(address: physAddress, readWrite: true,
-            userAccess: false, writeThrough: true, cacheDisable: false,
-            global: false, noExec: true, largePage: true, PAT: false)
+    var pdPage = pdpPage.pageDirectory(at: idx1, readWrite: readWrite, userAccess: false,
+        writeThrough: true, cacheDisable: false, noExec: noExec)
+
+    if !pdPage[idx2].present {
+        let patIndex = CPU.CacheType.writeBack.patEntry
+        let entry = PageDirectoryEntry(largePageAddress: physAddress, readWrite: readWrite,
+            userAccess: false, patIndex: patIndex, global: false, noExec: noExec)
         pdPage[idx2] = entry
     } else {
         koops("MM: 2MB mapping cant be added, already present")
@@ -335,16 +347,18 @@ private func add2MBMapping(_ addr: VirtualAddress, physAddress: PhysAddress) {
 }
 
 
-private func add1GBMapping(_ addr: VirtualAddress, physAddress: PhysAddress) {
+private func add1GBMapping(_ addr: VirtualAddress, physAddress: PhysAddress, readWrite: Bool, noExec: Bool) {
     let idx0 = pml4Index(addr)
     let idx1 = pdpIndex(addr)
 
-    let pmlPage = pageTableBuffer(virtualAddress: initial_pml4_addr)
-    let pdpPage = getPageAtIndex(pmlPage, idx0)
-    if !pagePresent(pdpPage[idx1]) {
-        let entry = makePTE(address: physAddress, readWrite: true,
-            userAccess: false, writeThrough: true, cacheDisable: false,
-            global: false, noExec: true, largePage: true, PAT: false)
+    let pmlPage = PageMapLevel4Table(at: initial_pml4_addr)
+    var pdpPage = pmlPage.pageDirectoryPointerTable(at: idx0, readWrite: readWrite, userAccess: false,
+        writeThrough: true, cacheDisable: false, noExec: noExec)
+
+    if !pdpPage[idx1].present {
+        let patIndex = CPU.CacheType.writeBack.patEntry
+        let entry = PageDirectoryPointerTableEntry(largePageAddress: physAddress, readWrite: readWrite,
+            userAccess: false, patIndex: patIndex, global: false, noExec: noExec)
         printf("1GB Mapping entry: %16.16llx\n", entry);
         pdpPage[idx1] = entry
     } else {

@@ -98,6 +98,14 @@ struct PhysAddress: CVarArg, Comparable, Hashable, CustomStringConvertible {
         return lhs.value < rhs.value
     }
 
+    static func &(lhs: PhysAddress, rhs: RawAddress) -> PhysAddress {
+        return PhysAddress(lhs.value & rhs)
+    }
+
+    static func |(lhs: PhysAddress, rhs: RawAddress) -> PhysAddress {
+        return PhysAddress(lhs.value & rhs)
+    }
+
     public var _cVarArgEncoding: [Int] {
         return _encodeBitsAsWords(value)
     }
