@@ -14,8 +14,9 @@ PHDRS {
 
 SECTIONS {
   . = 0x1000;
-  /* 256TB - 2GB + 1MB */
-  .text (0xffffffff80100000) : {
+  /* 2^64 - 2GB + 16MB */
+  /* Kernel is loaded at Physical Address 16MB (with BIOS load) */
+  .text (0xffffffff81000000) : {
     _kernel_start = .;
     _text_start = .;
     *(.text .text.*)

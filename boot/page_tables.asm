@@ -78,11 +78,11 @@ pte_loop:
         mov     eax, 0x8000 | PAGE_PRESENT | PAGE_WRITEABLE
         mov     [es:di], eax
 
-        ;; PD @ 0x8000 8 entries of 2MB 16MB @ 0 phys
-        ;; This maps the first 16MB of physical memory at 2 locations:
+        ;; PD @ 0x8000 32 entries of 2MB 64MB @ 0 phys
+        ;; This maps the first 64MB of physical memory at 2 locations:
         ;; @ 128TB (bottom of the kernel space) for kernel access to all ram
         ;; @ 256T-512GB to map the kernel to its running address
-        mov     cx, 8
+        mov     cx, 32
         mov     di, 0x8000
         mov     eax, 0x0000 | PAGE_PRESENT | PAGE_WRITEABLE | PAGE_LARGEPAGE
 pde_loop:

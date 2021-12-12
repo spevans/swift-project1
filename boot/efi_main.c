@@ -181,9 +181,10 @@ efi_status_t
 alloc_memory(struct memory_region *region)
 {
         size_t pages = (region->req_size + PAGE_MASK) / PAGE_SIZE;
-        void *address = 0;
+        void *address = region->base;
+        efi_allocate_type allocate_type = region->base == NULL ? EFI_ALLOCATE_ANY_PAGES : EFI_ALLOCATE_ADDRESS;
         efi_status_t status = efi_call4(sys_table->boot_services->allocate_pages,
-                                        EFI_ALLOCATE_ANY_PAGES, region->type,
+                                        allocate_type, region->type,
                                         pages, (uintptr_t)&address);
         if (status == EFI_SUCCESS) {
                 memset(address, 0, pages * PAGE_SIZE);
@@ -775,9 +776,12 @@ relocate_kernel()
         total_sz += PAGE_SIZE;
         uprintf("Size of kernel+bss+symbols %lx\n", total_sz);
 
+        // Load the kernel at 0x1000000 (16MB physical).
+        // TODO: This could fail so add a fallback to memcpy it into place.
         struct memory_region region = {
                 .req_size = total_sz,
-                .type = MEM_TYPE_KERNEL
+                .type = MEM_TYPE_KERNEL,
+                .base = (void *)0x1000000
         };
 
         status = alloc_memory(&region);

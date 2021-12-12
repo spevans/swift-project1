@@ -11,7 +11,7 @@
 
 
 BUFFER_SEG              EQU     0x8000
-KERNEL_LOAD_ADDR        EQU     0x100000
+KERNEL_LOAD_ADDR        EQU     0x1000000
 
         BITS 16
 

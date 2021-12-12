@@ -23,7 +23,7 @@ get_memory:
 
         mov     dword [es:00], 'BIOS'   ; .signature
         mov     dword [es:08], 0        ; .size (of table)
-        mov     dword [es:16], 0x100000 ; physical address of kernel
+        mov     dword [es:16], KERNEL_LOAD_ADDR ; physical address of kernel
         mov     dword [es:24], 0x30028  ; .e820_map lo dword
         mov     dword [es:28], 0x0      ; .e820_map hi dword @ 0x030020 PhysAddr
         mov     edi, 40                 ; offset to e832 data
