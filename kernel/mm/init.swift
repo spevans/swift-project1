@@ -13,9 +13,6 @@
  * first 16MB of memory
  * @0 (Zero Page) is unmapped to catch NULL pointer errors.
  *
- * 4K  @ 0x1000 -> 0x100000(1MB)
- *       To allow the TLS address to be put in a GDT entry. This needs to be
- *       below 4GB. This is the first 4KB of the kernel which has data.
  *
  * 2MB @ 0x3000 -> 0x200000(2MB)
  *       An identity mapping used to load the kernel and execute code after
@@ -166,14 +163,6 @@ func setupMM(bootParams: BootParams) {
         kernelBase + textSize + rodataSize + dataSize + PAGE_SIZE,
         kernelPhysAddress(kernelBase + textSize + rodataSize + dataSize
             + PAGE_SIZE).value)
-
-#if ENABLE_TLS
-    // Map the TLS which resides before 4GB mark and has the same virtual
-    // and physical address
-    let tlsPage = TLS_END_ADDR & ~PAGE_MASK
-    addMapping(start: tlsPage, size: PAGE_SIZE, physStart: kernelPhysBase,
-        readWrite: true, noExec: true)
-#endif
 
     mapPhysicalMemory(highestMemoryAddress)
     let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_addr).value)

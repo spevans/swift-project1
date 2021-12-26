@@ -24,6 +24,4 @@ reload_segments:
         mov     ds, ax
         mov     es, ax
         mov     ss, ax
-        mov     ax, TLS_SEG
-        mov     fs, ax
         ret

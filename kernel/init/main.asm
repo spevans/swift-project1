@@ -28,9 +28,6 @@
         ;; EDI:ESI boot params / memory tables
         ;; ECX:EDX framebuffer info (EFI only)
 
-;;; This first page is mapped at both 0x1000 and 0xffffffff80100000 and
-;;; holds the TLS so that the TLS can exist in the first 4GB since the
-;;; TLS entry in the GDT only allows a 32bit base address.
 _config_page:
         OFFSET 0x0E40
 
@@ -41,13 +38,8 @@ GDT:
         dq      0x00209A0000000000
         ;; Data descriptor 0x10, base=0, limit=0 Present, Ring 0, RW Longmode
         dq      0x0000920000000000
-
-%ifdef ENABLE_TLS
-        ;; TLS descriptor 0x18, base=0x1FF8, limit=0 Present, Ring 0, RW Longmode
-        dq      0x0000920000000000
-%else
-        dq      0x0000000000000000 ; Null descriptor
-%endif
+        ;; Null descriptor
+        dq      0x0000000000000000
 
         ;; TSS (Task State Segment) descriptor 0x20 (16 bytes, filled in by GDT.swift)
         TIMES 16 DB 0
@@ -58,15 +50,6 @@ GDT:
 
         ALIGN   8
 task_state_segment:     TIMES 104   DB 0
-
-%ifdef ENABLE_TLS
-        OFFSET  0x0F00          ; 248 bytes for TLS bss
-tls_bss:
-
-        OFFSET  0x0FF8
-tls_end_addr:   dq  0x1FF8
-
-%endif
 
         OFFSET  4096            ; defined as KERNEL_ENTRY in include/macros.asm
 main:
@@ -112,10 +95,6 @@ main:
         call    enable_sse
 %endif
 
-%ifdef ENABLE_TLS
-        call    setup_tls
-%endif
-
         mov     rdi, r13        ; framebuffer info
         call    init_early_tty
         mov     rdi, r12
@@ -126,30 +105,6 @@ main:
         mov     rsi, r13
         call    startup         ; SwiftKernel.startup
         hlt
-
-%ifdef ENABLE_TLS
-        ;; Setup TLS - Update the GDT entry for select 0x18 to have the address
-        ;; of tls_end which is allocated in the config area above.
-setup_tls:
-        mov     rbx, GDT
-        add     rbx, 0x18
-        mov     eax, [tls_end_addr]
-        mov     edx, eax
-        mov     ecx, eax
-        shl     ecx, 16         ; ecx hold low 32bit of descriptor (limit  = 0)
-        mov     [rbx], ecx
-        mov     ecx, eax
-        shr     ecx, 16
-        and     ecx, 0xff
-        or      ecx, 0x9200
-        and     eax, 0xff000000
-        or      eax, ecx
-        mov     [rbx+4], eax
-        ;; Load the newly created TLS entry into FS
-        mov     ax, 0x18
-        mov     fs, ax
-        ret
-%endif
 
 
 %ifdef USEFP

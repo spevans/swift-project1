@@ -10,9 +10,9 @@
 ;;; PD   @ 0000:5000 - Maps 2MB @ 0
 ;;; PD   @ 0000:8000 - Maps 16MB using 2MB pages @ 128TB and 256TB-512GB
 ;;; (extended to cover all memory when tables are setup in swift)
-;;; PT   @ 0000:6000 - Maps 4K @0x1000 -> 0x100000, 2MB-12K @ 0x3000 -> 0x3000
+;;; PT   @ 0000:6000 - 2MB-12K @ 0x3000 -> 0x3000
 ;;; Zero page is left unmapped to capture NULL pointer dereference.
-;;; 0x1000 is mapped to 0x10000 (first page of the kernel) for the TLS
+
 
 PAGE_PRESENT    EQU     1
 PAGE_WRITEABLE  EQU     2
@@ -54,10 +54,7 @@ setup_pagetables:
         ;; Page Table Entries (PTEs) @ 0x6000 512 entries maps 2MB
         ;; using 4KB pages. first page @ 0 is unmapped, 2nd page
         ;; maps 0x1000 to 0x100000, rest is identity mapped.
-        mov     di, 0x6008
-        mov     eax, 0x100000 | PAGE_PRESENT | PAGE_WRITEABLE
-        mov     [es:di], eax
-        add     di, 16
+        mov     di, 0x6018
         mov     cx, 509
         mov     eax, 0x3000 | PAGE_PRESENT | PAGE_WRITEABLE
 pte_loop:

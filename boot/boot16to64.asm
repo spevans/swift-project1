@@ -129,10 +129,6 @@ GDT:
         dq      0x00209A0000000000
         ;; Data descriptor, base=0, limit=0 Present, Ring 0, RW Longmode
         dq      0x0000920000000000
-%ifdef ENABLE_TLS
-        ;; TLS descriptor, base=0x1FF8, limit=0 Present, Ring 0, RW Longmode
-        dq      0x0000920000000000
-%endif
 
 
 .pointer:

@@ -17,7 +17,6 @@
 #define KERNEL_VIRTUAL_BASE     0xffffffff81000000UL    // 1GB
 #define PHYSICAL_MEM_BASE       0xffff800000000000UL    // 128TB
 #define MAX_PHYSICAL_MEMORY     0x1000000000UL          // 64GB Physical RAM
-#define TLS_END_ADDR            0x1FF8UL
 
 #define PAGE_SIZE 4096UL
 #define PAGE_MASK 4095UL
@@ -25,7 +24,6 @@
 
 #define CODE_SELECTOR 0x08
 #define DATA_SELECTOR 0x10
-#define TLS_SELECTOR  0x18
 #define TSS_SELECTOR  0x20
 
 
