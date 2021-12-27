@@ -124,6 +124,7 @@
 		B9F8322B1F38BD20009F24AE /* macbook31-SSDT7.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831C61F38BC43009F24AE /* macbook31-SSDT7.aml */; };
 		B9F8322D1F38BD20009F24AE /* macbook31-SSDT8.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831B81F38BC43009F24AE /* macbook31-SSDT8.aml */; };
 		B9F8322F1F38BD20009F24AE /* QEMU-DSDT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831F31F38BC4B009F24AE /* QEMU-DSDT.aml */; };
+		B9FB56EF2778C7E30012198D /* PageSize.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9FB56EE2778C7E30012198D /* PageSize.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -352,6 +353,7 @@
 		B9F831CD1F38BC43009F24AE /* macbook31-SSDT3.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-SSDT3.aml"; sourceTree = "<group>"; };
 		B9F831F21F38BC4B009F24AE /* QEMU-DSDT.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "QEMU-DSDT.dsl"; sourceTree = "<group>"; };
 		B9F831F31F38BC4B009F24AE /* QEMU-DSDT.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "QEMU-DSDT.aml"; sourceTree = "<group>"; };
+		B9FB56EE2778C7E30012198D /* PageSize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PageSize.swift; path = kernel/mm/PageSize.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -558,6 +560,7 @@
 		B9EE70401D3D536B006B6AB7 = {
 			isa = PBXGroup;
 			children = (
+				B9FB56EE2778C7E30012198D /* PageSize.swift */,
 				B98A0E8026679C30006898DF /* PCIInterruptLinkDevice.swift */,
 				B945F65F265978B9008D6A9A /* PCICapability.swift */,
 				B9BDA4302654400C00A2BCB4 /* pcideviceclass.swift */,
@@ -901,6 +904,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B9FB56EF2778C7E30012198D /* PageSize.swift in Sources */,
 				B9D2AC14266E52B8002DA8DD /* PNPDevice.swift in Sources */,
 				B98A0E8226679D96006898DF /* ISABus.swift in Sources */,
 				B98A0E8126679C31006898DF /* PCIInterruptLinkDevice.swift in Sources */,

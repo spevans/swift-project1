@@ -196,6 +196,10 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
             koops("E820: Could not find Kernel entry")
         }
 
+        // Add in a range for the VGA framebuffer. This may already exist or may overwrite something that already
+        // covers that range.
+        // FIXME: Dont overwrite if there is a better mapping already.
+        ranges.insertRange(MemoryRange(type: .FrameBuffer, start: PhysAddress(0xA0000), size: UInt(128 * kb)))
         findHoles(&ranges)
 
         return ranges
@@ -213,14 +217,13 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
     // Root System Description Pointer
     private func findRSDP() -> UnsafePointer<rsdp1_header>? {
         if let ebda = getEBDA() {
-            printf("ACPI: EBDA: %#8.8lx len: %#4.4lx\n", ebda.baseAddress!,
-                ebda.count)
+            printf("ACPI: EBDA: %p len: 0x%x\n", UInt(bitPattern: ebda.baseAddress!), ebda.count)
             if let rsdp = scanForRSDP(ebda) {
                 return rsdp
             }
         }
         let upper = getUpperMemoryArea()
-        printf("ACPI: Upper: %#8.8lx len: %#4.4lx\n", upper.baseAddress!, upper.count)
+        printf("ACPI: Upper: %p len: 0x%x\n", UInt(bitPattern: upper.baseAddress!), upper.count)
         return scanForRSDP(upper)
     }
 

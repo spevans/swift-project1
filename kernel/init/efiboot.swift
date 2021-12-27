@@ -134,20 +134,9 @@ struct EFIBootParams: BootParams {
         }
 
         ranges.sort { $0.start < $1.start }
-        // Find the last range. If it doesnt cover the frame buffer
-        // then add that in as an extra range at the end.
-        // FIXME: Any extra MMIO ranges that should be added should probably
-        // come from ACPI or PCI etc.
-        if let fbAddr = frameBufferInfo?.address {
-            let lastEntry = ranges[ranges.count-1]
-            let address = lastEntry.start.advanced(by: lastEntry.size - 1)
-            if address < fbAddr {
-                ranges.append(MemoryRange(type: .FrameBuffer,
-                        start: frameBufferInfo!.address,
-                        size: frameBufferInfo!.size))
-            }
+        if let fb = frameBufferInfo {
+            ranges.insertRange(fb.memoryRange)
         }
-
         ranges.sort { $0.start < $1.start }
         return ranges
     }

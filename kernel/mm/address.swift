@@ -111,6 +111,28 @@ struct PhysAddress: CVarArg, Comparable, Hashable, CustomStringConvertible {
     }
 }
 
+extension PageSize {
+    func isPageAligned(_ address: PhysAddress) -> Bool {
+        isPageAligned(address.value)
+    }
+
+    func roundDown(_ address: PhysAddress) -> PhysAddress {
+        PhysAddress(roundDown(address.value))
+    }
+
+    func roundUp(_ address: PhysAddress) -> PhysAddress {
+        PhysAddress(roundUp(address.value))
+    }
+
+    func lastAddressInPage(_ address: PhysAddress) -> PhysAddress {
+        PhysAddress(lastAddressInPage(address.value))
+    }
+
+    func onSamePage(_ address1: PhysAddress, _ address2: PhysAddress) -> Bool {
+        onSamePage(address1.value, address2.value)
+    }
+}
+
 
 struct PhysPageRangeIterator: IteratorProtocol {
     typealias Element = PhysAddress
@@ -180,6 +202,27 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
         addressBits = _address
         self.pageCount = pageCount
     }
+
+    // Create a page range that covers from start address to for size bytes. The resulting
+    // region may have a start address lower then the requested address
+    init(start: PhysAddress, size: UInt, pageSize: PageSize = PageSize(PAGE_SIZE)) {
+        let pgSize: UInt
+        // Encode the page size
+        switch pageSize.pageSize {
+            case 4096: pgSize = 1
+            case 2048 * 1024: pgSize = 2
+            case 1024 * 1024 * 1024: pgSize = 3
+            default: fatalError("Invalid page size: \(pageSize)")
+        }
+
+        let startAddress = pageSize.roundDown(start)
+        let endAddress = pageSize.lastAddressInPage(start + size)
+        let pageCount = ((endAddress - startAddress) + 1) / Int(pageSize.pageSize)
+        precondition(pageCount > 0)
+        self.addressBits = startAddress.value | pgSize
+        self.pageCount = pageCount
+    }
+
 
     private init(addressBits: UInt, pageCount: Int) {
         self.addressBits = addressBits
