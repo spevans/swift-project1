@@ -76,7 +76,7 @@ final class PCIDeviceFunction: CustomStringConvertible {
 #endif
 
     deinit {
-        // FIXME - unmap the MMIORegion
+        configSpace.release()
     }
 
     var configSpaceSize: Int { configSpace.size }

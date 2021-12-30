@@ -303,6 +303,14 @@ rdtsc()
         return (edx << 32) | eax;
 }
 
+
+static inline void
+invlpg(unsigned long address)
+{
+        asm volatile ("invlpg (%0)" : : "r" (address) : "memory" );
+}
+
+
 static inline void
 wbinvd(void)
 {

@@ -61,17 +61,14 @@ extension HCD_UHCI {
         let frameListPage: FrameListPage
 
         init() {
-            let flp = alloc(pages: 1)
-            frameListPage = FrameListPage(region: mapIORegion(region: flp))
+            let flp = allocIOPage()
+            frameListPage = FrameListPage(region: MMIORegion(physicalRegion: flp, virtualAddress: flp.vaddr))
 
-            // FIXME: these 2 allocations should be from a 32bit regions, ie alloc32(pages: ...)
-            // Need to add a call to for that
-            let _bufferPool32 = alloc(pages: 1)
-            bufferPool32 = mapIORegion(region: _bufferPool32)
+            let _bufferPool32 = allocIOPage()
+            bufferPool32 = MMIORegion(physicalRegion: _bufferPool32, virtualAddress: _bufferPool32.vaddr)
 
-            let _bufferPool512 = alloc(pages: 1)
-            bufferPool512 = mapIORegion(region: _bufferPool512)
-
+            let _bufferPool512 = allocIOPage()
+            bufferPool512 = MMIORegion(physicalRegion: _bufferPool512, virtualAddress: _bufferPool512.vaddr)
         }
 
         deinit {
@@ -79,10 +76,9 @@ extension HCD_UHCI {
             assert(bufferPool32Bitmap.freeEntryCount() == bufferPool32Bitmap.entryCount)
             assert(bufferPool512Bitmap.freeEntryCount() == bufferPool512Bitmap.entryCount)
 
-            // FIXME, unmap the pages.
-            freePages(pages: bufferPool32.physicalRegion)
-            freePages(pages: bufferPool512.physicalRegion)
-            freePages(pages: frameListPage.region.physicalRegion)
+            freeIOPage(bufferPool32.physicalRegion)
+            freeIOPage(bufferPool512.physicalRegion)
+            freeIOPage(frameListPage.region.physicalRegion)
         }
 
 

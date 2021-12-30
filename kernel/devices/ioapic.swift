@@ -24,7 +24,8 @@ final class IOAPIC {
         print("IOAPIC: ID: \(ioApicId) Address: \(baseAddress) interrupt base: \(gsiBase)")
 
         // FIXME: Use MMIO
-        registerBase = mapIORegion(physicalAddr: baseAddress, size: 0x20)
+        let region = PhysPageRange(start: baseAddress, size: 0x20)
+        registerBase = mapIORegion(region: region, cacheType: .uncacheable).virtualAddress
         registerSelect = UnsafeMutablePointer<UInt32>(bitPattern: registerBase)!
         registerData = UnsafeMutablePointer<UInt32>(bitPattern: registerBase + 0x10)!
     }

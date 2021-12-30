@@ -63,20 +63,21 @@
 
 private(set) var kernelPhysBase = PhysAddress(0)
 
+// Convert a virtual address between kernel_start and kernel_end into a
+// physical address
+private func kernelPhysAddress(_ address: VirtualAddress) -> PhysAddress {
+    guard address >= _kernel_start_addr && address < _kernel_end_addr else {
+        printf("kernelPhysAddress: invalid address: %p", address)
+        stop()
+    }
+    return kernelPhysBase.advanced(by: address - _kernel_start_addr)
+}
+
+
 // Setup initial page tables and map kernel
 func setupMM(bootParams: BootParams) {
 
-    // Convert a virtual address between kernel_start and kernel_end into a
-    // physical address
     kernelPhysBase = bootParams.kernelPhysAddress
-
-    func kernelPhysAddress(_ address: VirtualAddress) -> PhysAddress {
-        guard address >= _kernel_start_addr && address < _kernel_end_addr else {
-            printf("kernelPhysAddress: invalid address: %p", address)
-            stop()
-        }
-        return kernelPhysBase.advanced(by: address - _kernel_start_addr)
-    }
 
     // Show the current memory ranges
 //    for range in bootParams.memoryRanges {
@@ -88,6 +89,82 @@ func setupMM(bootParams: BootParams) {
 
     printf("kernel: Highest Address: %#x kernel phys address: %lx\n",
         highestMemoryAddress.value, kernelPhysBase.value)
+
+    // Show status of MTRRs
+    print("Reading MTRR settings")
+    let mtrrs = MTRRS()
+    print("MTRR: capabilities: \(mtrrs.capabilities)")
+    print("MTRR: control: \(mtrrs.control)")
+
+    // Enable No Execute so data mappings can be set XD (Execute Disable)
+    _ = CPU.enableNXE(true)
+    // Disable MTRRs
+    disableMTRRsetupPAT()
+    let mtrrs2 = MTRRS()
+    print("MTRR: capabilities: \(mtrrs2.capabilities)")
+    print("MTRR: control: \(mtrrs2.control)")
+
+    setupKernelMap(bootParams: bootParams)
+    setupInitialPhysicalMap(bootParams.memoryRanges)
+    // Create a mapping for the text/framebuffer in the new page maps so that print(), printf()
+    // etc still works.
+    TTY.sharedInstance.setTTY(frameBufferInfo: bootParams.frameBufferInfo)
+
+    let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_addr).value)
+    printf("MM: Updating CR3 to %p\n", pml4paddr)
+    setCR3(pml4paddr)
+    CPU.enableWP(true)
+    printf("MM: CR3 Updated to %p\n", pml4paddr)
+    // Now add in all the RAM memory ranges
+    do {
+        let freeMemoryRanges = bootParams.memoryRanges.filter {
+            $0.type == MemoryType.Conventional && $0.start >= PhysAddress(1 * mb ) && $0.endAddress < PhysAddress(16 * mb)
+        }
+        printf("MM: Before adding pages <16MB to freelist, freePageCount: %d freeIOPageCount: %d\n",
+            freePageCount(), freeIOPageCount())
+        addPagesToFreePageList(freeMemoryRanges)
+        printf("MM: After adding pages <16MB to freelist, freePageCount: %d freeIOPageCount: %d\n",
+            freePageCount(), freeIOPageCount())
+    }
+
+    // Map the rest of the physical memory
+    mapPhysicalMemory(bootParams.memoryRanges)
+    do {
+        let freeMemoryRanges = bootParams.memoryRanges.filter {
+            $0.type == MemoryType.Conventional && $0.start >= PhysAddress(16 * gb)
+        }
+        print("MM: Before adding pages >16MB to freelist, freePageCount:", freePageCount())
+        addPagesToFreePageList(freeMemoryRanges)
+    }
+    printf("MM: After adding pages >16MB to freelist, freePageCount: %d freeIOPageCount: %d\n",
+        freePageCount(), freeIOPageCount())
+
+    // TODO: Reclaim any memory used in the boot process that can now be used as free RAM
+    // eg initial page maps, or EFI memory.
+}
+
+
+private func setupKernelMap(bootParams: BootParams) {
+    let addr = VirtualAddress(KERNEL_VIRTUAL_BASE)
+    let idx0 = pml4Index(addr)
+    let idx1 = pdpIndex(addr)
+    let idx2 = pdIndex(addr)
+    precondition(idx2 == 8)
+    let idx3 = ptIndex(addr)
+    precondition(idx3 == 0)
+
+    // Setup the pre allocated page tables in the BSS that allow mapping upto 16MB using 4K pages
+    var pml4Page = PageMapLevel4Table(at: initial_pml4_addr)
+    let pml4Entry = PageMapLevel4Entry(address: kernelPhysAddress(kernmap_pml3_addr), readWrite: true, userAccess: false,
+        writeThrough: true, cacheDisable: false, noExec: false)
+    pml4Page[idx0] = pml4Entry
+
+    var pml3Page = pml4Entry.pageDirectoryPointerTable!
+    let pml3Entry = PageDirectoryPointerTableEntry(address: kernelPhysAddress(kernmap_pml2_addr), readWrite: true, userAccess: false,
+        writeThrough: true, cacheDisable: false, noExec: false)
+    pml3Page[idx1] = pml3Entry
+
+    var pml2Page = pml3Entry.pageDirectory!
 
     let textEnd: VirtualAddress = _text_end_addr
     let rodataStart: VirtualAddress = _rodata_start_addr
@@ -101,20 +178,6 @@ func setupMM(bootParams: BootParams) {
     let dataSize = roundToPage(guardPage - dataStart)
     let stackHeapSize = bssEnd - VirtualAddress(_stack_start_addr)
 
-    // Show status of MTRRs
-    print("Reading MTRR settings")
-    let mtrrs = MTRRS()
-    print("MTRR: capabilities: \(mtrrs.capabilities)")
-    print("MTRR: control: \(mtrrs.control)")
-
-    // Enable No Execute so data mappings can be set XD (Execute Disable)
-    _ = CPU.enableNXE(true)
-    // Disble MTRRs
-    disableMTRRsetupPAT()
-
-    let mtrrs2 = MTRRS()
-    print("MTRR: capabilities: \(mtrrs2.capabilities)")
-    print("MTRR: control: \(mtrrs2.control)")
 
     // Add 4 mappings for text, rodata, data + bss and the stack
     // with appropiate protections. There is a guard page between
@@ -126,19 +189,63 @@ func setupMM(bootParams: BootParams) {
         _rodata_start_addr, _rodata_start_addr + rodataSize - 1,
         _data_start_addr, _data_start_addr + dataSize - 1)
 
-    addMapping(start: _kernel_start_addr, size: textSize,
+    func addKMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
+        readWrite: Bool, noExec: Bool) {
+
+        printf("Adding kernel mapping start: %p phys: %p, size: 0x%lx\n", start, physStart.value, size)
+        let pageCnt = ((size + PAGE_SIZE - 1) / PAGE_SIZE)
+        var physAddress = physStart
+        var addr = start
+
+        let patIndex = CPU.CacheType.writeBack.patEntry
+
+        for _ in 0..<pageCnt {
+            let kidx0 = pml4Index(addr)
+            let kidx1 = pdpIndex(addr)
+            let kidx2 = pdIndex(addr)
+            let kidx3 = ptIndex(addr)
+
+            precondition(kidx0 == idx0)
+            precondition(kidx1 == idx1)
+            precondition(kidx2 >= idx2 && (kidx2 < idx2 + 8))
+
+            if !pml2Page[kidx2].present {
+                let paddr = kernelPhysAddress(kernmap_pml1_addr) + (PAGE_SIZE * UInt(kidx2 - idx2))
+                let pml2Entry = PageDirectoryEntry(address: paddr, readWrite: true, userAccess: false,
+                    writeThrough: true, cacheDisable: false, noExec: false)
+                pml2Page[kidx2] = pml2Entry
+            }
+
+            var pageTable = pml2Page[kidx2].pageTable!
+            if pageTable[kidx3].present {
+                printf("Kernel mapping p: %p v: %p %u/%u/%u/%u is present!\n",
+                    physAddress, addr, kidx0, kidx1, kidx2, kidx3);
+                stop()
+            }
+
+            let entry = PageTableEntry(address: physAddress, readWrite: readWrite,
+                userAccess: false, patIndex: patIndex, global: false, noExec: noExec)
+            pageTable[kidx3] = entry
+
+            addr += PAGE_SIZE
+            physAddress = physAddress.advanced(by: PAGE_SIZE)
+        }
+    }
+
+
+    addKMapping(start: _kernel_start_addr, size: textSize,
         physStart: kernelPhysBase, readWrite: false, noExec: false)
 
     let rodataPhys = kernelPhysBase + textSize
-    addMapping(start: rodataStart, size: rodataSize,
+    addKMapping(start: rodataStart, size: rodataSize,
         physStart: rodataPhys, readWrite: false, noExec: true)
 
     let dataPhys = rodataPhys + rodataSize
-    addMapping(start: dataStart, size: dataSize, physStart: dataPhys,
+    addKMapping(start: dataStart, size: dataSize, physStart: dataPhys,
         readWrite: true, noExec: true)
 
     let stackPhys = dataPhys + dataSize + PAGE_SIZE
-    addMapping(start: _stack_start_addr, size: stackHeapSize,
+    addKMapping(start: _stack_start_addr, size: stackHeapSize,
         physStart: stackPhys, readWrite: true, noExec: true)
 
     // Add mapping for the symbol and string tables after the stack
@@ -146,7 +253,7 @@ func setupMM(bootParams: BootParams) {
     if let symbolTablePtr = bootParams.symbolTablePtr,
         bootParams.symbolTableSize > 0 && bootParams.stringTableSize > 0 {
             let symtabPhys = (stackPhys + stackHeapSize + PAGE_SIZE).pageAddress(pageSize: PAGE_SIZE, roundUp: true)
-            addMapping(start: symbolTablePtr.address,
+            addKMapping(start: symbolTablePtr.address,
                 size: UInt(bootParams.symbolTableSize + bootParams.stringTableSize),
                 physStart: symtabPhys, readWrite: true, noExec: true)
     }
@@ -163,196 +270,142 @@ func setupMM(bootParams: BootParams) {
         kernelBase + textSize + rodataSize + dataSize + PAGE_SIZE,
         kernelPhysAddress(kernelBase + textSize + rodataSize + dataSize
             + PAGE_SIZE).value)
+}
 
-    mapPhysicalMemory(highestMemoryAddress)
-    let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_addr).value)
-    printf("MM: Updating CR3 to %p\n", pml4paddr)
-    setCR3(pml4paddr)
-    CPU.enableWP(true)
-    printf("MM: CR3 Updated to %p\n", pml4paddr)
+// Setup page maps covering the first 16MB of RAM using a 4K page size.
+// This is mapped starting at 0xffff800000000000
+// This uses a set of reserved pages in the BSS for the page tables including
+// 8 pages to map the 16MB.
 
-    // Now add in all the RAM memory ranges
-    let freeMemoryRanges = bootParams.memoryRanges.filter {
-        $0.type == MemoryType.Conventional
+private func setupInitialPhysicalMap(_ memoryRanges: [MemoryRange]) {
+    let addr = VirtualAddress(PHYSICAL_MEM_BASE)
+    let idx0 = pml4Index(addr)
+    let idx1 = pdpIndex(addr)
+    let idx2 = pdIndex(addr)
+    precondition(idx2 == 0)
+    let idx3 = ptIndex(addr)
+    precondition(idx3 == 0)
+
+    var pml4Page = PageMapLevel4Table(at: initial_pml4_addr)
+    let pml4Entry = PageMapLevel4Entry(address: kernelPhysAddress(physmap_pml3_addr), readWrite: true, userAccess: false,
+        writeThrough: true, cacheDisable: false, noExec: true)
+    pml4Page[idx0] = pml4Entry
+
+    var pml3Page = pml4Entry.pageDirectoryPointerTable!
+    let pml3Entry = PageDirectoryPointerTableEntry(address: kernelPhysAddress(physmap_pml2_addr), readWrite: true, userAccess: false,
+        writeThrough: true, cacheDisable: false, noExec: true)
+    pml3Page[idx1] = pml3Entry
+
+    var pml2Page = pml3Entry.pageDirectory!
+
+    let patIndex = CPU.CacheType.writeBack.patEntry
+
+    // Add in PageDirectory entries that cover lowest 8x 2MB = 16MB
+    for idx in 0...7 {
+        let paddr = kernelPhysAddress(physmap_pml1_addr) + (PAGE_SIZE * UInt(idx))
+        let pml2Entry = PageDirectoryEntry(address: paddr, readWrite: true, userAccess: false,
+            writeThrough: true, cacheDisable: false, noExec: true)
+        pml2Page[idx] = pml2Entry
     }
-    print("MM: Before adding pages to freelist, freePageCount:", freePageCount())
-    addPagesToFreePageList(freeMemoryRanges)
-    print("MM: After adding pages to freelist, freePageCount:", freePageCount())
 
-    // TODO: Reclaim any memory used in the boot process that can now be used as free RAM
-    // eg initial page maps, or EFI memory.
+    // FIXME This is a bit hacky as it assumes no range will cover the 16MB bondary
+    // but this is true for now as the kernel range starts at 16MB
+    let lowMemoryRanges = memoryRanges.filter {
+        $0.endAddress < PhysAddress(16 * 1048576)
+    }
+
+    // Find all of the usable (RAM) page aligned pages in the region below 16MB. Ignore
+    // Map non RAM as RO as it probably contains BIOS etc that still needs to be readable
+    for (physPageRange, access) in lowMemoryRanges.align(toPageSize: PageSize(4096)) {
+        guard access != .mmio else { continue }
+        for physPage in physPageRange {
+            let vaddr = physPage.vaddr
+            precondition(physPage.value < 16 * mb)
+
+            let idx2 = pdIndex(vaddr)
+            let idx3 = ptIndex(vaddr)
+            var pageTable = pml2Page[idx2].pageTable!
+
+            let entry = PageTableEntry(address: physPage, readWrite: access == .readWrite, userAccess: false,
+                patIndex: patIndex, global: false, noExec: true)
+            pageTable[idx3] = entry
+        }
+    }
+
+    // The kernel is in the next physical memeory at 0x1000000 (16MB) and is already mapped using 4K pages,
+    // at its own kernel base. Reuse the page tables and just add entries for the page directories which
+    // each cover 2MB of the kernel.
+    // This needs to be setup now as the heap pages in the kernel .data section are accessed using the
+    // kernel physical mapping.
+    let kernelSize = _kernel_end_addr - _kernel_start_addr
+    let kernel2MBPages = (kernelSize + UInt(2 * mb) - 1) / (2 * mb)
+    printf("kernelStart: %p kernelEnd: %p kernelSize: %lx 2mb pages: %u\n",
+        _kernel_start_addr, _kernel_end_addr, kernelSize, kernel2MBPages)
+
+    for idx in 0..<kernel2MBPages {
+        let paddr = kernelPhysAddress(kernmap_pml1_addr) + (PAGE_SIZE * idx)
+        let pml2Entry = PageDirectoryEntry(address: paddr, readWrite: true, userAccess: false,
+            writeThrough: true, cacheDisable: false, noExec: true)
+        pml2Page[Int(idx + 8)] = pml2Entry
+    }
 }
 
 
 // FIXME: Should map more closely to the real map, not map holes
 // and map the reserved mem as RO etc
-private func mapPhysicalMemory(_ maxAddress: PhysAddress) {
-    var inc: UInt = 0
+private func mapPhysicalMemory(_ ranges: [MemoryRange]) {
 
-    printf("MM: Mapping physical memory from 0 - %p , freePageCount: %ld\n", maxAddress.value, freePageCount())
-    // Map physical memory using 1GB pages if available else 2MB pages
-    var mapper = add2MBMapping
-    if CPU.capabilities.pages1G {
-        inc = 0x40000000    // 1GB
-        mapper = add1GBMapping
-        print("MM: Using 1GB mappings: ")
-    } else {
-        inc = 0x200000      // 2MB
-        print("MM: Using 2MB mappings: ")
+    let memoryRanges = ranges.filter {
+        $0.start >= PhysAddress(16 * mb) && $0.type != .Kernel
     }
 
-    let pages = (maxAddress.value + (inc - 1)) / inc
-    printf("MM: Mapping %u pages of size %#lx\n", pages, inc)
-    var vaddr = VirtualAddress(PHYSICAL_MEM_BASE)
-    var paddr = PhysAddress(0)
+    guard !memoryRanges.isEmpty else { return }
+    let maxAddress = memoryRanges.last!.endAddress
+    printf("MM: Mapping physical memory from %p - %p , freePageCount: %ld\n", memoryRanges[0].start.value, maxAddress.value, freePageCount())
+    let pmlPage = PageMapLevel4Table(at: initial_pml4_addr)
 
-    for _ in 1...pages {
-        mapper(vaddr, paddr, true, false)
-        vaddr += inc
-        paddr = paddr.advanced(by: inc)
+    // Map non RAM as RO as it probably contains BIOS etc that still needs to be readable
+    for (physPageRange, access) in memoryRanges.align(toPageSize: PageSize(4096)) {
+        guard access == .readWrite || access == .readOnly else { continue }
+
+        for physPage in physPageRange {
+            let vaddr = physPage.vaddr
+
+            let idx0 = pml4Index(vaddr)
+            let idx1 = pdpIndex(vaddr)
+            let idx2 = pdIndex(vaddr)
+            let idx3 = ptIndex(vaddr)
+
+            let pdpPage = pmlPage.pageDirectoryPointerTable(at: idx0, readWrite: true, userAccess: false,
+                writeThrough: true, cacheDisable: false, noExec: true)
+
+            let pdPage = pdpPage.pageDirectory(at: idx1, readWrite: true, userAccess: false,
+                writeThrough: true, cacheDisable: false, noExec: true)
+
+            var ptPage = pdPage.pageTable(at: idx2, readWrite: true, userAccess: false,
+                writeThrough: true, cacheDisable: false, noExec: true)
+
+            if !ptPage[idx3].present {
+                let patIndex = CPU.CacheType.writeBack.patEntry
+                let entry = PageTableEntry(address: physPage, readWrite: access == .readWrite,
+                    userAccess: false, patIndex: patIndex, global: false, noExec: true)
+                ptPage[idx3] = entry
+            } else {
+                print("Cant add mapping for \(physPage) @ 0x\(String(vaddr, radix: 16))")
+                koops("MM: page is already present!")
+            }
+        }
+        if access == .readWrite {
+            //print("Adding \(physPageRange) to free list");
+            addPagesToFreePageList(pages: physPageRange)
+        }
     }
-    printf("MM: Added mappings upto: %p [%p] freePageCount: %ld\n", vaddr, paddr.value, freePageCount())
 }
 
 
+// TODO - replace with PageSize
 private func roundToPage(_ size: UInt) -> UInt {
     return (size + PAGE_MASK) & ~PAGE_MASK
-}
-
-
-private var nextIOVirtualAddress: VirtualAddress = 0x4000000000 // 256GB
-func mapIORegion(physicalAddr: PhysAddress, size: Int, cacheType: CPU.CacheType = .uncacheable) -> VirtualAddress {
-    let newSize = roundToPage(UInt(size))
-    let vaddr = nextIOVirtualAddress
-    addMapping(start: vaddr, size: newSize, physStart: physicalAddr,
-        readWrite: true, noExec: true, cacheType: cacheType)
-    nextIOVirtualAddress += newSize
-    nextIOVirtualAddress += PAGE_SIZE // Add an extra page to catch overruns
-
-    return vaddr
-}
-
-
-func mapIORegion(region: PhysPageRange, cacheType: CPU.CacheType = .uncacheable) -> MMIORegion {
-    let vaddr = nextIOVirtualAddress
-    //print("Adding IO mapping for \(region) at 0x\(String(vaddr, radix: 16))")
-    addMapping(start: vaddr, size: region.regionSize, physStart: region.address,
-               readWrite: true, noExec: true, cacheType: cacheType)
-    nextIOVirtualAddress += region.regionSize
-    nextIOVirtualAddress += PAGE_SIZE // Add an extra page to catch overruns
-
-    return MMIORegion(physicalRegion: region, virtualAddress: vaddr)
-}
-
-
-func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
-                readWrite: Bool, noExec: Bool, cacheType: CPU.CacheType = .writeBack) {
-
-    let pageCnt = ((size + PAGE_SIZE - 1) / PAGE_SIZE)
-    var physAddress = physStart
-    var addr = start
-    let pmlPage = PageMapLevel4Table(at: initial_pml4_addr)
-
-    // Encode cacheType (0 - 7) PAT Entry index
-    let patIndex = cacheType.patEntry
-
-    for _ in 0..<pageCnt {
-        let idx0 = pml4Index(addr)
-        let idx1 = pdpIndex(addr)
-        let idx2 = pdIndex(addr)
-        let idx3 = ptIndex(addr)
-
-        let pdpPage = pmlPage.pageDirectoryPointerTable(at: idx0, readWrite: true, userAccess: false,
-            writeThrough: true, cacheDisable: false, noExec: false)
-
-        let pdPage = pdpPage.pageDirectory(at: idx1, readWrite: true, userAccess: false,
-            writeThrough: true, cacheDisable: false, noExec: false)
-
-        var ptPage = pdPage.pageTable(at: idx2, readWrite: true, userAccess: false,
-            writeThrough: true, cacheDisable: false, noExec: false)
-
-        if !ptPage[idx3].present {
-            let entry = PageTableEntry(address: physAddress, readWrite: readWrite,
-                userAccess: false, patIndex: patIndex, global: false, noExec: noExec)
-            ptPage[idx3] = entry
-        } else {
-            koops("MM: page is already present!")
-        }
-
-        addr += PAGE_SIZE
-        physAddress = physAddress.advanced(by: PAGE_SIZE)
-    }
-    printf("MM: Added kernel mapping from %p-%p [%p-%p]\n", start, addr - 1, physStart.value, physAddress.value - 1)
-}
-
-
-private func add4KMapping(_ addr: VirtualAddress, physAddress: PhysAddress, readWrite: Bool, noExec: Bool) {
-    let idx0 = pml4Index(addr)
-    let idx1 = pdpIndex(addr)
-    let idx2 = pdIndex(addr)
-    let idx3 = ptIndex(addr)
-
-    let pmlPage = PageMapLevel4Table(at: initial_pml4_addr)
-    let pdpPage = pmlPage.pageDirectoryPointerTable(at: idx0, readWrite: readWrite, userAccess: false,
-        writeThrough: true, cacheDisable: false, noExec: noExec)
-
-    let pdPage = pdpPage.pageDirectory(at: idx1, readWrite: readWrite, userAccess: false,
-        writeThrough: true, cacheDisable: false, noExec: noExec)
-
-    var ptPage = pdPage.pageTable(at: idx2, readWrite: readWrite, userAccess: false,
-        writeThrough: true, cacheDisable: false, noExec: noExec)
-
-    if !ptPage[idx3].present {
-        let patIndex = CPU.CacheType.writeBack.patEntry
-        let entry = PageTableEntry(address: physAddress, readWrite: readWrite,
-                userAccess: false, patIndex: patIndex, global: false, noExec: noExec)
-        ptPage[idx3] = entry
-    } else {
-        koops("MM: page is already present!")
-    }
-}
-
-
-private func add2MBMapping(_ addr: VirtualAddress, physAddress: PhysAddress, readWrite: Bool, noExec: Bool) {
-    let idx0 = pml4Index(addr)
-    let idx1 = pdpIndex(addr)
-    let idx2 = pdIndex(addr)
-
-    let pmlPage = PageMapLevel4Table(at: initial_pml4_addr)
-    let pdpPage = pmlPage.pageDirectoryPointerTable(at: idx0, readWrite: readWrite, userAccess: false,
-        writeThrough: true, cacheDisable: false, noExec: noExec)
-
-    var pdPage = pdpPage.pageDirectory(at: idx1, readWrite: readWrite, userAccess: false,
-        writeThrough: true, cacheDisable: false, noExec: noExec)
-
-    if !pdPage[idx2].present {
-        let patIndex = CPU.CacheType.writeBack.patEntry
-        let entry = PageDirectoryEntry(largePageAddress: physAddress, readWrite: readWrite,
-            userAccess: false, patIndex: patIndex, global: false, noExec: noExec)
-        pdPage[idx2] = entry
-    } else {
-        koops("MM: 2MB mapping cant be added, already present")
-    }
-}
-
-
-private func add1GBMapping(_ addr: VirtualAddress, physAddress: PhysAddress, readWrite: Bool, noExec: Bool) {
-    let idx0 = pml4Index(addr)
-    let idx1 = pdpIndex(addr)
-
-    let pmlPage = PageMapLevel4Table(at: initial_pml4_addr)
-    var pdpPage = pmlPage.pageDirectoryPointerTable(at: idx0, readWrite: readWrite, userAccess: false,
-        writeThrough: true, cacheDisable: false, noExec: noExec)
-
-    if !pdpPage[idx1].present {
-        let patIndex = CPU.CacheType.writeBack.patEntry
-        let entry = PageDirectoryPointerTableEntry(largePageAddress: physAddress, readWrite: readWrite,
-            userAccess: false, patIndex: patIndex, global: false, noExec: noExec)
-        printf("1GB Mapping entry: %16.16llx\n", entry);
-        pdpPage[idx1] = entry
-    } else {
-        koops("MM: 1GB mapping cant be added, already present")
-    }
 }
 
 // for debugging

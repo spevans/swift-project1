@@ -47,7 +47,6 @@ final class System {
 
     fileprivate func initSystem() {
         CPU.getInfo()
-        TTY.sharedInstance.setTTY(frameBufferInfo: bootParams.frameBufferInfo)
         deviceManager.initialiseEarlyDevices()
 
         // gitBuildVersion defined in kernel/init/version.swift, created

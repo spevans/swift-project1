@@ -46,6 +46,12 @@ EXPORTED_SYMBOL_AS_UINTPTR(_guard_page);
 EXPORTED_SYMBOL_AS_UINTPTR(_stack_start);
 EXPORTED_SYMBOL_AS_UINTPTR(_ist1_stack_top);
 EXPORTED_SYMBOL_AS_UINTPTR(initial_pml4);
+EXPORTED_SYMBOL_AS_UINTPTR(physmap_pml3);
+EXPORTED_SYMBOL_AS_UINTPTR(physmap_pml2);
+EXPORTED_SYMBOL_AS_UINTPTR(physmap_pml1);
+EXPORTED_SYMBOL_AS_UINTPTR(kernmap_pml3);
+EXPORTED_SYMBOL_AS_UINTPTR(kernmap_pml2);
+EXPORTED_SYMBOL_AS_UINTPTR(kernmap_pml1);
 EXPORTED_SYMBOL_AS_UINTPTR(fontdata_8x16);
 
 extern struct task_state_segment task_state_segment;

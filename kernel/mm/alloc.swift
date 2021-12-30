@@ -19,6 +19,7 @@ private struct FreePageListEntry {
 
 private typealias FreePageListEntryPtr = UnsafeMutablePointer<FreePageListEntry>
 private var freePageListHead = initFreeList()
+private var ioPagesListHead: FreePageListEntryPtr? = nil
 
 // This is called the first time alloc_pages() is called, usually by malloc()
 private func initFreeList() -> FreePageListEntryPtr? {
@@ -50,11 +51,102 @@ public func alloc_pages(pages: Int) -> UnsafeMutableRawPointer {
     return alloc(pages: pages).rawPointer
 }
 
+@_cdecl("free_pages")
+public func freePages(at address: VirtualAddress, count: Int) {
+    let paddr = virtualToPhys(address: address)!
+    addPages(PhysPageRange(paddr, pageSize: PAGE_SIZE, pageCount: count), toList: &freePageListHead)
+}
+
+
+func alloc(pages: Int) -> PhysPageRange {
+    return alloc(pages: pages, fromList: &freePageListHead)
+}
+
+
+func freePages(pages: PhysPageRange) {
+    addPages(pages, toList: &freePageListHead)
+}
+
+
+// FIXME, these needs to take a `pages` argument to allocate contiguous pages
+func allocIOPage() -> PhysPageRange {
+    return alloc(pages: 1, fromList: &ioPagesListHead)
+}
+
+// TODO - check the pages returned are valid for IO
+func freeIOPage(_ pages: PhysPageRange) {
+    addPages(pages, toList: &ioPagesListHead)
+}
+
+
+
+// Called from kernel/mm/init
+func addPagesToFreePageList(_ ranges: [MemoryRange]) {
+
+    for range in ranges {
+        for physPageRange in range.physPageRanges {
+            addPagesToFreePageList(pages: physPageRange)
+        }
+    }
+}
+
+
+// Called from kernel/mm/init
+func addPagesToFreePageList(pages: PhysPageRange) {
+
+    func splitRange(_ pageRange: PhysPageRange, at address: PhysAddress) -> (lower: PhysPageRange?, upper: PhysPageRange?) {
+        if pageRange.endAddress < address {
+            return (pageRange, nil)
+        }
+        if pageRange.address >= address {
+            return (nil, pageRange)
+        }
+        else {
+            let lowerPageCount = (address - pageRange.address) / Int(pageRange.pageSize)
+            let (lower, upper) = pageRange.splitRegion(withFirstRegionCount: lowerPageCount)
+            print("addPagesToFreePageList split \(pageRange) into \(lower) and \(upper)")
+            return (lower, upper)
+        }
+    }
+
+    // Ignore anything below 1MB
+    let (_, upper) = splitRange(pages, at: PhysAddress(0x100000))
+    guard let above1MB = upper else { return }
+
+    let (_ioRange, _ramRange) = splitRange(above1MB, at: PhysAddress(0x200000))
+    if let ioRange = _ioRange {
+        _ = remapAsIORegion(region: ioRange, cacheType: .uncacheable)
+        addPages(ioRange, toList: &ioPagesListHead)
+    }
+    if let ramRange = _ramRange {
+        addPages(ramRange, toList: &freePageListHead)
+    }
+}
+
 
 func freePageCount() -> Int {
+    return freePageCount(onList: freePageListHead)
+}
+
+
+func freeIOPageCount() -> Int {
+    return freePageCount(onList: ioPagesListHead)
+}
+
+// Free Page List management
+private func addPages(_ pages: PhysPageRange, toList list: inout FreePageListEntryPtr?) {
+
+    let ptr = FreePageListEntryPtr(bitPattern: pages.vaddr)!
+    let entry = FreePageListEntry(region: pages, next: list)
+    ptr.pointee = entry
+    list = ptr
+}
+
+
+private func freePageCount(onList list: FreePageListEntryPtr?) -> Int {
     var count = 0
 
-    var head = freePageListHead
+    var head = list
     while let ptr = head {
         let entry = ptr.pointee
         let region = entry.region
@@ -65,10 +157,10 @@ func freePageCount() -> Int {
 }
 
 
-func alloc(pages: Int) -> PhysPageRange {
+private func alloc(pages: Int, fromList list: inout FreePageListEntryPtr?) -> PhysPageRange {
     precondition(pages > 0)
 
-    var head = freePageListHead
+    var head = list
     var prev: FreePageListEntryPtr? = nil
 
     while let ptr = head {
@@ -80,9 +172,9 @@ func alloc(pages: Int) -> PhysPageRange {
             // Region is same size as requested so remove from list
             let result = region
             if prev == nil {
-                freePageListHead = entry.next
+                list = entry.next!
             } else {
-                prev!.pointee.next = entry.next
+                prev!.pointee.next = entry.next!
             }
             return result
         }
@@ -97,42 +189,4 @@ func alloc(pages: Int) -> PhysPageRange {
 
     kprintf("No more free pages for allocation of: %d pages\n", pages)
     stop()
-}
-
-
-@_cdecl("free_pages")
-public func freePages(at address: VirtualAddress, count: Int) {
-    let paddr = virtualToPhys(address: address)!
-    addPagesToFreeList(physPage: PhysPageRange(paddr, pageSize: PAGE_SIZE, pageCount: count))
-}
-
-
-func freePages(pages: PhysPageRange) {
-    addPagesToFreeList(physPage: pages)
-}
-
-private func addPagesToFreeList(physPage: PhysPageRange) {
-    // FIXME: Ignore any pages over the 4GB address. This is a bodge to allow USB
-    // UHCI driver to work on a host with RAM above the 32bit address space.
-    // At some point alloc(pages:) needs to be able to allocate pages in the first
-    // 32bit region
-
-    guard physPage.endAddress <= PhysAddress(0xffff_ffff) else {
-        print("addPagesToFreeList: Ignoring pages above 4GB:", physPage)
-        return
-    }
-
-    let ptr = FreePageListEntryPtr(bitPattern: physPage.vaddr)!
-    let entry = FreePageListEntry(region: physPage, next: freePageListHead)
-    ptr.pointee = entry
-    freePageListHead = ptr
-}
-
-
-func addPagesToFreePageList(_ ranges: [MemoryRange]) {
-    for range in ranges {
-        for pages in range.physPageRanges {
-            addPagesToFreeList(physPage: pages)
-        }
-    }
 }

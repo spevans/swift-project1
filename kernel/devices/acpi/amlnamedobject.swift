@@ -589,7 +589,13 @@ struct SystemMemorySpace: OpRegionSpace, CustomStringConvertible {
 #if TEST
         data = UnsafeMutableRawPointer.allocate(byteCount: self.length, alignment: 8)
 #else
+        // Add a mapping for this region, this range should cover the region space (but may encroch on others)
+        // FIXME: Add a MMIORegion for the entire region and use subMMIORegions
+        // FIXME, unmap this.
+        let physPageRange = PhysPageRange(start: PhysAddress(self.offset), size: UInt(length), pageSize: PageSize(PAGE_SIZE))
+
         data = PhysAddress(self.offset).rawPointer
+        _ = remapAsIORegion(region: physPageRange, cacheType: .uncacheable)
 #endif
     }
 

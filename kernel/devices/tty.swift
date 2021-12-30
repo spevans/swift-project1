@@ -142,15 +142,16 @@ final class TTY {
     }
 
 
+    // This is called to remap the text screen or framebuffer after new page maps have been
+    // setup but before they are switched to. This
     func setTTY(frameBufferInfo: FrameBufferInfo?) {
-        clearScreen()
         print("tty: Switching to Swift TTY driver")
         if (frameBufferInfo != nil) {
             driver = FrameBufferTTY(frameBufferInfo: frameBufferInfo!)
         } else {
             driver = TextTTY()
         }
-        print("tty: Swift TTY driver initialised: \(driver.charsPerLine)x\(driver.totalLines)")
+        // Dont output anything until the page tables are switched over to the new ones.
     }
 
 
@@ -390,11 +391,10 @@ private final class TextTTY: ScreenDriver {
 
     init() {
         totalChars = Int(totalLines) * Int(charsPerLine)
-        let vaddr = mapIORegion(physicalAddr: PhysAddress(SCREEN_BASE_ADDRESS),
-            size: totalChars * 2, cacheType: .writeCombining)
-        let screenBase = UnsafeMutablePointer<UInt16>(bitPattern: vaddr)
-        screen = UnsafeMutableBufferPointer(start: screenBase,
-            count: totalChars)
+        let physRegion = PhysPageRange(start: PhysAddress(SCREEN_BASE_ADDRESS), size: UInt(totalChars))
+        let mmioRegion = mapIORegion(region: physRegion, cacheType: .writeCombining)
+        let screenBase = UnsafeMutablePointer<UInt16>(bitPattern: mmioRegion.virtualAddress)
+        screen = UnsafeMutableBufferPointer(start: screenBase, count: totalChars)
     }
 
 
@@ -557,8 +557,9 @@ private final class FrameBufferTTY: ScreenDriver {
         let size = Int(frameBufferInfo.pxPerScanline)
             * Int(frameBufferInfo.height) * depthInBytes
 
-        let vaddr = mapIORegion(physicalAddr: frameBufferInfo.address, size: size, cacheType: .writeCombining)
-        screenBase = UnsafeMutablePointer<UInt8>(bitPattern: vaddr)!
+        let physRegion = PhysPageRange(start: frameBufferInfo.address, size: UInt(size))
+        let mmioRegion = mapIORegion(region: physRegion, cacheType: .writeCombining)
+        screenBase = UnsafeMutablePointer<UInt8>(bitPattern: mmioRegion.virtualAddress)!
         screen = UnsafeMutableBufferPointer<UInt8>(start: screenBase,
             count: size)
     }

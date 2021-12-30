@@ -32,7 +32,10 @@ enum PCIConfigSpace: CustomStringConvertible {
         }
     }
 
-    func releaseMMIORegion() {
+    func release() {
+        if case let .mmio(mmioRegion) = self {
+            unmapIORegion(mmioRegion)
+        }
     }
 
     var description: String {
