@@ -44,11 +44,7 @@ private struct DateCommand: ShellCommand {
     let helpText = "Show current CMOS time and date"
 
     func runCommand(arguments: [String]) {
-        if let cmos = system.deviceManager.rtc {
-            print(cmos.readTime())
-        } else {
-            print("Cant find a RTC")
-        }
+        dateTest()
     }
 }
 
@@ -108,7 +104,7 @@ private struct DumpACPICommand: ShellCommand {
             return
         }
         node.walkNode { (path, node) in
-            print(path, type(of: node))
+            print(path, node)
         }
     }
 }
@@ -146,7 +142,7 @@ struct HPETCommand: ShellCommand {
 
 private struct ShowNodeCommand: ShellCommand {
     let command = "shownode"
-    let helpText = "show an ACPI node"
+    let helpText = "Show an ACPI node"
 
     func runCommand(arguments: [String]) {
         guard let name = arguments.first else {
@@ -159,6 +155,39 @@ private struct ShowNodeCommand: ShellCommand {
         }
         print(String(describing: node))
 
+    }
+}
+
+private struct SleepTestCommand: ShellCommand {
+    let command = "sleeptest"
+    let helpText = "Sleep for a specified number of seconds"
+
+    func runCommand(arguments: [String]) {
+        guard let arg = arguments.first, let time = Int(arg) else {
+            print("Error: missing sleep interval")
+            return
+        }
+        sleepTest(milliseconds: time * 1000)
+    }
+}
+
+struct TestsCommand: ShellCommand {
+    let command = "tests"
+    let helpText = "Run selected commands as tests"
+
+    func runCommand(arguments: [String]) {
+        dateTest()
+        CPU.getInfo()
+        print("dumppci")
+        system.deviceManager.dumpPCIDevices()
+        print("dumppnp")
+        system.deviceManager.dumpPNPDevices()
+        print("dumpbus")
+        system.deviceManager.dumpDeviceTree()
+        print("dumpdev")
+        system.deviceManager.dumpDevices()
+        UptimeCommand().runCommand(arguments: [])
+        sleepTest(milliseconds: 10_000)
     }
 }
 
@@ -229,6 +258,8 @@ private let commands: [String: ShellCommand] = {
         DumpMemCommand(),
         HPETCommand(),
         ShowNodeCommand(),
+        SleepTestCommand(),
+        TestsCommand(),
         UptimeCommand(),
         VMXOnCommand(),
         VMXOffCommand(),
@@ -251,6 +282,7 @@ func commandShell() {
         let line = tty.readLine(prompt: "> ", keyboard: kbd)
         var parts = line.split(separator: " ")
         if let cmd = parts.first, cmd != "" {
+            if cmd == "exit" { break }
             parts.removeFirst()
             if let command = commands[String(cmd)] {
                 command.runCommand(arguments: parts.compactMap { String($0) })
@@ -260,4 +292,3 @@ func commandShell() {
         }
     }
 }
-

@@ -23,6 +23,28 @@ extern Elf64_Rela __rela_iplt_start[];
 extern Elf64_Rela __rela_iplt_end[];
 
 
+uint64_t _cacheReadTest(uint8_t * _Nullable p, uint64_t count, uint8_t * _Nullable result) {
+        uint8_t byte = 0;
+        uint64_t start = rdtsc();
+        for (size_t i = 0; i < count; i++) {
+                byte += p[i];
+        }
+        uint64_t diff = rdtsc() - start;
+        if (result) { *result = byte; };
+        return diff;
+}
+
+
+uint64_t _cacheWriteTest(uint8_t * _Nullable p, uint64_t count, uint8_t data) {
+        uint64_t start = rdtsc();
+        for (size_t i = 0; i < count; i++) {
+                p[i] = data;
+        }
+        uint64_t diff = rdtsc() - start;
+        return diff;
+}
+
+
 void
 klibc_start()
 {

@@ -144,4 +144,6 @@ uint64_t current_ticks(void);
 void timer_callback(void);
 void sleep_in_milliseconds(uint64_t);
 
+uint64_t _cacheReadTest(uint8_t * _Nullable p, uint64_t count, uint8_t * _Nullable result);
+uint64_t _cacheWriteTest(uint8_t * _Nullable p, uint64_t count, uint8_t data);
 #endif  // __KERNEL_H__
