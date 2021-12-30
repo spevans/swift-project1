@@ -61,7 +61,6 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
     let interruptRoutingTable: PCIRoutingTable?
     let busId: UInt8
     var resources: [MotherBoardResource] = []
-    let pciConfigSpace: PCIConfigSpace
 
     var pciDevice: PCIDevice? { device as? PCIDevice }
     var parentBus: Bus? { device.parentBus }
@@ -75,7 +74,6 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
     init(busId: UInt8, device: Device, acpiDevice: AMLDefDevice) {
         self.busId = busId
         self.device = device
-        self.pciConfigSpace = PCIConfigSpace(busId: busId, device: 0, function: 0)
 
         let name = device.acpiDevice?.fullname() ?? "no name"
         print("PCIBus.init \(name): busId: \(busId)")
@@ -92,7 +90,6 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
         }
         self.busId = pciDevice.deviceFunction.bridgeDevice!.secondaryBusId
         self.device = pciDevice
-        self.pciConfigSpace = PCIConfigSpace(busId: busId, device: 0, function: 0)
         self.interruptRoutingTable = nil
     }
 
@@ -198,7 +195,7 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
 
                 case .pci:
                     guard let driver = PCIBus(pciDevice: pciDevice) else {
-                        print("PCI: Cant Crete PCBus from:", pciDevice)
+                        print("PCI: Cant Create PCBus from:", pciDevice)
                         return nil
                     }
                     pciDevice.setDriver(driver)
@@ -242,21 +239,26 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
                 // Already found this non-multifunction device
                 continue
             }
-            let currentFunctions = currentPCIDevices[device] ?? 0   // currentFuntions has bitX set where functionX is already known
-
-            let pciDev = PCIDeviceFunction(busId: busId, device: device, function: 0)
-            if pciDev.hasValidVendor {
+            // currentFuntions has bitX set where functionX is already known
+            let pciDev: PCIDeviceFunction
+            let currentFunctions: UInt8
+            if currentPCIDevices[device] == nil {
+                pciDev = PCIDeviceFunction(busId: busId, device: device, function: 0)
+                guard pciDev.hasValidVendor, pciDev.hasSubFunction else { continue }
+                currentFunctions = 0
+            } else {
+                currentFunctions = currentPCIDevices[device]!
                 // Doesnt return function 0 so check it seperately.
                 if currentFunctions & 1 == 0 {
+                    pciDev = PCIDeviceFunction(busId: busId, device: device, function: 0)
                     pciDeviceFunctions.append(pciDev)
                 }
-
-                if pciDev.hasSubFunction {
-                    for fidx: UInt8 in 1..<8 {
-                        let dev = PCIDeviceFunction(busId: busId, device: device, function: fidx)
-                        if dev.hasValidVendor,  (1 << dev.function) & currentFunctions == 0 {
-                            pciDeviceFunctions.append(dev)
-                        }
+            }
+            for fidx: UInt8 in 1..<8 {
+                if (1 << fidx) & currentFunctions == 0 {
+                    let dev = PCIDeviceFunction(busId: busId, device: device, function: fidx)
+                    if dev.hasValidVendor {
+                        pciDeviceFunctions.append(dev)
                     }
                 }
             }
