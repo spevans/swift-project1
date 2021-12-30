@@ -430,14 +430,14 @@ struct CPU {
 
         var description: String {
             var result = "PE: " + (protectionEnable ? "1" : "0")
-            result += " MC: " + (monitorCoprocessor ? "1" : "0")
-            result += " FE: " + (fpuEmulation ? "1" : "0")
+            result += " MP: " + (monitorCoprocessor ? "1" : "0")
+            result += " EM: " + (fpuEmulation ? "1" : "0")
             result += " TS: " + (taskSwitched ? "1" : "0")
             result += " ET: " + (extensionType ? "1" : "0")
             result += " NE: " + (numericError ? "1" : "0")
             result += " WP: " + (writeProtect ? "1" : "0")
             result += " AM: " + (alignmentMask ? "1" : "0")
-            result += " WT: " + (notWriteThrough ? "1" : "0")
+            result += " NW: " + (notWriteThrough ? "1" : "0")
             result += " CD: " + (cacheDisable ? "1" : "0")
             result += " PG: " + (paging ? "1" : "0")
 
@@ -551,6 +551,11 @@ struct CPU {
             set { bits[11] = newValue ? 1 : 0 }
         }
 
+        var la57: Bool {
+            get { Bool(bits[12]) }
+            set { bits[12] = newValue ? 1 : 0 }
+        }
+
         var vmxe: Bool {
             get { Bool(bits[13]) }
             set { bits[13] = newValue ? 1 : 0 }
@@ -574,6 +579,11 @@ struct CPU {
         var osxsave: Bool {
             get { Bool(bits[18]) }
             set { bits[18] = newValue ? 1 : 0 }
+        }
+
+        var kl: Bool  {
+            get { Bool(bits[19]) }
+            set { bits[19] = newValue ? 1 : 0 }
         }
 
         var smep: Bool {
@@ -604,11 +614,13 @@ struct CPU {
             result += " OSFXSR: " + (osfxsr ? "1" : "0")
             result += " OSXMMXCPT: " + (osxmmxcpt ? "1" : "0")
             result += " UMIP: " + (umip ? "1" : "0")
+            result += " LA57: " + (la57 ? "1" : "0")
             result += " VMXE: " + (vmxe ? "1" : "0")
             result += " SMXE: " + (smxe ? "1" : "0")
             result += " FSGSBASE: " + (fsgsbase ? "1" : "0")
             result += " PCIDE: " + (pcide ? "1" : "0")
             result += " OSXSAVE: " + (osxsave ? "1" : "0")
+            result += " KL: " + (kl ? "1" : "0")
             result += " SMEP: " + (smep ? "1" : "0")
             result += " SMAP: " + (smap ? "1" : "0")
             result += " PKE: " + (pke ? "1" : "0")
