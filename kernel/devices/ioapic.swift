@@ -11,12 +11,14 @@
 
 final class IOAPIC {
 
+    static let regionSize: UInt = 0x20
+
     fileprivate let registerSelect: UnsafeMutablePointer<UInt32>
     fileprivate let registerData: UnsafeMutablePointer<UInt32>
 
-    private let registerBase: VirtualAddress
+    private let registerBase: MMIORegion
     let globalSystemInterruptBase: UInt32
-    
+
 
     init(ioApicId: UInt8, baseAddress: PhysAddress, gsiBase: UInt32) {
         self.globalSystemInterruptBase = gsiBase
@@ -24,10 +26,10 @@ final class IOAPIC {
         print("IOAPIC: ID: \(ioApicId) Address: \(baseAddress) interrupt base: \(gsiBase)")
 
         // FIXME: Use MMIO
-        let region = PhysPageRange(start: baseAddress, size: 0x20)
-        registerBase = mapIORegion(region: region, cacheType: .uncacheable).virtualAddress
-        registerSelect = UnsafeMutablePointer<UInt32>(bitPattern: registerBase)!
-        registerData = UnsafeMutablePointer<UInt32>(bitPattern: registerBase + 0x10)!
+        let region = PhysPageRange(start: baseAddress, size: IOAPIC.regionSize)
+        registerBase = mapIORegion(region: region, cacheType: .uncacheable)
+        registerSelect = UnsafeMutablePointer<UInt32>(bitPattern: registerBase.baseAddress.vaddr)!
+        registerData = registerSelect.advanced(by: 4)
     }
 
 
@@ -38,7 +40,7 @@ final class IOAPIC {
         print("IO-APIC: vector: \(vector) redirectionRegister: \(register)")
 
         var data = IORedirectionRegister()
-        data.idtVector = vector 
+        data.idtVector = vector
         data.deliveryMode = .fixed
         data.destinationMode = .physical
         data.inputPinPolarity = irqSetting.activeHigh ? .activeHigh : .activeLow
@@ -94,7 +96,7 @@ final class IOAPIC {
 
 fileprivate extension IOAPIC.IORedirectionRegister {
     // Bits 10:8
-    enum DeliveryMode: Int { 
+    enum DeliveryMode: Int {
         case fixed = 0b000
         case lowestPriority = 0b001
         case SMI = 0b010
@@ -105,35 +107,35 @@ fileprivate extension IOAPIC.IORedirectionRegister {
 
 
     // Bit 11
-    enum DestinationMode: Int {  
+    enum DestinationMode: Int {
         case physical = 0
         case logical = 1
     }
 
 
     // Bit 12 (RO)
-    enum DeliveryStatus: Int { 
+    enum DeliveryStatus: Int {
         case idle = 0
         case sendPending = 1
     }
-    
+
 
     // Bit 13
-    enum InputPinPolarity: Int { 
+    enum InputPinPolarity: Int {
         case activeHigh = 0
         case activeLow = 1
     }
 
 
     // Bit 14 (RO)
-    enum RemoteIRR: Int { 
+    enum RemoteIRR: Int {
         case eoiReceived = 0
-        case levelInterruptAccepted = 1        
+        case levelInterruptAccepted = 1
     }
 
 
     // Bit 15
-    enum TriggerMode: Int { 
+    enum TriggerMode: Int {
         case edge = 0
         case level = 1
     }

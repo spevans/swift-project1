@@ -17,12 +17,24 @@ private let physicalMemory = UnsafeMutableRawPointer.allocate(byteCount: 0x100_0
 #endif
 
 
+
 struct PhysAddress: CVarArg, Comparable, Hashable, CustomStringConvertible {
     let value: RawAddress
 
-    public var description: String {
-        return String(value, radix: 16)
+#if TEST
+    let vaddr: VirtualAddress
+
+    init(_ address: RawAddress) {
+        value = address
+        self.vaddr = VirtualAddress(PHYSICAL_MEM_BASE + address)
     }
+
+    init(vaddr: VirtualAddress) {
+        value = RawAddress(vaddr)
+        self.vaddr = vaddr
+    }
+
+#else
 
     init(_ address: RawAddress) {
         precondition(address < MAX_PHYSICAL_MEMORY, "PhysAddress out of range")
@@ -34,15 +46,16 @@ struct PhysAddress: CVarArg, Comparable, Hashable, CustomStringConvertible {
     var vaddr: VirtualAddress {
         return VirtualAddress(PHYSICAL_MEM_BASE + value);
     }
+#endif
+
+    public var description: String {
+        return String(value, radix: 16)
+    }
 
     var rawPointer: UnsafeMutableRawPointer {
-#if TEST
-        precondition(value < 0x100_000)
-        return physicalMemory.advanced(by: Int(value))
-#else
         return UnsafeMutableRawPointer(bitPattern: vaddr)!
-#endif
     }
+
 
     func pageAddress(pageSize: UInt, roundUp: Bool = false) -> PhysAddress {
         if roundUp {
@@ -134,6 +147,37 @@ extension PageSize {
 }
 
 
+struct PhysAddressRegion {
+    let physAddress: PhysAddress
+    let size: UInt
+
+    init(start: PhysAddress, size: UInt) {
+        self.physAddress = start
+        self.size = size
+    }
+
+    init(start: PhysAddress, end: PhysAddress) {
+        precondition(start <= end)
+        physAddress = start
+        size = UInt(end - start) + 1
+    }
+
+    init(_ physPageRange: PhysPageRange) {
+        self.physAddress = physPageRange.address
+        self.size = physPageRange.regionSize
+    }
+
+    var endAddress: PhysAddress { physAddress + (size - 1) }
+    var physPageRange: PhysPageRange {
+        PhysPageRange(start: physAddress, size: size, pageSize: PageSize(PAGE_SIZE))
+    }
+
+    func contains(_ other: Self) -> Bool {
+        return physAddress <= other.physAddress && endAddress >= other.endAddress
+    }
+
+}
+
 struct PhysPageRangeIterator: IteratorProtocol {
     typealias Element = PhysAddress
     private let physPageRange: PhysPageRange
@@ -148,6 +192,30 @@ struct PhysPageRangeIterator: IteratorProtocol {
         guard currentPage < physPageRange.endAddress else { return nil }
         defer { currentPage = currentPage + physPageRange.pageSize }
         return currentPage
+    }
+}
+
+// Generate PhysPageRanges with fixed pageCount from a large PhysPageRange
+// The last element may have pageCount < pagesPerChunk
+struct PhysPageRangeChunksInterator: IteratorProtocol {
+    typealias Element = PhysPageRange
+    private var physPageRange: PhysPageRange?
+    private let pageCount: Int
+
+
+    init(_ physPageRange: PhysPageRange, pagesPerChunk: Int) {
+        self.physPageRange = physPageRange
+        self.pageCount = pagesPerChunk
+    }
+
+    mutating func next() -> Element? {
+        guard var pageRange = physPageRange else { return nil }
+        if pageRange.pageCount <= self.pageCount {
+            physPageRange = nil
+        } else {
+            (pageRange, self.physPageRange) = pageRange.splitRegion(withFirstRegionCount: self.pageCount)
+        }
+        return pageRange
     }
 }
 
@@ -216,7 +284,7 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
         }
 
         let startAddress = pageSize.roundDown(start)
-        let endAddress = pageSize.lastAddressInPage(start + size)
+        let endAddress = pageSize.lastAddressInPage(start + size - 1)
         let pageCount = ((endAddress - startAddress) + 1) / Int(pageSize.pageSize)
         precondition(pageCount > 0)
         self.addressBits = startAddress.value | pgSize
@@ -242,6 +310,7 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
     func makeIterator() -> PhysPageRangeIterator {
         return PhysPageRangeIterator(self)
     }
+
 
 
     var pageSize: UInt {
@@ -275,9 +344,36 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
     }
 
 
+    func contains(_ other: Self) -> Bool {
+        return address <= other.address && endAddress >= other.endAddress
+    }
+
+    func extraRanges(containing other: Self) -> (Self?, Self?) {
+        precondition(pageSize == other.pageSize)
+        precondition(contains(other))
+
+        let before: Self?
+        let after: Self?
+
+        if address < other.address {
+            let size = UInt(other.address - address)
+            before = Self(start: address, size: size, pageSize: PageSize(pageSize))
+        } else {
+            before = nil
+        }
+
+        if other.endAddress < endAddress {
+            let size = UInt(endAddress - other.endAddress)
+            after = Self(start: other.endAddress + 1, size: size, pageSize: PageSize(pageSize))
+        } else {
+            after = nil
+        }
+        return (before, after)
+    }
+
+
     // The smallest pagesize should always be usable to create a range over the whole space
     static func createRanges(startAddress: PhysAddress, endAddress: PhysAddress, pageSizes: [UInt]) -> [PhysPageRange] {
-        print("createRanges(startAddress: \(startAddress), endAddress: \(endAddress), pageSizes: \(pageSizes)")
         guard startAddress.value < MAX_PHYSICAL_MEMORY, endAddress.value < MAX_PHYSICAL_MEMORY else {
             fatalError("Out of range physical region")
         }

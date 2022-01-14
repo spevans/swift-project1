@@ -66,8 +66,7 @@ protocol BootParams {
     var symbolTableSize: UInt64 { get }
     var stringTablePtr: UnsafePointer<CChar>? { get }
     var stringTableSize: UInt64 { get }
-    func findTables() -> (UnsafePointer<rsdp1_header>?,
-        UnsafePointer<smbios_header>?)
+    func findTables() -> (PhysAddress?, PhysAddress?)
 }
 
 /*
@@ -113,20 +112,20 @@ struct SystemTables {
     let product: String
 
     init(bootParams: BootParams) {
-        let (acpiPtr, smbiosPtr) = bootParams.findTables()
+        let (acpiPhysAddress, smbiosPhysAddress) = bootParams.findTables()
 
         var tmpVendor: String?
         var tmpProduct: String?
-        if let ptr = smbiosPtr {
-            let smbios = SMBIOS(ptr: ptr)
+        if let physAddress = smbiosPhysAddress {
+            let smbios = SMBIOS(physAddress: physAddress)
             tmpVendor = smbios?.dmiBiosVendor
             tmpProduct = smbios?.dmiProductName
         }
 
         vendor = tmpVendor ?? "generic"
         product = tmpProduct ?? "generic"
-        if let ptr = acpiPtr {
-            if let acpi = ACPI(rsdp: ptr, vendor: vendor, product: product) {
+        if let physAddress = acpiPhysAddress {
+            if let acpi = ACPI(rsdp: physAddress, vendor: vendor, product: product, memoryRanges: bootParams.memoryRanges) {
                 acpiTables = acpi
                 return
             }

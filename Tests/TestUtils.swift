@@ -80,7 +80,16 @@ func noInterrupt<Result>(_ task: () -> Result) -> Result {
 }
 
 func mapIORegion(region: PhysPageRange, cacheType: Int = 7 /* Uncacheable */) -> MMIORegion {
-    let vaddr = UnsafeMutableRawPointer.allocate(byteCount: Int(region.regionSize), alignment: 16)
+    return MMIORegion(physPageRange: region)
+}
 
-    return MMIORegion(physicalRegion: region, virtualAddress: VirtualAddress(vaddr.address))
+func mapRORegion(region: PhysPageRange, cacheType: Int = 7 /* Uncacheable */) -> MMIORegion {
+    return MMIORegion(physPageRange: region)
+}
+
+func mapRORegion(region: PhysAddressRegion) -> MMIORegion {
+    return MMIORegion(region: region)
+}
+
+func unmapMMIORegion(_ mmioRegion: MMIORegion) {
 }

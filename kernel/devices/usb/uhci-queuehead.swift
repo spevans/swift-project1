@@ -189,7 +189,7 @@ extension HCD_UHCI {
             self.mmioSubRegion = mmioSubRegion
         }
 
-        var physAddress: UInt32 { UInt32(mmioSubRegion.physicalAddress.value) }
+        var physAddress: UInt32 { UInt32(mmioSubRegion.baseAddress.value) }
 
         func setQH(_ queueHead: QueueHead) {
             mmioSubRegion.write(value: queueHead.headLinkPointer.bits.rawValue, toByteOffset: 0)
@@ -217,7 +217,7 @@ extension HCD_UHCI {
 
         var description: String {
             let queueHead = QueueHead(headLinkPointer: headLinkPointer, elementLinkPointer: elementLinkPointer)
-            return "PhysQH: \(mmioSubRegion.physicalAddress): \(queueHead)"
+            return "PhysQH: \(mmioSubRegion.baseAddress): \(queueHead)"
         }
 
         func dump() -> String {

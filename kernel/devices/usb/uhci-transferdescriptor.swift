@@ -182,7 +182,7 @@ extension HCD_UHCI {
             self.mmioSubRegion = mmioSubRegion
         }
 
-        var physAddress: UInt32 { UInt32(mmioSubRegion.physicalAddress.value) }
+        var physAddress: UInt32 { UInt32(mmioSubRegion.baseAddress.value) }
 
         func setTD(_ transferdescriptor: TransferDescriptor) {
             mmioSubRegion.write(value: transferdescriptor.linkPointer.bits.rawValue, toByteOffset: 0 )

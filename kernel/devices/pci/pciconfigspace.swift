@@ -34,7 +34,7 @@ enum PCIConfigSpace: CustomStringConvertible {
 
     func release() {
         if case let .mmio(mmioRegion) = self {
-            unmapIORegion(mmioRegion)
+            unmapMMIORegion(mmioRegion)
         }
     }
 

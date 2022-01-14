@@ -2,7 +2,7 @@
  * kernel/init/smbios.swift
  *
  * Created by Simon Evans on 02/03/2016.
- * Copyright © 2016 Simon Evans. All rights reserved.
+ * Copyright © 2016 - 2022 Simon Evans. All rights reserved.
  *
  * Parsing of SMBIOS tables
  */
@@ -15,7 +15,7 @@ struct SMBIOS {
     let minor: UInt8
     let maxStructureSize: UInt
     let tableLength: Int
-    let tableAddress: UInt
+    let tableAddress: PhysAddress
     let entryCount: Int
 
     // DMI information to extract, allows vendor/model to be identified
@@ -70,32 +70,49 @@ struct SMBIOS {
     }
 
 
-    init?(ptr: UnsafePointer<smbios_header>) {
-        let header = ptr.pointee
-        let anchor = String(ptr, maxLength: 4)
-        if (anchor != "_SM_") {
-            print("SMBIOS: anchor is \(anchor)")
-            return nil
-        }
-        let headerSize = MemoryLayout<smbios_header>.size
-        if Int(header.ep_length) != headerSize {
-            print("header length should be", headerSize, "but is",
-                header.ep_length)
-            return nil
-        }
-        maxStructureSize = UInt(header.max_structure_size)
-        if header.eps_revision != 0 {
-            printf("Unknown EPS revision: %2.2x", header.eps_revision)
-            return nil
+    init?(physAddress: PhysAddress) {
+        let header: smbios_header
+
+        do {
+            let headerSize = MemoryLayout<smbios_header>.size
+            let headerRegion = PhysAddressRegion(start: physAddress, size: UInt(headerSize))
+            let mmioRegion = mapRORegion(region: headerRegion)
+            defer { unmapMMIORegion(mmioRegion) }
+            let ptr = mmioRegion.baseAddress.rawPointer
+            header = ptr.load(fromByteOffset: 0, as: smbios_header.self)
+
+            let anchor = String(ptr, maxLength: 4)
+            if (anchor != "_SM_") {
+                print("SMBIOS: anchor is \(anchor)")
+                return nil
+            }
+
+            if Int(header.ep_length) != headerSize {
+                print("header length should be", headerSize, "but is",
+                    header.ep_length)
+                return nil
+            }
+            maxStructureSize = UInt(header.max_structure_size)
+            if header.eps_revision != 0 {
+                printf("Unknown EPS revision: %2.2x", header.eps_revision)
+                return nil
+            }
+
+            let dmi = String(ptr + 16, maxLength: 5)
+            if dmi != "_DMI_" {
+                print("SMBIOS: DMI anchor is", dmi)
+                return nil
+            }
         }
 
-        let dmi = String(ptr.advancedBy(bytes: 16), maxLength: 5)
-        if dmi != "_DMI_" {
-            print("SMBIOS: DMI anchor is", dmi)
-            return nil
-        }
         tableLength = Int(header.table_length)
-        tableAddress = PhysAddress(RawAddress(header.table_address)).vaddr
+        tableAddress = PhysAddress(RawAddress(header.table_address))
+        // FIXME, can the mmioRegion from above be reused if the DMI region is adjcent
+        // to the SMBIOS (eg qemu) rather than completely seperate (VMWare)
+        let region = PhysAddressRegion(start: tableAddress, size: UInt(tableLength))
+        let mmioRegion = mapRORegion(region: region)
+        defer { unmapMMIORegion(mmioRegion) }
+
         entryCount = Int(header.entry_count)
         if header.bcd_revision != 0 {
             major = header.bcd_revision >> 4
@@ -106,7 +123,7 @@ struct SMBIOS {
         }
 
         print("SMBIOS \(major).\(minor): \(entryCount) entries "
-            + "@ \(asHex(tableAddress)) size: \(tableLength)")
+            + "@ \(tableAddress) size: \(tableLength)")
 
         func str(_ a: String?) -> String {
             return a ?? "nil"
@@ -166,7 +183,7 @@ struct SMBIOS {
         var entries: [SMBiosEntry] = []
         entries.reserveCapacity(entryCount)
 
-        var buffer = MemoryBufferReader(tableAddress, size: tableLength)
+        var buffer = MemoryBufferReader(tableAddress.vaddr, size: tableLength)
         for _ in 1...entryCount {
             do {
                 let type: UInt8 = try buffer.read()

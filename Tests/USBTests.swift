@@ -24,9 +24,9 @@ class USBTests: XCTestCase {
         XCTAssertEqual(getDescriptorConfigData.count, 59)
 
         let configDescriptor: USB.ConfigDescriptor = try getDescriptorConfigData.withUnsafeMutableBufferPointer {
-            let buffer = UnsafeRawBufferPointer(start: $0.baseAddress, count: $0.count)
-            let mmioRegion = MMIOSubRegion(virtualAddress: VirtualAddress(bitPattern: buffer.baseAddress),
-                                           physicalAddress: PhysAddress(0), count: $0.count)
+            let vaddr = VirtualAddress($0.baseAddress!.address)
+            let paddr = PhysAddress(vaddr: vaddr)
+            let mmioRegion = MMIOSubRegion(baseAddress: paddr, count: $0.count)
             return try USB.ConfigDescriptor(from: mmioRegion)
         }
 
@@ -42,9 +42,9 @@ class USBTests: XCTestCase {
         XCTAssertEqual(data.count, 25)
 
         let configDescriptor: USB.ConfigDescriptor = try data.withUnsafeMutableBufferPointer {
-            let buffer = UnsafeRawBufferPointer(start: $0.baseAddress, count: $0.count)
-            let mmioRegion = MMIOSubRegion(virtualAddress: VirtualAddress(bitPattern: buffer.baseAddress),
-                                           physicalAddress: PhysAddress(0), count: $0.count)
+            let vaddr = VirtualAddress($0.baseAddress!.address)
+            let paddr = PhysAddress(vaddr: vaddr)
+            let mmioRegion = MMIOSubRegion(baseAddress: paddr, count: $0.count)
             return try USB.ConfigDescriptor(from: mmioRegion)
         }
 

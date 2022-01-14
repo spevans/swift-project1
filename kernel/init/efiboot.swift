@@ -2,7 +2,7 @@
  * kernel/init/efiboot.swift
  *
  * Created by Simon Evans on 01/04/2017.
- * Copyright © 2015 - 2017 Simon Evans. All rights reserved.
+ * Copyright © 2015 - 2022 Simon Evans. All rights reserved.
  *
  * Parse the EFI tables.
  */
@@ -142,10 +142,9 @@ struct EFIBootParams: BootParams {
     }
 
 
-    func findTables() -> (UnsafePointer<rsdp1_header>?,
-        UnsafePointer<smbios_header>?) {
-        let efiTables = EFITables(configTablePtr, configTableCount)
-        return (efiTables.acpiPtr, efiTables.smbiosPtr)
+    func findTables() -> (PhysAddress?, PhysAddress?) {
+        let efiTables = EFITables(PhysAddress(RawAddress(bitPattern: configTablePtr)), configTableCount)
+        return (efiTables.acpiPhysAddress, efiTables.smbiosPhysAddress)
     }
 
 
@@ -170,56 +169,55 @@ struct EFIBootParams: BootParams {
             data3: 0x11d3,
             data4: (0xbc,0x22,0x00,0x80,0xc7,0x3c,0x88,0x81))
 
-        let acpiPtr: UnsafePointer<rsdp1_header>?
-        let smbiosPtr: UnsafePointer<smbios_header>?
+        let acpiPhysAddress: PhysAddress?
+        let smbiosPhysAddress: PhysAddress?
 
 
-        fileprivate init(_ configTablePtr: UnsafePointer<efi_config_table_t>,
-            _ configTableCount: UInt) {
+        fileprivate init(_ configTableAddress: PhysAddress, _ configTableCount: UInt) {
+            let region = PhysAddressRegion(start: configTableAddress, size: configTableCount)
+            let mmioRegion = mapRORegion(region: region)
+            defer { unmapMMIORegion(mmioRegion) }
 
-            let tables: UnsafeBufferPointer<efi_config_table_t> =
-            mapPhysicalRegion(start: configTablePtr,
-                size: Int(configTableCount))
+            let vaddr = mmioRegion.physAddressRegion.physAddress.vaddr
+            let configTablePtr = UnsafePointer<efi_config_table_t>(bitPattern: vaddr)
+            let tables = UnsafeBufferPointer(start: configTablePtr, count: Int(configTableCount))
 
-            var acpiTmpPtr: UnsafePointer<rsdp1_header>?
-            var smbiosTmpPtr: UnsafePointer<smbios_header>?
+            var acpiTmpPhysAddress: PhysAddress?
+            var smbiosTmpPhysAddress: PhysAddress?
             for table in tables {
                 let entry = EFIConfigTableEntry(guid: table.vendor_guid,
                     table: table.vendor_table)
                 EFITables.printGUID(entry.guid)
 
                 // Look for Root System Description Pointer and SMBios tables
-                if acpiTmpPtr == nil {
-                    if let ptr = EFITables.pointerFrom(entry: entry,
-                        ifMatches: guidACPI1) {
-                        acpiTmpPtr = ptr.bindMemory(to: rsdp1_header.self,
-                            capacity: 1)
+                if acpiTmpPhysAddress == nil {
+                    if let physAddress = EFITables.physAddressFor(entry: entry,
+                                                                  ifMatches: guidACPI1) {
+                        acpiTmpPhysAddress = physAddress
                         continue
                     }
 
-                    if let ptr = EFITables.pointerFrom(entry: entry,
-                                                       ifMatches: guidACPI20) {
-                        acpiTmpPtr = ptr.bindMemory(to: rsdp1_header.self, capacity: 1)
+                    if let physAddress = EFITables.physAddressFor(entry: entry,
+                                                                  ifMatches: guidACPI20) {
+                        acpiTmpPhysAddress = physAddress
                         continue
                     }
                 }
-                if smbiosTmpPtr == nil {
-                    if let ptr = EFITables.pointerFrom(entry: entry,
-                        ifMatches: guidSMBIOS3) {
-                        smbiosTmpPtr = ptr.bindMemory(to: smbios_header.self,
-                            capacity: 1)
+                if smbiosTmpPhysAddress == nil {
+                    if let physAddress = EFITables.physAddressFor(entry: entry,
+                                                                  ifMatches: guidSMBIOS3) {
+                        smbiosTmpPhysAddress = physAddress
                         continue
                     }
-                    if let ptr = EFITables.pointerFrom(entry: entry,
-                        ifMatches: guidSMBIOS) {
-                        smbiosTmpPtr = ptr.bindMemory(to: smbios_header.self,
-                            capacity: 1)
+                    if let physAddress = EFITables.physAddressFor(entry: entry,
+                                                                  ifMatches: guidSMBIOS) {
+                        smbiosTmpPhysAddress = physAddress
                     }
                 }
             }
 
-            acpiPtr = acpiTmpPtr
-            smbiosPtr = smbiosTmpPtr
+            acpiPhysAddress = acpiTmpPhysAddress
+            smbiosPhysAddress = smbiosTmpPhysAddress
         }
 
         static private func printGUID(_ guid: efi_guid_t) {
@@ -229,11 +227,10 @@ struct EFIBootParams: BootParams {
                 guid.data4.6, guid.data4.7)
         }
 
-        static private func pointerFrom(entry: EFIConfigTableEntry,
-            ifMatches guid2: efi_guid_t) -> UnsafeRawPointer? {
+        static private func physAddressFor(entry: EFIConfigTableEntry,
+            ifMatches guid2: efi_guid_t) -> PhysAddress? {
             if matchGUID(entry.guid, guid2) {
-                let paddr = PhysAddress(entry.table.address)
-                return UnsafeRawPointer(bitPattern: paddr.vaddr)
+                return PhysAddress(entry.table.address)
             } else {
                 return nil
             }

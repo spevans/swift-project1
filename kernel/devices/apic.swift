@@ -158,12 +158,11 @@ final class APIC {
     }
 
 
-    private let IA32_APIC_BASE_MSR: UInt32 = 0x1B
-    private let APIC_REGISTER_SPACE_SIZE = 0x400
+    static private let IA32_APIC_BASE_MSR: UInt32 = 0x1B
+    static private let APIC_REGISTER_SPACE_SIZE = 0x400
     private let bootProcessorBit = 8
     private let globalEnableBit = 11
 
-    private let apicRegistersVaddr: VirtualAddress
     private let apicRegisters: UnsafeMutableRawBufferPointer
 
     var localAPICId:      UInt32 { return atOffset(0x20) }
@@ -261,6 +260,16 @@ final class APIC {
             as: UInt32.self)
     }
 
+    static func addressRegion() -> PhysPageRange {
+        let maxPhyAddrBits = CPU.capabilities.maxPhyAddrBits
+        let lomask = ~(UInt(1 << 12) - 1)
+        let himask = (UInt(1) << maxPhyAddrBits) - 1
+        let mask = lomask & himask
+        let apicStatus = BitArray64(CPU.readMSR(IA32_APIC_BASE_MSR))
+        let address = RawAddress(apicStatus.toUInt64() & UInt64(mask))
+        let baseAddress = PhysAddress(address)
+        return PhysPageRange(start: baseAddress, size: UInt(APIC_REGISTER_SPACE_SIZE))
+    }
 
     init?(madtEntries: [MADTEntry]) {
         guard CPU.capabilities.apic else {
@@ -269,35 +278,28 @@ final class APIC {
         }
         print("APIC: Initialising..")
 
-        var apicStatus = BitArray64(CPU.readMSR(IA32_APIC_BASE_MSR))
+        var apicStatus = BitArray64(CPU.readMSR(APIC.IA32_APIC_BASE_MSR))
 
         // Enable the APIC if currently disabled
         if apicStatus[globalEnableBit] != 1 {
             apicStatus[globalEnableBit] = 1
-            CPU.writeMSR(IA32_APIC_BASE_MSR, apicStatus.toUInt64())
-            apicStatus = BitArray64(CPU.readMSR(IA32_APIC_BASE_MSR))
+            CPU.writeMSR(APIC.IA32_APIC_BASE_MSR, apicStatus.toUInt64())
+            apicStatus = BitArray64(CPU.readMSR(APIC.IA32_APIC_BASE_MSR))
             if apicStatus[globalEnableBit] != 1 {
                 print("APIC: failed to enable")
                 return nil
             }
         }
 
-        let bootProcessor = apicStatus[bootProcessorBit] == 1
-        let maxPhyAddrBits = CPU.capabilities.maxPhyAddrBits
-        let lomask = ~(UInt(1 << 12) - 1)
-        let himask = (UInt(1) << maxPhyAddrBits) - 1
-        let mask = lomask & himask
-        let address = RawAddress(apicStatus.toUInt64() & UInt64(mask))
-        let baseAddress = PhysAddress(address)
-        printf("APIC: base address: 0x%X\n", baseAddress.value)
-
-        let region = PhysPageRange(start: baseAddress, size: UInt(APIC_REGISTER_SPACE_SIZE))
+        let region = APIC.addressRegion()
+        printf("APIC: base address: 0x%X\n", region.address.value)
         let mmio = mapIORegion(region: region, cacheType: .uncacheable)
-        apicRegistersVaddr = mmio.virtualAddress
-        let ptr = UnsafeMutableRawPointer(bitPattern: apicRegistersVaddr)!
+        let ptr = mmio.baseAddress.rawPointer
         apicRegisters = UnsafeMutableRawBufferPointer(start: ptr,
-            count: APIC_REGISTER_SPACE_SIZE)
-        print("APIC: boot \(bootProcessor) maxPhyAddrBits: \(maxPhyAddrBits)")
+            count: APIC.APIC_REGISTER_SPACE_SIZE)
+
+        let bootProcessor = apicStatus[bootProcessorBit] == 1
+        print("APIC: boot \(bootProcessor)")
 
         printStatus()
         setupTimer()

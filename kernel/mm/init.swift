@@ -118,7 +118,7 @@ func setupMM(bootParams: BootParams) {
     // Now add in all the RAM memory ranges
     do {
         let freeMemoryRanges = bootParams.memoryRanges.filter {
-            $0.type == MemoryType.Conventional && $0.start >= PhysAddress(1 * mb ) && $0.endAddress < PhysAddress(16 * mb)
+            $0.type == MemoryType.Conventional && $0.start >= PhysAddress(1 * mb) && $0.endAddress < PhysAddress(16 * mb)
         }
         printf("MM: Before adding pages <16MB to freelist, freePageCount: %d freeIOPageCount: %d\n",
             freePageCount(), freeIOPageCount())
@@ -129,13 +129,6 @@ func setupMM(bootParams: BootParams) {
 
     // Map the rest of the physical memory
     mapPhysicalMemory(bootParams.memoryRanges)
-    do {
-        let freeMemoryRanges = bootParams.memoryRanges.filter {
-            $0.type == MemoryType.Conventional && $0.start >= PhysAddress(16 * gb)
-        }
-        print("MM: Before adding pages >16MB to freelist, freePageCount:", freePageCount())
-        addPagesToFreePageList(freeMemoryRanges)
-    }
     printf("MM: After adding pages >16MB to freelist, freePageCount: %d freeIOPageCount: %d\n",
         freePageCount(), freeIOPageCount())
 
@@ -317,7 +310,7 @@ private func setupInitialPhysicalMap(_ memoryRanges: [MemoryRange]) {
     // Find all of the usable (RAM) page aligned pages in the region below 16MB. Ignore
     // Map non RAM as RO as it probably contains BIOS etc that still needs to be readable
     for (physPageRange, access) in lowMemoryRanges.align(toPageSize: PageSize(4096)) {
-        guard access != .mmio else { continue }
+        guard access == .readWrite else { continue }
         for physPage in physPageRange {
             let vaddr = physPage.vaddr
             precondition(physPage.value < 16 * mb)
@@ -326,7 +319,7 @@ private func setupInitialPhysicalMap(_ memoryRanges: [MemoryRange]) {
             let idx3 = ptIndex(vaddr)
             var pageTable = pml2Page[idx2].pageTable!
 
-            let entry = PageTableEntry(address: physPage, readWrite: access == .readWrite, userAccess: false,
+            let entry = PageTableEntry(address: physPage, readWrite: true, userAccess: false,
                 patIndex: patIndex, global: false, noExec: true)
             pageTable[idx3] = entry
         }
@@ -351,12 +344,11 @@ private func setupInitialPhysicalMap(_ memoryRanges: [MemoryRange]) {
 }
 
 
-// FIXME: Should map more closely to the real map, not map holes
-// and map the reserved mem as RO etc
+// Map any available RAM above 16MB and add to the free pages list.
 private func mapPhysicalMemory(_ ranges: [MemoryRange]) {
 
     let memoryRanges = ranges.filter {
-        $0.start >= PhysAddress(16 * mb) && $0.type != .Kernel
+        $0.start >= PhysAddress(16 * mb) && $0.type == .Conventional
     }
 
     guard !memoryRanges.isEmpty else { return }
@@ -364,40 +356,43 @@ private func mapPhysicalMemory(_ ranges: [MemoryRange]) {
     printf("MM: Mapping physical memory from %p - %p , freePageCount: %ld\n", memoryRanges[0].start.value, maxAddress.value, freePageCount())
     let pmlPage = PageMapLevel4Table(at: initial_pml4_addr)
 
-    // Map non RAM as RO as it probably contains BIOS etc that still needs to be readable
+    // Break large chunks into 256MB chunks and add them to the free page list as they are mapped.
+    // Since the page maps require memory themselves, pages are mapped and added to the free page list
+    // in 256MB chunks so more memory is availble for subsequent mapping
+    let maxPagesPerLoop = 65536 // 256MB per loop
     for (physPageRange, access) in memoryRanges.align(toPageSize: PageSize(4096)) {
-        guard access == .readWrite || access == .readOnly else { continue }
+        guard access == .readWrite else { continue }
 
-        for physPage in physPageRange {
-            let vaddr = physPage.vaddr
+        var pageRangeIterator = PhysPageRangeChunksInterator(physPageRange, pagesPerChunk: maxPagesPerLoop)
+        while let chunk = pageRangeIterator.next() {
+            for physPage in chunk {
+                let vaddr = physPage.vaddr
 
-            let idx0 = pml4Index(vaddr)
-            let idx1 = pdpIndex(vaddr)
-            let idx2 = pdIndex(vaddr)
-            let idx3 = ptIndex(vaddr)
+                let idx0 = pml4Index(vaddr)
+                let idx1 = pdpIndex(vaddr)
+                let idx2 = pdIndex(vaddr)
+                let idx3 = ptIndex(vaddr)
 
-            let pdpPage = pmlPage.pageDirectoryPointerTable(at: idx0, readWrite: true, userAccess: false,
-                writeThrough: true, cacheDisable: false, noExec: true)
+                let pdpPage = pmlPage.pageDirectoryPointerTable(at: idx0, readWrite: true, userAccess: false,
+                    writeThrough: true, cacheDisable: false, noExec: true)
 
-            let pdPage = pdpPage.pageDirectory(at: idx1, readWrite: true, userAccess: false,
-                writeThrough: true, cacheDisable: false, noExec: true)
+                let pdPage = pdpPage.pageDirectory(at: idx1, readWrite: true, userAccess: false,
+                    writeThrough: true, cacheDisable: false, noExec: true)
 
-            var ptPage = pdPage.pageTable(at: idx2, readWrite: true, userAccess: false,
-                writeThrough: true, cacheDisable: false, noExec: true)
+                var ptPage = pdPage.pageTable(at: idx2, readWrite: true, userAccess: false,
+                    writeThrough: true, cacheDisable: false, noExec: true)
 
-            if !ptPage[idx3].present {
-                let patIndex = CPU.CacheType.writeBack.patEntry
-                let entry = PageTableEntry(address: physPage, readWrite: access == .readWrite,
-                    userAccess: false, patIndex: patIndex, global: false, noExec: true)
-                ptPage[idx3] = entry
-            } else {
-                print("Cant add mapping for \(physPage) @ 0x\(String(vaddr, radix: 16))")
-                koops("MM: page is already present!")
+                if !ptPage[idx3].present {
+                    let patIndex = CPU.CacheType.writeBack.patEntry
+                    let entry = PageTableEntry(address: physPage, readWrite: access == .readWrite,
+                        userAccess: false, patIndex: patIndex, global: false, noExec: true)
+                    ptPage[idx3] = entry
+                } else {
+                    print("Cant add mapping for \(physPage) @ 0x\(String(vaddr, radix: 16))")
+                    koops("MM: page is already present!")
+                }
             }
-        }
-        if access == .readWrite {
-            //print("Adding \(physPageRange) to free list");
-            addPagesToFreePageList(pages: physPageRange)
+            addPagesToFreePageList(pages: chunk)
         }
     }
 }

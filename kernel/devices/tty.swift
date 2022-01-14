@@ -393,7 +393,7 @@ private final class TextTTY: ScreenDriver {
         totalChars = Int(totalLines) * Int(charsPerLine)
         let physRegion = PhysPageRange(start: PhysAddress(SCREEN_BASE_ADDRESS), size: UInt(totalChars))
         let mmioRegion = mapIORegion(region: physRegion, cacheType: .writeCombining)
-        let screenBase = UnsafeMutablePointer<UInt16>(bitPattern: mmioRegion.virtualAddress)
+        let screenBase = UnsafeMutablePointer<UInt16>(bitPattern: mmioRegion.baseAddress.vaddr)
         screen = UnsafeMutableBufferPointer(start: screenBase, count: totalChars)
     }
 
@@ -559,7 +559,7 @@ private final class FrameBufferTTY: ScreenDriver {
 
         let physRegion = PhysPageRange(start: frameBufferInfo.address, size: UInt(size))
         let mmioRegion = mapIORegion(region: physRegion, cacheType: .writeCombining)
-        screenBase = UnsafeMutablePointer<UInt8>(bitPattern: mmioRegion.virtualAddress)!
+        screenBase = UnsafeMutablePointer<UInt8>(bitPattern: mmioRegion.baseAddress.vaddr)!
         screen = UnsafeMutableBufferPointer<UInt8>(start: screenBase,
             count: size)
     }

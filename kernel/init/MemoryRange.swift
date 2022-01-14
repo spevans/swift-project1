@@ -3,7 +3,7 @@
 //  project1
 //
 //  Created by Simon Evans on 10/04/2021.
-//  Copyright © 2021 Simon Evans. All rights reserved.
+//  Copyright © 2021 - 2022 Simon Evans. All rights reserved.
 //
 
 
@@ -56,11 +56,11 @@ enum MemoryType: UInt32 {
 
     var access: Access {
         switch self {
-            case .Hole, .Reserved, .E820Reserved, .Unusable, .MemoryMappedIOPortSpace:
+            case .Hole, .Reserved, .Unusable, .MemoryMappedIOPortSpace:
                 return .unusable
 
             case .LoaderCode, .LoaderData, .BootServicesCode, .BootServicesData, .RuntimeServicesCode, .RuntimeServicesData,
-                    .ACPIReclaimable, .ACPINonVolatile, .BootData:
+                    .ACPIReclaimable, .ACPINonVolatile, .BootData, .E820Reserved:
                 return .readOnly
 
             case .MemoryMappedIO, .FrameBuffer:
@@ -376,5 +376,17 @@ extension Array where Element == MemoryRange {
         let physPageRange = PhysPageRange(currentStart, pageSize: pageSize.pageSize, pageCount: Int(pageCount))
         result.append((physPageRange, currentAccess))
         return result
+    }
+
+
+    // Finds the MemoryRange covering the given pageRange or .nil if none is found.
+    // If it covers multiple ranges then nil is returned
+    func findRange(containing physAddress: PhysAddress) -> MemoryRange? {
+        for range in self {
+            if range.start <= physAddress && range.endAddress >= physAddress {
+                return range
+            }
+        }
+        return nil
     }
 }

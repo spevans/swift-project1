@@ -13,16 +13,6 @@ private let entriesPerPage: UInt = 512
 private let entriesPerPageMask: UInt = entriesPerPage - 1
 
 
-func mapPhysicalRegion<T>(start: PhysAddress, size: Int) -> UnsafeBufferPointer<T> {
-    let region = UnsafePointer<T>(bitPattern: start.vaddr)
-    return UnsafeBufferPointer<T>(start: region, count: size)
-}
-
-func mapPhysicalRegion<T>(start: UnsafePointer<T>, size: Int) -> UnsafeBufferPointer<T> {
-    let region = UnsafePointer<T>(bitPattern: PHYSICAL_MEM_BASE + start.address)
-    return UnsafeBufferPointer<T>(start: region, count: size)
-}
-
 func virtualToPhys(address: VirtualAddress, base: UInt64 = getCR3()) -> PhysAddress? {
     // Quick lookups in premapped areas
     if address >= PHYSICAL_MEM_BASE && address < PHYSICAL_MEM_BASE + 0x400_000_000_000 { // 64TB window

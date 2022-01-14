@@ -172,9 +172,9 @@ private func alloc(pages: Int, fromList list: inout FreePageListEntryPtr?) -> Ph
             // Region is same size as requested so remove from list
             let result = region
             if prev == nil {
-                list = entry.next!
+                list = entry.next
             } else {
-                prev!.pointee.next = entry.next!
+                prev!.pointee.next = entry.next
             }
             return result
         }

@@ -71,7 +71,9 @@ fileprivate func createACPI(files: [String]) -> (ACPI, UnsafeMutableRawPointer) 
         data.withUnsafeBytes {
             ptr.copyMemory(from: $0.baseAddress!, byteCount: data.count)
         }
-        acpi.parseEntry(rawSDTPtr: ptr, vendor: "Foo", product: "Bar")
+        let vaddr = VirtualAddress(ptr.address)
+        let paddr = PhysAddress(vaddr: vaddr)
+        acpi.parseEntry(physAddress: paddr, vendor: "Foo", product: "Bar")
         offset += data.count
     }
 

@@ -2,12 +2,11 @@
  * kernel/init/biosboot.swift
  *
  * Created by Simon Evans on 01/04/2017.
- * Copyright © 2015 - 2017 Simon Evans. All rights reserved.
+ * Copyright © 2015 - 2022 Simon Evans. All rights reserved.
  *
  * Parse the BIOS tables.
  */
 
-typealias ScanArea = UnsafeBufferPointer<UInt8>
 
 
 struct BiosBootParams: BootParams, CustomStringConvertible {
@@ -199,89 +198,81 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
         // Add in a range for the VGA framebuffer. This may already exist or may overwrite something that already
         // covers that range.
         // FIXME: Dont overwrite if there is a better mapping already.
+        ranges.insertRange(MemoryRange(type: .Reserved, start: PhysAddress(0), size: PAGE_SIZE))
         ranges.insertRange(MemoryRange(type: .FrameBuffer, start: PhysAddress(0xA0000), size: UInt(128 * kb)))
+        let apicRegion = APIC.addressRegion()
+        let apicRange = MemoryRange(type: .MemoryMappedIO, start: apicRegion.address, endAddress: apicRegion.endAddress)
+        ranges.insertRange(apicRange)
+        print("Added APIC into memory ranges")
+        for range in ranges {
+            print(range)
+        }
         findHoles(&ranges)
 
         return ranges
     }
 
 
-    func findTables() -> (UnsafePointer<rsdp1_header>?,
-        UnsafePointer<smbios_header>?) {
+    // The memory mapping should be setup now so individual ROM regions that need to be scanned can be
+    // mapped using mapRORegion()
+    func findTables() -> (PhysAddress?, PhysAddress?) {
         let rsdp = findRSDP()
-        let smbiosp = findSMBIOS()
-        return (rsdp, smbiosp)
+        let smbios = findSMBIOS()
+        return (rsdp, smbios)
     }
 
 
     // Root System Description Pointer
-    private func findRSDP() -> UnsafePointer<rsdp1_header>? {
-        if let ebda = getEBDA() {
-            printf("ACPI: EBDA: %p len: 0x%x\n", UInt(bitPattern: ebda.baseAddress!), ebda.count)
-            if let rsdp = scanForRSDP(ebda) {
+    private func findRSDP() -> PhysAddress? {
+        if let region = getEBDA() {
+            printf("ACPI: EBDA: %p len: 0x%x\n", region.physAddress.value, region.size)
+            if let rsdp = scanForSignature(RSDP_SIG, inRegion: region) {
                 return rsdp
             }
         }
-        let upper = getUpperMemoryArea()
-        printf("ACPI: Upper: %p len: 0x%x\n", UInt(bitPattern: upper.baseAddress!), upper.count)
-        return scanForRSDP(upper)
+        let region = PhysAddressRegion(start: PhysAddress(0xE0000), size: 0x20000)
+        printf("ACPI: Upper: %p len: 0x%x\n", region.physAddress.value, region.size)
+        return scanForSignature(RSDP_SIG, inRegion: region)
     }
 
 
     // SMBios table
-    private func findSMBIOS() -> UnsafePointer<smbios_header>? {
-        let region: ScanArea = mapPhysicalRegion(start: PhysAddress(0xf0000),
-            size: 0x10000)
-        if let ptr = scanForSignature(region, SMBIOS.SMBIOS_SIG) {
-            return ptr.bindMemory(to: smbios_header.self, capacity: 1)
-        } else {
-            return nil
-        }
+    private func findSMBIOS() -> PhysAddress? {
+        let region = PhysAddressRegion(start: PhysAddress(0xf0000), size: 0x10000)
+        return scanForSignature(SMBIOS.SMBIOS_SIG, inRegion: region)
     }
 
 
-    private func getEBDA() -> ScanArea? {
-        let ebdaRegion: UnsafeBufferPointer<UInt16> = mapPhysicalRegion(start: PhysAddress(0x40E),
-            size: 1)
-        let ebda = ebdaRegion[0]
+    private func getEBDA() -> PhysAddressRegion? {
+        let region = mapRORegion(region: PhysAddressRegion(start: PhysAddress(0x40E), size: 2))
+        let ebda: UInt16 = region.read(fromByteOffset: 0)
+        unmapMMIORegion(region)
+
         // Convert realmode segment to linear address
         let rsdpAddr = UInt(ebda) * 16
 
         if rsdpAddr > 0x400 {
-            let region: ScanArea = mapPhysicalRegion(start: PhysAddress(rsdpAddr),
-                size: 1024)
-            return region
+            return PhysAddressRegion(start: PhysAddress(rsdpAddr), size: 1024)
         } else {
             return nil
         }
     }
 
 
-    private func getUpperMemoryArea() -> ScanArea {
-        let region: ScanArea = mapPhysicalRegion(start: PhysAddress(0xE0000), size: 0x20000)
-        return region
-    }
-
-
-    private func scanForRSDP(_ area: ScanArea) -> UnsafePointer<rsdp1_header>? {
-        if let ptr = scanForSignature(area, RSDP_SIG) {
-            return ptr.bindMemory(to: rsdp1_header.self, capacity: 1)
-        } else {
-            return nil
-        }
-    }
-
-
-    private func scanForSignature(_ area: ScanArea, _ signature: StaticString)
-        -> UnsafeRawPointer? {
+    private func scanForSignature( _ signature: StaticString, inRegion region: PhysAddressRegion)
+    -> PhysAddress? {
         assert(signature.utf8CodeUnitCount != 0)
         assert(signature.isASCII)
 
-        let end = area.count - MemoryLayout<rsdp1_header>.stride
+        let mmio = mapRORegion(region: region)
+        defer { unmapMMIORegion(mmio) }
+
+        let end = mmio.regionSize - MemoryLayout<rsdp1_header>.stride
+        let baseAddress = mmio.baseAddress.rawPointer
         for idx in stride(from: 0, to: end, by: 16) {
-            if memcmp(signature.utf8Start, area.baseAddress! + idx,
+            if memcmp(signature.utf8Start, baseAddress + idx,
                 signature.utf8CodeUnitCount) == 0 {
-                return UnsafeRawPointer(area.regionPointer(offset: idx))
+                return mmio.baseAddress + idx
             }
         }
 

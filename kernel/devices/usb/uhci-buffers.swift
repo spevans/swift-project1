@@ -62,13 +62,13 @@ extension HCD_UHCI {
 
         init() {
             let flp = allocIOPage()
-            frameListPage = FrameListPage(region: MMIORegion(physicalRegion: flp, virtualAddress: flp.vaddr))
+            frameListPage = FrameListPage(region: MMIORegion(physPageRange: flp))
 
             let _bufferPool32 = allocIOPage()
-            bufferPool32 = MMIORegion(physicalRegion: _bufferPool32, virtualAddress: _bufferPool32.vaddr)
+            bufferPool32 = MMIORegion(physPageRange: _bufferPool32)
 
             let _bufferPool512 = allocIOPage()
-            bufferPool512 = MMIORegion(physicalRegion: _bufferPool512, virtualAddress: _bufferPool512.vaddr)
+            bufferPool512 = MMIORegion(physPageRange: _bufferPool512)
         }
 
         deinit {
@@ -86,7 +86,7 @@ extension HCD_UHCI {
         func allocPhysBuffer(length: Int) -> MMIOSubRegion {
             precondition(length <= 512)
             let region = next512ByteBuffer()
-            return  MMIOSubRegion(virtualAddress: region.virtualAddress, physicalAddress: region.physicalAddress, count: length)
+            return  MMIOSubRegion(baseAddress: region.baseAddress, count: length)
         }
 
 
@@ -138,7 +138,7 @@ extension HCD_UHCI {
 
 
         private func free32ByteBuffer(region: MMIOSubRegion) {
-            let entry = (region.virtualAddress - bufferPool32.virtualAddress) / 32
+            let entry = (region.baseAddress - bufferPool32.baseAddress) / 32
             precondition(entry >= 0)
             precondition(entry < 128)
             bufferPool32Bitmap.free(entry: Int(entry))
@@ -154,7 +154,7 @@ extension HCD_UHCI {
         }
 
         private func free512ByteBuffer(region: MMIOSubRegion) {
-            let entry = (region.virtualAddress - bufferPool512.virtualAddress) / 512
+            let entry = (region.baseAddress - bufferPool512.baseAddress) / 512
             precondition(entry >= 0)
             precondition(entry < 8)
             bufferPool512Bitmap.free(entry: Int(entry))

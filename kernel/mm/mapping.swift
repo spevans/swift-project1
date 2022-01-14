@@ -11,30 +11,49 @@
 // Add a mapping to a physical region, a mapping cant already exist
 func mapIORegion(region: PhysPageRange, cacheType: CPU.CacheType = .uncacheable) -> MMIORegion {
     let vaddr = region.address.vaddr
-    print("Adding IO mapping for \(region) at 0x\(String(vaddr, radix: 16)) \(cacheType)")
+    //print("Adding IO mapping for \(region) at 0x\(String(vaddr, radix: 16)) \(cacheType)")
     addMapping(start: vaddr, size: region.regionSize, physStart: region.address,
                readWrite: true, noExec: true, cacheType: cacheType)
 
-    return MMIORegion(physicalRegion: region, virtualAddress: vaddr)
+    return MMIORegion(physPageRange: region)
+}
+
+func mapRORegion(region: PhysPageRange, cacheType: CPU.CacheType = .writeBack) -> MMIORegion {
+    let vaddr = region.address.vaddr
+    //print("Adding RO mapping for \(region) at 0x\(String(vaddr, radix: 16)) \(cacheType)")
+    addMapping(start: vaddr, size: region.regionSize, physStart: region.address,
+               readWrite: false, noExec: true, cacheType: cacheType)
+
+    return MMIORegion(physPageRange: region)
+}
+
+func mapRORegion(region: PhysAddressRegion) -> MMIORegion {
+    let physPageRegion = region.physPageRange
+    let vaddr = physPageRegion.address.vaddr
+    //print("Adding RO mapping for \(region) [\(physPageRegion)] at 0x\(String(vaddr, radix: 16))")
+    addMapping(start: vaddr, size: physPageRegion.regionSize, physStart: physPageRegion.address,
+               readWrite: false, noExec: true, cacheType: .writeBack)
+
+    return MMIORegion(region: region)
 }
 
 
 // Converts an existing mapping to MMIO by changing its cacheType
 func remapAsIORegion(region: PhysPageRange, cacheType: CPU.CacheType = .uncacheable) -> MMIORegion {
-    let vaddr = region.address.vaddr
-    print("Remapping to IO mapping for \(region) at 0x\(String(vaddr, radix: 16)) \(cacheType)")
+    //print("Remapping to IO mapping for \(region) at 0x\(String(vaddr, radix: 16)) \(cacheType)")
     for page in region {
         guard changeEntry(address: page.vaddr, cacheType: cacheType, readWrite: true) else {
             fatalError("remapAsIORegion: Tried to remap non-mapped region: \(region)")
         }
     }
-    return MMIORegion(physicalRegion: region, virtualAddress: vaddr)
+    return MMIORegion(physPageRange: region)
 }
 
 
-func unmapIORegion(_ mmioRegion: MMIORegion) {
-    print("unmapIORegion:", mmioRegion.physicalRegion)
-    for page in mmioRegion.physicalRegion {
+func unmapMMIORegion(_ mmioRegion: MMIORegion) {
+    let pageRange = mmioRegion.physAddressRegion.physPageRange
+    //print("unmapIORegion:", pageRange)
+    for page in pageRange {
         guard removeMapping(address: page.vaddr) else {
             fatalError("unmapIORegion: Tried to unmap non-mapped region: \(mmioRegion)")
         }
@@ -84,7 +103,7 @@ func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
 
 
 private func removeMapping(address: VirtualAddress) -> Bool {
-    print("Removing mapping at 0x\(String(address, radix: 16))")
+    //print("MM: Removing mapping at 0x\(String(address, radix: 16))")
     let idx0 = pml4Index(address)
     let idx1 = pdpIndex(address)
 
@@ -111,7 +130,6 @@ private func removeMapping(address: VirtualAddress) -> Bool {
             pt[idx3] = PageTableEntry.NotPresent()
         }
     }
-    print("MM: removeMapping Invalidating address: 0x\(String(address, radix: 16))")
     invlpg(address)
     return true
 }

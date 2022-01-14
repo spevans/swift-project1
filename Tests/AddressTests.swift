@@ -253,4 +253,10 @@ class AddressTests: XCTestCase {
             XCTAssertEqual(ranges[0].address, PhysAddress(0))
         }
     }
+
+    func testPhysPageRange() {
+        let range = PhysPageRange(start: PhysAddress(0xE0000), size: 0x20000)
+        XCTAssertEqual(range.address, PhysAddress(0xE0000))
+        XCTAssertEqual(range.pageCount, 32)
+    }
 }

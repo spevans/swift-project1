@@ -595,7 +595,7 @@ struct SystemMemorySpace: OpRegionSpace, CustomStringConvertible {
         let physPageRange = PhysPageRange(start: PhysAddress(self.offset), size: UInt(length), pageSize: PageSize(PAGE_SIZE))
 
         data = PhysAddress(self.offset).rawPointer
-        _ = remapAsIORegion(region: physPageRange, cacheType: .uncacheable)
+        _ = mapIORegion(region: physPageRange, cacheType: .uncacheable)
 #endif
     }
 

@@ -28,7 +28,7 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
     private let pciDevice: PCIDevice    // The device (upstream) side of the bridge
     fileprivate let ioBasePort: UInt16
     private var maxAddress: UInt8 = 1
-    private(set) var controlQH = PhysQueueHead(mmioSubRegion: MMIOSubRegion(virtualAddress: 0, physicalAddress: PhysAddress(0), count: 0))
+    private(set) var controlQH = PhysQueueHead(mmioSubRegion: MMIOSubRegion(baseAddress: PhysAddress(0), count: 0))
     let allocator: UHCIAllocator
 
     var enabled = true

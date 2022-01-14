@@ -60,14 +60,23 @@ struct ACPI_SDT: CustomStringConvertible {
 
 final class ACPI {
 
-
     struct RSDT {
         let entries: [PhysAddress]
 
-        init(_ rawPtr: UnsafeRawPointer) {
+        init(_ physAddress: PhysAddress) {
+            let headerSize = MemoryLayout<acpi_sdt_header>.size
+            let region = PhysAddressRegion(start: physAddress, size: UInt(headerSize))
+            var mmioRegion = mapRORegion(region: region)
+            defer { unmapMMIORegion(mmioRegion) }
+            let subRegion = mmioRegion.mmioSubRegion(containing: physAddress, count: headerSize)!
+            let rawPtr = subRegion.baseAddress.rawPointer
             guard let table = ACPI.validateHeader(rawSDTPtr: rawPtr), table.signature == "RSDT" else {
                 fatalError("Invalid RSDT table")
             }
+
+            let newRegion = PhysAddressRegion(start: physAddress, size: UInt(table.length))
+            mmioRegion = mmioRegion.including(region: newRegion)
+
             let entryCount = (Int(table.length) - MemoryLayout<acpi_sdt_header>.size) / 4
             let buffer = UnsafeBufferPointer(start: rawPtr.advanced(by: MemoryLayout<acpi_sdt_header>.size)
                 .bindMemory(to: UInt32.self, capacity: entryCount), count: entryCount)
@@ -79,10 +88,20 @@ final class ACPI {
     struct XSDT {
         let entries: [PhysAddress]
 
-        init(_ rawPtr: UnsafeRawPointer) {
+        init(_ physAddress: PhysAddress) {
+            let headerSize = MemoryLayout<acpi_sdt_header>.size
+            let region = PhysAddressRegion(start: physAddress, size: UInt(headerSize))
+            var mmioRegion = mapRORegion(region: region)
+            defer { unmapMMIORegion(mmioRegion) }
+            let subRegion = mmioRegion.mmioSubRegion(containing: physAddress, count: headerSize)!
+
+            let rawPtr = subRegion.baseAddress.rawPointer
             guard let table = ACPI.validateHeader(rawSDTPtr: rawPtr), table.signature == "XSDT" else {
                 fatalError("Invalid XSDT table")
             }
+            let newRegion = PhysAddressRegion(start: physAddress, size: UInt(table.length))
+            mmioRegion = mmioRegion.including(region: newRegion)
+
             let entryCount = (Int(table.length) - MemoryLayout<acpi_sdt_header>.size) / 8
             let buffer = UnsafeBufferPointer(start: rawPtr.advanced(by: MemoryLayout<acpi_sdt_header>.size)
                 .bindMemory(to: UInt64.self, capacity: entryCount), count: entryCount)
@@ -96,7 +115,13 @@ final class ACPI {
         let rsdtAddress: UInt32
         let xsdtAddress: UInt64
 
-        init(_ rawPtr: UnsafeRawPointer) {
+        init(_ physAddress: PhysAddress) {
+            let headerSize = UInt(MemoryLayout<rsdp1_header>.size)
+            let region = PhysAddressRegion(start: physAddress, size: headerSize)
+            var mmioRegion = mapRORegion(region: region)
+            defer { unmapMMIORegion(mmioRegion) }
+            let subRegion = mmioRegion.mmioSubRegion(containing: physAddress, count: Int(headerSize))!
+            let rawPtr = subRegion.baseAddress.rawPointer
             let sig = String(rawPtr, maxLength: 8)
             guard sig == "RSD PTR " else {
                 fatalError("findRSRT invalid sig")
@@ -104,10 +129,11 @@ final class ACPI {
 
             let rsdp1 = rawPtr.load(as: rsdp1_header.self)
             revision = Int(rsdp1.revision)
-
             if rsdp1.revision == 2 {
                 // ACPI 2.0 RSDP
-
+                let headerSize = UInt(MemoryLayout<rsdp2_header>.size)
+                let region = PhysAddressRegion(start: physAddress, size: headerSize)
+                mmioRegion = mmioRegion.including(region: region)
                 let rsdp2 = rawPtr.load(as: rsdp2_header.self)
                 rsdtAddress = rsdp2.rsdp1.rsdt_addr
                 xsdtAddress = rsdp2.xsdt_addr
@@ -121,12 +147,12 @@ final class ACPI {
 
         func rsdt() -> RSDT? {
             guard rsdtAddress != 0 else { return nil }
-            return RSDT(PhysAddress(RawAddress(rsdtAddress)).rawPointer)
+            return RSDT(PhysAddress(RawAddress(rsdtAddress)))
         }
 
         func xsdt() -> XSDT? {
             guard xsdtAddress != 0 else { return nil }
-            return XSDT(PhysAddress(RawAddress(xsdtAddress)).rawPointer)
+            return XSDT(PhysAddress(RawAddress(xsdtAddress)))
         }
     }
 
@@ -136,32 +162,51 @@ final class ACPI {
     private(set) var madt: MADT?
     private(set) var globalObjects: ACPIObjectNode!
     private(set) var tables: [ACPITable] = []
-    private var dsdt: AMLByteBuffer?
-    private var ssdts: [AMLByteBuffer] = []
+    private var dsdt: PhysAddressRegion?
+    private var ssdts: [PhysAddressRegion] = []
+    private var mmioRegions: [MMIORegion] = []
 
-    init?(rsdp: UnsafeRawPointer, vendor: String, product: String) {
+    init?(rsdp: PhysAddress, vendor: String, product: String, memoryRanges: [MemoryRange]) {
         let rsdp = RSDP(rsdp)
-
         guard let entries = rsdp.xsdt()?.entries ?? rsdp.rsdt()?.entries else {
             print("Cant find a XSDT or RSDT")
             return nil
         }
+
+        guard !entries.isEmpty else {
+            print("Cant find any ACPI tables")
+            return nil
+        }
+
+        var mRanges: [MemoryRange] = []
+        // Ensure each table phys address is covered by an MMIORegion
         for entry in entries {
-            parseEntry(rawSDTPtr: entry.rawPointer, vendor: vendor, product: product)
+            guard let memoryRange = memoryRanges.findRange(containing: entry) else {
+                print("Cant find MemoryRange containing:", entry)
+                return nil
+            }
+            if !mRanges.contains(memoryRange) {
+                mRanges.append(memoryRange)
+                print("ACPI: using range:", memoryRange)
+                let region = PhysAddressRegion(start: memoryRange.start, size: memoryRange.size)
+                let mmioRegion = mapRORegion(region: region)
+                mmioRegions.append(mmioRegion)
+            }
+            parseEntry(physAddress: entry, vendor: vendor, product: product)
         }
 
         if dsdt == nil, let dsdtAddr = facp?.dsdtAddress {
             print("Found DSDT address in FACP: 0x\(asHex(dsdtAddr.value))")
-            parseEntry(rawSDTPtr: dsdtAddr.rawPointer,
-                       vendor: vendor, product: product)
+            parseEntry(physAddress: dsdtAddr, vendor: vendor, product: product)
         }
     }
 
-
+#if TEST
     // Used for testing
     init() {
+        mmioRegions.append(MMIORegion(region: PhysAddressRegion(start: PhysAddress(0), size: 1)))
     }
-
+#endif
 
     func parseAMLTables() {
         print("Parsing AML")
@@ -174,7 +219,9 @@ final class ACPI {
         let parser = AMLParser(globalObjects: acpiGlobalObjects)
         do {
             for buffer in ssdts {
-                try parser.parse(amlCode: buffer)
+                let amlBuffer = AMLByteBuffer(start: buffer.physAddress.rawPointer,
+                                              count: Int(buffer.size))
+                try parser.parse(amlCode: amlBuffer)
             }
         } catch {
             fatalError("parseerror: \(error)")
@@ -191,9 +238,9 @@ final class ACPI {
         return tables.filter { $0 is T }.first as? T
     }
 
-    func parseEntry(rawSDTPtr: UnsafeRawPointer, vendor: String,
-        product: String) {
+    func parseEntry(physAddress: PhysAddress, vendor: String, product: String) {
 
+        let rawSDTPtr = physAddress.rawPointer
         let signature = tableSignature(ptr: rawSDTPtr)
         if signature == "FACS" {
             let facs = FACS(rawSDTPtr)
@@ -255,13 +302,12 @@ final class ACPI {
             let headerLength = MemoryLayout<acpi_sdt_header>.size
             let totalLength = Int(header.length)
             let amlCodeLength = totalLength - headerLength
-            let amlCodePtr = rawSDTPtr.advanced(by: headerLength)
-            let amlByteBuffer = AMLByteBuffer(start: amlCodePtr,
-                                              count: amlCodeLength)
+            let amlRegion = PhysAddressRegion(start: physAddress + headerLength,
+                                              size: UInt(amlCodeLength))
             if header.signature == "DSDT" {
-                dsdt = amlByteBuffer
+                dsdt = amlRegion
             } else {
-                ssdts.append(amlByteBuffer)
+                ssdts.append(amlRegion)
             }
 
         default:
