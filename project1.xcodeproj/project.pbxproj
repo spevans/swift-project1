@@ -74,6 +74,8 @@
 		B9E8F3FE2792FBEC008F3C33 /* cpu.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7141F2F497800FE6846 /* cpu.swift */; };
 		B9E8F407279315CC008F3C33 /* PhysPageRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F406279315CC008F3C33 /* PhysPageRegion.swift */; };
 		B9E8F40D27931FE1008F3C33 /* PhysAddressRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F40C27931FE1008F3C33 /* PhysAddressRegion.swift */; };
+		B9E8F41127935B7A008F3C33 /* MemoryRangeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F41027935B7A008F3C33 /* MemoryRangeTests.swift */; };
+		B9E8F41527935C47008F3C33 /* PhysPageRangeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F41427935C47008F3C33 /* PhysPageRangeTests.swift */; };
 		B9EF91201FC9CEB800D14A2F /* amltype1opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF911D1FC9CACA00D14A2F /* amltype1opcodes.swift */; };
 		B9EF91231FC9D14600D14A2F /* amltype2opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */; };
 		B9EF91261FC9D6EA00D14A2F /* amlnamedobject.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */; };
@@ -276,6 +278,8 @@
 		B9DEE4F62323BBC30010F7A0 /* gdb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "gdb-cmds"; sourceTree = "<group>"; };
 		B9E8F406279315CC008F3C33 /* PhysPageRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysPageRegion.swift; sourceTree = "<group>"; };
 		B9E8F40C27931FE1008F3C33 /* PhysAddressRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysAddressRegion.swift; sourceTree = "<group>"; };
+		B9E8F41027935B7A008F3C33 /* MemoryRangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryRangeTests.swift; sourceTree = "<group>"; };
+		B9E8F41427935C47008F3C33 /* PhysPageRangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysPageRangeTests.swift; sourceTree = "<group>"; };
 		B9EF911D1FC9CACA00D14A2F /* amltype1opcodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amltype1opcodes.swift; sourceTree = "<group>"; };
 		B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amltype2opcodes.swift; sourceTree = "<group>"; };
 		B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amlnamedobject.swift; sourceTree = "<group>"; };
@@ -614,6 +618,8 @@
 		B9EE704B1D3D536B006B6AB7 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				B9E8F41427935C47008F3C33 /* PhysPageRangeTests.swift */,
+				B9E8F41027935B7A008F3C33 /* MemoryRangeTests.swift */,
 				B9BDA42026542DBA00A2BCB4 /* PCITests.swift */,
 				B9568C682548BA9B00C3F49B /* USBTests.swift */,
 				B916850222F4DB1200F7FA13 /* AddressTests.swift */,
@@ -958,6 +964,7 @@
 				B9AF69D61FBDEB8B0049CB98 /* ACPIReadWriteTests.swift in Sources */,
 				B933A7821F2F8F1100FE6846 /* amlutils.swift in Sources */,
 				B933A7831F2F8F1100FE6846 /* boot.swift in Sources */,
+				B9E8F41527935C47008F3C33 /* PhysPageRangeTests.swift in Sources */,
 				B933A7841F2F8F1100FE6846 /* ecdt.swift in Sources */,
 				B933A7851F2F8F1100FE6846 /* facp.swift in Sources */,
 				B9EF91261FC9D6EA00D14A2F /* amlnamedobject.swift in Sources */,
@@ -972,6 +979,7 @@
 				B933A78C1F2F8F1100FE6846 /* waet.swift in Sources */,
 				B933A7951F2FBA8700FE6846 /* Extensions.swift in Sources */,
 				B933A7921F2F8F2100FE6846 /* MemoryBufferReader.swift in Sources */,
+				B9E8F41127935B7A008F3C33 /* MemoryRangeTests.swift in Sources */,
 				B93092C01F31B0FF00870D1F /* printf.swift in Sources */,
 				B9C2AF2B1FD84CB300E6EFEB /* KlibTests.swift in Sources */,
 				B933A78D1F2F8F2100FE6846 /* bitarray.swift in Sources */,
