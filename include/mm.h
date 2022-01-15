@@ -15,7 +15,11 @@
 
 
 #define KERNEL_VIRTUAL_BASE     0xffffffff81000000UL    // 2^64 - 2G + 16MB
+#ifndef TEST
 #define PHYSICAL_MEM_BASE       0xffff800000000000UL    // 128TB
+#else
+#define PHYSICAL_MEM_BASE       0x0000000000001000UL    // 4K - For testing in userspace
+#endif
 #define MAX_PHYSICAL_MEMORY     0x1000000000UL          // 64GB Physical RAM
 
 #define PAGE_SIZE 4096UL

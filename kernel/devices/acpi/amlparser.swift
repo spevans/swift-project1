@@ -10,56 +10,11 @@
 
 typealias AMLByteBuffer = UnsafeRawBufferPointer
 
-#if TEST
-func hexDump<C: RandomAccessCollection>(buffer: C, offset: UInt = 0) where C.Element == UInt8, C.Index == Int {
-
-    func byteAsChar(value: UInt8) -> Character {
-        if value >= 0x21 && value <= 0x7e {
-            return Character(UnicodeScalar(value))
-        } else {
-            return "."
-        }
-    }
-
-    func byteAsHex(value: UInt8) -> String {
-        var s = String(value >> 4, radix: 16)
-        s.append(String(value & 0xf, radix: 16))
-        return s
-    }
-
-    var chars = ""
-    for idx in 0..<buffer.count {
-        if idx % 16 == 0 {
-            if idx > 0 {
-                print(chars)
-                chars = ""
-            }
-            print(byteAsHex(value: UInt8(truncatingIfNeeded: idx >> 16)), terminator: "")
-            print(byteAsHex(value: UInt8(truncatingIfNeeded: idx >> 8)), terminator: "")
-            print(byteAsHex(value: UInt8(truncatingIfNeeded: idx)), terminator: "")
-            print(": ", terminator: "")
-        }
-        print(byteAsHex(value: buffer[idx]), terminator: " ")
-        chars.append(byteAsChar(value: buffer[idx]))
-    }
-    let padding = 3 * (16 - chars.count)
-    if padding > 0 {
-        print(String(repeating: " ", count: padding), terminator: "")
-    }
-    print(chars)
-}
-#endif
-
 extension AMLNameString {
     static let rootChar = Character(UnicodeScalar("\\"))
     static let parentPrefixChar = Character(UnicodeScalar("^"))
     static let pathSeparatorChar = Character(UnicodeScalar("."))
 }
-
-
-#if !TEST
-    func debugPrint(function: String = #function, _ args: Any...) {}
-#endif
 
 
 enum AMLError: Error {

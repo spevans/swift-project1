@@ -66,14 +66,12 @@ final class PCIDeviceFunction: CustomStringConvertible {
         self.function = function
     }
 
-#if TEST
     init(busId: UInt8, device: UInt8, function: UInt8, configSpace: PCIConfigSpace) {
         self.busId = busId
         self.device = device
         self.function = function
         self.configSpace = configSpace
     }
-#endif
 
     deinit {
         configSpace.release()

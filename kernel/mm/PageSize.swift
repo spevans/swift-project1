@@ -18,6 +18,15 @@ struct PageSize {
         self.pageSize = pageSize
     }
 
+    var encoding: Int {
+        switch pageSize {
+            case 4096: return 1
+            case 2048 * 1024: return 2
+            case 1024 * 1024 * 1024: return 3
+            default: fatalError("Invalid page size: \(pageSize)")
+        }
+    }
+
     func isPageAligned(_ address: UInt) -> Bool {
         address & pageMask == 0
     }
@@ -36,5 +45,9 @@ struct PageSize {
 
     func onSamePage(_ address1: UInt, _ address2: UInt) -> Bool {
         address1 & ~pageMask == address2 & ~pageMask
+    }
+
+    func pageCountCovering(size: Int) -> Int {
+        return ((size - 1) + Int(pageSize)) / Int(pageSize)
     }
 }

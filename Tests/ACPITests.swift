@@ -67,12 +67,9 @@ fileprivate func createACPI(files: [String]) -> (ACPI, UnsafeMutableRawPointer) 
     let allData = UnsafeMutableRawPointer.allocate(byteCount: total, alignment: 1)
     var offset = 0
     for data in dataBlocks {
-        let ptr = allData.advanced(by: offset)
-        data.withUnsafeBytes {
-            ptr.copyMemory(from: $0.baseAddress!, byteCount: data.count)
-        }
-        let vaddr = VirtualAddress(ptr.address)
-        let paddr = PhysAddress(vaddr: vaddr)
+
+        let region = PhysPageRange(data: data)
+        let paddr = region.address
         acpi.parseEntry(physAddress: paddr, vendor: "Foo", product: "Bar")
         offset += data.count
     }
@@ -622,7 +619,5 @@ class ACPITests: XCTestCase {
         } else {
             XCTFail("Could not execute \(com3sMethod)")
         }
-
     }
 }
-

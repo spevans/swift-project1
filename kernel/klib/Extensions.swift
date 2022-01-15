@@ -128,7 +128,6 @@ public func asHex<T : UnsignedInteger>(_ x: T) -> String {
 }
 
 
-#if KERNEL
 func hexDump<C: RandomAccessCollection>(buffer: C, offset: UInt = 0) where C.Element == UInt8, C.Index == Int {
 
     func byteAsChar(value: UInt8) -> Character {
@@ -157,4 +156,3 @@ func hexDump<C: RandomAccessCollection>(buffer: C, offset: UInt = 0) where C.Ele
     }
     print(chars)
 }
-#endif

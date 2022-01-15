@@ -18,11 +18,11 @@
 #include <inttypes.h>
 #include "x86funcs.h"
 #include "mm.h"
+
+#ifndef TEST
 #include "efi.h"
-
-
 typedef int64_t ssize_t;
-typedef int64_t off_t;
+#endif
 
 #define UNIMPLEMENTED(x)  void x() { koops("UNIMPLEMENTED: %s", __func__); }
 #define likely(x)      __builtin_expect(!!(x), 1)
@@ -38,7 +38,7 @@ typedef int64_t off_t;
 #define debugf(...) do {} while(0)
 #endif
 
-
+#ifndef TEST
 // kprintf
 int kvsnprintf(char * _Nonnull buf, size_t size, const char * _Nonnull fmt, va_list args) __attribute__ ((format (printf, 3, 0)));
 int kvlprintf(const char * _Nonnull fmt, size_t len, va_list args);
@@ -47,11 +47,14 @@ int kprintf(const char * _Nonnull fmt, ...) __attribute__ ((format (printf, 1, 2
 int kprintf1arg(const char * _Nonnull fmt, long l1);
 int kprintf2args(const char * _Nonnull fmt, long l1, long l2);
 int kprintf3args(const char * _Nonnull fmt, long l1, long l2, long l3);
+#endif
 
 // klibc
 void abort(void);
 void debugger_hook(void);
+#ifndef TEST
 void koops(const char * _Nonnull fmt, ...) __attribute__ ((format (printf, 1, 2))) __attribute__((noreturn));
+#endif
 void stack_trace(uintptr_t rsp, uintptr_t rbp);
 unsigned int read_int_nest_count(void);
 int memcmp(const void * _Nonnull s1, const void * _Nonnull s2, size_t count);

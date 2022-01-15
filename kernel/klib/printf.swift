@@ -140,7 +140,6 @@ extension String: UnicodeOutputStream {
     }
 }
 
-#if !TEST
 @inline(never)
 func printf(_ format: StaticString, _ arg1: Any) {
     var output = _tty()
@@ -195,8 +194,6 @@ func kprintf(_ format: StaticString, _ arg1: UInt) {
         kprintf1arg(ptr, Int(bitPattern: arg1))
     }
 }
-
-#endif  // !TEST
 
 
 // Calling printf with just a format string and no arguments is inefficient,

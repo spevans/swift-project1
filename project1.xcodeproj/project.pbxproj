@@ -70,6 +70,10 @@
 		B9DEE4F42323BA960010F7A0 /* lldb-cmds in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F32323BA960010F7A0 /* lldb-cmds */; };
 		B9DEE4F92323BBC40010F7A0 /* bochsrc in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F52323BBC30010F7A0 /* bochsrc */; };
 		B9DEE4FA2323BBC40010F7A0 /* gdb-cmds in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F62323BBC30010F7A0 /* gdb-cmds */; };
+		B9E8F3FB2792FAD4008F3C33 /* ioapic.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7191F2F497800FE6846 /* ioapic.swift */; };
+		B9E8F3FE2792FBEC008F3C33 /* cpu.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7141F2F497800FE6846 /* cpu.swift */; };
+		B9E8F407279315CC008F3C33 /* PhysPageRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F406279315CC008F3C33 /* PhysPageRegion.swift */; };
+		B9E8F40D27931FE1008F3C33 /* PhysAddressRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F40C27931FE1008F3C33 /* PhysAddressRegion.swift */; };
 		B9EF91201FC9CEB800D14A2F /* amltype1opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF911D1FC9CACA00D14A2F /* amltype1opcodes.swift */; };
 		B9EF91231FC9D14600D14A2F /* amltype2opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */; };
 		B9EF91261FC9D6EA00D14A2F /* amlnamedobject.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */; };
@@ -270,6 +274,8 @@
 		B9DEE4F32323BA960010F7A0 /* lldb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "lldb-cmds"; sourceTree = "<group>"; };
 		B9DEE4F52323BBC30010F7A0 /* bochsrc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = bochsrc; sourceTree = "<group>"; };
 		B9DEE4F62323BBC30010F7A0 /* gdb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "gdb-cmds"; sourceTree = "<group>"; };
+		B9E8F406279315CC008F3C33 /* PhysPageRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysPageRegion.swift; sourceTree = "<group>"; };
+		B9E8F40C27931FE1008F3C33 /* PhysAddressRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysAddressRegion.swift; sourceTree = "<group>"; };
 		B9EF911D1FC9CACA00D14A2F /* amltype1opcodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amltype1opcodes.swift; sourceTree = "<group>"; };
 		B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amltype2opcodes.swift; sourceTree = "<group>"; };
 		B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amlnamedobject.swift; sourceTree = "<group>"; };
@@ -353,7 +359,7 @@
 		B9F831CD1F38BC43009F24AE /* macbook31-SSDT3.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-SSDT3.aml"; sourceTree = "<group>"; };
 		B9F831F21F38BC4B009F24AE /* QEMU-DSDT.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "QEMU-DSDT.dsl"; sourceTree = "<group>"; };
 		B9F831F31F38BC4B009F24AE /* QEMU-DSDT.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "QEMU-DSDT.aml"; sourceTree = "<group>"; };
-		B9FB56EE2778C7E30012198D /* PageSize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PageSize.swift; path = kernel/mm/PageSize.swift; sourceTree = "<group>"; };
+		B9FB56EE2778C7E30012198D /* PageSize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageSize.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -453,8 +459,11 @@
 				B933A74A1F2F4ABC00FE6846 /* alloc.swift */,
 				B933A7461F2F4ABC00FE6846 /* init.swift */,
 				B933A7471F2F4ABC00FE6846 /* page.swift */,
+				B9FB56EE2778C7E30012198D /* PageSize.swift */,
 				B9793D4E200A571B0013E03B /* symbols.swift */,
 				B96BBE5626309218009756A8 /* MMIORegion.swift */,
+				B9E8F406279315CC008F3C33 /* PhysPageRegion.swift */,
+				B9E8F40C27931FE1008F3C33 /* PhysAddressRegion.swift */,
 			);
 			path = mm;
 			sourceTree = "<group>";
@@ -560,7 +569,6 @@
 		B9EE70401D3D536B006B6AB7 = {
 			isa = PBXGroup;
 			children = (
-				B9FB56EE2778C7E30012198D /* PageSize.swift */,
 				B98A0E8026679C30006898DF /* PCIInterruptLinkDevice.swift */,
 				B945F65F265978B9008D6A9A /* PCICapability.swift */,
 				B9BDA4302654400C00A2BCB4 /* pcideviceclass.swift */,
@@ -904,6 +912,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B9E8F3FE2792FBEC008F3C33 /* cpu.swift in Sources */,
+				B9E8F3FB2792FAD4008F3C33 /* ioapic.swift in Sources */,
 				B9FB56EF2778C7E30012198D /* PageSize.swift in Sources */,
 				B9D2AC14266E52B8002DA8DD /* PNPDevice.swift in Sources */,
 				B98A0E8226679D96006898DF /* ISABus.swift in Sources */,
@@ -926,9 +936,11 @@
 				B9568C7E2548C0A400C3F49B /* usb-controlrequest.swift in Sources */,
 				B9568C7F2548C0A400C3F49B /* usb-devicedescriptor.swift in Sources */,
 				B9568C802548C0A400C3F49B /* usb-devicequalifier.swift in Sources */,
+				B9E8F40D27931FE1008F3C33 /* PhysAddressRegion.swift in Sources */,
 				B9568C812548C0A400C3F49B /* usb-endpointdescriptor.swift in Sources */,
 				B9BDA42126542DBA00A2BCB4 /* PCITests.swift in Sources */,
 				B9568C822548C0A400C3F49B /* usb-interfacedescriptor.swift in Sources */,
+				B9E8F407279315CC008F3C33 /* PhysPageRegion.swift in Sources */,
 				B9568C8C2548E87600C3F49B /* usb-hiddescriptor.swift in Sources */,
 				B9568CB12551819E00C3F49B /* BitmapAllocator.swift in Sources */,
 				B9C2AF2C1FD84D9000E6EFEB /* ReservationManager.swift in Sources */,

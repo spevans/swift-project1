@@ -79,11 +79,11 @@ func noInterrupt<Result>(_ task: () -> Result) -> Result {
     return result
 }
 
-func mapIORegion(region: PhysPageRange, cacheType: Int = 7 /* Uncacheable */) -> MMIORegion {
+func mapIORegion(region: PhysPageRange, cacheType: CPU.CacheType = .uncacheable) -> MMIORegion {
     return MMIORegion(physPageRange: region)
 }
 
-func mapRORegion(region: PhysPageRange, cacheType: Int = 7 /* Uncacheable */) -> MMIORegion {
+func mapRORegion(region: PhysPageRange, cacheType: CPU.CacheType = .writeBack) -> MMIORegion {
     return MMIORegion(physPageRange: region)
 }
 
@@ -92,4 +92,37 @@ func mapRORegion(region: PhysAddressRegion) -> MMIORegion {
 }
 
 func unmapMMIORegion(_ mmioRegion: MMIORegion) {
+}
+
+func koops(_ message: String) -> Never {
+    fatalError(message)
+}
+
+internal struct _tty : UnicodeOutputStream {
+    mutating func write(_ string: String) {
+        // FIXME: Get precondition to work
+        //precondition(string._guts.isASCII, "String must be ASCII")
+        if string.isEmpty { return }
+        print(string)
+    }
+
+    mutating func write(_ unicodeScalar: UnicodeScalar) {
+        if let ch = Int32(exactly: unicodeScalar.value) {
+            print(String(CChar(ch)))
+        }
+    }
+}
+
+
+internal struct _serial: UnicodeOutputStream {
+    mutating func write(_ string: String) {
+        if string.isEmpty { return }
+        print("serial:", string)
+    }
+
+    mutating func write(_ unicodeScalar: UnicodeScalar) {
+        if unicodeScalar.isASCII, let ch = Int32(exactly: unicodeScalar.value) {
+            print(String(CChar(ch)))
+        }
+    }
 }

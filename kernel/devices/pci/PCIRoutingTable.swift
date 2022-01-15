@@ -159,7 +159,6 @@ struct PCIRoutingTable {
         table = _table
     }
 
-//#if !TEST
     func findEntryByDevice(slot: UInt8, pin: PCIInterruptPin) -> PCIRoutingTable.Entry? {
 
         print("PCI: findEntryByDevice, slot: \(String(slot, radix: 16)), pin: \(pin)")
@@ -170,6 +169,5 @@ struct PCIRoutingTable {
         table.forEach { print($0) }
         fatalError("Cant find entry")
     }
-//#endif
 }
 
