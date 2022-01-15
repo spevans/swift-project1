@@ -76,6 +76,7 @@
 		B9E8F40D27931FE1008F3C33 /* PhysAddressRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F40C27931FE1008F3C33 /* PhysAddressRegion.swift */; };
 		B9E8F41127935B7A008F3C33 /* MemoryRangeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F41027935B7A008F3C33 /* MemoryRangeTests.swift */; };
 		B9E8F41527935C47008F3C33 /* PhysPageRangeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F41427935C47008F3C33 /* PhysPageRangeTests.swift */; };
+		B9E8F41927940FF3008F3C33 /* PageSizeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F41827940FF3008F3C33 /* PageSizeTests.swift */; };
 		B9EF91201FC9CEB800D14A2F /* amltype1opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF911D1FC9CACA00D14A2F /* amltype1opcodes.swift */; };
 		B9EF91231FC9D14600D14A2F /* amltype2opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */; };
 		B9EF91261FC9D6EA00D14A2F /* amlnamedobject.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */; };
@@ -280,6 +281,7 @@
 		B9E8F40C27931FE1008F3C33 /* PhysAddressRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysAddressRegion.swift; sourceTree = "<group>"; };
 		B9E8F41027935B7A008F3C33 /* MemoryRangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryRangeTests.swift; sourceTree = "<group>"; };
 		B9E8F41427935C47008F3C33 /* PhysPageRangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysPageRangeTests.swift; sourceTree = "<group>"; };
+		B9E8F41827940FF3008F3C33 /* PageSizeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageSizeTests.swift; sourceTree = "<group>"; };
 		B9EF911D1FC9CACA00D14A2F /* amltype1opcodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amltype1opcodes.swift; sourceTree = "<group>"; };
 		B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amltype2opcodes.swift; sourceTree = "<group>"; };
 		B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amlnamedobject.swift; sourceTree = "<group>"; };
@@ -618,6 +620,7 @@
 		B9EE704B1D3D536B006B6AB7 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				B9E8F41827940FF3008F3C33 /* PageSizeTests.swift */,
 				B9E8F41427935C47008F3C33 /* PhysPageRangeTests.swift */,
 				B9E8F41027935B7A008F3C33 /* MemoryRangeTests.swift */,
 				B9BDA42026542DBA00A2BCB4 /* PCITests.swift */,
@@ -921,6 +924,7 @@
 				B9E8F3FE2792FBEC008F3C33 /* cpu.swift in Sources */,
 				B9E8F3FB2792FAD4008F3C33 /* ioapic.swift in Sources */,
 				B9FB56EF2778C7E30012198D /* PageSize.swift in Sources */,
+				B9E8F41927940FF3008F3C33 /* PageSizeTests.swift in Sources */,
 				B9D2AC14266E52B8002DA8DD /* PNPDevice.swift in Sources */,
 				B98A0E8226679D96006898DF /* ISABus.swift in Sources */,
 				B98A0E8126679C31006898DF /* PCIInterruptLinkDevice.swift in Sources */,

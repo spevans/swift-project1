@@ -99,10 +99,10 @@ struct MemoryRange: Equatable, CustomStringConvertible {
 
     var physPageRanges: [PhysPageRange] {
         precondition(start.isPageAligned)
-        return PhysPageRange.createRanges(startAddress: start, endAddress: endAddress, pageSizes: [PAGE_SIZE])
+        return PhysPageRange.createRanges(startAddress: start, endAddress: endAddress, pageSizes: [PageSize()])
     }
 
-    func physPageRanges(using pageSizes: [UInt]) -> [PhysPageRange]  {
+    func physPageRanges(using pageSizes: [PageSize]) -> [PhysPageRange]  {
         precondition(start.isPageAligned)
         return PhysPageRange.createRanges(startAddress: start, endAddress: endAddress, pageSizes: pageSizes)
     }
@@ -354,7 +354,7 @@ extension Array where Element == MemoryRange {
 
             if pageSize.isPageAligned(currentEnd + 1) {
                 let pageCount = UInt((currentEnd - currentStart) + 1) / pageSize.pageSize
-                let physPageRange = PhysPageRange(currentStart, pageSize: pageSize.pageSize, pageCount: Int(pageCount))
+                let physPageRange = PhysPageRange(currentStart, pageSize: pageSize, pageCount: Int(pageCount))
                 result.append((physPageRange, currentAccess))
                 currentStart = region.start
                 currentEnd = region.endAddress
@@ -373,7 +373,7 @@ extension Array where Element == MemoryRange {
             currentAccess = currentAccess.lowest(MemoryType.Hole.access)
         }
         let pageCount = UInt((currentEnd - currentStart) + 1) / pageSize.pageSize
-        let physPageRange = PhysPageRange(currentStart, pageSize: pageSize.pageSize, pageCount: Int(pageCount))
+        let physPageRange = PhysPageRange(currentStart, pageSize: pageSize, pageCount: Int(pageCount))
         result.append((physPageRange, currentAccess))
         return result
     }

@@ -23,8 +23,9 @@ private var ioPagesListHead: FreePageListEntryPtr? = nil
 
 // This is called the first time alloc_pages() is called, usually by malloc()
 private func initFreeList() -> FreePageListEntryPtr? {
+    let pageSize = PageSize()
     let heap_phys = virtualToPhys(address: _heap_start_addr)!
-    let pageCount = Int((_heap_end_addr - _heap_start_addr) / PAGE_SIZE)
+    let pageCount = Int((_heap_end_addr - _heap_start_addr) / pageSize.pageSize)
     kprintf("init_free_list: heap_start: %p ", _heap_start_addr)
     kprintf("heap_end: %p ", _heap_end_addr)
     kprintf("heap_phys: %p ", heap_phys.value)
@@ -34,7 +35,7 @@ private func initFreeList() -> FreePageListEntryPtr? {
         koops("Cant init free list")
     }
     ptr.pointee = FreePageListEntry(
-        region: PhysPageRange(heap_phys, pageSize: PAGE_SIZE, pageCount: pageCount),
+        region: PhysPageRange(heap_phys, pageSize: pageSize, pageCount: pageCount),
         next: nil
     )
     // Use single argument versions of kprintf() which has specialisation for
@@ -54,7 +55,7 @@ public func alloc_pages(pages: Int) -> UnsafeMutableRawPointer {
 @_cdecl("free_pages")
 public func freePages(at address: VirtualAddress, count: Int) {
     let paddr = virtualToPhys(address: address)!
-    addPages(PhysPageRange(paddr, pageSize: PAGE_SIZE, pageCount: count), toList: &freePageListHead)
+    addPages(PhysPageRange(paddr, pageSize: PageSize(), pageCount: count), toList: &freePageListHead)
 }
 
 

@@ -40,15 +40,15 @@ struct PhysAddress: CVarArg, Comparable, Hashable, CustomStringConvertible {
     }
 
 
-    func pageAddress(pageSize: UInt, roundUp: Bool = false) -> PhysAddress {
+    func pageAddress(pageSize: PageSize, roundUp: Bool = false) -> PhysAddress {
         if roundUp {
-            return PhysAddress((value + pageSize - 1) & ~(pageSize - 1))
+            return pageSize.roundUp(self)
         } else {
-            return PhysAddress(value & ~(pageSize - 1))
+            return pageSize.roundDown(self)
         }
     }
 
-    var isPageAligned: Bool { (value & UInt(PAGE_MASK)) == 0 }
+    var isPageAligned: Bool { PageSize().isPageAligned(value) }
 
     func advanced(by n: Int) -> PhysAddress {
         return PhysAddress(value + UInt(n))
@@ -117,7 +117,7 @@ extension PageSize {
     }
 
     func roundUp(_ address: PhysAddress) -> PhysAddress {
-        PhysAddress(roundUp(address.value))
+        PhysAddress(roundToNextPage(address.value))
     }
 
     func lastAddressInPage(_ address: PhysAddress) -> PhysAddress {

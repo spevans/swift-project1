@@ -11,7 +11,7 @@ import XCTest
 class PhysPageRangeTests: XCTestCase {
 
     func testPageRangeChunks() {
-        let physPageRange = PhysPageRange(PhysAddress(0x1000), pageSize: 4096, pageCount: 130)
+        let physPageRange = PhysPageRange(PhysAddress(0x1000), pageSize: PageSize(), pageCount: 130)
         var iterator = PhysPageRangeChunksInterator(physPageRange, pagesPerChunk: 128)
         while let chunk = iterator.next() {
             print(chunk)

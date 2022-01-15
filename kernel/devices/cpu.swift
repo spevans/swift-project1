@@ -469,7 +469,7 @@ struct CPU {
         }
 
         var pageDirectoryBase: PhysAddress {
-            get { PhysAddress(UInt(value) & ~PAGE_MASK) }
+            get { PhysAddress(PageSize().roundDown(UInt(value))) }
             set {
                 precondition(newValue.isPageAligned)
                 bits[12...63] = 0  // clear current address

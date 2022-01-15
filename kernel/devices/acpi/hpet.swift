@@ -91,7 +91,7 @@ struct HPET: ACPITable, CustomStringConvertible {
         }
 
         let gas = ACPIGenericAddressStrucure(table.base_address)
-        let physicalRegion = PhysPageRange(gas.physicalAddress, pageSize: PAGE_SIZE, pageCount: 1)
+        let physicalRegion = PhysPageRange(gas.physicalAddress, pageSize: PageSize(), pageCount: 1)
         mmioRegion = mapIORegion(region: physicalRegion)
     }
 

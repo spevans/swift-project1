@@ -180,7 +180,7 @@ print_status(char *str, efi_status_t status)
 efi_status_t
 alloc_memory(struct memory_region *region)
 {
-        size_t pages = (region->req_size + PAGE_MASK) / PAGE_SIZE;
+        size_t pages = (region->req_size + (PAGE_SIZE - 1)) / PAGE_SIZE;
         void *address = region->base;
         efi_allocate_type allocate_type = region->base == NULL ? EFI_ALLOCATE_ANY_PAGES : EFI_ALLOCATE_ADDRESS;
         efi_status_t status = efi_call4(sys_table->boot_services->allocate_pages,
@@ -757,7 +757,7 @@ relocate_kernel()
         Elf64_Phdr *first = elf_program_header(ki, 0);
         Elf64_Phdr *last = elf_program_header(ki, elf_hdr->e_phnum - 1);
         size_t total_sz = (last->p_vaddr - first->p_vaddr) + last->p_memsz;
-        total_sz = (total_sz + PAGE_MASK) & ~PAGE_MASK;
+        total_sz = (total_sz + (PAGE_SIZE - 1)) & PAGE_MASK;
         // FIXME - Add an extra page at the end of the BSS for the
         // entry stub and boot params data. This is only needed becasue
         // BSS is cleared in kernel/init/main.asm over writing the boot params
@@ -772,7 +772,7 @@ relocate_kernel()
         Elf64_Addr symtab_vaddr = first->p_vaddr + total_sz;
         Elf64_Addr strtab_vaddr = symtab_vaddr + ki->symbol_table->sh_size;
         size_t symbol_offset = total_sz;
-        total_sz += (symbol_size + PAGE_MASK) & ~PAGE_MASK;
+        total_sz += (symbol_size + (PAGE_SIZE - 1)) & PAGE_MASK;
         total_sz += PAGE_SIZE;
         uprintf("Size of kernel+bss+symbols %lx\n", total_sz);
 
@@ -1011,7 +1011,7 @@ setup_page_tables()
         // FIXME: Should really be an IO mapping
         struct frame_buffer *fb = &ptr_table->boot_params.fb;
         add_mapping((void *)(PHYSICAL_MEM_BASE + fb->address), fb->address,
-                    (fb->size + PAGE_MASK) / PAGE_SIZE);
+                    (fb->size + (PAGE_SIZE - 1)) / PAGE_SIZE);
 
 
         // Map the first 4GB of RAM into the 128GB mapping. 4GB should

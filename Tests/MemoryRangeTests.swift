@@ -108,7 +108,7 @@ class MemoryRangeTests: XCTestCase {
                 MemoryRange(type: .Conventional, start: PhysAddress(0x1900), size: 0xf00),
                 MemoryRange(type: .BootData, start: PhysAddress(0x2800), size: 0x3f00),
             ]
-            var iterator = MemoryRange.PageOrSubPageAligned(ranges: ranges, toPageSize: PageSize(4096))
+            var iterator = MemoryRange.PageOrSubPageAligned(ranges: ranges, toPageSize: PageSize())
             XCTAssertEqual(iterator.next(), MemoryRange(type: .Conventional, start: PhysAddress(0x800), endAddress: PhysAddress(0xfff)))
             XCTAssertEqual(iterator.next(), MemoryRange(type: .Conventional, start: PhysAddress(0x1000), endAddress: PhysAddress(0x17ff)))
             XCTAssertEqual(iterator.next(), MemoryRange(type: .Hole, start: PhysAddress(0x1800), endAddress: PhysAddress(0x18ff)))
@@ -122,7 +122,7 @@ class MemoryRangeTests: XCTestCase {
 
         do {
             let ranges = testRanges1()
-            var iterator = MemoryRange.PageOrSubPageAligned(ranges: ranges, toPageSize: PageSize(4096))
+            var iterator = MemoryRange.PageOrSubPageAligned(ranges: ranges, toPageSize: PageSize())
             XCTAssertEqual(iterator.next(), MemoryRange(type: .Conventional, start: PhysAddress(0), size: 636 * 1024))
             XCTAssertEqual(iterator.next(), MemoryRange(type: .Conventional, start: PhysAddress(636 * 1024), size: 3 * 1024))
             XCTAssertEqual(iterator.next(), MemoryRange(type: .Reserved, start: PhysAddress(0x9FC00), size: 1024))
@@ -138,7 +138,7 @@ class MemoryRangeTests: XCTestCase {
         do {
             var ranges = testRanges2()
             ranges.append(MemoryRange(type: .BootData, start: PhysAddress(0x2FF0), size: 0x100))
-            var iterator = MemoryRange.PageOrSubPageAligned(ranges: ranges, toPageSize: PageSize(4096))
+            var iterator = MemoryRange.PageOrSubPageAligned(ranges: ranges, toPageSize: PageSize())
             XCTAssertEqual(iterator.next(), ranges[0])
             XCTAssertEqual(iterator.next(), ranges[1])
             XCTAssertEqual(iterator.next(), ranges[2])
@@ -159,7 +159,7 @@ class MemoryRangeTests: XCTestCase {
             let access: MemoryType.Access
 
             init(_ range: (UInt, UInt, MemoryType.Access)) {
-                physRange = PhysPageRange(PhysAddress(range.0), pageSize: PAGE_SIZE, pageCount: Int(range.1 / PAGE_SIZE))
+                physRange = PhysPageRange(PhysAddress(range.0), pageSize: PageSize(), pageCount: Int(range.1 / UInt(PAGE_SIZE)))
                 access = range.2
             }
 
@@ -174,7 +174,7 @@ class MemoryRangeTests: XCTestCase {
             let ranges = [
                 MemoryRange(type: .Conventional, start: PhysAddress(0x800), size: 0x400)
             ]
-            let alignedRanges = ranges.align(toPageSize: PageSize(4096))
+            let alignedRanges = ranges.align(toPageSize: PageSize())
             XCTAssertEqual(alignedRanges.count, 1)
             XCTAssertEqual(MappableRange(alignedRanges[0]), MappableRange((0, 4096, MemoryType.Access.unusable)))
         }
@@ -196,7 +196,7 @@ class MemoryRangeTests: XCTestCase {
             ranges.insertRange(MemoryRange(type: .FrameBuffer, start: PhysAddress(0xA0000), size: 128 * 1024))
             ranges.insertRange(MemoryRange(type: .MemoryMappedIO, start: PhysAddress(0x100000000), size: 1024))
 
-            let alignedRanges = ranges.align(toPageSize: PageSize(4096))
+            let alignedRanges = ranges.align(toPageSize: PageSize())
 
             XCTAssertEqual(alignedRanges.count, 11)
             XCTAssertEqual(MappableRange(alignedRanges[0]), MappableRange((0, 0x1000, .readOnly)))

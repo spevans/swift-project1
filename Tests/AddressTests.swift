@@ -13,7 +13,7 @@ class AddressTests: XCTestCase {
     func testSplitRegion() {
 
         let physAddr = PhysAddress(1 * mb)
-        let region = PhysPageRange(physAddr, pageSize: 4096, pageCount: 256)
+        let region = PhysPageRange(physAddr, pageSize: PageSize(), pageCount: 256)
         XCTAssertEqual(region.pageCount, 256)
         XCTAssertEqual(region.pageSize, 4096)
         XCTAssertEqual(region.address , physAddr)
@@ -39,7 +39,7 @@ class AddressTests: XCTestCase {
 
 
     func testPhysPageRangeIterator() {
-        let pageRange = PhysPageRange(PhysAddress(4096), pageSize: 4096, pageCount: 4)
+        let pageRange = PhysPageRange(PhysAddress(4096), pageSize: PageSize(), pageCount: 4)
         XCTAssertEqual(pageRange.address, PhysAddress(4096))
         XCTAssertEqual(pageRange.endAddress, PhysAddress(0x4fff))
         var i = pageRange.makeIterator()
@@ -55,7 +55,7 @@ class AddressTests: XCTestCase {
         do {
             let start = PhysAddress(0xbcb5c000)
             let memoryRange = MemoryRange(type: .BootServicesCode, start: start, size: 0x1000)
-            let physPageRanges = memoryRange.physPageRanges(using: [0x1000, 0x200_000, 0x40_000_000])
+            let physPageRanges = memoryRange.physPageRanges(using: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
             XCTAssertEqual(physPageRanges.count, 1)
             XCTAssertEqual(physPageRanges[0].pageSize, 0x1000)
             XCTAssertEqual(physPageRanges[0].address, start)
@@ -66,7 +66,7 @@ class AddressTests: XCTestCase {
         do {
             let start = PhysAddress(0x200_000)
             let memoryRange = MemoryRange(type: .BootServicesCode, start: start, size: 0x200_000)
-            let physPageRanges = memoryRange.physPageRanges(using: [0x1000, 0x200_000, 0x40_000_000])
+            let physPageRanges = memoryRange.physPageRanges(using: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
             XCTAssertEqual(physPageRanges.count, 1)
             XCTAssertEqual(physPageRanges[0].pageSize, 0x200_000)
             XCTAssertEqual(physPageRanges[0].address, start)
@@ -77,7 +77,7 @@ class AddressTests: XCTestCase {
         do {
             let start = PhysAddress(0x40_000_000)
             let memoryRange = MemoryRange(type: .BootServicesCode, start: start, size: 0x40_000_000)
-            let physPageRanges = memoryRange.physPageRanges(using: [0x1000, 0x200_000, 0x40_000_000])
+            let physPageRanges = memoryRange.physPageRanges(using: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
             XCTAssertEqual(physPageRanges.count, 1)
             XCTAssertEqual(physPageRanges[0].pageSize, 0x40_000_000)
             XCTAssertEqual(physPageRanges[0].address, start)
@@ -88,7 +88,7 @@ class AddressTests: XCTestCase {
         do {
             let start = PhysAddress(0xbc000000)
             let memoryRange = MemoryRange(type: .BootServicesCode, start: start, size: 0x20000)
-            let physPageRanges = memoryRange.physPageRanges(using: [0x1000, 0x200_000, 0x40_000_000])
+            let physPageRanges = memoryRange.physPageRanges(using: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
             XCTAssertEqual(physPageRanges.count, 1)
 
             XCTAssertEqual(physPageRanges[0].pageSize, 0x1000)
@@ -105,7 +105,7 @@ class AddressTests: XCTestCase {
             let end = (2 * gb) + (8 * kb)
             let size = end - start
             let memoryRange = MemoryRange(type: .BootServicesCode, start: PhysAddress(start), size: size)
-            let physPageRanges = memoryRange.physPageRanges(using: [0x1000, 0x200_000, 0x40_000_000])
+            let physPageRanges = memoryRange.physPageRanges(using: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
             XCTAssertEqual(physPageRanges.count, 4)
             XCTAssertEqual(physPageRanges[0].pageSize, 0x1000)
             XCTAssertEqual(physPageRanges[0].address, PhysAddress(start))
@@ -134,7 +134,7 @@ class AddressTests: XCTestCase {
         do {
             // 4k to 64gb
             let memoryRange = MemoryRange(type: .BootServicesCode, start: PhysAddress(0x1000), size: MAX_PHYSICAL_MEMORY - 4096)
-            let physPageRanges = memoryRange.physPageRanges(using: [0x1000, 0x200_000, 0x40_000_000])
+            let physPageRanges = memoryRange.physPageRanges(using: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
 
             XCTAssertEqual(physPageRanges.count, 3)
             XCTAssertEqual(physPageRanges[0].pageSize, 0x1000)
@@ -159,7 +159,7 @@ class AddressTests: XCTestCase {
         do {
             // 64gb - last 4K page
             let memoryRange = MemoryRange(type: .BootServicesCode, start: PhysAddress(0), size: MAX_PHYSICAL_MEMORY - 4096)
-            let physPageRanges = memoryRange.physPageRanges(using: [0x1000, 0x200_000, 0x40_000_000])
+            let physPageRanges = memoryRange.physPageRanges(using: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
 
             XCTAssertEqual(physPageRanges.count, 3)
             XCTAssertEqual(physPageRanges[0].pageSize, 0x40_000_000)
@@ -183,7 +183,7 @@ class AddressTests: XCTestCase {
 
         do {
             // Test when the physical address region starts at zero or end at MAX_PHYSICAL_MEMORY
-            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(2 * gb - 1), pageSizes: [4096])
+            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(2 * gb - 1), pageSizes: [PageSize()])
             XCTAssertEqual(ranges.count, 1)
             let range = ranges[0]
             XCTAssertEqual(range.pageCount, 524288)
@@ -192,12 +192,12 @@ class AddressTests: XCTestCase {
             let end = 2 * gb - 1
             XCTAssertEqual(range.endAddress, PhysAddress(end))
 
-            let allMemoryRegions4K = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(MAX_PHYSICAL_MEMORY - 1), pageSizes: [4096])
+            let allMemoryRegions4K = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(MAX_PHYSICAL_MEMORY - 1), pageSizes: [PageSize()])
             XCTAssertEqual(allMemoryRegions4K.count, 1)
             let total4KPages = allMemoryRegions4K.map { $0.pageCount }.reduce(0, +)
             XCTAssertEqual(total4KPages, 4096 * 4096)
 
-            let allMemoryRegions1G = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(MAX_PHYSICAL_MEMORY - 1), pageSizes: [4096, 2 * mb, 1 * gb])
+            let allMemoryRegions1G = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(MAX_PHYSICAL_MEMORY - 1), pageSizes: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
             XCTAssertEqual(allMemoryRegions1G.count, 1)
             XCTAssertEqual(allMemoryRegions1G.first?.pageCount, 64)
             XCTAssertEqual(allMemoryRegions1G.first?.pageSize, 1 * gb)
@@ -207,19 +207,19 @@ class AddressTests: XCTestCase {
 
         do {
             // Region too small, no ranges returned
-            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(99), pageSizes: [4096])
+            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(99), pageSizes: [PageSize()])
             XCTAssertEqual(ranges.count, 0)
         }
 
         do {
             // Region overlaps 2 pages but doesnt cover either page fully
-            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(1), endAddress: PhysAddress(6000), pageSizes: [4096])
+            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(1), endAddress: PhysAddress(6000), pageSizes: [PageSize()])
             XCTAssertEqual(ranges.count, 0)
         }
 
         do {
             // Region overlaps 3 pages but only covers 1 fully
-            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(100), endAddress: PhysAddress(9099), pageSizes: [4096])
+            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(100), endAddress: PhysAddress(9099), pageSizes: [PageSize()])
             XCTAssertEqual(ranges.count, 1)
             XCTAssertEqual(ranges[0].pageCount, 1)
             XCTAssertEqual(ranges[0].pageSize, 4096)
@@ -228,7 +228,7 @@ class AddressTests: XCTestCase {
 
         do {
             // 1Gb pages only
-            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(1 * gb - 1), pageSizes: [1 * gb])
+            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(1 * gb - 1), pageSizes: [PageSize(1 * gb)])
             XCTAssertEqual(ranges.count, 1)
             XCTAssertEqual(ranges[0].pageCount, 1)
             XCTAssertEqual(ranges[0].pageSize, 1 * gb)
@@ -237,7 +237,7 @@ class AddressTests: XCTestCase {
 
         do {
             // 1Gb pages only
-            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(1 * gb), pageSizes: [1 * gb])
+            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(1 * gb), pageSizes: [PageSize(1 * gb)])
             XCTAssertEqual(ranges.count, 1)
             XCTAssertEqual(ranges[0].pageCount, 1)
             XCTAssertEqual(ranges[0].pageSize, 1 * gb)
@@ -246,7 +246,7 @@ class AddressTests: XCTestCase {
 
         do {
             // 1Gb pages only
-            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(1 * gb + 4095), pageSizes: [1 * gb])
+            let ranges = PhysPageRange.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(1 * gb + 4095), pageSizes: [PageSize(1 * gb)])
             XCTAssertEqual(ranges.count, 1)
             XCTAssertEqual(ranges[0].pageCount, 1)
             XCTAssertEqual(ranges[0].pageSize, 1 * gb)

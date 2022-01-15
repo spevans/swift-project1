@@ -349,7 +349,7 @@ malloc(size_t size)
         }
 
         if (size > MAX_SLAB_SIZE) {
-                size_t pages = (sizeof(struct malloc_region) + size + PAGE_MASK) / PAGE_SIZE;
+                size_t pages = (sizeof(struct malloc_region) + size + (PAGE_SIZE - 1)) / PAGE_SIZE;
                 struct malloc_region *result = alloc_pages(pages);
                 result->region_size = (pages * PAGE_SIZE) - sizeof(struct malloc_region);
                 debugf("Wanted %lu got %lu\n", size, result->region_size);
@@ -427,7 +427,7 @@ free(void *ptr)
         }
 
         uint64_t p = (uint64_t)ptr;
-        struct slab_header *slab = (struct slab_header *)(p & ~PAGE_MASK);
+        struct slab_header *slab = (struct slab_header *)(p & PAGE_MASK);
         if (!region_is_slab(slab)) {
                 size_t pages = (slab->slab_size + sizeof(struct malloc_region)) / PAGE_SIZE;
                 free_pages(slab, pages);
@@ -486,7 +486,7 @@ malloc_usable_size(void * _Nullable ptr)
 
         debugf("%s(%p)=", __func__, ptr);
         uint64_t p = (uint64_t)ptr;
-        struct slab_header *slab = (struct slab_header *)(p & ~PAGE_MASK);
+        struct slab_header *slab = (struct slab_header *)(p & PAGE_MASK);
         if (region_is_slab(slab)) {
                 validate_is_slab(__func__, slab, (uintptr_t)ptr);
                 retval = slab->slab_size;

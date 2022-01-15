@@ -22,9 +22,9 @@
 #endif
 #define MAX_PHYSICAL_MEMORY     0x1000000000UL          // 64GB Physical RAM
 
-#define PAGE_SIZE 4096UL
-#define PAGE_MASK 4095UL
-#define PAGE_SHIFT 12UL
+#define PAGE_SHIFT 12
+#define PAGE_SIZE (1UL << PAGE_SHIFT)
+#define PAGE_MASK (~(PAGE_SIZE - 1))
 
 #define CODE_SELECTOR 0x08
 #define DATA_SELECTOR 0x10

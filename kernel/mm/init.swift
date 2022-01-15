@@ -166,9 +166,10 @@ private func setupKernelMap(bootParams: BootParams) {
     let guardPage: VirtualAddress = _guard_page_addr
     let kernelBase: VirtualAddress = _kernel_start_addr
 
-    let textSize = roundToPage(textEnd - _kernel_start_addr)
-    let rodataSize = roundToPage(dataStart - rodataStart)
-    let dataSize = roundToPage(guardPage - dataStart)
+    let pageSize = PageSize()
+    let textSize = pageSize.roundToNextPage(textEnd - _kernel_start_addr)
+    let rodataSize = pageSize.roundToNextPage(dataStart - rodataStart)
+    let dataSize = pageSize.roundToNextPage(guardPage - dataStart)
     let stackHeapSize = bssEnd - VirtualAddress(_stack_start_addr)
 
 
@@ -245,7 +246,7 @@ private func setupKernelMap(bootParams: BootParams) {
 
     if let symbolTablePtr = bootParams.symbolTablePtr,
         bootParams.symbolTableSize > 0 && bootParams.stringTableSize > 0 {
-            let symtabPhys = (stackPhys + stackHeapSize + PAGE_SIZE).pageAddress(pageSize: PAGE_SIZE, roundUp: true)
+            let symtabPhys = (stackPhys + stackHeapSize + PAGE_SIZE).pageAddress(pageSize: pageSize, roundUp: true)
             addKMapping(start: symbolTablePtr.address,
                 size: UInt(bootParams.symbolTableSize + bootParams.stringTableSize),
                 physStart: symtabPhys, readWrite: true, noExec: true)
@@ -309,7 +310,7 @@ private func setupInitialPhysicalMap(_ memoryRanges: [MemoryRange]) {
 
     // Find all of the usable (RAM) page aligned pages in the region below 16MB. Ignore
     // Map non RAM as RO as it probably contains BIOS etc that still needs to be readable
-    for (physPageRange, access) in lowMemoryRanges.align(toPageSize: PageSize(4096)) {
+    for (physPageRange, access) in lowMemoryRanges.align(toPageSize: PageSize()) {
         guard access == .readWrite else { continue }
         for physPage in physPageRange {
             let vaddr = physPage.vaddr
@@ -360,7 +361,7 @@ private func mapPhysicalMemory(_ ranges: [MemoryRange]) {
     // Since the page maps require memory themselves, pages are mapped and added to the free page list
     // in 256MB chunks so more memory is availble for subsequent mapping
     let maxPagesPerLoop = 65536 // 256MB per loop
-    for (physPageRange, access) in memoryRanges.align(toPageSize: PageSize(4096)) {
+    for (physPageRange, access) in memoryRanges.align(toPageSize: PageSize()) {
         guard access == .readWrite else { continue }
 
         var pageRangeIterator = PhysPageRangeChunksInterator(physPageRange, pagesPerChunk: maxPagesPerLoop)
@@ -397,11 +398,6 @@ private func mapPhysicalMemory(_ ranges: [MemoryRange]) {
     }
 }
 
-
-// TODO - replace with PageSize
-private func roundToPage(_ size: UInt) -> UInt {
-    return (size + PAGE_MASK) & ~PAGE_MASK
-}
 
 // for debugging
 private func printSections() {

@@ -28,7 +28,7 @@ struct PhysAddressRegion {
 
     var endAddress: PhysAddress { physAddress + (size - 1) }
     var physPageRange: PhysPageRange {
-        PhysPageRange(start: physAddress, size: size, pageSize: PageSize(PAGE_SIZE))
+        PhysPageRange(start: physAddress, size: size, pageSize: PageSize())
     }
 
     func contains(_ other: Self) -> Bool {
@@ -45,7 +45,7 @@ extension PhysAddressRegion {
     // until the end of the tests is fine.
     init(data: Data) {
         var ptr: UnsafeMutableRawPointer? = nil
-        let err = posix_memalign(&ptr, Int(PageSize(PAGE_SIZE).pageSize), data.count)
+        let err = posix_memalign(&ptr, Int(PageSize().pageSize), data.count)
         guard err == 0, let ptr2 = ptr else {
             fatalError("posix_mmalign, size: \(data.count) failed: \(err)")
         }
