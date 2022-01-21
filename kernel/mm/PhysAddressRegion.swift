@@ -45,7 +45,7 @@ extension PhysAddressRegion {
     // until the end of the tests is fine.
     init(data: Data) {
         var ptr: UnsafeMutableRawPointer? = nil
-        let err = posix_memalign(&ptr, Int(PageSize().pageSize), data.count)
+        let err = posix_memalign(&ptr, Int(PageSize().size), data.count)
         guard err == 0, let ptr2 = ptr else {
             fatalError("posix_mmalign, size: \(data.count) failed: \(err)")
         }

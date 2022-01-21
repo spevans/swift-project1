@@ -187,7 +187,7 @@ private func setupKernelMap(bootParams: BootParams) {
         readWrite: Bool, noExec: Bool) {
 
         printf("Adding kernel mapping start: %p phys: %p, size: 0x%lx\n", start, physStart.value, size)
-        let pageCnt = ((size + PAGE_SIZE - 1) / PAGE_SIZE)
+        let pageCnt = pageSize.pageCountCovering(size: Int(size))
         var physAddress = physStart
         var addr = start
 
@@ -221,8 +221,8 @@ private func setupKernelMap(bootParams: BootParams) {
                 userAccess: false, patIndex: patIndex, global: false, noExec: noExec)
             pageTable[kidx3] = entry
 
-            addr += PAGE_SIZE
-            physAddress = physAddress.advanced(by: PAGE_SIZE)
+            addr += pageSize.size
+            physAddress = physAddress.advanced(by: pageSize.size)
         }
     }
 
@@ -245,11 +245,11 @@ private func setupKernelMap(bootParams: BootParams) {
     // Add mapping for the symbol and string tables after the stack
 
     if let symbolTablePtr = bootParams.symbolTablePtr,
-        bootParams.symbolTableSize > 0 && bootParams.stringTableSize > 0 {
-            let symtabPhys = (stackPhys + stackHeapSize + PAGE_SIZE).pageAddress(pageSize: pageSize, roundUp: true)
-            addKMapping(start: symbolTablePtr.address,
-                size: UInt(bootParams.symbolTableSize + bootParams.stringTableSize),
-                physStart: symtabPhys, readWrite: true, noExec: true)
+       bootParams.symbolTableSize > 0 && bootParams.stringTableSize > 0 {
+        let symtabPhys = pageSize.roundUp(stackPhys + stackHeapSize + pageSize.size)
+        addKMapping(start: symbolTablePtr.address,
+                    size: UInt(bootParams.symbolTableSize + bootParams.stringTableSize),
+                    physStart: symtabPhys, readWrite: true, noExec: true)
     }
 
     printf("MM: Physical address of kernelBase     (%p): (%p)\n",

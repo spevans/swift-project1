@@ -6,61 +6,74 @@
 //  Copyright © 2021 Simon Evans. All rights reserved.
 //
 
-struct PageSize: Equatable, Comparable {
-    let pageSize: UInt
+struct PageSize: Equatable {
+    let size: UInt
 
-    var pageMask: UInt { ~(pageSize - 1) }
-    var pageShift: Int { pageSize.trailingZeroBitCount }
-
-    init(_ pageSize: UInt) {
-        precondition(pageSize.nonzeroBitCount == 1) // Must be power of 2
-        precondition(pageSize >= 1024)
-        self.pageSize = pageSize
+    init(_ size: UInt) {
+        precondition(size.nonzeroBitCount == 1) // Must be power of 2
+        precondition(size >= 1024)
+        self.size = size
     }
 
     init() {
-        self.pageSize = UInt(PAGE_SIZE)
+        self.size = UInt(PAGE_SIZE)
     }
 
-    static func < (lhs: PageSize, rhs: PageSize) -> Bool {
-        lhs.pageSize < rhs.pageSize
+    init(encoding: Int) {
+        switch encoding {
+            case 1: self.size = 4096
+            case 2: self.size = 2048 * 1024
+            case 3: self.size = 1024 * 1024 * 1024
+            default: fatalError("Invalid Page size")
+        }
     }
 
+    var mask: UInt { ~(size - 1) }
 
     var encoding: Int {
-        switch pageSize {
+        switch size {
             case 4096: return 1
             case 2048 * 1024: return 2
             case 1024 * 1024 * 1024: return 3
-            default: fatalError("Invalid page size: \(pageSize)")
+            default: fatalError("Invalid page size: \(size)")
         }
     }
 
     func isPageAligned(_ address: UInt) -> Bool {
-        address & ~pageMask == 0
+        address & ~mask == 0
     }
 
     func roundDown(_ address: UInt) -> UInt {
-        address & pageMask
+        address & mask
     }
 
     func roundToNextPage(_ address: UInt) -> UInt {
-        (address + (pageSize - 1)) & pageMask
+        (address + (size - 1)) & mask
     }
 
     func lastAddressInPage(_ address: UInt) -> UInt {
-        address | ~pageMask
+        address | ~mask
     }
 
     func onSamePage(_ address1: UInt, _ address2: UInt) -> Bool {
-        address1 & pageMask == address2 & pageMask
+        address1 & mask == address2 & mask
     }
 
     func pageCountCovering(size: Int) -> Int {
-        return ((size - 1) + Int(pageSize)) / Int(pageSize)
+        return ((size - 1) + Int(self.size)) / Int(self.size)
+    }
+
+    func regionSize(forPageCount pages: Int) -> UInt {
+        size * UInt(pages)
     }
 
     func offsetInPage(_ address: UInt) -> UInt {
-        address & ~pageMask
+        address & ~mask
+    }
+}
+
+extension PageSize: Comparable {
+    static func < (lhs: PageSize, rhs: PageSize) -> Bool {
+        lhs.size < rhs.size
     }
 }

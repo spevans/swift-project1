@@ -12,8 +12,8 @@ class PageSizeTests: XCTestCase {
 
     func testPageSize() {
         let pageSize = PageSize()
-        XCTAssertEqual(pageSize.pageSize, 4096)
-        XCTAssertEqual(pageSize.pageMask, 0xffff_ffff_ffff_F000)
+        XCTAssertEqual(pageSize.size, 4096)
+        XCTAssertEqual(pageSize.mask, 0xffff_ffff_ffff_F000)
         XCTAssertEqual(pageSize.encoding, 1)
 
         XCTAssertTrue(pageSize.isPageAligned(0xffff000))

@@ -39,15 +39,6 @@ struct PhysAddress: CVarArg, Comparable, Hashable, CustomStringConvertible {
         return UnsafeMutableRawPointer(bitPattern: vaddr)!
     }
 
-
-    func pageAddress(pageSize: PageSize, roundUp: Bool = false) -> PhysAddress {
-        if roundUp {
-            return pageSize.roundUp(self)
-        } else {
-            return pageSize.roundDown(self)
-        }
-    }
-
     var isPageAligned: Bool { PageSize().isPageAligned(value) }
 
     func advanced(by n: Int) -> PhysAddress {

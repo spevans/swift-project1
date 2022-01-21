@@ -201,7 +201,7 @@ extension MemoryRange {
 
             if state == .middle {
                 state = .end
-                if pageSize.isPageAligned(range.start) && range.size >= pageSize.pageSize {
+                if pageSize.isPageAligned(range.start) && range.size >= pageSize.size {
                     if pageSize.isPageAligned(range.size) {
                         state = .start
                         currentRange = nil
@@ -353,7 +353,7 @@ extension Array where Element == MemoryRange {
             assert(currentEnd + 1 == region.start)
 
             if pageSize.isPageAligned(currentEnd + 1) {
-                let pageCount = UInt((currentEnd - currentStart) + 1) / pageSize.pageSize
+                let pageCount = UInt((currentEnd - currentStart) + 1) / pageSize.size
                 let physPageRange = PhysPageRange(currentStart, pageSize: pageSize, pageCount: Int(pageCount))
                 result.append((physPageRange, currentAccess))
                 currentStart = region.start
@@ -372,7 +372,7 @@ extension Array where Element == MemoryRange {
             currentEnd = pageSize.lastAddressInPage(currentEnd)
             currentAccess = currentAccess.lowest(MemoryType.Hole.access)
         }
-        let pageCount = UInt((currentEnd - currentStart) + 1) / pageSize.pageSize
+        let pageCount = UInt((currentEnd - currentStart) + 1) / pageSize.size
         let physPageRange = PhysPageRange(currentStart, pageSize: pageSize, pageCount: Int(pageCount))
         result.append((physPageRange, currentAccess))
         return result

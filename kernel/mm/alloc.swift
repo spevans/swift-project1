@@ -25,7 +25,7 @@ private var ioPagesListHead: FreePageListEntryPtr? = nil
 private func initFreeList() -> FreePageListEntryPtr? {
     let pageSize = PageSize()
     let heap_phys = virtualToPhys(address: _heap_start_addr)!
-    let pageCount = Int((_heap_end_addr - _heap_start_addr) / pageSize.pageSize)
+    let pageCount = Int((_heap_end_addr - _heap_start_addr) / pageSize.size)
     kprintf("init_free_list: heap_start: %p ", _heap_start_addr)
     kprintf("heap_end: %p ", _heap_end_addr)
     kprintf("heap_phys: %p ", heap_phys.value)
@@ -103,7 +103,7 @@ func addPagesToFreePageList(pages: PhysPageRange) {
             return (nil, pageRange)
         }
         else {
-            let lowerPageCount = (address - pageRange.address) / Int(pageRange.pageSize)
+            let lowerPageCount = (address - pageRange.address) / Int(pageRange.pageSize.size)
             let (lower, upper) = pageRange.splitRegion(withFirstRegionCount: lowerPageCount)
             print("addPagesToFreePageList split \(pageRange) into \(lower) and \(upper)")
             return (lower, upper)

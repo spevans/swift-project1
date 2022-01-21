@@ -18,36 +18,26 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
     private let addressBits: UInt
     let pageCount: Int
 
-    var address: PhysAddress {
-        PhysAddress(addressBits & 0xffff_ffff_ffff_f000)
-    }
+    var address: PhysAddress { PhysAddress(addressBits & 0xffff_ffff_ffff_f000) }
+    var pageSize: PageSize { PageSize(encoding: Int(addressBits & 0xfff)) }
 
-    var regionSize: UInt { pageSize * UInt(pageCount) }
+    var regionSize: UInt { pageSize.regionSize(forPageCount: pageCount) }
 
     var endAddress: PhysAddress {
         // Avoid overflow if range is the full 64bit region.
-        let regionSizeMinusOne = (UInt(pageCount - 1) * pageSize) + (pageSize - 1)
+        let regionSizeMinusOne = pageSize.regionSize(forPageCount: pageCount - 1) + (pageSize.size - 1)
         return PhysAddress(address.value + regionSizeMinusOne)
     }
 
     var description: String {
         var result = "0x" + String(address.value, radix: 16) + " - 0x" + String(endAddress.value, radix: 16)
-        result += " [\(pageCount) * 0x\(String(pageSize, radix: 16))]"
+        result += " [\(pageCount) * 0x\(String(pageSize.size, radix: 16))]"
         return result
     }
 
-    init(_ address: PhysAddress, pageSize: PageSize, pageCount: Int, roundUp: Bool = false) {
-        precondition(address.value < MAX_PHYSICAL_MEMORY, "PhysAddress out of range")
+    init(_ address: PhysAddress, pageSize: PageSize, pageCount: Int) {
         precondition(pageCount > 0)
-
-        var _address: UInt
-        if roundUp {
-            _address = pageSize.roundToNextPage(address.value)
-        } else {
-            _address = pageSize.roundDown(address.value)
-        }
-        _address |= UInt(pageSize.encoding)
-        addressBits = _address
+        self.addressBits = pageSize.roundDown(address.value) | UInt(pageSize.encoding)
         self.pageCount = pageCount
     }
 
@@ -57,7 +47,7 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
     init(start: PhysAddress, size: UInt, pageSize: PageSize = PageSize()) {
         let startAddress = pageSize.roundDown(start)
         let endAddress = pageSize.lastAddressInPage(start + size - 1)
-        let pageCount = ((endAddress - startAddress) + 1) / Int(pageSize.pageSize)
+        let pageCount = ((endAddress - startAddress) + 1) / Int(pageSize.size)
         precondition(pageCount > 0)
         self.addressBits = startAddress.value | UInt(pageSize.encoding)
         self.pageCount = pageCount
@@ -69,9 +59,9 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
     // until the end of the tests is fine.
     init(data: Data, pageSize: PageSize = PageSize()) {
         var ptr: UnsafeMutableRawPointer? = nil
-        let err = posix_memalign(&ptr, Int(pageSize.pageSize), data.count)
+        let err = posix_memalign(&ptr, Int(pageSize.size), data.count)
         guard err == 0, let ptr2 = ptr else {
-            fatalError("posix_mmalign, alignment: \(pageSize.pageSize), size: \(data.count) failed: \(err)")
+            fatalError("posix_mmalign, alignment: \(pageSize.size), size: \(data.count) failed: \(err)")
         }
         let dest = ptr2.bindMemory(to: UInt8.self, capacity: data.count)
         data.copyBytes(to: UnsafeMutablePointer<UInt8>(dest), count: data.count)
@@ -88,6 +78,18 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
         self.pageCount = pageCount
     }
 
+    var vaddr: VirtualAddress {
+        return address.vaddr
+    }
+
+    var rawPointer: UnsafeMutableRawPointer {
+        return UnsafeMutableRawPointer(bitPattern: vaddr)!
+    }
+
+    var rawBufferPointer: UnsafeMutableRawBufferPointer {
+        return UnsafeMutableRawBufferPointer(start: rawPointer, count: Int(regionSize))
+    }
+
     func splitRegion(withFirstRegionCount count1: Int) -> (Self, Self) {
         precondition(count1 > 0)
         let count2 = pageCount - count1
@@ -102,38 +104,13 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
         return PhysPageRangeIterator(self)
     }
 
-
-
-    var pageSize: UInt {
-        switch (addressBits & 3) {
-        case 1: return 4096
-        case 2: return 2048 * 1024
-        case 3: return 1024 * 1024 * 1024
-        default: fatalError("Invalid Page size")
-        }
-    }
-
-    var vaddr: VirtualAddress {
-        return address.vaddr
-    }
-
-    var rawPointer: UnsafeMutableRawPointer {
-        return UnsafeMutableRawPointer(bitPattern: vaddr)!
-    }
-
-    var rawBufferPointer: UnsafeMutableRawBufferPointer {
-        return UnsafeMutableRawBufferPointer(start: rawPointer, count: Int(regionSize))
-    }
-
     func distance(to other: PhysPageRange) -> Int {
-        return Int(other.address.value / pageSize) - Int(address.value / pageSize)
+        return pageSize.pageCountCovering(size: Int(other.address.value - address.value))
     }
-
 
     public var _cVarArgEncoding: [Int] {
         return _encodeBitsAsWords(address)
     }
-
 
     func contains(_ other: Self) -> Bool {
         return address <= other.address && endAddress >= other.endAddress
@@ -148,14 +125,14 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
 
         if address < other.address {
             let size = UInt(other.address - address)
-            before = Self(start: address, size: size, pageSize: PageSize(pageSize))
+            before = Self(start: address, size: size, pageSize: pageSize)
         } else {
             before = nil
         }
 
         if other.endAddress < endAddress {
             let size = UInt(endAddress - other.endAddress)
-            after = Self(start: other.endAddress + 1, size: size, pageSize: PageSize(pageSize))
+            after = Self(start: other.endAddress + 1, size: size, pageSize: pageSize)
         } else {
             after = nil
         }
@@ -171,11 +148,12 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
         precondition(pageSizes.count > 0)
 
         let smallestPageSize = pageSizes.min()!
-        let smallestPageMask = smallestPageSize.pageMask
+        let smallestPageMask = smallestPageSize.mask
         // Round up the startAddress to a page boundary if not already on one.
         // Round down the endAddress to an end of page address (ie ends in 0x...fff).
         // Use the smallest system page size
-        let roundedStartAddress = startAddress.pageAddress(pageSize: smallestPageSize, roundUp: true)
+
+        let roundedStartAddress = smallestPageSize.roundUp(startAddress)
         let roundedEndAddress: PhysAddress
         if endAddress.value & ~smallestPageMask == ~smallestPageMask {
             roundedEndAddress = endAddress
@@ -200,12 +178,12 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
             // align to the start but not the end or align to the end but not the start
             // or maybe doesnt align to start/end at all
 
-            centralStart = roundedStartAddress.pageAddress(pageSize: pageSize, roundUp: true)
+            centralStart = pageSize.roundUp(roundedStartAddress)
             if centralStart < roundedStartAddress || centralStart > roundedEndAddress {
                 continue
             }
 
-            let pageCount = UInt((roundedEndAddress - roundedStartAddress) + 1) / pageSize.pageSize
+            let pageCount = UInt((roundedEndAddress - roundedStartAddress) + 1) / pageSize.size
             if pageCount == 0 { continue }
             let range = PhysPageRange(centralStart, pageSize: pageSize, pageCount: Int(pageCount))
             centralRange = range
@@ -214,9 +192,9 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
 
         if centralStart > roundedStartAddress {
             for pageSize in pageSizes {
-                let start = roundedStartAddress.pageAddress(pageSize: pageSize, roundUp: true)
+                let start = pageSize.roundUp(roundedStartAddress)
                 if start >= centralStart { continue }
-                let pageCount = (centralStart - start) / Int(pageSize.pageSize)
+                let pageCount = (centralStart - start) / Int(pageSize.size)
 
                 let range = PhysPageRange(start, pageSize: pageSize, pageCount: pageCount)
                 result.append(range)
@@ -228,11 +206,11 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
 
         if centralEnd < roundedEndAddress {
             for pageSize in pageSizes {
-                let pageCount = UInt(roundedEndAddress - centralEnd) / pageSize.pageSize
+                let pageCount = UInt(roundedEndAddress - centralEnd) / pageSize.size
                 if pageCount == 0  { continue }
                 let range = PhysPageRange(centralEnd + 1, pageSize: pageSize, pageCount: Int(pageCount))
                 result.append(range)
-                centralEnd = centralEnd + (pageSize.pageSize * pageCount)
+                centralEnd = centralEnd + (pageSize.size * pageCount)
             }
         }
 
@@ -256,7 +234,7 @@ struct PhysPageRangeIterator: IteratorProtocol {
 
     mutating func next() -> Element? {
         guard currentPage < physPageRange.endAddress else { return nil }
-        defer { currentPage = currentPage + physPageRange.pageSize }
+        defer { currentPage += physPageRange.pageSize.size }
         return currentPage
     }
 }
