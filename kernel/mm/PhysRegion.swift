@@ -1,45 +1,46 @@
 //
-//  kernel/mm/PhysAddressRegion.swift
+//  kernel/mm/PhysRegion.swift
 //  project1
 //
 //  Created by Simon Evans on 15/01/2022.
 //  Copyright © 2022 Simon Evans. All rights reserved.
 //
 
-struct PhysAddressRegion {
-    let physAddress: PhysAddress
+struct PhysRegion {
+    let baseAddress: PhysAddress
     let size: UInt
 
     init(start: PhysAddress, size: UInt) {
-        self.physAddress = start
+        precondition(size > 0)
+        self.baseAddress = start
         self.size = size
     }
 
     init(start: PhysAddress, end: PhysAddress) {
         precondition(start <= end)
-        physAddress = start
+        baseAddress = start
         size = UInt(end - start) + 1
     }
 
     init(_ physPageRange: PhysPageRange) {
-        self.physAddress = physPageRange.address
+        self.baseAddress = physPageRange.address
         self.size = physPageRange.regionSize
     }
 
-    var endAddress: PhysAddress { physAddress + (size - 1) }
+    var endAddress: PhysAddress { baseAddress + (size - 1) }
     var physPageRange: PhysPageRange {
-        PhysPageRange(start: physAddress, size: size, pageSize: PageSize())
+        PhysPageRange(start: baseAddress, size: size, pageSize: PageSize())
     }
 
     func contains(_ other: Self) -> Bool {
-        return physAddress <= other.physAddress && endAddress >= other.endAddress
+        return baseAddress <= other.baseAddress && endAddress >= other.endAddress
     }
 }
 
 #if TEST
 import Foundation
 
-extension PhysAddressRegion {
+extension PhysRegion {
     // For testing, create a region with some data in to emulate firmware etc
     // This will leak but its only used for testing so keeping the data around
     // until the end of the tests is fine.
@@ -52,7 +53,7 @@ extension PhysAddressRegion {
         let dest = ptr2.bindMemory(to: UInt8.self, capacity: data.count)
         data.copyBytes(to: UnsafeMutablePointer<UInt8>(dest), count: data.count)
         let address = dest.address
-        self.physAddress = PhysAddress(address - PHYSICAL_MEM_BASE)
+        self.baseAddress = PhysAddress(address - PHYSICAL_MEM_BASE)
         self.size = UInt(data.count)
     }
 }

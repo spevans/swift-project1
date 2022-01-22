@@ -73,7 +73,7 @@
 		B9E8F3FB2792FAD4008F3C33 /* ioapic.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7191F2F497800FE6846 /* ioapic.swift */; };
 		B9E8F3FE2792FBEC008F3C33 /* cpu.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7141F2F497800FE6846 /* cpu.swift */; };
 		B9E8F407279315CC008F3C33 /* PhysPageRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F406279315CC008F3C33 /* PhysPageRegion.swift */; };
-		B9E8F40D27931FE1008F3C33 /* PhysAddressRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F40C27931FE1008F3C33 /* PhysAddressRegion.swift */; };
+		B9E8F40D27931FE1008F3C33 /* PhysRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F40C27931FE1008F3C33 /* PhysRegion.swift */; };
 		B9E8F41127935B7A008F3C33 /* MemoryRangeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F41027935B7A008F3C33 /* MemoryRangeTests.swift */; };
 		B9E8F41527935C47008F3C33 /* PhysPageRangeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F41427935C47008F3C33 /* PhysPageRangeTests.swift */; };
 		B9E8F41927940FF3008F3C33 /* PageSizeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F41827940FF3008F3C33 /* PageSizeTests.swift */; };
@@ -278,7 +278,7 @@
 		B9DEE4F52323BBC30010F7A0 /* bochsrc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = bochsrc; sourceTree = "<group>"; };
 		B9DEE4F62323BBC30010F7A0 /* gdb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "gdb-cmds"; sourceTree = "<group>"; };
 		B9E8F406279315CC008F3C33 /* PhysPageRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysPageRegion.swift; sourceTree = "<group>"; };
-		B9E8F40C27931FE1008F3C33 /* PhysAddressRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysAddressRegion.swift; sourceTree = "<group>"; };
+		B9E8F40C27931FE1008F3C33 /* PhysRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysRegion.swift; sourceTree = "<group>"; };
 		B9E8F41027935B7A008F3C33 /* MemoryRangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryRangeTests.swift; sourceTree = "<group>"; };
 		B9E8F41427935C47008F3C33 /* PhysPageRangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysPageRangeTests.swift; sourceTree = "<group>"; };
 		B9E8F41827940FF3008F3C33 /* PageSizeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageSizeTests.swift; sourceTree = "<group>"; };
@@ -469,7 +469,7 @@
 				B9793D4E200A571B0013E03B /* symbols.swift */,
 				B96BBE5626309218009756A8 /* MMIORegion.swift */,
 				B9E8F406279315CC008F3C33 /* PhysPageRegion.swift */,
-				B9E8F40C27931FE1008F3C33 /* PhysAddressRegion.swift */,
+				B9E8F40C27931FE1008F3C33 /* PhysRegion.swift */,
 			);
 			path = mm;
 			sourceTree = "<group>";
@@ -946,7 +946,7 @@
 				B9568C7E2548C0A400C3F49B /* usb-controlrequest.swift in Sources */,
 				B9568C7F2548C0A400C3F49B /* usb-devicedescriptor.swift in Sources */,
 				B9568C802548C0A400C3F49B /* usb-devicequalifier.swift in Sources */,
-				B9E8F40D27931FE1008F3C33 /* PhysAddressRegion.swift in Sources */,
+				B9E8F40D27931FE1008F3C33 /* PhysRegion.swift in Sources */,
 				B9568C812548C0A400C3F49B /* usb-endpointdescriptor.swift in Sources */,
 				B9BDA42126542DBA00A2BCB4 /* PCITests.swift in Sources */,
 				B9568C822548C0A400C3F49B /* usb-interfacedescriptor.swift in Sources */,

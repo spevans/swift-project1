@@ -75,7 +75,7 @@ struct SMBIOS {
 
         do {
             let headerSize = MemoryLayout<smbios_header>.size
-            let headerRegion = PhysAddressRegion(start: physAddress, size: UInt(headerSize))
+            let headerRegion = PhysRegion(start: physAddress, size: UInt(headerSize))
             let mmioRegion = mapRORegion(region: headerRegion)
             defer { unmapMMIORegion(mmioRegion) }
             let ptr = mmioRegion.baseAddress.rawPointer
@@ -109,7 +109,7 @@ struct SMBIOS {
         tableAddress = PhysAddress(RawAddress(header.table_address))
         // FIXME, can the mmioRegion from above be reused if the DMI region is adjcent
         // to the SMBIOS (eg qemu) rather than completely seperate (VMWare)
-        let region = PhysAddressRegion(start: tableAddress, size: UInt(tableLength))
+        let region = PhysRegion(start: tableAddress, size: UInt(tableLength))
         let mmioRegion = mapRORegion(region: region)
         defer { unmapMMIORegion(mmioRegion) }
 

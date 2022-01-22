@@ -174,11 +174,11 @@ struct EFIBootParams: BootParams {
 
 
         fileprivate init(_ configTableAddress: PhysAddress, _ configTableCount: UInt) {
-            let region = PhysAddressRegion(start: configTableAddress, size: configTableCount)
+            let region = PhysRegion(start: configTableAddress, size: configTableCount)
             let mmioRegion = mapRORegion(region: region)
             defer { unmapMMIORegion(mmioRegion) }
 
-            let vaddr = mmioRegion.physAddressRegion.physAddress.vaddr
+            let vaddr = mmioRegion.physAddressRegion.baseAddress.vaddr
             let configTablePtr = UnsafePointer<efi_config_table_t>(bitPattern: vaddr)
             let tables = UnsafeBufferPointer(start: configTablePtr, count: Int(configTableCount))
 

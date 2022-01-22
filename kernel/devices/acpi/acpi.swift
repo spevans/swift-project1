@@ -65,7 +65,7 @@ final class ACPI {
 
         init(_ physAddress: PhysAddress) {
             let headerSize = MemoryLayout<acpi_sdt_header>.size
-            let region = PhysAddressRegion(start: physAddress, size: UInt(headerSize))
+            let region = PhysRegion(start: physAddress, size: UInt(headerSize))
             var mmioRegion = mapRORegion(region: region)
             defer { unmapMMIORegion(mmioRegion) }
             let subRegion = mmioRegion.mmioSubRegion(containing: physAddress, count: headerSize)!
@@ -74,7 +74,7 @@ final class ACPI {
                 fatalError("Invalid RSDT table")
             }
 
-            let newRegion = PhysAddressRegion(start: physAddress, size: UInt(table.length))
+            let newRegion = PhysRegion(start: physAddress, size: UInt(table.length))
             mmioRegion = mmioRegion.including(region: newRegion)
 
             let entryCount = (Int(table.length) - MemoryLayout<acpi_sdt_header>.size) / 4
@@ -90,7 +90,7 @@ final class ACPI {
 
         init(_ physAddress: PhysAddress) {
             let headerSize = MemoryLayout<acpi_sdt_header>.size
-            let region = PhysAddressRegion(start: physAddress, size: UInt(headerSize))
+            let region = PhysRegion(start: physAddress, size: UInt(headerSize))
             var mmioRegion = mapRORegion(region: region)
             defer { unmapMMIORegion(mmioRegion) }
             let subRegion = mmioRegion.mmioSubRegion(containing: physAddress, count: headerSize)!
@@ -99,7 +99,7 @@ final class ACPI {
             guard let table = ACPI.validateHeader(rawSDTPtr: rawPtr), table.signature == "XSDT" else {
                 fatalError("Invalid XSDT table")
             }
-            let newRegion = PhysAddressRegion(start: physAddress, size: UInt(table.length))
+            let newRegion = PhysRegion(start: physAddress, size: UInt(table.length))
             mmioRegion = mmioRegion.including(region: newRegion)
 
             let entryCount = (Int(table.length) - MemoryLayout<acpi_sdt_header>.size) / 8
@@ -117,7 +117,7 @@ final class ACPI {
 
         init(_ physAddress: PhysAddress) {
             let headerSize = UInt(MemoryLayout<rsdp1_header>.size)
-            let region = PhysAddressRegion(start: physAddress, size: headerSize)
+            let region = PhysRegion(start: physAddress, size: headerSize)
             var mmioRegion = mapRORegion(region: region)
             defer { unmapMMIORegion(mmioRegion) }
             let subRegion = mmioRegion.mmioSubRegion(containing: physAddress, count: Int(headerSize))!
@@ -132,7 +132,7 @@ final class ACPI {
             if rsdp1.revision == 2 {
                 // ACPI 2.0 RSDP
                 let headerSize = UInt(MemoryLayout<rsdp2_header>.size)
-                let region = PhysAddressRegion(start: physAddress, size: headerSize)
+                let region = PhysRegion(start: physAddress, size: headerSize)
                 mmioRegion = mmioRegion.including(region: region)
                 let rsdp2 = rawPtr.load(as: rsdp2_header.self)
                 rsdtAddress = rsdp2.rsdp1.rsdt_addr
@@ -162,8 +162,8 @@ final class ACPI {
     private(set) var madt: MADT?
     private(set) var globalObjects: ACPIObjectNode!
     private(set) var tables: [ACPITable] = []
-    private var dsdt: PhysAddressRegion?
-    private var ssdts: [PhysAddressRegion] = []
+    private var dsdt: PhysRegion?
+    private var ssdts: [PhysRegion] = []
     private var mmioRegions: [MMIORegion] = []
 
     init?(rsdp: PhysAddress, vendor: String, product: String, memoryRanges: [MemoryRange]) {
@@ -188,7 +188,7 @@ final class ACPI {
             if !mRanges.contains(memoryRange) {
                 mRanges.append(memoryRange)
                 print("ACPI: using range:", memoryRange)
-                let region = PhysAddressRegion(start: memoryRange.start, size: memoryRange.size)
+                let region = PhysRegion(start: memoryRange.start, size: memoryRange.size)
                 let mmioRegion = mapRORegion(region: region)
                 mmioRegions.append(mmioRegion)
             }
@@ -204,7 +204,7 @@ final class ACPI {
 #if TEST
     // Used for testing
     init() {
-        mmioRegions.append(MMIORegion(region: PhysAddressRegion(start: PhysAddress(0), size: 1)))
+        mmioRegions.append(MMIORegion(region: PhysRegion(start: PhysAddress(0), size: 1)))
     }
 #endif
 
@@ -219,7 +219,7 @@ final class ACPI {
         let parser = AMLParser(globalObjects: acpiGlobalObjects)
         do {
             for buffer in ssdts {
-                let amlBuffer = AMLByteBuffer(start: buffer.physAddress.rawPointer,
+                let amlBuffer = AMLByteBuffer(start: buffer.baseAddress.rawPointer,
                                               count: Int(buffer.size))
                 try parser.parse(amlCode: amlBuffer)
             }
@@ -302,7 +302,7 @@ final class ACPI {
             let headerLength = MemoryLayout<acpi_sdt_header>.size
             let totalLength = Int(header.length)
             let amlCodeLength = totalLength - headerLength
-            let amlRegion = PhysAddressRegion(start: physAddress + headerLength,
+            let amlRegion = PhysRegion(start: physAddress + headerLength,
                                               size: UInt(amlCodeLength))
             if header.signature == "DSDT" {
                 dsdt = amlRegion

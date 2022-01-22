@@ -225,26 +225,26 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
     // Root System Description Pointer
     private func findRSDP() -> PhysAddress? {
         if let region = getEBDA() {
-            printf("ACPI: EBDA: %p len: 0x%x\n", region.physAddress.value, region.size)
+            printf("ACPI: EBDA: %p len: 0x%x\n", region.baseAddress.value, region.size)
             if let rsdp = scanForSignature(RSDP_SIG, inRegion: region) {
                 return rsdp
             }
         }
-        let region = PhysAddressRegion(start: PhysAddress(0xE0000), size: 0x20000)
-        printf("ACPI: Upper: %p len: 0x%x\n", region.physAddress.value, region.size)
+        let region = PhysRegion(start: PhysAddress(0xE0000), size: 0x20000)
+        printf("ACPI: Upper: %p len: 0x%x\n", region.baseAddress.value, region.size)
         return scanForSignature(RSDP_SIG, inRegion: region)
     }
 
 
     // SMBios table
     private func findSMBIOS() -> PhysAddress? {
-        let region = PhysAddressRegion(start: PhysAddress(0xf0000), size: 0x10000)
+        let region = PhysRegion(start: PhysAddress(0xf0000), size: 0x10000)
         return scanForSignature(SMBIOS.SMBIOS_SIG, inRegion: region)
     }
 
 
-    private func getEBDA() -> PhysAddressRegion? {
-        let region = mapRORegion(region: PhysAddressRegion(start: PhysAddress(0x40E), size: 2))
+    private func getEBDA() -> PhysRegion? {
+        let region = mapRORegion(region: PhysRegion(start: PhysAddress(0x40E), size: 2))
         let ebda: UInt16 = region.read(fromByteOffset: 0)
         unmapMMIORegion(region)
 
@@ -252,14 +252,14 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
         let rsdpAddr = UInt(ebda) * 16
 
         if rsdpAddr > 0x400 {
-            return PhysAddressRegion(start: PhysAddress(rsdpAddr), size: 1024)
+            return PhysRegion(start: PhysAddress(rsdpAddr), size: 1024)
         } else {
             return nil
         }
     }
 
 
-    private func scanForSignature( _ signature: StaticString, inRegion region: PhysAddressRegion)
+    private func scanForSignature( _ signature: StaticString, inRegion region: PhysRegion)
     -> PhysAddress? {
         assert(signature.utf8CodeUnitCount != 0)
         assert(signature.isASCII)

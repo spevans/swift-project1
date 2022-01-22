@@ -87,7 +87,7 @@ func mapRORegion(region: PhysPageRange, cacheType: CPU.CacheType = .writeBack) -
     return MMIORegion(physPageRange: region)
 }
 
-func mapRORegion(region: PhysAddressRegion) -> MMIORegion {
+func mapRORegion(region: PhysRegion) -> MMIORegion {
     return MMIORegion(region: region)
 }
 

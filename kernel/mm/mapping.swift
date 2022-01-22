@@ -27,7 +27,7 @@ func mapRORegion(region: PhysPageRange, cacheType: CPU.CacheType = .writeBack) -
     return MMIORegion(physPageRange: region)
 }
 
-func mapRORegion(region: PhysAddressRegion) -> MMIORegion {
+func mapRORegion(region: PhysRegion) -> MMIORegion {
     let physPageRegion = region.physPageRange
     let vaddr = physPageRegion.address.vaddr
     //print("Adding RO mapping for \(region) [\(physPageRegion)] at 0x\(String(vaddr, radix: 16))")

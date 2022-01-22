@@ -12,9 +12,9 @@
 //
 
 struct MMIORegion: CustomStringConvertible {
-    let physAddressRegion: PhysAddressRegion
+    let physAddressRegion: PhysRegion
 
-    var baseAddress: PhysAddress { physAddressRegion.physAddress }
+    var baseAddress: PhysAddress { physAddressRegion.baseAddress }
     var endAddress: PhysAddress { baseAddress + physAddressRegion.size - 1 }
     var regionSize: Int { Int(physAddressRegion.size) }
     var physicalRegion: PhysPageRange { physAddressRegion.physPageRange }
@@ -24,10 +24,10 @@ struct MMIORegion: CustomStringConvertible {
     }
 
     init(physPageRange: PhysPageRange) {
-        self = Self(region: PhysAddressRegion(physPageRange))
+        self = Self(region: PhysRegion(physPageRange))
     }
 
-    init(region: PhysAddressRegion) {
+    init(region: PhysRegion) {
         physAddressRegion = region
     }
 
@@ -86,9 +86,9 @@ struct MMIORegion: CustomStringConvertible {
         hexDump(buffer: sub)
     }
 
-    func including(region: PhysAddressRegion) -> Self {
-        let newRegion = PhysAddressRegion(
-            start: min(physAddressRegion.physAddress, region.physAddress),
+    func including(region: PhysRegion) -> Self {
+        let newRegion = PhysRegion(
+            start: min(physAddressRegion.baseAddress, region.baseAddress),
             end: max(physAddressRegion.endAddress, region.endAddress)
         )
 
