@@ -35,7 +35,7 @@ struct PageMapLevel4Table {
         if let dir = table[index].pageDirectoryPointerTable  { return dir }
         let newPage = alloc(pages: 1)
         newPage.rawBufferPointer.initializeMemory(as: UInt8.self, repeating: 0)
-        let paddr = newPage.address
+        let paddr = newPage.baseAddress
         let entry = PageMapLevel4Entry(address: paddr, readWrite: readWrite, userAccess: userAccess,
             writeThrough: writeThrough, cacheDisable: cacheDisable, noExec: noExec)
         table[index] = entry

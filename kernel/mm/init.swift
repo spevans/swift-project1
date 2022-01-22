@@ -364,7 +364,7 @@ private func mapPhysicalMemory(_ ranges: [MemoryRange]) {
     for (physPageRange, access) in memoryRanges.align(toPageSize: PageSize()) {
         guard access == .readWrite else { continue }
 
-        var pageRangeIterator = PhysPageRangeChunksInterator(physPageRange, pagesPerChunk: maxPagesPerLoop)
+        var pageRangeIterator = PhysPageAlignedRegionChunksInterator(physPageRange, pagesPerChunk: maxPagesPerLoop)
         while let chunk = pageRangeIterator.next() {
             for physPage in chunk {
                 let vaddr = physPage.vaddr

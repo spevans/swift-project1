@@ -24,7 +24,7 @@ class USBTests: XCTestCase {
         XCTAssertEqual(getDescriptorConfigData.count, 59)
 
         let region = PhysRegion(data: getDescriptorConfigData)
-        let mmioRegion = MMIOSubRegion(baseAddress: region.physAddress, count: Int(region.size))
+        let mmioRegion = MMIOSubRegion(baseAddress: region.baseAddress, count: Int(region.size))
         let configDescriptor = try USB.ConfigDescriptor(from: mmioRegion)
 
         print(configDescriptor)
@@ -40,7 +40,7 @@ class USBTests: XCTestCase {
         XCTAssertEqual(getDescriptorConfigData.count, 25)
 
         let region = PhysRegion(data: getDescriptorConfigData)
-        let mmioRegion = MMIOSubRegion(baseAddress: region.physAddress, count: Int(region.size))
+        let mmioRegion = MMIOSubRegion(baseAddress: region.baseAddress, count: Int(region.size))
         let configDescriptor = try USB.ConfigDescriptor(from: mmioRegion)
 
         print(configDescriptor)

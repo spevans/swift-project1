@@ -44,7 +44,7 @@ extension HCD_UHCI {
             }
         }
 
-        var physicalAddress: UInt32 { UInt32(region.physicalRegion.address.value) }
+        var physicalAddress: UInt32 { UInt32(region.physicalRegion.baseAddress.value) }
     }
 
 
@@ -62,13 +62,13 @@ extension HCD_UHCI {
 
         init() {
             let flp = allocIOPage()
-            frameListPage = FrameListPage(region: MMIORegion(physPageRange: flp))
+            frameListPage = FrameListPage(region: MMIORegion(flp))
 
             let _bufferPool32 = allocIOPage()
-            bufferPool32 = MMIORegion(physPageRange: _bufferPool32)
+            bufferPool32 = MMIORegion(_bufferPool32)
 
             let _bufferPool512 = allocIOPage()
-            bufferPool512 = MMIORegion(physPageRange: _bufferPool512)
+            bufferPool512 = MMIORegion(_bufferPool512)
         }
 
         deinit {

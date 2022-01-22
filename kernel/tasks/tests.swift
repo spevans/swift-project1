@@ -11,11 +11,11 @@
 public func cacheTest() {
     let buffer = alloc(pages: 1)
     print("cacheTest buffer:", buffer)
-    if buffer.address.value < 0x100000 || buffer.endAddress.value > 0x1000000 {
+    if buffer.baseAddress.value < 0x100000 || buffer.endAddress.value > 0x1000000 {
         fatalError("Cache test page not in correct region")
     }
     let start = UnsafeMutablePointer<UInt8>(bitPattern: buffer.vaddr)
-    let count = buffer.regionSize
+    let count = buffer.size
     printf("Testing default\n")
     for _ in 1...3 {
         let read = _cacheReadTest(start, UInt64(count), nil)
@@ -55,7 +55,7 @@ public func cacheTest() {
 
     let ioBuffer = allocIOPage()
     let ioStart = UnsafeMutablePointer<UInt8>(bitPattern: ioBuffer.vaddr)
-    let ioCount = ioBuffer.regionSize
+    let ioCount = ioBuffer.size
     printf("Testing IO Page\n")
     for _ in 1...3 {
         let read = _cacheReadTest(ioStart, UInt64(ioCount), nil)

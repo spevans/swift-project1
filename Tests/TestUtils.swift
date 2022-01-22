@@ -79,12 +79,12 @@ func noInterrupt<Result>(_ task: () -> Result) -> Result {
     return result
 }
 
-func mapIORegion(region: PhysPageRange, cacheType: CPU.CacheType = .uncacheable) -> MMIORegion {
-    return MMIORegion(physPageRange: region)
+func mapIORegion(region: PhysPageAlignedRegion, cacheType: CPU.CacheType = .uncacheable) -> MMIORegion {
+    return MMIORegion(region)
 }
 
-func mapRORegion(region: PhysPageRange, cacheType: CPU.CacheType = .writeBack) -> MMIORegion {
-    return MMIORegion(physPageRange: region)
+func mapRORegion(region: PhysPageAlignedRegion, cacheType: CPU.CacheType = .writeBack) -> MMIORegion {
+    return MMIORegion(region)
 }
 
 func mapRORegion(region: PhysRegion) -> MMIORegion {

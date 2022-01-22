@@ -72,7 +72,7 @@
 		B9DEE4FA2323BBC40010F7A0 /* gdb-cmds in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F62323BBC30010F7A0 /* gdb-cmds */; };
 		B9E8F3FB2792FAD4008F3C33 /* ioapic.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7191F2F497800FE6846 /* ioapic.swift */; };
 		B9E8F3FE2792FBEC008F3C33 /* cpu.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7141F2F497800FE6846 /* cpu.swift */; };
-		B9E8F407279315CC008F3C33 /* PhysPageRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F406279315CC008F3C33 /* PhysPageRegion.swift */; };
+		B9E8F407279315CC008F3C33 /* PhysPageAlignedRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F406279315CC008F3C33 /* PhysPageAlignedRegion.swift */; };
 		B9E8F40D27931FE1008F3C33 /* PhysRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F40C27931FE1008F3C33 /* PhysRegion.swift */; };
 		B9E8F41127935B7A008F3C33 /* MemoryRangeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F41027935B7A008F3C33 /* MemoryRangeTests.swift */; };
 		B9E8F41527935C47008F3C33 /* PhysPageRangeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F41427935C47008F3C33 /* PhysPageRangeTests.swift */; };
@@ -81,7 +81,7 @@
 		B9EF91231FC9D14600D14A2F /* amltype2opcodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */; };
 		B9EF91261FC9D6EA00D14A2F /* amlnamedobject.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */; };
 		B9F22F892325009300A6C92B /* NOTES in Resources */ = {isa = PBXBuildFile; fileRef = B9F22F872325009300A6C92B /* NOTES */; };
-		B9F3DADC262188A900971474 /* MemoryRange.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9F3DAD72621887100971474 /* MemoryRange.swift */; };
+		B9F3DADC262188A900971474 /* MemoryRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9F3DAD72621887100971474 /* MemoryRegion.swift */; };
 		B9F5D2CE24C1F58D00A6114C /* vmware11-wsmt.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BA24C1F58C00A6114C /* vmware11-wsmt.aml */; };
 		B9F5D2CF24C1F58D00A6114C /* vmware11-hpet.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BB24C1F58C00A6114C /* vmware11-hpet.dsl */; };
 		B9F5D2D024C1F58D00A6114C /* vmware11-mcfg.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BC24C1F58D00A6114C /* vmware11-mcfg.aml */; };
@@ -277,7 +277,7 @@
 		B9DEE4F32323BA960010F7A0 /* lldb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "lldb-cmds"; sourceTree = "<group>"; };
 		B9DEE4F52323BBC30010F7A0 /* bochsrc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = bochsrc; sourceTree = "<group>"; };
 		B9DEE4F62323BBC30010F7A0 /* gdb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "gdb-cmds"; sourceTree = "<group>"; };
-		B9E8F406279315CC008F3C33 /* PhysPageRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysPageRegion.swift; sourceTree = "<group>"; };
+		B9E8F406279315CC008F3C33 /* PhysPageAlignedRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysPageAlignedRegion.swift; sourceTree = "<group>"; };
 		B9E8F40C27931FE1008F3C33 /* PhysRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysRegion.swift; sourceTree = "<group>"; };
 		B9E8F41027935B7A008F3C33 /* MemoryRangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryRangeTests.swift; sourceTree = "<group>"; };
 		B9E8F41427935C47008F3C33 /* PhysPageRangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysPageRangeTests.swift; sourceTree = "<group>"; };
@@ -286,7 +286,7 @@
 		B9EF91211FC9D14600D14A2F /* amltype2opcodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amltype2opcodes.swift; sourceTree = "<group>"; };
 		B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amlnamedobject.swift; sourceTree = "<group>"; };
 		B9F22F872325009300A6C92B /* NOTES */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = NOTES; sourceTree = "<group>"; };
-		B9F3DAD72621887100971474 /* MemoryRange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryRange.swift; sourceTree = "<group>"; };
+		B9F3DAD72621887100971474 /* MemoryRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryRegion.swift; sourceTree = "<group>"; };
 		B9F5D2BA24C1F58C00A6114C /* vmware11-wsmt.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-wsmt.aml"; sourceTree = "<group>"; };
 		B9F5D2BB24C1F58C00A6114C /* vmware11-hpet.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-hpet.dsl"; sourceTree = "<group>"; };
 		B9F5D2BC24C1F58D00A6114C /* vmware11-mcfg.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-mcfg.aml"; sourceTree = "<group>"; };
@@ -439,7 +439,6 @@
 				B933A7061F2F493800FE6846 /* main.asm */,
 				B933A7081F2F493800FE6846 /* startup.swift */,
 				B933A7051F2F493800FE6846 /* smbios.swift */,
-				B9F3DAD72621887100971474 /* MemoryRange.swift */,
 			);
 			path = init;
 			sourceTree = "<group>";
@@ -467,8 +466,9 @@
 				B933A7471F2F4ABC00FE6846 /* page.swift */,
 				B9FB56EE2778C7E30012198D /* PageSize.swift */,
 				B9793D4E200A571B0013E03B /* symbols.swift */,
+				B9F3DAD72621887100971474 /* MemoryRegion.swift */,
 				B96BBE5626309218009756A8 /* MMIORegion.swift */,
-				B9E8F406279315CC008F3C33 /* PhysPageRegion.swift */,
+				B9E8F406279315CC008F3C33 /* PhysPageAlignedRegion.swift */,
 				B9E8F40C27931FE1008F3C33 /* PhysRegion.swift */,
 			);
 			path = mm;
@@ -941,7 +941,7 @@
 				B98DE1CC264D11490003775C /* PCIRoutingTable.swift in Sources */,
 				B98DE1BA264D052F0003775C /* ACPIGenericAddressStructure.swift in Sources */,
 				B98DE1B1264D02280003775C /* IRQSetting.swift in Sources */,
-				B9F3DADC262188A900971474 /* MemoryRange.swift in Sources */,
+				B9F3DADC262188A900971474 /* MemoryRegion.swift in Sources */,
 				B9568C7D2548C0A400C3F49B /* usb-configdescriptor.swift in Sources */,
 				B9568C7E2548C0A400C3F49B /* usb-controlrequest.swift in Sources */,
 				B9568C7F2548C0A400C3F49B /* usb-devicedescriptor.swift in Sources */,
@@ -950,7 +950,7 @@
 				B9568C812548C0A400C3F49B /* usb-endpointdescriptor.swift in Sources */,
 				B9BDA42126542DBA00A2BCB4 /* PCITests.swift in Sources */,
 				B9568C822548C0A400C3F49B /* usb-interfacedescriptor.swift in Sources */,
-				B9E8F407279315CC008F3C33 /* PhysPageRegion.swift in Sources */,
+				B9E8F407279315CC008F3C33 /* PhysPageAlignedRegion.swift in Sources */,
 				B9568C8C2548E87600C3F49B /* usb-hiddescriptor.swift in Sources */,
 				B9568CB12551819E00C3F49B /* BitmapAllocator.swift in Sources */,
 				B9C2AF2C1FD84D9000E6EFEB /* ReservationManager.swift in Sources */,

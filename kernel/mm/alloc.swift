@@ -13,7 +13,7 @@
 // Linked list of free (4K) pages - Use physical address 0 as 'nil' and marks
 // the end of the list
 private struct FreePageListEntry {
-    var region: PhysPageRange
+    var region: PhysPageAlignedRegion
     var next: FreePageListEntryPtr?
 }
 
@@ -35,7 +35,7 @@ private func initFreeList() -> FreePageListEntryPtr? {
         koops("Cant init free list")
     }
     ptr.pointee = FreePageListEntry(
-        region: PhysPageRange(heap_phys, pageSize: pageSize, pageCount: pageCount),
+        region: PhysPageAlignedRegion(heap_phys, pageSize: pageSize, pageCount: pageCount),
         next: nil
     )
     // Use single argument versions of kprintf() which has specialisation for
@@ -55,27 +55,27 @@ public func alloc_pages(pages: Int) -> UnsafeMutableRawPointer {
 @_cdecl("free_pages")
 public func freePages(at address: VirtualAddress, count: Int) {
     let paddr = virtualToPhys(address: address)!
-    addPages(PhysPageRange(paddr, pageSize: PageSize(), pageCount: count), toList: &freePageListHead)
+    addPages(PhysPageAlignedRegion(paddr, pageSize: PageSize(), pageCount: count), toList: &freePageListHead)
 }
 
 
-func alloc(pages: Int) -> PhysPageRange {
+func alloc(pages: Int) -> PhysPageAlignedRegion {
     return alloc(pages: pages, fromList: &freePageListHead)
 }
 
 
-func freePages(pages: PhysPageRange) {
+func freePages(pages: PhysPageAlignedRegion) {
     addPages(pages, toList: &freePageListHead)
 }
 
 
 // FIXME, these needs to take a `pages` argument to allocate contiguous pages
-func allocIOPage() -> PhysPageRange {
+func allocIOPage() -> PhysPageAlignedRegion {
     return alloc(pages: 1, fromList: &ioPagesListHead)
 }
 
 // TODO - check the pages returned are valid for IO
-func freeIOPage(_ pages: PhysPageRange) {
+func freeIOPage(_ pages: PhysPageAlignedRegion) {
     addPages(pages, toList: &ioPagesListHead)
 }
 
@@ -93,17 +93,17 @@ func addPagesToFreePageList(_ ranges: [MemoryRange]) {
 
 
 // Called from kernel/mm/init
-func addPagesToFreePageList(pages: PhysPageRange) {
+func addPagesToFreePageList(pages: PhysPageAlignedRegion) {
 
-    func splitRange(_ pageRange: PhysPageRange, at address: PhysAddress) -> (lower: PhysPageRange?, upper: PhysPageRange?) {
+    func splitRange(_ pageRange: PhysPageAlignedRegion, at address: PhysAddress) -> (lower: PhysPageAlignedRegion?, upper: PhysPageAlignedRegion?) {
         if pageRange.endAddress < address {
             return (pageRange, nil)
         }
-        if pageRange.address >= address {
+        if pageRange.baseAddress >= address {
             return (nil, pageRange)
         }
         else {
-            let lowerPageCount = (address - pageRange.address) / Int(pageRange.pageSize.size)
+            let lowerPageCount = (address - pageRange.baseAddress) / Int(pageRange.pageSize.size)
             let (lower, upper) = pageRange.splitRegion(withFirstRegionCount: lowerPageCount)
             print("addPagesToFreePageList split \(pageRange) into \(lower) and \(upper)")
             return (lower, upper)
@@ -135,7 +135,7 @@ func freeIOPageCount() -> Int {
 }
 
 // Free Page List management
-private func addPages(_ pages: PhysPageRange, toList list: inout FreePageListEntryPtr?) {
+private func addPages(_ pages: PhysPageAlignedRegion, toList list: inout FreePageListEntryPtr?) {
 
     let ptr = FreePageListEntryPtr(bitPattern: pages.vaddr)!
     let entry = FreePageListEntry(region: pages, next: list)
@@ -158,7 +158,7 @@ private func freePageCount(onList list: FreePageListEntryPtr?) -> Int {
 }
 
 
-private func alloc(pages: Int, fromList list: inout FreePageListEntryPtr?) -> PhysPageRange {
+private func alloc(pages: Int, fromList list: inout FreePageListEntryPtr?) -> PhysPageAlignedRegion {
     precondition(pages > 0)
 
     var head = list

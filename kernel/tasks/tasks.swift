@@ -71,7 +71,7 @@ public func yield() -> Int {
 
 final class Task: CustomStringConvertible {
     let name: String
-    let stackPage: PhysPageRange
+    let stackPage: PhysPageAlignedRegion
     var state: UnsafeMutablePointer<exception_regs>
     let pid: UInt
     var rsp: UnsafeMutablePointer<UInt>

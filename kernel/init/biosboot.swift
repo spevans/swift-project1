@@ -201,7 +201,7 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
         ranges.insertRange(MemoryRange(type: .Reserved, start: PhysAddress(0), size: PAGE_SIZE))
         ranges.insertRange(MemoryRange(type: .FrameBuffer, start: PhysAddress(0xA0000), size: UInt(128 * kb)))
         let apicRegion = APIC.addressRegion()
-        let apicRange = MemoryRange(type: .MemoryMappedIO, start: apicRegion.address, endAddress: apicRegion.endAddress)
+        let apicRange = MemoryRange(type: .MemoryMappedIO, start: apicRegion.baseAddress, endAddress: apicRegion.endAddress)
         ranges.insertRange(apicRange)
         print("Added APIC into memory ranges")
         for range in ranges {

@@ -22,14 +22,14 @@ struct PhysRegion {
         size = UInt(end - start) + 1
     }
 
-    init(_ physPageRange: PhysPageRange) {
-        self.baseAddress = physPageRange.address
-        self.size = physPageRange.regionSize
+    init(_ region: PhysPageAlignedRegion) {
+        self.baseAddress = region.baseAddress
+        self.size = region.size
     }
 
     var endAddress: PhysAddress { baseAddress + (size - 1) }
-    var physPageRange: PhysPageRange {
-        PhysPageRange(start: baseAddress, size: size, pageSize: PageSize())
+    var physPageAlignedRegion: PhysPageAlignedRegion {
+        PhysPageAlignedRegion(start: baseAddress, size: size, pageSize: PageSize())
     }
 
     func contains(_ other: Self) -> Bool {

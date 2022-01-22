@@ -17,14 +17,16 @@ struct MMIORegion: CustomStringConvertible {
     var baseAddress: PhysAddress { physAddressRegion.baseAddress }
     var endAddress: PhysAddress { baseAddress + physAddressRegion.size - 1 }
     var regionSize: Int { Int(physAddressRegion.size) }
-    var physicalRegion: PhysPageRange { physAddressRegion.physPageRange }
+    var physicalRegion: PhysPageAlignedRegion {
+        physAddressRegion.physPageAlignedRegion
+    }
 
     var description: String {
         "MMIO @ \(physicalRegion) [\(physAddressRegion)]"
     }
 
-    init(physPageRange: PhysPageRange) {
-        self = Self(region: PhysRegion(physPageRange))
+    init(_ region: PhysPageAlignedRegion) {
+        self = Self(region: PhysRegion(region))
     }
 
     init(region: PhysRegion) {
@@ -96,7 +98,7 @@ struct MMIORegion: CustomStringConvertible {
             return self
         }
 
-        let (before, after) = newRegion.physPageRange.extraRanges(containing: physicalRegion)
+        let (before, after) = newRegion.physPageAlignedRegion.extraRanges(containing: physicalRegion)
         if let range = before {
             _ = mapRORegion(region: range)
         }

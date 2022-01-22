@@ -36,7 +36,7 @@ struct PageDirectoryPointerTable {
         if let dir = table[index].pageDirectory { return dir }
         let newPage = alloc(pages: 1)
         newPage.rawBufferPointer.initializeMemory(as: UInt8.self, repeating: 0)
-        let paddr = newPage.address
+        let paddr = newPage.baseAddress
         let entry = PageDirectoryPointerTableEntry(address: paddr, readWrite: readWrite, userAccess: userAccess,
             writeThrough: writeThrough, cacheDisable: cacheDisable, noExec: noExec)
         table[index] = entry

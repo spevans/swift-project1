@@ -155,15 +155,15 @@ class MemoryRangeTests: XCTestCase {
     func testAlignToPageSize() {
 
         struct MappableRange: Equatable {
-            let physRange: PhysPageRange
+            let physRange: PhysPageAlignedRegion
             let access: MemoryType.Access
 
             init(_ range: (UInt, UInt, MemoryType.Access)) {
-                physRange = PhysPageRange(PhysAddress(range.0), pageSize: PageSize(), pageCount: Int(range.1 / UInt(PAGE_SIZE)))
+                physRange = PhysPageAlignedRegion(PhysAddress(range.0), pageSize: PageSize(), pageCount: Int(range.1 / UInt(PAGE_SIZE)))
                 access = range.2
             }
 
-            init(_ range: (PhysPageRange, MemoryType.Access)) {
+            init(_ range: (PhysPageAlignedRegion, MemoryType.Access)) {
                 physRange = range.0
                 access = range.1
             }

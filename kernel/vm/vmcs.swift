@@ -14,12 +14,12 @@ final class VMCS {
 
     let vmExecPrimary = VMXPrimaryProcessorBasedControls()
     let vmExecSecondary: VMXSecondaryProcessorBasedControls?
-    let page: PhysPageRange
+    let page: PhysPageAlignedRegion
     var vcpu: vcpu_info = vcpu_info()
 
     
     var physicalAddress: UInt64 {
-        let physAddr = page.address
+        let physAddr = page.baseAddress
         let mask = UInt(maskFromBitCount: Int(VMCS.vmxInfo.physAddressWidthMaxBits))
         let addr = physAddr.value & mask
         return UInt64(addr)

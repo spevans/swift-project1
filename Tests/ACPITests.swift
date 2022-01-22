@@ -68,8 +68,8 @@ fileprivate func createACPI(files: [String]) -> (ACPI, UnsafeMutableRawPointer) 
     var offset = 0
     for data in dataBlocks {
 
-        let region = PhysPageRange(data: data)
-        let paddr = region.address
+        let region = PhysPageAlignedRegion(data: data)
+        let paddr = region.baseAddress
         acpi.parseEntry(physAddress: paddr, vendor: "Foo", product: "Bar")
         offset += data.count
     }

@@ -1,36 +1,32 @@
 //
-//  kernel/mm/PhysPageRegion.swift
+//  kernel/mm/PhysPageAlignedRegion.swift
 //
 //  Created by Simon Evans on 15/01/2022.
 //  Copyright © 2022 Simon Evans. All rights reserved.
 //
 //  Physical Page Range aligned to a page
 
-#if TEST
-import Foundation
-#endif
-
 // A page aligned physical address region storing the start address, page size and page count.
-struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
+struct PhysPageAlignedRegion: Hashable, Sequence, CustomStringConvertible {
     typealias Stride = Int
 
     // Use the lower 2 bits to store the page size, 0 = 4K 1 = 2MB 2 = 1G
-    private let addressBits: UInt
+    fileprivate let addressBits: UInt
     let pageCount: Int
 
-    var address: PhysAddress { PhysAddress(addressBits & 0xffff_ffff_ffff_f000) }
+    var baseAddress: PhysAddress { PhysAddress(addressBits & 0xffff_ffff_ffff_f000) }
     var pageSize: PageSize { PageSize(encoding: Int(addressBits & 0xfff)) }
 
-    var regionSize: UInt { pageSize.regionSize(forPageCount: pageCount) }
+    var size: UInt { pageSize.regionSize(forPageCount: pageCount) }
 
     var endAddress: PhysAddress {
         // Avoid overflow if range is the full 64bit region.
         let regionSizeMinusOne = pageSize.regionSize(forPageCount: pageCount - 1) + (pageSize.size - 1)
-        return PhysAddress(address.value + regionSizeMinusOne)
+        return PhysAddress(baseAddress.value + regionSizeMinusOne)
     }
 
     var description: String {
-        var result = "0x" + String(address.value, radix: 16) + " - 0x" + String(endAddress.value, radix: 16)
+        var result = "0x" + String(baseAddress.value, radix: 16) + " - 0x" + String(endAddress.value, radix: 16)
         result += " [\(pageCount) * 0x\(String(pageSize.size, radix: 16))]"
         return result
     }
@@ -53,33 +49,13 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
         self.pageCount = pageCount
     }
 
-#if TEST
-    // For testing, create a region with some data in to emulate firmware etc
-    // This will leak but its only used for testing so keeping the data around
-    // until the end of the tests is fine.
-    init(data: Data, pageSize: PageSize = PageSize()) {
-        var ptr: UnsafeMutableRawPointer? = nil
-        let err = posix_memalign(&ptr, Int(pageSize.size), data.count)
-        guard err == 0, let ptr2 = ptr else {
-            fatalError("posix_mmalign, alignment: \(pageSize.size), size: \(data.count) failed: \(err)")
-        }
-        let dest = ptr2.bindMemory(to: UInt8.self, capacity: data.count)
-        data.copyBytes(to: UnsafeMutablePointer<UInt8>(dest), count: data.count)
-        let address = dest.address
-        let physAddress = address - PHYSICAL_MEM_BASE
-
-        self.addressBits = physAddress | UInt(pageSize.encoding)
-        self.pageCount = pageSize.pageCountCovering(size: data.count)
-    }
-#endif
-
     private init(addressBits: UInt, pageCount: Int) {
         self.addressBits = addressBits
         self.pageCount = pageCount
     }
 
     var vaddr: VirtualAddress {
-        return address.vaddr
+        return baseAddress.vaddr
     }
 
     var rawPointer: UnsafeMutableRawPointer {
@@ -87,7 +63,7 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
     }
 
     var rawBufferPointer: UnsafeMutableRawBufferPointer {
-        return UnsafeMutableRawBufferPointer(start: rawPointer, count: Int(regionSize))
+        return UnsafeMutableRawBufferPointer(start: rawPointer, count: Int(size))
     }
 
     func splitRegion(withFirstRegionCount count1: Int) -> (Self, Self) {
@@ -95,25 +71,17 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
         let count2 = pageCount - count1
         precondition(count2 > 0)
 
-        let region1 = PhysPageRange(addressBits: addressBits, pageCount: count1)
-        let region2 = PhysPageRange(addressBits: addressBits + region1.regionSize, pageCount: count2)
+        let region1 = PhysPageAlignedRegion(addressBits: addressBits, pageCount: count1)
+        let region2 = PhysPageAlignedRegion(addressBits: addressBits + region1.size, pageCount: count2)
         return (region1, region2)
     }
 
-    func makeIterator() -> PhysPageRangeIterator {
-        return PhysPageRangeIterator(self)
-    }
-
-    func distance(to other: PhysPageRange) -> Int {
-        return pageSize.pageCountCovering(size: Int(other.address.value - address.value))
-    }
-
-    public var _cVarArgEncoding: [Int] {
-        return _encodeBitsAsWords(address)
+    func makeIterator() -> PhysPageAlignedRegionIterator {
+        return PhysPageAlignedRegionIterator(self)
     }
 
     func contains(_ other: Self) -> Bool {
-        return address <= other.address && endAddress >= other.endAddress
+        return baseAddress <= other.baseAddress && endAddress >= other.endAddress
     }
 
     func extraRanges(containing other: Self) -> (Self?, Self?) {
@@ -123,9 +91,9 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
         let before: Self?
         let after: Self?
 
-        if address < other.address {
-            let size = UInt(other.address - address)
-            before = Self(start: address, size: size, pageSize: pageSize)
+        if baseAddress < other.baseAddress {
+            let size = UInt(other.baseAddress - baseAddress)
+            before = Self(start: baseAddress, size: size, pageSize: pageSize)
         } else {
             before = nil
         }
@@ -139,9 +107,8 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
         return (before, after)
     }
 
-
     // The smallest pagesize should always be usable to create a range over the whole space
-    static func createRanges(startAddress: PhysAddress, endAddress: PhysAddress, pageSizes: [PageSize]) -> [PhysPageRange] {
+    static func createRanges(startAddress: PhysAddress, endAddress: PhysAddress, pageSizes: [PageSize]) -> [PhysPageAlignedRegion] {
         guard startAddress.value < MAX_PHYSICAL_MEMORY, endAddress.value < MAX_PHYSICAL_MEMORY else {
             fatalError("Out of range physical region")
         }
@@ -166,11 +133,11 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
 
         precondition(roundedStartAddress.isPageAligned) // Aligned to the smallest page size at least.
 
-        var result: [PhysPageRange] = []
+        var result: [PhysPageAlignedRegion] = []
         var centralStart = PhysAddress(0)
         var centralEnd = PhysAddress(0)
         var pageSizes = pageSizes.sorted { $0 > $1 }
-        var centralRange: PhysPageRange?
+        var centralRange: PhysPageAlignedRegion?
 
         while centralRange == nil {
             let pageSize = pageSizes.removeFirst()
@@ -185,7 +152,7 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
 
             let pageCount = UInt((roundedEndAddress - roundedStartAddress) + 1) / pageSize.size
             if pageCount == 0 { continue }
-            let range = PhysPageRange(centralStart, pageSize: pageSize, pageCount: Int(pageCount))
+            let range = PhysPageAlignedRegion(centralStart, pageSize: pageSize, pageCount: Int(pageCount))
             centralRange = range
             centralEnd = range.endAddress
         }
@@ -196,7 +163,7 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
                 if start >= centralStart { continue }
                 let pageCount = (centralStart - start) / Int(pageSize.size)
 
-                let range = PhysPageRange(start, pageSize: pageSize, pageCount: pageCount)
+                let range = PhysPageAlignedRegion(start, pageSize: pageSize, pageCount: pageCount)
                 result.append(range)
                 centralStart = start
             }
@@ -208,57 +175,81 @@ struct PhysPageRange: CVarArg, Hashable, Sequence, CustomStringConvertible {
             for pageSize in pageSizes {
                 let pageCount = UInt(roundedEndAddress - centralEnd) / pageSize.size
                 if pageCount == 0  { continue }
-                let range = PhysPageRange(centralEnd + 1, pageSize: pageSize, pageCount: Int(pageCount))
+                let range = PhysPageAlignedRegion(centralEnd + 1, pageSize: pageSize, pageCount: Int(pageCount))
                 result.append(range)
                 centralEnd = centralEnd + (pageSize.size * pageCount)
             }
         }
 
-        result.sort { $0.address < $1.address }
-        precondition(result.first!.address == roundedStartAddress)
+        result.sort { $0.baseAddress < $1.baseAddress }
+        precondition(result.first!.baseAddress == roundedStartAddress)
         precondition(result.last!.endAddress == roundedEndAddress)
         return result
     }
 }
 
-
-struct PhysPageRangeIterator: IteratorProtocol {
+struct PhysPageAlignedRegionIterator: IteratorProtocol {
     typealias Element = PhysAddress
-    private let physPageRange: PhysPageRange
+    private let region: PhysPageAlignedRegion
     private var currentPage: PhysAddress
 
-    init(_ physPageRange: PhysPageRange) {
-        self.physPageRange = physPageRange
-        currentPage = physPageRange.address
+    init(_ region: PhysPageAlignedRegion) {
+        self.region = region
+        currentPage = region.baseAddress
     }
 
     mutating func next() -> Element? {
-        guard currentPage < physPageRange.endAddress else { return nil }
-        defer { currentPage += physPageRange.pageSize.size }
+        guard currentPage < region.endAddress else { return nil }
+        defer { currentPage += region.pageSize.size }
         return currentPage
     }
 }
 
-// Generate PhysPageRanges with fixed pageCount from a large PhysPageRange
+// Generate PhysPageAlignedRegions with fixed pageCount from a large PhysPageAlignedRegion
 // The last element may have pageCount < pagesPerChunk
-struct PhysPageRangeChunksInterator: IteratorProtocol {
-    typealias Element = PhysPageRange
-    private var physPageRange: PhysPageRange?
+struct PhysPageAlignedRegionChunksInterator: IteratorProtocol {
+    typealias Element = PhysPageAlignedRegion
+    private var region: PhysPageAlignedRegion?
     private let pageCount: Int
 
 
-    init(_ physPageRange: PhysPageRange, pagesPerChunk: Int) {
-        self.physPageRange = physPageRange
+    init(_ region: PhysPageAlignedRegion, pagesPerChunk: Int) {
+        self.region = region
         self.pageCount = pagesPerChunk
     }
 
     mutating func next() -> Element? {
-        guard var pageRange = physPageRange else { return nil }
-        if pageRange.pageCount <= self.pageCount {
-            physPageRange = nil
+        guard var pageRegion = region else { return nil }
+        if pageRegion.pageCount <= self.pageCount {
+            region = nil
         } else {
-            (pageRange, self.physPageRange) = pageRange.splitRegion(withFirstRegionCount: self.pageCount)
+            (pageRegion, self.region) = pageRegion.splitRegion(withFirstRegionCount: self.pageCount)
         }
-        return pageRange
+        return pageRegion
     }
 }
+
+#if TEST
+import Foundation
+
+extension PhysPageAlignedRegion {
+    // For testing, create a region with some data in to emulate firmware etc
+    // This will leak but its only used for testing so keeping the data around
+    // until the end of the tests is fine.
+    init(data: Data, pageSize: PageSize = PageSize()) {
+        var ptr: UnsafeMutableRawPointer? = nil
+        let err = posix_memalign(&ptr, Int(pageSize.size), data.count)
+        guard err == 0, let ptr2 = ptr else {
+            fatalError("posix_mmalign, alignment: \(pageSize.size), size: \(data.count) failed: \(err)")
+        }
+        let dest = ptr2.bindMemory(to: UInt8.self, capacity: data.count)
+        data.copyBytes(to: UnsafeMutablePointer<UInt8>(dest), count: data.count)
+        let address = dest.address
+        let physAddress = address - PHYSICAL_MEM_BASE
+
+        self.addressBits = physAddress | UInt(pageSize.encoding)
+        self.pageCount = pageSize.pageCountCovering(size: data.count)
+    }
+}
+
+#endif
