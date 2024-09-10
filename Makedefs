@@ -3,20 +3,33 @@ NASM := nasm
 NASM_FLAGS := -Werror -p$(TOPDIR)/include/macros.asm
 MODULE_DIR := $(TOPDIR)/modules
 GITVER := $(shell git rev-parse HEAD)
+CWD=$(shell pwd)
 
 # The normal swift compiler
 SWIFT := swift
 
 # The path to the kernel-lib swift compiler
-KSWIFTDIR := $(shell echo ~/kstdlib-20190906)
+KSWIFTDIR := /root/kstdlib-20190906
 KSWIFT := $(KSWIFTDIR)/usr/bin/swift
 KSWIFTC := $(KSWIFTDIR)/usr/bin/swiftc
 KSWIFTLIBDIR := $(KSWIFTDIR)/usr/lib/swift_static/linux
 KSWIFTLIBS := $(KSWIFTLIBDIR)/libswiftCore.a $(KSWIFTLIBDIR)/x86_64/swiftrt.o
 KSWIFTC_FLAGS := -gnone -Xfrontend -disable-red-zone -Xcc -mno-red-zone -Xfrontend -mcode-model=kernel -Xcc -mcmodel=kernel -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -std=gnu11 -Xfrontend -warn-long-function-bodies=60000 -DKERNEL -Xcc -DKERNELLIB=1
 
-CC := $(KSWIFTDIR)/usr/bin/clang
+CC := clang
 CFLAGS := -ggdb -Wall -std=gnu11 -Wextra -Werror -fno-builtin -fno-stack-protector -fno-omit-frame-pointer -fno-common -mno-red-zone -mcmodel=kernel -I$(TOPDIR)/include
+
+ifeq ($(UNAME_S), Linux)
+	RUNNER=
+	CC=clang
+	LD=ld
+	OBJCOPY=objcopy
+ else
+	RUNNER=docker run --platform linux/amd64  --rm -v $(CWD):$(CWD) -w $(CWD) -t  swift-kstdlib
+	CC=clang
+	LD=x86_64-elf-ld
+	OBJCOPY=x86_64-elf-objcopy
+endif
 
 ifndef USE_FP
 	CFLAGS := $(CFLAGS) -mno-mmx -mno-sse -mno-sse2 -ffreestanding

@@ -14,7 +14,6 @@
 #include <string.h>
 #include <stdint.h>
 #endif
-#include <assert.h>
 
 
 void early_print_char(const char ch);
@@ -178,7 +177,8 @@ _do_number(union data_value value, int precision, int width, int len,
                         _print_char(print_func, data, &count, '-');
                         len++;
                         if (value.signed_v == INTMAX_MIN) {
-                                number = -INTMAX_MIN;
+                                // This give the +value as only top bit is set
+                                number = INTMAX_MIN;
                         } else {
                                 number = (uintmax_t)(0 - value.signed_v);
                         }
@@ -667,7 +667,6 @@ m_print_char(void *buf_p, char ch)
         if (buf->count + 1 >= buf->max_len) {
                 char *newbuffer = malloc(buf->max_len * 2);
                 size_t newlen = malloc_usable_size(newbuffer);
-                assert(newlen > buf->max_len);
 
                 memcpy(newbuffer, buf->data, buf->count);
                 free(buf->data);

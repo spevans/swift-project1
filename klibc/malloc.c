@@ -181,11 +181,11 @@ set_bitmap_entry(struct slab_header *slab, int bit_idx)
         int idx = bit_idx / 64;
         int bit = bit_idx % 64;
         uint64_t mask = 1 << bit;
-        debugf("set_bitmap_entry: bit_idx=%d idx=%d bit=%d bm: %16.16lx %16.16lx mask: %"PRIx64 "\n",
+        debugf("set_bitmap_entry: bit_idx=%d idx=%d bit=%d bm: %16.16lx %16.16lx mask: %lx\n",
                bit_idx, idx, bit, slab->allocation_bm[1],
                slab->allocation_bm[0], mask);
         slab->allocation_bm[idx] |= mask;
-        debugf("set_bitmap_entry: bm[0]=%"PRIx64 " bm[1]=%"PRIx64 "\n",
+        debugf("set_bitmap_entry: bm[0]=%lx bm[1]=%lx\n",
                slab->allocation_bm[0], slab->allocation_bm[1]);
 }
 
@@ -197,12 +197,12 @@ clear_bitmap_entry(struct slab_header *slab, int bit_idx)
         int idx = bit_idx / 64;
         int bit = bit_idx % 64;
         uint64_t mask = 1 << bit;
-        debugf("clear_bitmap_entry: bit_idx=%d idx=%d bit=%d bm: %16.16lx %16.16lx mask: %"PRIx64 "\n",
+        debugf("clear_bitmap_entry: bit_idx=%d idx=%d bit=%d bm: %16.16lx %16.16lx mask: %lx\n",
                bit_idx, idx, bit, slab->allocation_bm[1],
                slab->allocation_bm[0], mask);
         slab->allocation_bm[idx] &= ~mask;
 
-        debugf("clear_bitmap_entry: bm[0]=%"PRIx64 " bm[1]=%"PRIx64 "\n",
+        debugf("clear_bitmap_entry: bm[0]=%lx bm[1]=%lx\n",
                slab->allocation_bm[0], slab->allocation_bm[1]);
 }
 
@@ -434,7 +434,7 @@ free(void *ptr)
         } else {
                 validate_is_slab(__func__, slab, (uintptr_t)ptr);
                 size_t offset = (ptr - (void *)slab);
-                debugf("slab=%p size=%lu  offset=%"PRIu64 "\n", slab, slab->slab_size, offset);
+                debugf("slab=%p size=%lu  offset=%lu\n", slab, slab->slab_size, offset);
                 if (unlikely(offset < 64)) {
                         koops("free(%p) offset = %lu", ptr, offset);
                 }
@@ -449,13 +449,13 @@ free(void *ptr)
                         set_bitmap_entry(slab, bit_idx);
                         slab->free_cnt++;
                 } else {
-                        koops("%p is not allocated, alloc=%"PRIx64 "\n",
+                        koops("%p is not allocated, alloc=%lx\n",
                               ptr, slab->allocation_bm[0]);
                 }
 #ifdef MALLOC_DEBUG
                 memset(ptr, 0xAA, slab->slab_size);
                 update_checksum(slab);
-                debugf("\ncs=%"PRIx64 "\n", slab->checksum);
+                debugf("\ncs=%lx\n", slab->checksum);
 #else
                 debugf("\n");
 #endif

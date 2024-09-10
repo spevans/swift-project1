@@ -15,7 +15,6 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <limits.h>
-#include <inttypes.h>
 #include "x86funcs.h"
 #include "mm.h"
 

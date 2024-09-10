@@ -8,7 +8,7 @@ OBJS := misc.o string.o io.o kprintf.o printf.o pthread.o \
 all: klibc.o
 
 klibc.o: $(OBJS) ../include/klibc.h ../include/x86funcs.h ../include/x86defs.h ../include/mm.h
-	ld -r -no_eh_labels -o $@ $(OBJS)
+	$(LD) -r -o $@ $(OBJS)
 
 clean:
 	rm -f *.o *.s

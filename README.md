@@ -43,11 +43,20 @@ the Dockerfile in `Docker/Dockerfile`.
 $ docker build --tag=swift-kstdlib Docker
 ```
 
+# On macOS
+```
+brew install nasm x86_64-elf-binutils qemu xorriso mtools
+```
+
+From Xcode, open `project1.xcodeproj`, select `kernel` in the target menu and then `Product -> Build`
+or cmd-B to build it.
+
 To build the kernel and disk images from the command line:
 ```
 $ docker run --rm -v `pwd`:`pwd` -w `pwd` -t swift-kstdlib make iso
 ```
- or using Xcode, open `project1.xcodeproj`, select `kernel` in the target menu and then `Product → Build`
+
+When using Xcode, open `project1.xcodeproj`, select `kernel` in the target menu and then `Product → Build`
 or ⌘-B to build it.
 
 

@@ -183,7 +183,7 @@ validate_elf_header(struct elf_file *file)
                 return 0;
         }
 
-        if (e_ident[EI_OSABI] != ELFOSABI_SYSV) {
+        if (e_ident[EI_OSABI] != ELFOSABI_NONE) {
                 uprintf("Error: OS ABI is not linux\n");
                 return 0;
         }

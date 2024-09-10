@@ -1,5 +1,5 @@
 # Run using: docker build --tag=swift-kstdlib  .
-FROM swift:5.0.2-bionic
+FROM --platform=linux/amd64 swift:5.10-focal
 
 ARG KSTDLIB_VERSION=20190906
 ENV KSTDLIB_VERSION=$KSTDLIB_VERSION
@@ -14,6 +14,9 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && ap
     dosfstools \
     make \
     curl \
+    libtinfo5 \
+    less \
+    git \
     && rm -r /var/lib/apt/lists/*
 
 
@@ -41,9 +44,3 @@ RUN for tgz in `ls /tmp/*.tgz`;          \
            rm -f $tgz                  ; \
        fi;                               \
     done
-
-
-RUN ~/swift/usr/bin/swift --version \
-    && ~/swift/usr/bin/clang --version \
-    && ~/kstdlib-${KSTDLIB_VERSION}/usr/bin/swift --version \
-    && ~/kstdlib-${KSTDLIB_VERSION}/usr/bin/clang --version

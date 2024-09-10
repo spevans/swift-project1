@@ -4,6 +4,7 @@ OUTPUT_FORMAT(binary)
 SECTIONS
 {
   .text.start (0x0000) : {
+    boot/uefi/efi_entry.o
     *(.text .text.*)
     *(.rodata .rodata.*)
     *(.data .data.*)
