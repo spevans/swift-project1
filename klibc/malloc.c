@@ -26,13 +26,15 @@
 
 #define DEBUG 0
 #include <stdatomic.h>
-#include <assert.h>
+//#include <assert.h>
 #include "klibc.h"
 #include "mm.h"
 
 //#define MALLOC_DEBUG
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+
+
 
 
 struct slab_block_info {

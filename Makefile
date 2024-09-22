@@ -4,7 +4,10 @@ include $(TOPDIR)/Makedefs
 ALL_SOURCES := $(shell find boot klibc kernel include -name '*.swift' -o -name '*.asm' -o -name '*.[ch]')
 KERNEL_OBJS := kernel/kernel.o klibc/klibc.o
 SUBDIRS := boot kernel klibc
-EXTRA_LIBS := $(KSWIFTDIR)/usr/lib/swift/clang/lib/linux/libclang_rt.builtins-x86_64.a
+# See https://github.com/swiftlang/swift/issues/75678 for propper fix (when it is fixed!) for the Unicode Data Tables
+#EXTRA_LIBS := $(KSWIFTLIBDIR)/libswiftUnicodeDataTables.a
+EXTRA_LIBS :=  /Users/spse/src/swift-project/build/Ninja-DebugAssert/swift-macosx-arm64/stdlib/public/stubs/Unicode/CMakeFiles/embedded-unicode-x86_64-unknown-none-elf.dir/*.o
+
 
 .PHONY: all iso clean kernel
 
@@ -18,7 +21,7 @@ output/kernel.elf: $(ALL_SOURCES)
 	$(RUNNER) make -C klibc
 	$(RUNNER) make -C kernel
 	# initial link must be via ELF to produce a GOT
-	$(RUNNER) ld --no-demangle -static -Tlinker.script -Map=output/kernel.map -z max-page-size=0x1000 -o output/kernel.elf $(KERNEL_OBJS) $(KSWIFTLIBS) $(EXTRA_LIBS)
+	$(LD) --no-demangle -static -Tlinker.script -Map=output/kernel.map -z max-page-size=0x1000 -o output/kernel.elf $(KERNEL_OBJS) $(KSWIFTLIBS) $(EXTRA_LIBS)
 
 
 output/kernel.dmp: output/kernel.elf

@@ -9,15 +9,15 @@ CWD=$(shell pwd)
 SWIFT := swift
 
 # The path to the kernel-lib swift compiler
-KSWIFTDIR := /root/kstdlib-20190906
-KSWIFT := $(KSWIFTDIR)/usr/bin/swift
-KSWIFTC := $(KSWIFTDIR)/usr/bin/swiftc
-KSWIFTLIBDIR := $(KSWIFTDIR)/usr/lib/swift_static/linux
-KSWIFTLIBS := $(KSWIFTLIBDIR)/libswiftCore.a $(KSWIFTLIBDIR)/x86_64/swiftrt.o
-KSWIFTC_FLAGS := -gnone -Xfrontend -disable-red-zone -Xcc -mno-red-zone -Xfrontend -mcode-model=kernel -Xcc -mcmodel=kernel -parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -warnings-as-errors -Xcc -Wall -Xcc -Wextra -Xcc -std=gnu11 -Xfrontend -warn-long-function-bodies=60000 -DKERNEL -Xcc -DKERNELLIB=1
+KSWIFTDIR := /Users/spse/src/swift-project/build/Ninja-DebugAssert/swift-macosx-arm64
+#KSWIFTDIR := /Users/spse/Library/Developer/Toolchains/swift-DEVELOPMENT-SNAPSHOT-2024-11-09-a.xctoolchain/usr
+KSWIFT := $(KSWIFTDIR)/bin/swift
+KSWIFTC := $(KSWIFTDIR)/bin/swiftc
+KSWIFTLIBDIR := $(KSWIFTDIR)/lib/swift/embedded/x86_64-unknown-none-elf/
+KSWIFTLIBS := 
 
 CC := clang
-CFLAGS := -ggdb -Wall -std=gnu11 -Wextra -Werror -fno-builtin -fno-stack-protector -fno-omit-frame-pointer -fno-common -mno-red-zone -mcmodel=kernel -I$(TOPDIR)/include
+CFLAGS := -ggdb -Wall -std=gnu11 -Wextra -Werror -target x86_64-unknown-none-elf -ffreestanding -fno-stack-protector -fno-omit-frame-pointer -fno-common -mno-red-zone -mcmodel=kernel  -mno-mmx -mno-sse -mno-sse2 -I$(TOPDIR)/include
 
 ifeq ($(UNAME_S), Linux)
 	RUNNER=
@@ -25,16 +25,16 @@ ifeq ($(UNAME_S), Linux)
 	LD=ld
 	OBJCOPY=objcopy
  else
-	RUNNER=docker run --platform linux/amd64  --rm -v $(CWD):$(CWD) -w $(CWD) -t  swift-kstdlib
+	RUNNER= #docker run --platform linux/amd64  --rm -v $(CWD):$(CWD) -w $(CWD) -t  swift-kstdlib
 	CC=clang
 	LD=x86_64-elf-ld
 	OBJCOPY=x86_64-elf-objcopy
 endif
 
-ifndef USE_FP
-	CFLAGS := $(CFLAGS) -mno-mmx -mno-sse -mno-sse2 -ffreestanding
-	KSWIFTC_FLAGS := $(KSWIFTC_FLAGS) -Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2 -Xcc -ffreestanding -Xcc -mcmodel=kernel
-endif
+#ifndef USE_FP
+#	CFLAGS := $(CFLAGS) -mno-mmx -mno-sse -mno-sse2 -ffreestanding
+#	KSWIFTC_FLAGS := $(KSWIFTC_FLAGS) -Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2 -Xcc -ffreestanding -Xcc -mcmodel=kernel
+#endif
 
 
 ifdef BUILD_ONONE

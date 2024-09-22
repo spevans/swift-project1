@@ -11,7 +11,7 @@
 #include "klibc.h"
 
 #define _UNISTD_H   // Avoid including all of unistd.h
-#include <bits/confname.h>
+//#include <bits/confname.h>
 #include <elf.h>
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -71,9 +71,9 @@ klibc_start()
         }
 }
 
-
+// FIXME: This is not random!!!
 void
-_klibc_random(void *buffer, size_t count)
+arc4random_buf(void *buffer, size_t count)
 {
         char *p = buffer;
         for (size_t i = 0; i < count; i++) {
@@ -89,6 +89,20 @@ __assert_fail(const char *err, const char *file,
         hlt();
 }
 
+void _swift_stdlib_reportFatalErrorInFile(
+    const unsigned char *prefix, int prefixLength,
+    const unsigned char *message, int messageLength,
+    const unsigned char *file, int fileLength,
+    uint32_t line,
+    uint32_t flags
+) {
+  kprintf("%s:%u: %s%s%s\n",
+      file,
+      line,
+      prefix,
+      (messageLength > 0 ? ": " : ""),
+      message);
+}
 
 void
 abort()
@@ -96,7 +110,7 @@ abort()
         koops("abort() called");
 }
 
-
+#if false
 char *
 strerror(int errno)
 {
@@ -175,3 +189,4 @@ UNIMPLEMENTED(unorm2_normalize_60)
 UNIMPLEMENTED(unorm2_spanQuickCheckYes_60)
 UNIMPLEMENTED(utext_openUChars_60)
 UNIMPLEMENTED(utext_openUTF8_60)
+#endif

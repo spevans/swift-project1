@@ -38,6 +38,8 @@ typedef int64_t ssize_t;
 #endif
 
 #ifndef TEST
+void __assert_fail(const char * _Nonnull err, const char * _Nonnull file, unsigned int line, const char * _Nonnull function);
+#define assert(expr) ((expr) ? (void)(0) : __assert_fail (#expr, __FILE__, __LINE__, __func__))
 // kprintf
 int kvsnprintf(char * _Nonnull buf, size_t size, const char * _Nonnull fmt, va_list args) __attribute__ ((format (printf, 3, 0)));
 int kvlprintf(const char * _Nonnull fmt, size_t len, va_list args);

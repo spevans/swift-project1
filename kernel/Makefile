@@ -7,6 +7,13 @@ SWIFT_MODULE := SwiftKernel
 SWIFT_OBJS := SwiftKernel.o
 SWIFT_SRCS := $(shell find `pwd` -name '*.swift' | grep -v version.swift) init/version.swift
 
+KSWIFTC_FLAGS := -gnone -O -Xcc -mno-red-zone -Xcc -mcmodel=kernel	\
+	-parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -warnings-as-errors	\
+	-Xcc -Wall -Xcc -Wextra -Xcc -std=gnu11							\
+	-Xfrontend -warn-long-function-bodies=60000 -DKERNEL					\
+	-target x86_64-unknown-none-elf -Xcc -ffreestanding -Xfrontend -disable-stack-protector	\
+	-enable-experimental-feature Embedded -Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2 \
+
 all: kernel.o
 
 
@@ -17,17 +24,17 @@ vm/vmentry.o: vm/vmentry.asm
 devices/timer.o: devices/timer.asm
 
 init/init.o: init/main.o init/bss.o
-	ld -r -no_eh_labels -o $@ $^
+	$(LD) -r -z noexecstack -o $@ $^
 
 KERNEL_OBJS := init/init.o traps/entry.o vm/vmentry.o devices/timer.o SwiftKernel.o
 HEADERS = $(TOPDIR)/include/*.h
 
 init/version.swift: ../.git/index
 	echo making version.swift for $(GITVER)
-	echo 'let gitBuildVersion="$(GITVER)"' > init/version.swift
+	echo 'let gitBuildVersion: StaticString = "$(GITVER)"' > init/version.swift
 
 kernel.o: $(KERNEL_OBJS)
-	ld -r -no_eh_labels -o $@ $(KERNEL_OBJS)
+	$(LD) -r -z noexecstack -o $@ $(KERNEL_OBJS) $(KSWIFTLIBDIR)/libswiftUnicodeDataTables.a
 
 SwiftKernel.o: $(SWIFT_SRCS) $(HEADERS)
 	# swiftc doesnt always seem to update the timestamp after building the delete the output file to be

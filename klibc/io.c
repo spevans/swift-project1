@@ -23,6 +23,7 @@ void *stdout = (void *)0xF1;
  * I/O functions
  */
 
+#if false
 int
 fprintf(void *stream, const char *format, ...)
 {
@@ -57,7 +58,6 @@ puts(const char *str)
         return 0;
 }
 
-
 int
 fputs(const char *string, void *stream)
 {
@@ -74,7 +74,7 @@ fputc(int c, void *stream)
         early_print_char((char)c);
         return c;
 }
-
+#endif
 
 int
 putchar(int c)
@@ -83,7 +83,7 @@ putchar(int c)
         return c;
 }
 
-
+#if false
 size_t
 fwrite(const void *ptr, size_t size, size_t nmemb, void *stream)
 {
@@ -113,3 +113,4 @@ write(int fd, const void *buf, size_t nbyte)
         }
         return nbyte;
 }
+#endif

@@ -37,6 +37,7 @@
 		B933A7951F2FBA8700FE6846 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7311F2F49C700FE6846 /* Extensions.swift */; };
 		B93620762326A4A0009A2215 /* Docker in Resources */ = {isa = PBXBuildFile; fileRef = B93620752326A4A0009A2215 /* Docker */; };
 		B9362EF024DD681000856B47 /* amlnamespacemodifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9362EEF24DD681000856B47 /* amlnamespacemodifier.swift */; };
+		B951B5A92CE68FAE009A3ED1 /* misc.swift in Sources */ = {isa = PBXBuildFile; fileRef = B951B5A82CE68FAE009A3ED1 /* misc.swift */; };
 		B9568C692548BA9B00C3F49B /* USBTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568C682548BA9B00C3F49B /* USBTests.swift */; };
 		B9568C7D2548C0A400C3F49B /* usb-configdescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568C7A2548BDBC00C3F49B /* usb-configdescriptor.swift */; };
 		B9568C7E2548C0A400C3F49B /* usb-controlrequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568C722548BDBC00C3F49B /* usb-controlrequest.swift */; };
@@ -212,6 +213,7 @@
 		B933A7781F2F8D6A00FE6846 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B93620752326A4A0009A2215 /* Docker */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Docker; sourceTree = "<group>"; };
 		B9362EEF24DD681000856B47 /* amlnamespacemodifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amlnamespacemodifier.swift; sourceTree = "<group>"; };
+		B951B5A82CE68FAE009A3ED1 /* misc.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = misc.swift; sourceTree = "<group>"; };
 		B9568C682548BA9B00C3F49B /* USBTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBTests.swift; sourceTree = "<group>"; };
 		B9568C6F2548BDA500C3F49B /* hcd-ehci.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "hcd-ehci.swift"; sourceTree = "<group>"; };
 		B9568C702548BDBC00C3F49B /* usb-devicequalifier.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "usb-devicequalifier.swift"; sourceTree = "<group>"; };
@@ -457,6 +459,7 @@
 		B933A6BB1F2F46C600FE6846 /* klib */ = {
 			isa = PBXGroup;
 			children = (
+				B951B5A82CE68FAE009A3ED1 /* misc.swift */,
 				B933A73B1F2F49F300FE6846 /* extensions */,
 				B933A7301F2F49C700FE6846 /* CircularBuffer.swift */,
 				B933A7311F2F49C700FE6846 /* Extensions.swift */,
@@ -1031,6 +1034,7 @@
 				B933A7901F2F8F2100FE6846 /* integer.swift in Sources */,
 				B933A77C1F2F8F0700FE6846 /* address.swift in Sources */,
 				B9362EF024DD681000856B47 /* amlnamespacemodifier.swift in Sources */,
+				B951B5A92CE68FAE009A3ED1 /* misc.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

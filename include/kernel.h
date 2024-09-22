@@ -112,7 +112,7 @@ void abort(void);
 void debugger_hook(void);
 void stack_trace(uintptr_t rsp, uintptr_t rbp);
 void dump_registers(struct exception_regs * _Nonnull registers);
-int memcmp(const void * _Nonnull s1, const void * _Nonnull s2, size_t count);
+int memcmp(const void * _Null_unspecified s1, const void * _Null_unspecified s2, size_t count);
 void serial_print_char(const char ch);
 
 // kernel/traps/entry.asm

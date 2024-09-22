@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <elf.h>
+#include "elf.h"
 #include "fbcon.h"
 
 

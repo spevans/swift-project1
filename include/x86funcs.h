@@ -318,6 +318,12 @@ wbinvd(void)
         asm volatile ("wbinvd" : : : "memory");
 }
 
+static inline void
+trap(void)
+{
+        asm volatile ("ud2" :::);
+}
+
 // kernel/klib/x86.asm functions
 void reload_segments(void);
 void test_breakpoint(void);
