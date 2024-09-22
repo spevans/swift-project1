@@ -116,7 +116,8 @@ struct AMLDefRelease: AMLType1Opcode {
     let mutex: AMLMutexObject
 
     func execute(context: inout ACPI.AMLExecutionContext) throws {
-        print("Releasing Mutex:", mutex)
+        // TODO: implement
+        print("Releasing Mutex")
     }
 }
 
@@ -193,5 +194,3 @@ struct AMLDefWhile: AMLType1Opcode {
         }
     }
 }
-
-

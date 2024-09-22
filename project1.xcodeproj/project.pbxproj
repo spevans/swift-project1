@@ -70,6 +70,7 @@
 		B9DEE4F42323BA960010F7A0 /* lldb-cmds in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F32323BA960010F7A0 /* lldb-cmds */; };
 		B9DEE4F92323BBC40010F7A0 /* bochsrc in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F52323BBC30010F7A0 /* bochsrc */; };
 		B9DEE4FA2323BBC40010F7A0 /* gdb-cmds in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F62323BBC30010F7A0 /* gdb-cmds */; };
+		B9E88C242CE80B3F00F3F251 /* BinaryInteger+Extras.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E88C232CE80B1800F3F251 /* BinaryInteger+Extras.swift */; };
 		B9E8F3FB2792FAD4008F3C33 /* ioapic.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7191F2F497800FE6846 /* ioapic.swift */; };
 		B9E8F3FE2792FBEC008F3C33 /* cpu.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7141F2F497800FE6846 /* cpu.swift */; };
 		B9E8F407279315CC008F3C33 /* PhysPageAlignedRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F406279315CC008F3C33 /* PhysPageAlignedRegion.swift */; };
@@ -274,6 +275,7 @@
 		B9DEE4F32323BA960010F7A0 /* lldb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "lldb-cmds"; sourceTree = "<group>"; };
 		B9DEE4F52323BBC30010F7A0 /* bochsrc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = bochsrc; sourceTree = "<group>"; };
 		B9DEE4F62323BBC30010F7A0 /* gdb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "gdb-cmds"; sourceTree = "<group>"; };
+		B9E88C232CE80B1800F3F251 /* BinaryInteger+Extras.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "BinaryInteger+Extras.swift"; sourceTree = "<group>"; };
 		B9E8F406279315CC008F3C33 /* PhysPageAlignedRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysPageAlignedRegion.swift; sourceTree = "<group>"; };
 		B9E8F40C27931FE1008F3C33 /* PhysRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysRegion.swift; sourceTree = "<group>"; };
 		B9E8F41027935B7A008F3C33 /* MemoryRangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryRangeTests.swift; sourceTree = "<group>"; };
@@ -525,6 +527,7 @@
 		B933A73B1F2F49F300FE6846 /* extensions */ = {
 			isa = PBXGroup;
 			children = (
+				B9E88C232CE80B1800F3F251 /* BinaryInteger+Extras.swift */,
 				B933A73F1F2F4A0600FE6846 /* bitarray.swift */,
 				B933A73C1F2F4A0600FE6846 /* bytearray.swift */,
 				B933A73D1F2F4A0600FE6846 /* dwordarray.swift */,
@@ -810,7 +813,7 @@
 					B95867E622E5D082005FA3BF = {
 						CreatedOnToolsVersion = 11.0;
 						DevelopmentTeam = U2L29966XS;
-						LastSwiftMigration = 1240;
+						LastSwiftMigration = 1520;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -923,6 +926,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B9E88C242CE80B3F00F3F251 /* BinaryInteger+Extras.swift in Sources */,
 				B9C9A88B27C289BA003746EF /* pcibus.swift in Sources */,
 				B9C9A88C27C289BA003746EF /* PCICapability.swift in Sources */,
 				B9C9A88D27C289BA003746EF /* pciconfigspace.swift in Sources */,

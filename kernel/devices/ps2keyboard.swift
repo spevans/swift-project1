@@ -12,7 +12,7 @@
 
 
 final class PS2Keyboard: DeviceDriver, PS2Device, Keyboard {
-
+    let description = "PS2Keyboard"
     private var prevScanCode: UInt16 = 0
     private var breakCode: UInt8 = 0
 

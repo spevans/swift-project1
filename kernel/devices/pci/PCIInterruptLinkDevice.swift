@@ -8,7 +8,7 @@
 //  PCI Link Devices (LNKA..LNKD) used for PCI interrupts (INT #A .. INT #D)
 //
 
-final class PCIInterruptLinkDevice: PNPDeviceDriver, CustomStringConvertible {
+final class PCIInterruptLinkDevice: PNPDeviceDriver {
     let irq: IRQSetting  // The IRQ signaled by this device
     var description: String { "PCI Link Device: [IRQ: \(irq)]" }
 

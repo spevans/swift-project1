@@ -31,7 +31,7 @@ final class AMLDefDataRegion: AMLNamedObj {
 }
 
 
-final class AMLDefDevice: AMLNamedObj, CustomStringConvertible {
+final class AMLDefDevice: AMLNamedObj {
 
     struct DeviceStatus {
         private let bits: BitArray32
@@ -57,7 +57,7 @@ final class AMLDefDevice: AMLNamedObj, CustomStringConvertible {
     let value: AMLTermList
     private(set) var device: Device? = nil
 
-    var description: String {
+    override var description: String {
         var result = "ACPI Device:"
         if let devname = device {
             result += " [\(devname)]"
@@ -106,8 +106,13 @@ final class AMLDefDevice: AMLNamedObj, CustomStringConvertible {
             print("ACPI: calling \(self.fullname())._INI")
             try self.initialise()
         } catch {
-            print("ACPI: Error running _INI for", self.fullname(), error)
-            return false
+            let str: String
+            if let error = error as? AMLError {
+                str = error.description
+            } else {
+                str = "unknown"
+            }
+            print("ACPI: Error running _INI for", self.fullname(), str)
         }
         let newStatus = self.status()
         print("initialiseIfPresent:", newStatus.enabled)
@@ -303,7 +308,11 @@ final class AMLMethod: AMLNamedObj {
             try execute(context: &context)
             return context.returnValue!
         } catch {
-            fatalError(String(describing: error))
+            if let error = error as? AMLError {
+                fatalError("ACPI AML parsing error: \(error.description)")
+            } else {
+                fatalError("Unknown ACPI AML error")
+            }
         }
     }
 }
@@ -401,7 +410,7 @@ struct AMLFieldFlags: CustomStringConvertible {
 
 
 
-protocol OpRegionSpace {
+protocol OpRegionSpace: CustomStringConvertible {
     var length: Int { get }
 
     func read(bitOffset: Int, width: Int, flags: AMLFieldFlags) -> AMLInteger
@@ -539,7 +548,7 @@ enum AMLRegionSpace: AMLByteData {
     case oemDefined = 0x80 // .. 0xff fixme
 }
 
-struct EmbeddedControlRegionSpace: OpRegionSpace, CustomStringConvertible {
+struct EmbeddedControlRegionSpace: OpRegionSpace {
     let flags: AMLFieldFlags
     let offset: AMLInteger
     let length: Int
@@ -759,7 +768,7 @@ private struct PCIConfigRegionSpace: OpRegionSpace, CustomStringConvertible {
 }
 
 
-final class AMLDefOpRegion: AMLNamedObj, CustomStringConvertible {
+final class AMLDefOpRegion: AMLNamedObj {
     // OpRegionOp NameString RegionSpace RegionOffset RegionLen
     let regionSpaceType: AMLRegionSpace
     let offset: AMLTermArg // => Integer
@@ -767,22 +776,10 @@ final class AMLDefOpRegion: AMLNamedObj, CustomStringConvertible {
     private var regionSpace: OpRegionSpace?
 
 
-    var description: String {
-        let _offset: String
-        if let o = offset.integerValue {
-            _offset = "0x" + String(o, radix: 16)
-        } else {
-            _offset = String(describing: offset)
-        }
-
-        let _length: String
-        if let l = length.integerValue {
-            _length = l.description
-        } else {
-            _length = String(describing: length)
-        }
-
-        let rs = regionSpace != nil ? String(describing: regionSpace!) : "nil"
+    override var description: String {
+        let _offset = offset.description
+        let _length = length.description
+        let rs = regionSpace?.description ?? "nil"
         return "regionType: \(regionSpaceType)\noffset: \(_offset)\nlength: \(_length)\nregionSpace: \(rs)"
     }
 

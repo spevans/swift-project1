@@ -26,7 +26,7 @@ protocol AMLTermObj {
 }
 
 
-protocol AMLTermArg {
+protocol AMLTermArg: CustomStringConvertible {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg
 
     var integerValue: AMLInteger? { get }
@@ -39,6 +39,17 @@ extension AMLTermArg {
     var integerValue: AMLInteger? { nil }
     var stringValue: AMLString? { nil }
     var bufferValue: AMLSharedBuffer? { nil }
+    var description: String {
+        if let i = integerValue {
+            return "0x" + String(i, radix: 16)
+        } else if let s = stringValue {
+            return s
+        } else if let b = bufferValue {
+            return "[Buffer of  \(b.count) bytes]"
+        } else {
+            return "<UNKNOWN>"
+        }
+    }
 }
 
 
@@ -283,12 +294,21 @@ enum AMLComputationalData {
     case string(AMLString)
 }
 
-enum AMLDataObject: AMLTermArg {
+enum AMLDataObject: AMLTermArg, CustomStringConvertible {
 
     case package(AMLPackage)
     case buffer(AMLSharedBuffer)
     case integer(AMLInteger)
     case string(AMLString)
+
+    var description: String {
+        switch self {
+        case .package: return "Package"
+        case .buffer: return "Buffer"
+        case let .integer(value): return "Integer: '\(value)'"
+        case let .string(value): return "String: '\(value)'"
+        }
+    }
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         return self
@@ -904,7 +924,7 @@ func AMLDDBHandle(value: AMLInteger) -> AMLDataRefObject {
 
 
 // opcode or character
-protocol AMLSymbol {
+protocol AMLSymbol: CustomStringConvertible {
 }
 
 // ASCII 'A'-'Z' 0x41 - 0x5A
@@ -959,6 +979,10 @@ struct AMLCharSymbol: AMLSymbol, Equatable {
 
     var character: Character { return Character(UnicodeScalar(value)) }
     var isPaddingChar: Bool { return character == AMLCharSymbol.paddingChar }
+
+    var description: String {
+        "AMLCharSym(\(String(value, radix: 16)))"
+    }
 
     var numericValueInclHex: Int? {
         if charType == .digitChar {
@@ -1112,6 +1136,10 @@ enum AMLOpcode: UInt16, AMLSymbol {
         self.init(rawValue: UInt16(byte))
     }
 
+
+    var description: String {
+        "Opcode: " + String(rawValue, radix: 16);
+    }
 
     var isTwoByteOpcode: Bool {
         return self.rawValue == AMLOpcode.extendedOpPrefix.rawValue

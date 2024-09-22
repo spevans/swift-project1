@@ -6,7 +6,7 @@
 //  Copyright © 2020 Simon Evans. All rights reserved.
 //
 
-protocol Bus: AnyObject {
+protocol Bus: AnyObject, CustomStringConvertible {
 
     var devices: [Device] { get }
     var resources: [MotherBoardResource] { get set }
@@ -58,7 +58,8 @@ extension Bus {
 
 final class MasterBus: Bus {
     private var pciHostBus: PCIHostBus?     // PCI Host Bus
-    private (set) var devices: [Device] = []
+    private(set) var devices: [Device] = []
+    let description = "MasterBus"
 
     var resources: [MotherBoardResource] = []
     let acpiSystemBus: ACPI.ACPIObjectNode      // \_SB node
@@ -99,7 +100,13 @@ final class MasterBus: Bus {
         do {
             try ACPI.invoke(method: "\\_SB._INI")
         } catch {
-            print("ACPI: Error running \\_SB.INI:", error)
+            let str: String
+            if let error = error as? AMLError {
+                str = error.description
+            } else {
+                str = "unknown error"
+            }
+            print("ACPI: Error running \\_SB.INI:", str)
         }
 
         for value in acpiSystemBus.childNodes {

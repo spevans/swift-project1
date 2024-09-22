@@ -101,11 +101,22 @@ enum PCISerialBusControllerSubClass: UInt8 {
 
 
 // USB Programming Interface
-enum PCIUSBProgrammingInterace: UInt8 {
+enum PCIUSBProgrammingInterface: UInt8, CustomStringConvertible {
     case uhci = 0x00
     case ohci = 0x10
     case ehci = 0x20
     case xhci = 0x30
     case other = 0x80
     case device = 0xfe
+
+    var description: String {
+        switch self {
+        case .uhci: return "UHCI"
+        case .ohci: return "OHCI"
+        case .ehci: return "EHCI"
+        case .xhci: return "XHCI"
+        case .other: return "Other"
+        case .device: return "Device"
+        }
+    }
 }

@@ -118,7 +118,7 @@ final class DeviceManager {
             return
         }
         guard let driver = driverType.init(pnpDevice: pnpDevice) else {
-            print("PNP: Cant init \(pnpDevice.pnpName) with driver:", driverType)
+            print("PNP: Cant init \(pnpDevice.pnpName) with driver")
             return
         }
         if driver.initialise() {

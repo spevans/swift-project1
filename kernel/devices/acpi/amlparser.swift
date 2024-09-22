@@ -17,7 +17,7 @@ extension AMLNameString {
 }
 
 
-enum AMLError: Error {
+enum AMLError: Error, CustomStringConvertible {
     //case invalidOpcode(reason: String)
     case invalidSymbol(reason: String)
     case invalidMethod(reason: String)
@@ -25,6 +25,17 @@ enum AMLError: Error {
     case endOfStream(reason: String)
     case parseError
     case unimplementedError(reason: String)
+
+    var description: String {
+        switch self {
+        case let .invalidSymbol(reason):        return "Invalid Symbol: \(reason)"
+        case let .invalidMethod(reason):        return "Invalid Method: \(reason)"
+        case let .invalidData(reason):          return "Invalid data: \(reason)"
+        case let .endOfStream(reason):          return "Unexpected end of stream: \(reason)"
+        case .parseError:                       return "Unknown parsing error"
+        case let .unimplementedError(reason):   return "Unimplemented Error: \(reason)"
+        }
+    }
 
     static func invalidOpcode(value: UInt8) -> AMLError {
         let reason = "Bad opcode: " + asHex(value)
@@ -116,9 +127,14 @@ struct AMLByteStream {
 
 
 final class AMLParser {
-    private struct ParsedSymbol {
+    private struct ParsedSymbol: CustomStringConvertible {
         var currentOpcode: AMLOpcode? = nil
         var currentChar: AMLCharSymbol? = nil
+        var description: String {
+            let opcodeStr = currentOpcode?.description ?? "nil"
+            let charStr = currentChar?.description ?? "nil"
+            return "ParsedSymbol: opcode: \(opcodeStr) char: \(charStr)"
+        }
 
     }
 
@@ -368,7 +384,7 @@ final class AMLParser {
             return obj
         }
 
-        let r = "\(String(describing: symbol.currentOpcode)) is Invalid for termobj"
+        let r = "\(symbol.currentOpcode?.description ?? "nil") is Invalid for termobj"
         throw AMLError.invalidSymbol(reason: r)
     }
 
@@ -403,7 +419,7 @@ final class AMLParser {
                 return arg
             }
         }
-        let r = "Invalid for termarg: \(String(describing: symbol))"
+        let r = "Invalid for termarg: \(symbol.description)"
         throw AMLError.invalidSymbol(reason: r)
     }
 
@@ -804,7 +820,7 @@ final class AMLParser {
                                           byteIndex: parseTermArg(),
                                           name: parseNameString())
     }
-    
+
 
     private func parseDefCreateQWordField() throws -> AMLDefCreateQWordField {
         return try AMLDefCreateQWordField(sourceBuff: parseTermArg(),
@@ -1298,7 +1314,7 @@ final class AMLParser {
             return nil // End of Stream
         }
         guard let char = symbol.currentChar else {
-            let r = "next char is an opcode \(String(describing: symbol.currentOpcode))"
+            let r = "next char is an opcode: \(symbol.currentOpcode?.description ?? "nil")"
             throw AMLError.invalidSymbol(reason: r)
         }
         return char
@@ -1356,7 +1372,7 @@ final class AMLParser {
             //return AMLNullName
 
         default:
-            let r = "Bad char \(String(describing: ch))"
+            let r = "Bad char \(ch.description)"
             throw AMLError.invalidData(reason: r)
         }
     }
@@ -1413,7 +1429,7 @@ final class AMLParser {
         if ch.charType == .digitChar || ch.charType == .leadNameChar {
             return ch
         }
-        let r = "bad name char: \(String(describing: ch))"
+        let r = "bad name char: 0x\(String(ch.value, radix: 16))"
         throw AMLError.invalidData(reason: r)
     }
 }

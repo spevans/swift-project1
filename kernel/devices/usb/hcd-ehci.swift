@@ -21,7 +21,7 @@ final class HCD_EHCI: PCIDeviceDriver, USBHCD, CustomStringConvertible {
         print("EHCI init:", pciDevice)
         guard pciDevice.deviceFunction.deviceClass == PCIDeviceClass(classCode: .serialBusController,
                                                                     subClassCode: PCISerialBusControllerSubClass.usb.rawValue,
-                                                                    progInterface: PCIUSBProgrammingInterace.ehci.rawValue) else {
+                                                                    progInterface: PCIUSBProgrammingInterface.ehci.rawValue) else {
             print("EHCI: \(pciDevice) is not a EHCI Device")
             return nil
         }

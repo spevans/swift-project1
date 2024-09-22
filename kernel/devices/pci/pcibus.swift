@@ -190,7 +190,7 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
 
                 case .host:
                     // FIXME - this could be a PCIExpress Root bus
-                    print("PCI: Error: Found a PCI Host bus \(pciDevice) on a PCI bus \(self), bridgeDevice:", deviceFunction.bridgeDevice as Any)
+                    print("PCI: Error: Found a PCI Host bus \(pciDevice) on a PCI bus \(self), bridgeDevice:", deviceFunction.bridgeDevice != nil)
                     return nil
 
                 case .pci:

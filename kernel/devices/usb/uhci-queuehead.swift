@@ -11,10 +11,12 @@
 
 extension HCD_UHCI {
 
-    struct FrameListPointer {
+    struct FrameListPointer: CustomStringConvertible {
         private let bits: BitArray32
         var rawValue: UInt32 { bits.rawValue }
-
+        var description: String {
+            return "isTD: \(isTransferDescriptor) isQH: \(isQueueHead) isTerminator: \(isTerminator) isEmpty: \(isEmptyFrame)"
+        }
 
         init(queueHead address: UInt32) {
             precondition(address & 0xf == 0)

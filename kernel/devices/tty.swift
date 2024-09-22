@@ -32,7 +32,7 @@ func kprint(_ string: StaticString) {
 
 
 @inline(never)
-func print(_ items: Any..., separator: String = " ",
+func print(_ items: CustomStringConvertible..., separator: String = " ",
     terminator: String = "\n") {
 
     var output = _tty()

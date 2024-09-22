@@ -10,11 +10,20 @@
 
 
 extension USB {
-    enum Speed {
+    enum Speed: CustomStringConvertible {
         case lowSpeed
         case fullSpeed
         case highSpeed
         case superSpeed
+
+        var description: String {
+            switch self {
+            case .lowSpeed: return "lowSpeed"
+            case .fullSpeed: return "fullSpeed"
+            case .highSpeed: return "highSpeed"
+            case .superSpeed: return "superSpeed"
+            }
+        }
 
         var controlSize: Int {
             switch self {
@@ -143,7 +152,13 @@ final class USBDevice {
             let configDescriptor2 = try USB.ConfigDescriptor(from: infoBuffer)
             return configDescriptor2
         } catch {
-            print("USBDEV: Cant decode CONFIGURATION descriptor packet:", error)
+            let str: String
+            if let error = error as? USB.ParsingError {
+                str = error.description
+            } else {
+                str = "unknown error"
+            }
+            print("USBDEV: Cant decode CONFIGURATION descriptor packet: ", str)
             return nil
         }
     }
@@ -151,7 +166,7 @@ final class USBDevice {
     func setConfiguration(to configuration: UInt8) -> Bool {
         print("USBDEV: Setting configuration to:", configuration)
         let pipe = controlPipe()
-    
+
         let request = USB.ControlRequest.setConfiguration(configuration: configuration)
         guard pipe.send(request: request, withBuffer: nil) else {
             print("USBDEV: Failed to set configuration")

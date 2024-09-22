@@ -53,7 +53,7 @@ func symbolLookupInit(bootParams: BootParams) {
 
 func showSymbolAt(addr: VirtualAddress) {
     if let sym = lookupSymbolBy(addr: addr) {
-        print("Found symbol:", sym)
+        //print("Found symbol:", sym)
         let name = symbolName(sym.st_name)
         print("Name:", name ?? "name not found")
     } else {

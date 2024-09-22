@@ -9,7 +9,7 @@
  */
 
 
-final class CMOSRTC: PNPDeviceDriver, CustomStringConvertible {
+final class CMOSRTC: PNPDeviceDriver {
 
     private let addressPort: UInt16
     private let dataPort: UInt16

@@ -9,7 +9,7 @@
 
 
 // Generic Timer device
-protocol Timer {
+protocol Timer: CustomStringConvertible {
     var irq: IRQSetting { get }
     func enablePeriodicInterrupt(hz: Int)
 }

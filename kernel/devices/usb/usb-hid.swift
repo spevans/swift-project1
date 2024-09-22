@@ -10,6 +10,7 @@
 
 
 final class USBHIDDriver: DeviceDriver {
+    private(set) var description: String
     private let device: USBDevice
     private let interface: USB.InterfaceDescriptor
     private var intrPipe: USBPipe!
@@ -57,9 +58,14 @@ final class USBHIDDriver: DeviceDriver {
             return nil
         }
 
-        if case .none = interfaceProtocol {
+        switch interfaceProtocol {
+        case .none:
             print("USB-HID: Device is not a keyboard or mouse")
             return nil
+        case .keyboard:
+            description = "USB Keyboard"
+        case .mouse:
+            description = "USB Mouse"
         }
     }
 

@@ -9,7 +9,7 @@
 
 // These memory types are just the EFI ones, the BIOS ones are
 // actually a subset so these definitions cover both cases
-enum MemoryType: UInt32 {
+enum MemoryType: UInt32, CustomStringConvertible {
     case Reserved    = 0            // Not usable
     case LoaderCode                 // Usable
     case LoaderData                 // Usable
@@ -31,6 +31,30 @@ enum MemoryType: UInt32 {
     case Kernel       = 0x80000003  // The loaded kernel + data + bss
     case FrameBuffer  = 0x80000004  // Framebuffer address if it is the top of the address space
     case E820Reserved = 0x80000005  // Ranges marked in E820 map as reserved
+
+    var description: String {
+        switch self {
+        case .Reserved:                 return "Reserved"
+        case .LoaderCode:               return "LoaderCode"
+        case .LoaderData:               return "LoaderData"
+        case .BootServicesData:         return "BootServicesData"
+        case .BootServicesCode:         return "BootServicesCode"
+        case .RuntimeServicesCode:      return "RuntimeServicesCode"
+        case .RuntimeServicesData:      return "RuntimeServicesData"
+        case .Conventional:             return "Convential"
+        case .Unusable:                 return "Unusable"
+        case .ACPIReclaimable:          return "ACPIReclaimable"
+        case .ACPINonVolatile:          return "ACPINonVolatile"
+        case .MemoryMappedIO:           return "MemoryMappedIO"
+        case .MemoryMappedIOPortSpace:  return "MemoryMappedIOPortSpace"
+        case .Hole:                     return "Hole"
+        case .PageMap:                  return "PageMap"
+        case .BootData:                 return "BootData"
+        case .Kernel:                   return "Kernel"
+        case .FrameBuffer:              return "FrameBuffer"
+        case .E820Reserved:             return "E820Reserved"
+        }
+    }
 
     enum Access {
         case unusable
@@ -111,7 +135,7 @@ struct MemoryRange: Equatable, CustomStringConvertible {
         let str = (size >= mb) ? String.sprintf(" %6uMB  ", size / mb) :
         String.sprintf(" %6uKB  ", size / kb)
 
-        return String.sprintf("%12X - %12X %@ %@", start.value,  endAddress.value, str, type)
+        return String.sprintf("%12X - %12X %s %s", start.value,  endAddress.value, str, type.description)
     }
 }
 

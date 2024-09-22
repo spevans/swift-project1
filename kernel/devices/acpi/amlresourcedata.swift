@@ -7,7 +7,7 @@
 //  Current Resource Settings (_CRS) decoding.
 
 
-protocol AMLResourceSetting {
+protocol AMLResourceSetting: CustomStringConvertible {
 }
 
 
@@ -51,7 +51,9 @@ struct AMLIrqSetting: AMLResourceSetting {
     let activeHigh: Bool
     let interruptSharing: Bool
     let wakeCapable: Bool
-
+    var description: String {
+        "IRQ: mask: \(irqMask.rawValue.binary(separators: true))"
+    }
 
     init(_ buffer: AMLBuffer) {
         precondition(buffer.count == 2 || buffer.count == 3)
@@ -86,6 +88,9 @@ struct AMLIrqSetting: AMLResourceSetting {
 struct AMLDmaSetting: AMLResourceSetting {
     let channelMask: BitArray8
     let flags: BitArray8
+    var description: String {
+        "DMA mask: \(channelMask.rawValue.binary(separators: true)) \(flags.rawValue.binary(separators: true))"
+    }
 
     init(_ buffer: AMLBuffer) {
         precondition(buffer.count == 2)
@@ -111,6 +116,9 @@ struct AMLIOPortSetting: AMLResourceSetting {
     let maximumBaseAddress: UInt16
     let baseAlignment: UInt8
     let rangeLength: UInt8
+    var description: String {
+        "IOPort: 0x\(minimumBaseAddress.hex())"
+    }
 
     init(_ buffer: AMLBuffer) {
         precondition(buffer.count == 7)
@@ -143,6 +151,9 @@ struct AMLMemoryRangeDescriptor: AMLResourceSetting {
     let maximumBaseAddress: UInt32
     let baseAlignment: UInt32
     let rangeLength: UInt32
+    var description: String {
+        "MemoryRange: 0x\(minimumBaseAddress.hex())"
+    }
 
     init(_ buffer: AMLBuffer) {
         guard buffer.count == 17 else {
@@ -161,6 +172,9 @@ struct AMLFixedMemoryRangeDescriptor: AMLResourceSetting {
     let writeable: Bool
     let baseAddress: UInt32
     let rangeLength: UInt32
+    var description: String {
+        "FixedMemory: 0x\(baseAddress.hex())"
+    }
 
     init(_ buffer: AMLBuffer) {
         guard buffer.count == 9 else {
@@ -175,6 +189,10 @@ struct AMLFixedMemoryRangeDescriptor: AMLResourceSetting {
 struct AMLIrqExtendedDescriptor: AMLResourceSetting {
     private let flags: BitArray8
     private let intNumbers: [UInt8]
+    var description: String {
+        let ints = intNumbers.map { "0x\($0.hex())" }.joined(separator: ",")
+        return "IRQ: \(ints) level: (levelTriggered): activeHigh: \(activeHigh) sharing: \(interruptSharing)"
+    }
 
     var isResourceProducer: Bool { return flags[0] == 0 }
     var levelTriggered:     Bool { return flags[1] == 0 }
@@ -218,6 +236,17 @@ struct AMLWordAddressSpaceDescriptor: AMLResourceSetting {
         case busNumberRange = 2
         //   3-191 reserved
         // 192-255 hardware vendor defined
+    }
+
+    var description: String {
+        switch self.resourceType {
+        case .memoryRange:
+            return "Word Memory [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
+        case .ioRange:
+            return "Word IO [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
+        case .busNumberRange:
+            return "Word Bus [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
+        }
     }
 
     let resourceType: ResourceType
@@ -265,6 +294,17 @@ struct AMLDWordAddressSpaceDescriptor: AMLResourceSetting {
         // 192-255 hardware vendor defined
     }
 
+    var description: String {
+        switch self.resourceType {
+        case .memoryRange:
+            return "DWord Memory [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
+        case .ioRange:
+            return "DWord IO [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
+        case .busNumberRange:
+            return "DWord Bus [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
+        }
+    }
+
     let resourceType: ResourceType
     let generalFlags: BitArray8
     let typeSpecificFlags: BitArray8
@@ -309,6 +349,17 @@ struct AMLQWordAddressSpaceDescriptor: AMLResourceSetting {
         case busNumberRange = 2
         //   3-191 reserved
         // 192-255 hardware vendor defined
+    }
+
+    var description: String {
+        switch self.resourceType {
+        case .memoryRange:
+            return "QWord Memory [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
+        case .ioRange:
+            return "QWord IO [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
+        case .busNumberRange:
+            return "QWord Bus [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
+        }
     }
 
     let resourceType: ResourceType

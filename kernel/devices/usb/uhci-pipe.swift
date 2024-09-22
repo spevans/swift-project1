@@ -123,7 +123,7 @@ fileprivate extension HCD_UHCI {
         }
 
         func send(request: USB.ControlRequest, withBuffer: MMIOSubRegion?) -> Bool {
-           uhciDebug("Sending request:", request, "withBuffer:", withBuffer as Any)
+           uhciDebug("Sending request:", request, "withBuffer:", withBuffer ?? "nil")
             // copy the request into a 32byte low buffer
             let buffer = hcd.allocator.allocPhysBuffer(length: MemoryLayout<USB.ControlRequest>.size)
             uhciDebug("Allocated buffer:", buffer)

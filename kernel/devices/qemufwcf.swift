@@ -12,6 +12,7 @@ final class QEMUFWCFG: PNPDeviceDriver {
     let pnpName: String
     let baseIOPort: UInt16
     private(set) var hasDMAInterface = false
+    let description = "QEMU_FWCFG"
 
     init?(pnpDevice: PNPDevice) {
         self.pnpName = pnpDevice.pnpName

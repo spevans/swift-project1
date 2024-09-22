@@ -11,7 +11,7 @@
 
 extension USB {
 
-    enum InterfaceClass: UInt8 {
+    enum InterfaceClass: UInt8, CustomStringConvertible {
 
         case audio = 0x01
         case cdcControl = 0x02
@@ -32,6 +32,31 @@ extension USB {
         case miscellaneous = 0xEF
         case applicationSpecific = 0xFE
         case vendorSpecific = 0xFF
+
+        var description: String {
+            switch self {
+            case .audio:                return "Audio"
+            case .cdcControl:           return "CDC Control"
+            case .hid:                  return "hid"
+            case .physical:             return "Physical"
+            case .image:                return "Image"
+            case .printer:              return "Printer"
+            case .massStorage:          return "Mass Storage"
+            case .cdcData:              return "CDC Data"
+            case .smartCard:            return "Smart Card"
+            case .contentSecurity:      return "Content Security"
+            case .video:                return "Video"
+            case .personalHealthcare:   return "Personal Healthcare"
+            case .audioVideo:           return "Audio Video"
+            case .usbTypeCBridgeClass:  return "USB TypeC Bridge Class"
+            case .diagnosticDevice:     return "Diagnostic Device"
+            case .wirelessController:   return "Wireless Controller"
+            case .miscellaneous:        return "Miscallaneous"
+            case .applicationSpecific:  return "Application Specific"
+            case .vendorSpecific:       return "Vendor Specific"
+
+            }
+        }
     }
 
 
@@ -56,7 +81,7 @@ extension USB {
         var interfaceClass: InterfaceClass? { InterfaceClass(rawValue: bInterfaceClass) }
 
         var description: String {
-            let ifClass = (interfaceClass != nil) ? String(describing: interfaceClass) : "unknown"
+            let ifClass = interfaceClass?.description ?? "unknown"
             var result = "ifNum: \(bInterfaceNumber) class: \(ifClass) subClass: 0x\(String(bInterfaceSubClass, radix: 16)) bInterfaceProtocol: 0x\(String(bInterfaceProtocol, radix: 16))\n"
             if let hid = hid {
                 result += " +-- \(hid.description)"

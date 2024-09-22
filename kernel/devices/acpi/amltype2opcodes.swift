@@ -38,7 +38,7 @@ struct AMLDefAcquire: AMLType2Opcode {
 
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         // FIXME - implement
-        print("Acquiring Mutex:", mutex)
+        print("Acquiring Mutex")
         return AMLBoolean(false)   // acquired
     }
 }
@@ -816,7 +816,7 @@ struct AMLMethodInvocation: AMLType2Opcode {
                 throw AMLError.invalidMethod(reason: "Cant find method: \(name)")
         }
         guard let method = obj as? AMLMethod else {
-            throw AMLError.invalidMethod(reason: "\(name) [\(String(describing:obj))] is not an AMLMethod")
+            throw AMLError.invalidMethod(reason: "\(name) [\(obj.description))] is not an AMLMethod")
         }
         let termList = try method.termList()
         let newArgs = args.map { $0.evaluate(context: &context) }

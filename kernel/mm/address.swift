@@ -17,7 +17,7 @@ private let physicalMemory = UnsafeMutableRawPointer.allocate(byteCount: 0x100_0
 #endif
 
 
-struct PhysAddress: CVarArg, Comparable, Hashable, CustomStringConvertible {
+struct PhysAddress: Comparable, Hashable, CustomStringConvertible {
     let value: RawAddress
 
     init(_ address: RawAddress) {

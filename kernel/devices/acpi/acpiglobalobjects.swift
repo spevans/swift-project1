@@ -8,7 +8,7 @@
 
 
 extension ACPI {
-    class ACPIObjectNode: AMLTermObj, Hashable {
+    class ACPIObjectNode: AMLTermObj, Hashable, CustomStringConvertible {
         let name: AMLNameString
         unowned private(set) var parent: ACPIObjectNode?
         // Use an array for the childnodes even though the lookups are on the name
@@ -16,6 +16,16 @@ extension ACPI {
         // that a linear scan is ok.
         fileprivate(set) var childNodes: [ACPIObjectNode]
 
+        var description: String {
+            var result = "ACPIObjectNode: \(name)"
+            if let p = parent {
+                result += " parent: \(p.name)"
+            }
+            result += "children ["
+            result += childNodes.map { $0.name.value }.joined(separator: ", ")
+            result += "]"
+            return result
+        }
 
         init(name: AMLNameString, parent: ACPIObjectNode? = nil) {
             self.name = name

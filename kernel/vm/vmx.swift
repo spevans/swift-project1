@@ -12,9 +12,9 @@ private var globalVmcs: VMCS?  // pointer to global VMCS
 
 private var guestVmcs: VMCS?
 
-enum VMXError: Error, Equatable {
+enum VMXError: Error, Equatable, CustomStringConvertible {
 
-    enum VMFailValidError: UInt32 {
+    enum VMFailValidError: UInt32, CustomStringConvertible {
     case vmcallInNonRootOperation = 1
     case vmclearWithInvalidAddress = 2
     case vmclearWithVxmonPointer = 3
@@ -30,12 +30,33 @@ enum VMXError: Error, Equatable {
     case vmwriteToReadonlyComponent = 13
     case vxmonExecutedInRootOperation = 15
     case vmentryWithEventsBlockedByMOVSS = 26
+
+        var description: String {
+            switch self {
+            case .vmcallInNonRootOperation:       return "vmcallInNonRootOperation"
+            case .vmclearWithInvalidAddress:      return "vmclearWithInvalidAddress"
+            case .vmclearWithVxmonPointer:        return "vmclearWithVxmonPointer"
+            case .vmlaunchWithNonClearVMCS:       return "vmlaunchWithNonClearVMCS"
+            case .vmresumeWithNonLaunchedVMCS:    return "vmresumeWithNonLaunchedVMCS"
+            case .vmresumeWithCorruptedVMCS:      return "vmresumeWithCorruptedVMCS"
+            case .vmentryWithInvalidControlField: return "vmentryWithInvalidControlField"
+            case .vmentryWithInvalidHostStateField: return "vmentryWithInvalidHostStateField"
+            case .vmptrldWithInvalidAddress:        return "vmptrldWithInvalidAddress"
+            case .vmptrldWithVxmonPointer:          return "vmptrldWithVxmonPointer"
+            case .vmptrldWithIncorrectVMCSRevisionId:     return "vmptrldWithIncorrectVMCSRevisionId"
+            case .readWriteUsingUnsupportedVMCSComponent: return "readWriteUsingUnsupportedVMCSComponent"
+            case .vmwriteToReadonlyComponent:      return "vmwriteToReadonlyComponent"
+            case .vxmonExecutedInRootOperation:    return "vxmonExecutedInRootOperation"
+            case .vmentryWithEventsBlockedByMOVSS: return "vmentryWithEventsBlockedByMOVSS"
+            }
+        }
     }
 
 
     case vmSucceed
     case vmFailInvalid
     case vmFailValid(VMFailValidError)
+
 
     init(_ error: UInt64) {
         switch(error) {
@@ -53,9 +74,18 @@ enum VMXError: Error, Equatable {
         default: fatalError("Invalid VMX error state: \(String(error, radix: 16))")
         }
     }
+
+    var description: String {
+        switch self {
+        case .vmSucceed:              return "vmSucceed"
+        case .vmFailInvalid:          return "vmFailInvalid"
+        case let .vmFailValid(error): return "vmFailValid(\(error))"
+        }
+    }
+
 }
 
-enum VMXExitReason: UInt16 {
+enum VMXExitReason: UInt16, CustomStringConvertible {
     case exceptionOrNMI = 0
     case externalINT = 1
     case tripleFault = 2
@@ -121,10 +151,80 @@ enum VMXExitReason: UInt16 {
     case subPagePermissionEvent = 66
     case umwait = 67
     case tpause = 68
+
+    var description: String {
+        switch self {
+        case .exceptionOrNMI: return "exceptionOrNMI"
+        case .externalINT: return "   externalINT"
+        case .tripleFault: return "tripleFault"
+        case .initSignal: return "initSignal"
+        case .startupIPI: return "startupIPI"
+        case .ioSMI: return "ioSMI"
+        case .otherSMI: return "otherSMI"
+        case .intWindow: return "intWindow"
+        case .nmiWindow: return "nmiWindow"
+        case .taskSwitch: return "taskSwitch"
+        case .cpuid: return "cpuid"
+        case .getsec: return "getsec"
+        case .hlt: return "hlt"
+        case .invd: return "invd"
+        case .invlpg: return "invlpg"
+        case .rdpmc: return "rdpmc"
+        case .rdtsc: return "rdtsc"
+        case .rsm: return "rsm"
+        case .vmcall: return "vmcall"
+        case .vmclear: return "vmclear"
+        case .vmlaunch: return "vmlaunch"
+        case .vmptrld: return "vmptrld"
+        case .vmptrst: return "vmptrst"
+        case .vmread: return "vmread"
+        case .vmresume: return "vmresume"
+        case .vmwrite: return "vmwrite"
+        case .vmxoff: return "vmxoff"
+        case .vmxon: return "vmxon"
+        case .crAccess: return "crAccess"
+        case .drAccess:                     return "drAccess"
+        case .ioInstruction:                return "ioInstruction"
+        case .rdmsr:                        return "rdmsr"
+        case .wrmsr:                        return "wrmsr"
+        case .vmentryFailInvalidGuestState: return "vmentryFailInvalidGuestState"
+        case .vmentryFailMSRLoading:        return "vmentryFailMSRLoading"
+        case .mwait:                        return "mwait"
+        case .monitorTrapFlag:              return "monitorTrapFlag"
+        case .monitor:                      return "monitor"
+        case .pause:                        return "pause"
+        case .vmentryFaileMCE:              return "vmentryFaileMCE"
+        case .tprBelowThreshold:            return "tprBelowThreshold"
+        case .apicAccess:                   return "apicAccess"
+        case .virtualisedEOI:               return "virtualisedEOI"
+        case .accessToGDTRorIDTR:           return "accessToGDTRorIDTR"
+        case .accessToLDTRorTR:             return "accessToLDTRorTR"
+        case .eptViolation:                 return "eptViolation"
+        case .eptMisconfiguration:          return "eptMisconfiguration"
+        case .invept:                       return "invept"
+        case .rdtscp:                       return "rdtscp"
+        case .vmxPreemptionTimerExpired:    return "vmxPreemptionTimerExpired"
+        case .invvpid:                      return "invvpid"
+        case .wbinvd:                       return "wbinvd"
+        case .xsetbv:                       return "xsetbv"
+        case .apicWrite:                    return "apicWrite"
+        case .rdrand:                       return "rdrand"
+        case .invpcid:                      return "invpcid"
+        case .vmfunc:                       return "vmfunc"
+        case .envls:                        return "envls"
+        case .rdseed:                       return "rdseed"
+        case .pmlFull:                      return "pmlFull"
+        case .xsaves:                       return "xsaves"
+        case .xrstors:                      return "xrstors"
+        case .subPagePermissionEvent:       return "subPagePermissionEvent"
+        case .umwait:                       return "umwait"
+        case .tpause:                       return "tpause"
+        }
+    }
 }
 
 
-struct VMXExit: Error {
+struct VMXExit: Error, CustomStringConvertible {
     let value: BitArray32
 
     var exitReason: VMXExitReason { VMXExitReason(rawValue: UInt16(value[0...15]))! }
@@ -135,6 +235,10 @@ struct VMXExit: Error {
 
     init(_ result: UInt32) {
         value = BitArray32(result)
+    }
+
+    var description: String {
+        exitReason.description
     }
 }
 
@@ -184,9 +288,9 @@ func enableVMX() -> VMXError {
     let vmxSecondaryCtrl = VMXSecondaryProcessorBasedControls()
     print("vmxPrimaryCtrl:", String(vmxPrimaryCtrl.bits.rawValue, radix: 16))
     print("vmxSecondaryCtrl:", String(vmxSecondaryCtrl.bits.rawValue, radix: 16))
-    print("vmxPrimaryCtrl.activateSecondaryControls:", vmxPrimaryCtrl.activateSecondaryControls)
+    print("vmxPrimaryCtrl.activateSecondaryControls:", vmxPrimaryCtrl.activateSecondaryControls.allowedToBeOne)
     if vmxPrimaryCtrl.activateSecondaryControls.allowedToBeOne {
-        print("VMX: Secondary Ctrl:", vmxSecondaryCtrl.unrestrictedGuest)
+        print("VMX: Secondary Ctrl:", vmxSecondaryCtrl.unrestrictedGuest.allowedToBeOne)
     }
 
     if !vmxFixedBits.allowsUnrestrictedGuest {

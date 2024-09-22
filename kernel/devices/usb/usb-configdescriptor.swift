@@ -11,11 +11,20 @@
 
 extension USB {
 
-    enum ParsingError: Error {
+    enum ParsingError: Error, CustomStringConvertible {
         case packetTooShort
         case invalidLengthByte
         case invalidDescriptor(UInt8)
         case garbageAtEnd
+
+        var description: String {
+            switch self {
+            case .packetTooShort:               return "PacketTooShort"
+            case .invalidLengthByte:            return "InvalidLengthByte"
+            case let .invalidDescriptor(desc):  return "InvalidDescripton: \(String(desc, radix: 16))"
+            case .garbageAtEnd:                 return "GarbageAtEnd"
+            }
+        }
     }
 
     struct ConfigDescriptor: CustomStringConvertible {

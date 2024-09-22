@@ -11,11 +11,21 @@
 
 struct BiosBootParams: BootParams, CustomStringConvertible {
     enum E820Type: UInt32 {
-    case RAM      = 1
-    case RESERVED = 2
-    case ACPI     = 3
-    case NVS      = 4
-    case UNUSABLE = 5
+    case ram      = 1
+    case reserved = 2
+    case acpi     = 3
+    case nvs      = 4
+    case unusable = 5
+
+        var description: String {
+            switch self {
+            case .ram:      return "RAM"
+            case .reserved: return "RESERVED"
+            case .acpi:     return "ACPI"
+            case .nvs:      return "NVS"
+            case .unusable: return "UNUSABLE"
+            }
+        }
     }
 
 
@@ -40,7 +50,7 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
                 desc += String.sprintf(" %6uKB  ", size / kb)
             }
             if let x = E820Type(rawValue: type) {
-                desc += String(describing: x)
+                desc += x.description
             } else {
                 desc += "type: \(type) is invalid"
             }
@@ -57,11 +67,11 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
             var mtype: MemoryType
 
             switch (e820type) {
-            case .RAM:      mtype = MemoryType.Conventional
-            case .RESERVED: mtype = MemoryType.E820Reserved
-            case .ACPI:     mtype = MemoryType.ACPIReclaimable
-            case .NVS:      mtype = MemoryType.ACPINonVolatile
-            case .UNUSABLE: mtype = MemoryType.Unusable
+            case .ram:      mtype = MemoryType.Conventional
+            case .reserved: mtype = MemoryType.E820Reserved
+            case .acpi:     mtype = MemoryType.ACPIReclaimable
+            case .nvs:      mtype = MemoryType.ACPINonVolatile
+            case .unusable: mtype = MemoryType.Unusable
             }
 
             return MemoryRange(type: mtype,
@@ -163,7 +173,7 @@ struct BiosBootParams: BootParams, CustomStringConvertible {
                     }
                 }
             } catch {
-                print("Error reading E820 tables:", error)
+                print("Error reading E820 tables:")
             }
         }
 

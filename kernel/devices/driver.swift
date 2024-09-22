@@ -7,7 +7,7 @@
 //
 
 
-protocol DeviceDriver: AnyObject {
+protocol DeviceDriver: AnyObject, CustomStringConvertible {
     func initialise() -> Bool
 }
 

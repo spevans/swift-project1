@@ -13,25 +13,52 @@ extension USB {
 
     struct EndpointDescriptor: CustomStringConvertible {
 
-        enum TransferType: UInt8 {
+        enum TransferType: UInt8, CustomStringConvertible {
             case control = 0
             case isochronous = 1
             case bulk = 2
             case interrupt = 3
+
+            var description: String {
+                switch self {
+                case .control:     return "control"
+                case .isochronous: return "isochronous"
+                case .bulk:        return "bulk"
+                case .interrupt:   return "interrupt"
+                }
+            }
         }
 
-        enum SynchronizationType: UInt8 {
+        enum SynchronizationType: UInt8, CustomStringConvertible {
             case none = 0
             case asynchronous = 1
             case adaptive = 2
             case synchronous = 3
+
+            var description: String {
+                switch self {
+                case .none:         return "none"
+                case .asynchronous: return "asynchronous"
+                case .adaptive:     return "adaptive"
+                case .synchronous:  return "synchronous"
+                }
+            }
         }
 
-        enum UsageType: UInt8 {
+        enum UsageType: UInt8, CustomStringConvertible {
             case data = 0
             case feedback = 1
             case implicitFeedback = 2
             case reserved = 3
+
+            var description: String {
+                switch self {
+                case .data:             return "data"
+                case .feedback:         return "feedback"
+                case .implicitFeedback: return "implicitFeedback"
+                case .reserved:         return "reserved"
+                }
+            }
         }
 
         private let descriptor: usb_standard_endpoint_descriptor

@@ -7,7 +7,7 @@
  * Parsing of Multiple APIC Description Table (MADT).
  */
 
-enum IntControllerTableType: UInt8 {
+enum IntControllerTableType: UInt8, CustomStringConvertible {
     case processorLocalApic             = 0x00
     case ioApic                         = 0x01
     case interruptSourceOverride        = 0x02
@@ -26,8 +26,28 @@ enum IntControllerTableType: UInt8 {
     case gicInterruptTranslationService = 0x0F
     // 0x10 - 0x7F are reserved, 0x80-0xFF are for OEM use so treat as
     // invalid for now
-}
 
+    var description: String {
+        switch self {
+        case .processorLocalApic:               return "LocalAPIC"
+        case .ioApic:                           return "IO-APIC"
+        case .interruptSourceOverride:          return "INT Source Override"
+        case .nmiSource:                        return "NMI Source"
+        case .localApicNmi:                     return "Local API NMI"
+        case .localApicAddressOverride:         return "APIC-Address Override"
+        case .ioSapic:                          return "IO-SAPIC"
+        case .localSapic:                       return "Local SAPIC"
+        case .platformInterruptSources:         return "Platform INT Src"
+        case .processorLocalx2Apic:             return "CPU x2APIC"
+        case .localx2ApicNmi:                   return "x2APIC NMI"
+        case .gicCPUInterface:                  return "GIC-CPU Interface"
+        case .gicDistributor:                   return "GIC-Distributor"
+        case .gicMsiFrame:                      return "GIC-MSI-Frame"
+        case .gicRedistributor:                 return "GIC-Redistributor"
+        case .gicInterruptTranslationService:   return "GIC-INT-XLATE"
+        }
+    }
+}
 
 protocol MADTEntry {
     var tableType: IntControllerTableType { get }
@@ -106,7 +126,7 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
         let localApicFlags: UInt32
         var enabled: Bool { return localApicFlags.bit(0) }
         var debugDescription: String {
-            let desc: String = String(describing: tableType)
+            let desc: String = tableType.description
             + ": uid: \(asHex(processorUID)) "
             + "apicID: \(asHex(apicID)) flags: \(asHex(localApicFlags)) "
             + "enabled: " + String(enabled ? "Yes" : "No")
@@ -134,8 +154,7 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
         let ioApicAddress: UInt32
         let globalSystemInterruptBase: UInt32
         var debugDescription: String {
-            let desc: String = String(describing: tableType)
-            + ": APIC ID: \(asHex(ioApicID)) "
+            let desc = "IO-APIC: APIC ID: \(asHex(ioApicID)) "
             + "Addr: \(asHex(ioApicAddress)) "
             + "Interrupt Base: \(asHex(globalSystemInterruptBase))"
             return desc
@@ -164,7 +183,7 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
         let irqSetting: IRQSetting
 
         var debugDescription: String {
-            return String(describing: tableType) + ": irq: \(sourceIRQ) -> \(irqSetting)"
+            return "\(tableType.description): irq: \(sourceIRQ) -> \(irqSetting)"
         }
 
 
@@ -215,10 +234,8 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
         let flags: UInt16
         let localApicLint: UInt8
         var debugDescription: String {
-            let desc: String = String(describing: tableType)
-                + ": processor UID: \(asHex(acpiProcessorUID)) "
+                return "\(tableType.description): processor UID: \(asHex(acpiProcessorUID)) "
                 + "flags: \(asHex(flags)) LINT# \(asHex(localApicLint))"
-            return desc
         }
 
 

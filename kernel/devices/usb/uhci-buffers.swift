@@ -11,7 +11,7 @@
 
 extension HCD_UHCI {
 
-    struct FrameListPage: RandomAccessCollection {
+    struct FrameListPage: RandomAccessCollection, CustomStringConvertible {
         fileprivate let region: MMIORegion
 
         typealias Index = Int
@@ -20,6 +20,9 @@ extension HCD_UHCI {
         let startIndex = 0
         let endIndex = 1024
 
+        var description: String {
+            region.description
+        }
 
         init(region: MMIORegion) {
             self.region = region

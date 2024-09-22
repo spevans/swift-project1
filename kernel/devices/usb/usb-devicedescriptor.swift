@@ -11,7 +11,7 @@
 
 extension USB {
 
-    enum DeviceClass: UInt8 {
+    enum DeviceClass: UInt8, CustomStringConvertible {
         case interfaceSpecific = 0x00
         case communications = 0x02
         case hub = 0x09
@@ -19,13 +19,25 @@ extension USB {
         case diagnosticDevice = 0xDC
         case miscellaneous = 0xEF
         case vendorSpecific = 0xFF
+
+        var description: String {
+            switch self {
+            case .interfaceSpecific:  return "Interface Specific"
+            case .communications:     return "Communications"
+            case .hub:                return "Hub"
+            case .billboard:          return "Billboard"
+            case .diagnosticDevice:   return "Diagnostic"
+            case .miscellaneous:      return "Miscellaneous"
+            case .vendorSpecific:     return "VendorSpecific"
+            }
+        }
     }
 
     struct DeviceDescriptor: CustomStringConvertible {
         private let descriptor: usb_standard_device_descriptor
 
         var description: String {
-            let dc = (deviceClass != nil) ? String(describing: deviceClass!) : "unknown"
+            let dc = deviceClass?.description ?? "unknown"
             return "bcdUSB: 0x\(String(bcdUSB, radix: 16)) bDeviceClass: \(String(bDeviceClass, radix: 16)) bDeviceSubClass: \(String(bDeviceSubClass, radix: 16))"
                 + " bDeviceProtocol: \(String(bDeviceProtocol, radix: 16)) bMaxPacketSize0: \(String(bMaxPacketSize0)) class: \(dc)"
         }

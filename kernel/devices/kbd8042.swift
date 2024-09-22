@@ -18,7 +18,7 @@ protocol PS2Device {
 }
 
 
-final class KBD8042: PNPDeviceDriver, CustomStringConvertible {
+final class KBD8042: PNPDeviceDriver {
     // Constants
     static private let DATA_PORT:        UInt16 = 0x60
     static private let STATUS_REGISTER:  UInt16 = 0x64
@@ -121,7 +121,7 @@ final class KBD8042: PNPDeviceDriver, CustomStringConvertible {
     }
 
 
-    enum I8042Command: UInt8 {
+    enum I8042Command: UInt8, CustomStringConvertible {
         case ReadCommandByte            = 0x20
         case WriteCommandByte           = 0x60
         case PasswordInstalled          = 0xA4
@@ -140,6 +140,29 @@ final class KBD8042: PNPDeviceDriver, CustomStringConvertible {
         case WriteControllerOutputPort  = 0xD1
         case Write2ndPortOutput         = 0xD4
         case PulseOutputPort            = 0xF0
+
+        var description: String {
+            switch self {
+            case .ReadCommandByte:           return "ReadCommandByte"
+            case .WriteCommandByte:          return "WriteCommandByte"
+            case .PasswordInstalled:         return "PasswordInstalled"
+            case .PasswordSet:               return "PasswordSet"
+            case .PasswordEnable:            return "PasswordEnable"
+            case .Disable2ndPort:            return "Disable2ndPort"
+            case .Enable2ndPort:             return "Enable2ndPort"
+            case .SelfTest2ndPort:           return "SelfTest2ndPort"
+            case .SelfTestController:        return "SelfTestController"
+            case .SelfTest1stPort:           return "SelfTest1stPort"
+            case .DisagnosticDump:           return "DisagnosticDump"
+            case .Disable1stPort:            return "Disable1stPort"
+            case .Enable1stPort:             return "Enable1stPort"
+            case .ReadControllerInputPort:   return "ReadControllerInputPort"
+            case .ReadControllerOutputPort:  return "ReadControllerOutputPort"
+            case .WriteControllerOutputPort: return "WriteControllerOutputPort"
+            case .Write2ndPortOutput:        return "Write2ndPortOutput"
+            case .PulseOutputPort:           return "PulseOutputPort"
+            }
+        }
     }
 
 

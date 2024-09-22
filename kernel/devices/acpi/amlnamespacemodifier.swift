@@ -106,7 +106,7 @@ struct AMLDefField: AMLNameSpaceModifierObj {
 }
 
 
-final class AMLNamedIndexField: AMLNamedObj, OpRegionSpace, CustomStringConvertible {
+final class AMLNamedIndexField: AMLNamedObj, OpRegionSpace {
 
     enum FieldReference {
         case namedField(AMLNamedField)
@@ -119,7 +119,7 @@ final class AMLNamedIndexField: AMLNamedObj, OpRegionSpace, CustomStringConverti
     var isReadOnly: Bool { false }
     var length: Int { Int(( fieldSettings.bitOffset + fieldSettings.bitWidth + 7) / 8) }
 
-    var description: String {
+    override var description: String {
         return "idx: \(indexField) data: \(dataField) \(self.name): bitOffset: \(fieldSettings.bitOffset)"
             + " fieldFlags: \(fieldSettings.fieldFlags)"
     }
@@ -197,7 +197,7 @@ final class AMLNamedIndexField: AMLNamedObj, OpRegionSpace, CustomStringConverti
 }
 
 
-final class AMLNamedField: AMLNamedObj, CustomStringConvertible {
+final class AMLNamedField: AMLNamedObj {
 
     enum RegionReference {
         case regionSpace(OpRegionSpace)
@@ -210,7 +210,7 @@ final class AMLNamedField: AMLNamedObj, CustomStringConvertible {
     var isReadOnly: Bool { false }
 
 
-    var description: String {
+    override var description: String {
         return "\(self.name): bitOffset: \(fieldSettings.bitOffset) bitWidth: \(fieldSettings.bitWidth)"
             + " fieldFlags: \(fieldSettings.fieldFlags)"
     }

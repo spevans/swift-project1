@@ -106,7 +106,8 @@ final class PCIDeviceFunction: CustomStringConvertible {
 
 
 // Header Type 0x00, PCI General Device, excludes common fields in PCIDeviceFunction
-struct PCIGeneralDevice {
+struct PCIGeneralDevice: CustomStringConvertible {
+    let description = "GeneralDevice"
     fileprivate let deviceFunction: PCIDeviceFunction
 
     var bar0:               UInt32 { deviceFunction.readConfigDword(atByteOffset: 0x10) }
@@ -127,7 +128,8 @@ struct PCIGeneralDevice {
 }
 
 // Header Type 0x01, PCI-to-PCI Bridge, excludes common fields in PCIDeviceFunction
-struct PCIBridgeDevice {
+struct PCIBridgeDevice: CustomStringConvertible {
+    let description = "BridgeDevice"
     fileprivate let deviceFunction: PCIDeviceFunction
 
     var bar0:               UInt32 { deviceFunction.readConfigDword(atByteOffset: 0x10) }

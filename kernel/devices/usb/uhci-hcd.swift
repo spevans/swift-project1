@@ -10,7 +10,7 @@
 
 
 internal let UHCI_DEBUG = true
-internal func uhciDebug(_ msg: Any...) {
+internal func uhciDebug(_ msg: CustomStringConvertible...) {
     if UHCI_DEBUG {
         print("UHCI: ", terminator: "")
         for m in msg {
@@ -40,7 +40,7 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
 
         guard pciDevice.deviceFunction.deviceClass == PCIDeviceClass(classCode: .serialBusController,
                                                                      subClassCode: PCISerialBusControllerSubClass.usb.rawValue,
-                                                                     progInterface: PCIUSBProgrammingInterace.uhci.rawValue) else {
+                                                                     progInterface: PCIUSBProgrammingInterface.uhci.rawValue) else {
             uhciDebug("\(pciDevice) is not a UHCI Device")
             return nil
         }

@@ -114,7 +114,7 @@ struct PCIRoutingTable {
         }
 
         guard let routingTable = _prt.packageValue else {
-            print("_PTR is not a package but a:", type(of: _prt))
+            print("_PTR is not a package but a:", _prt)
             return nil
         }
 

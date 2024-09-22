@@ -36,6 +36,7 @@ final class USB: Bus {
     let devices: [Device] = []
     var resources: [MotherBoardResource] = []
     private var hcds: [USBHCD] = []
+    let description = "USB"
 
     init() {
 
@@ -54,7 +55,7 @@ final class USB: Bus {
             print("USB: Found pcidevice: \($0) deviceClass: \($1)")
             let deviceClass = $1
             guard $0.pciDeviceDriver == nil else { return }
-            if deviceClass.seriaBusSubClass == .usb, let progIf = PCIUSBProgrammingInterace(rawValue: deviceClass.progInterface) {
+            if deviceClass.seriaBusSubClass == .usb, let progIf = PCIUSBProgrammingInterface(rawValue: deviceClass.progInterface) {
                 print("USB: Found a USB HCD, progIf:", progIf)
                 switch progIf {
                     case .uhci:
