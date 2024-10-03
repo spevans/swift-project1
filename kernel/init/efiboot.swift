@@ -7,7 +7,7 @@
  * Parse the EFI tables.
  */
 
-struct EFIBootParams: BootParams {
+struct EFIBootParams {
 
     typealias EFIPhysicalAddress = UInt
     typealias EFIVirtualAddress = UInt
@@ -33,7 +33,8 @@ struct EFIBootParams: BootParams {
             let offset = descriptor.offset
             do {
                 guard let dt = MemoryType(rawValue: try descriptor.read()) else {
-                    throw ReadError.InvalidData
+                    printf("EFI: Cant read descriptor at offset: %d\n", offset)
+                    return nil
                 }
                 type = dt
                 padding = try descriptor.read()
@@ -42,11 +43,9 @@ struct EFIBootParams: BootParams {
                 numberOfPages = try descriptor.read()
                 attribute = try descriptor.read()
             } catch {
-                printf("EFI: Cant read descriptor at offset: %d\n", offset)
                 return nil
             }
         }
-
     }
 
 

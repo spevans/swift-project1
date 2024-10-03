@@ -57,16 +57,73 @@ struct FrameBufferInfo: CustomStringConvertible {
 }
 
 
-protocol BootParams {
-    var memoryRanges: [MemoryRange]  { get }
-    var source: String { get }
-    var frameBufferInfo: FrameBufferInfo? { get }
-    var kernelPhysAddress: PhysAddress { get }
-    var symbolTablePtr: UnsafePointer<Elf64_Sym>? { get }
-    var symbolTableSize: UInt64 { get }
-    var stringTablePtr: UnsafePointer<CChar>? { get }
-    var stringTableSize: UInt64 { get }
-    func findTables() -> (PhysAddress?, PhysAddress?)
+enum BootParams {
+    case bios(BiosBootParams)
+    case efi(EFIBootParams)
+
+    
+    var memoryRanges: [MemoryRange] {
+        switch self {
+        case let .bios(data): return data.memoryRanges
+        case let .efi(data): return data.memoryRanges
+        }
+    }
+
+    var source: String {
+        switch self {
+        case let .bios(data): return data.source
+        case let .efi(data): return data.source
+        }
+    }
+
+    var frameBufferInfo: FrameBufferInfo? {
+        switch self {
+        case let .bios(data): return data.frameBufferInfo
+        case let .efi(data): return data.frameBufferInfo
+        }
+    }
+
+    var kernelPhysAddress: PhysAddress {
+        switch self {
+        case let .bios(data): return data.kernelPhysAddress
+        case let .efi(data): return data.kernelPhysAddress
+        }
+    }
+
+    var symbolTablePtr: UnsafePointer<Elf64_Sym>? {
+        switch self {
+        case let .bios(data): return data.symbolTablePtr
+        case let .efi(data): return data.symbolTablePtr
+        }
+    }
+
+    var symbolTableSize: UInt64 {
+        switch self {
+        case let .bios(data): return data.symbolTableSize
+        case let .efi(data): return data.symbolTableSize
+        }
+    }
+
+    var stringTablePtr: UnsafePointer<CChar>? {
+        switch self {
+        case let .bios(data): return data.stringTablePtr
+        case let .efi(data): return data.stringTablePtr
+        }
+    }
+
+    var stringTableSize: UInt64 {
+        switch self {
+        case let .bios(data): return data.stringTableSize
+        case let .efi(data): return data.stringTableSize
+        }
+    }
+
+    func findTables() -> (PhysAddress?, PhysAddress?) {
+        switch self {
+        case let .bios(data): return data.findTables()
+        case let .efi(data): return data.findTables()
+        }
+    }
 }
 
 /*
@@ -90,12 +147,12 @@ func parse(bootParamsAddr: VirtualAddress) -> BootParams {
     if (signature == "BIOS") {
         print("bootparams: Found BIOS boot params")
         if let params = BiosBootParams(bootParamsAddr: bootParamsAddr) {
-            return params
+            return .bios(params)
         }
     } else if (signature == "EFI") {
         print("bootparams: Found EFI boot params")
         if let params = EFIBootParams(bootParamsAddr: bootParamsAddr) {
-            return params
+            return .efi(params)
         }
     } else {
         print("bootparams: Found unknown boot params: \(signature)")

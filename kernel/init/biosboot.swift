@@ -8,8 +8,7 @@
  */
 
 
-
-struct BiosBootParams: BootParams, CustomStringConvertible {
+struct BiosBootParams: CustomStringConvertible {
     enum E820Type: UInt32 {
     case ram      = 1
     case reserved = 2
