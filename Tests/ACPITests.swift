@@ -39,12 +39,10 @@ fileprivate func extractCRSSettings(_ resources: [AMLResourceSetting]) -> Resour
     var irqs: [IRQSetting] = []
 
     for resource in resources {
-        if let ioPort = resource as? AMLIOPortSetting {
-            ioports.append(ioPort.ioPorts())
-        } else if let irq = resource as? AMLIrqSetting {
-            irqs.append(contentsOf: irq.interrupts())
-        } else {
-            print("Ignoring resource:", resource)
+        switch resource {
+            case let .ioPortSetting(ioPort): ioports.append(ioPort.ioPorts())
+            case let .irqSetting(irq): irqs.append(contentsOf: irq.interrupts())
+            default: print("Ignoring resource:", resource)
         }
     }
     return Resources(ioPorts: ioports, interrupts: irqs)

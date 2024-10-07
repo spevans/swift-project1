@@ -89,26 +89,21 @@ extension ISABus {
             var fixedMemoryRanges: [(Range<UInt32>, Bool)] = []
 
             for resource in resources {
-                if let ioPort = resource as? AMLIOPortSetting {
-                    ioPorts.append(ioPort.ioPorts())
-                } else if let irq = resource as? AMLIrqSetting {
-                    interrupts.append(contentsOf: irq.interrupts())
-                } else if let irq = resource as? AMLIrqExtendedDescriptor {
-                    interrupts.append(contentsOf: irq.interrupts())
-                } else if let dma = resource as? AMLDmaSetting {
-                    dmaChannels.append(contentsOf: dma.channels())
-                } else if let fixedRange = resource as? AMLFixedMemoryRangeDescriptor {
-                    guard fixedRange.rangeLength > 0 else {
+                switch resource {
+                case let .ioPortSetting(ioPort): ioPorts.append(ioPort.ioPorts())
+                    case let .irqSetting(irq): interrupts.append(contentsOf: irq.interrupts())
+                case let .extendedIrqSetting(irq): interrupts.append(contentsOf: irq.interrupts())
+                case let .dmaSetting(dma): dmaChannels.append(contentsOf: dma.channels())
+                case let .fixedMemoryRangeDescriptor(fixedRange): guard fixedRange.rangeLength > 0 else {
                         print("Ignoring AMLFixedMemoryRangeDescriptor with base: 0x\(String(fixedRange.baseAddress, radix: 16)) length of 0 ")
                         continue
                     }
                     let range = fixedRange.baseAddress..<(fixedRange.baseAddress + (fixedRange.rangeLength - 1))
                     fixedMemoryRanges.append((range, fixedRange.writeable))
-                } else if let spaceDescriptor = resource as? AMLDWordAddressSpaceDescriptor {
+                case let .dwordAddressSpaceDescriptor(spaceDescriptor):
                     // FIXME
                     print("Ignoring:", spaceDescriptor)
-                } else {
-                    fatalError("Cant convert \(resource) to an ISABus.Resource")
+                default: fatalError("Cant convert \(resource) to an ISABus.Resource")
                 }
             }
 

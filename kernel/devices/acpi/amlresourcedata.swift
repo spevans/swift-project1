@@ -6,8 +6,30 @@
 //
 //  Current Resource Settings (_CRS) decoding.
 
+enum AMLResourceSetting: CustomStringConvertible {
+    case irqSetting(AMLIrqSetting)
+    case extendedIrqSetting(AMLIrqExtendedDescriptor)
+    case dmaSetting(AMLDmaSetting)
+    case ioPortSetting(AMLIOPortSetting)
+    case memoryRangeDescriptor(AMLMemoryRangeDescriptor)
+    case fixedMemoryRangeDescriptor(AMLFixedMemoryRangeDescriptor)
+    case wordAddressSpaceDescriptor(AMLWordAddressSpaceDescriptor)
+    case dwordAddressSpaceDescriptor(AMLDWordAddressSpaceDescriptor)
+    case qwordAddressSpaceDescriptor(AMLQWordAddressSpaceDescriptor)
 
-protocol AMLResourceSetting: CustomStringConvertible {
+    var description: String {
+        switch self {
+        case let .irqSetting(irq): return irq.description
+        case let .extendedIrqSetting(irq): return irq.description
+        case let .dmaSetting(dma): return dma.description
+        case let .ioPortSetting(ioPort): return ioPort.description
+        case let .memoryRangeDescriptor(memoryRange): return memoryRange.description
+        case let .fixedMemoryRangeDescriptor(memoryRange): return memoryRange.description
+        case let .wordAddressSpaceDescriptor(descriptor): return descriptor.description
+        case let .dwordAddressSpaceDescriptor(descriptor): return descriptor.description
+        case let .qwordAddressSpaceDescriptor(descriptor): return descriptor.description
+        }
+    }
 }
 
 
@@ -45,7 +67,7 @@ private enum AMLLargeItemName: UInt8 {
 }
 
 
-struct AMLIrqSetting: AMLResourceSetting {
+struct AMLIrqSetting: CustomStringConvertible {
     let irqMask: BitArray16
     let levelTriggered: Bool
     let activeHigh: Bool
@@ -85,7 +107,7 @@ struct AMLIrqSetting: AMLResourceSetting {
     }
 }
 
-struct AMLDmaSetting: AMLResourceSetting {
+struct AMLDmaSetting: CustomStringConvertible {
     let channelMask: BitArray8
     let flags: BitArray8
     var description: String {
@@ -110,7 +132,7 @@ struct AMLDmaSetting: AMLResourceSetting {
 }
 
 
-struct AMLIOPortSetting: AMLResourceSetting {
+struct AMLIOPortSetting: CustomStringConvertible {
     let decodes16Bit: Bool
     let minimumBaseAddress: UInt16
     let maximumBaseAddress: UInt16
@@ -145,7 +167,7 @@ struct AMLIOPortSetting: AMLResourceSetting {
 }
 
 
-struct AMLMemoryRangeDescriptor: AMLResourceSetting {
+struct AMLMemoryRangeDescriptor: CustomStringConvertible {
     let writeable: Bool
     let minimumBaseAddress: UInt32
     let maximumBaseAddress: UInt32
@@ -168,7 +190,7 @@ struct AMLMemoryRangeDescriptor: AMLResourceSetting {
 }
 
 
-struct AMLFixedMemoryRangeDescriptor: AMLResourceSetting {
+struct AMLFixedMemoryRangeDescriptor: CustomStringConvertible {
     let writeable: Bool
     let baseAddress: UInt32
     let rangeLength: UInt32
@@ -186,7 +208,7 @@ struct AMLFixedMemoryRangeDescriptor: AMLResourceSetting {
     }
 }
 
-struct AMLIrqExtendedDescriptor: AMLResourceSetting {
+struct AMLIrqExtendedDescriptor: CustomStringConvertible {
     private let flags: BitArray8
     private let intNumbers: [UInt8]
     var description: String {
@@ -229,7 +251,7 @@ struct AMLIrqExtendedDescriptor: AMLResourceSetting {
 }
 
 
-struct AMLWordAddressSpaceDescriptor: AMLResourceSetting {
+struct AMLWordAddressSpaceDescriptor: CustomStringConvertible {
     enum ResourceType: UInt8 {
         case memoryRange    = 0
         case ioRange        = 1
@@ -285,7 +307,7 @@ struct AMLWordAddressSpaceDescriptor: AMLResourceSetting {
     }
 }
 
-struct AMLDWordAddressSpaceDescriptor: AMLResourceSetting {
+struct AMLDWordAddressSpaceDescriptor: CustomStringConvertible {
     enum ResourceType: UInt8 {
         case memoryRange    = 0
         case ioRange        = 1
@@ -342,7 +364,7 @@ struct AMLDWordAddressSpaceDescriptor: AMLResourceSetting {
 }
 
 
-struct AMLQWordAddressSpaceDescriptor: AMLResourceSetting {
+struct AMLQWordAddressSpaceDescriptor: CustomStringConvertible {
     enum ResourceType: UInt8 {
         case memoryRange    = 0
         case ioRange        = 1
@@ -424,12 +446,23 @@ func decodeResourceData(_ buffer: AMLSharedBuffer) -> [AMLResourceSetting] {
             let buf = AMLBuffer(buffer[idx..<idx + length])
 
             switch type {
-            case .memoryRangeDescriptor32Bit:               setting = AMLMemoryRangeDescriptor(buf)
-            case .fixedLocationMemoryRangeDescriptor32Bit:  setting = AMLFixedMemoryRangeDescriptor(buf)
-            case .dwordAddressSpaceDescriptor:              setting = AMLDWordAddressSpaceDescriptor(buf)
-            case .wordAddressSpaceDescriptor:               setting = AMLWordAddressSpaceDescriptor(buf)
-            case .extendedIRQDescriptor:                    setting = AMLIrqExtendedDescriptor(buf)
-            case .qwordAddressSpaceDescriptor:              setting = AMLQWordAddressSpaceDescriptor(buf)
+            case .memoryRangeDescriptor32Bit:
+                setting = .memoryRangeDescriptor(AMLMemoryRangeDescriptor(buf))
+
+            case .fixedLocationMemoryRangeDescriptor32Bit:
+                setting = .fixedMemoryRangeDescriptor(AMLFixedMemoryRangeDescriptor(buf))
+
+            case .extendedIRQDescriptor:
+                setting = .extendedIrqSetting(AMLIrqExtendedDescriptor(buf))
+
+            case .wordAddressSpaceDescriptor:
+                setting = .wordAddressSpaceDescriptor(AMLWordAddressSpaceDescriptor(buf))
+
+            case .dwordAddressSpaceDescriptor:
+                setting = .dwordAddressSpaceDescriptor(AMLDWordAddressSpaceDescriptor(buf))
+
+            case .qwordAddressSpaceDescriptor:
+                setting = .qwordAddressSpaceDescriptor(AMLQWordAddressSpaceDescriptor(buf))
 
             default: fatalError("Cant decode type: \(type)")
             }
@@ -443,9 +476,9 @@ func decodeResourceData(_ buffer: AMLSharedBuffer) -> [AMLResourceSetting] {
             let buf = AMLBuffer(buffer[idx..<idx + length])
 
             switch type {
-            case .irqFormatDescriptor:  setting = AMLIrqSetting(buf)
-            case .dmaFormatDescriptor:  setting = AMLDmaSetting(buf)
-            case .ioPortDescriptor:     setting = AMLIOPortSetting(buf)
+            case .irqFormatDescriptor:  setting = .irqSetting(AMLIrqSetting(buf))
+            case .dmaFormatDescriptor:  setting = .dmaSetting(AMLDmaSetting(buf))
+            case .ioPortDescriptor:     setting = .ioPortSetting(AMLIOPortSetting(buf))
             case .endTagDescriptor:     return settings     // FIXME: Process the checksum
 
             default: fatalError("Cant decode type: \(type)")
@@ -457,4 +490,3 @@ func decodeResourceData(_ buffer: AMLSharedBuffer) -> [AMLResourceSetting] {
     print("Warning: no EndTagDescriptor")
     return settings
 }
-
