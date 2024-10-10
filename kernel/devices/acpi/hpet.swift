@@ -7,7 +7,7 @@
 //  Parsing of High Precision Event Timer (HPET).
 
 // FIXME: The individual timers should probable be represented with a 'class HPETTimer' or something
-struct HPET: ACPITable, CustomStringConvertible {
+struct HPET: CustomStringConvertible {
 
     private let table: acpi_hpet_table
     private let mmioRegion: MMIORegion

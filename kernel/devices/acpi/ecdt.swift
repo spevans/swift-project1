@@ -6,7 +6,7 @@
 //
 // Parsing of Embedded Controller Boot Resources (ECDT) table.
 
-struct ECDT: ACPITable, CustomStringConvertible {
+struct ECDT: CustomStringConvertible {
 
     let ecId: String
     var description: String { return "ECDT: \(ecId)" }

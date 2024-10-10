@@ -7,7 +7,7 @@
 //  Smart Battery (SBST) Table.
 
 
-struct SBST: ACPITable, CustomStringConvertible {
+struct SBST: CustomStringConvertible {
 
     let warningLevelInmWh:  Int
     let lowLevelInmWh:      Int

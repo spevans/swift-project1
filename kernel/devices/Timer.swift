@@ -27,7 +27,7 @@ func setupPeriodicTimer() -> Bool {
         print(timer)
     } else {
         // Try and use the HPET to emultate the PIT
-        if var hpet = system.deviceManager.acpiTables.entry(of: HPET.self) {
+        if var hpet = system.deviceManager.acpiTables.hpet {
             guard hpet.emulateLegacyPIT(ticksPerSecond: 1000) else {
                 print("timer: HPET doesnt support PIT mode")
                 return false

@@ -8,7 +8,7 @@
  * of fields are looked at, just to see if IAPC flags held any information.
  */
 
-struct FACP: ACPITable, CustomStringConvertible {
+struct FACP: CustomStringConvertible {
 
     private let table: acpi_facp_table
 
@@ -58,5 +58,16 @@ struct FACP: ACPITable, CustomStringConvertible {
 
     init(_ ptr: UnsafeRawPointer) {
         table = ptr.load(as: acpi_facp_table.self)
+    }
+
+
+    private func physicalAddress(xAddr: UInt64, addr: UInt32) -> PhysAddress? {
+        if xAddr != 0 {
+            return PhysAddress(RawAddress(xAddr))
+        } else if addr != 0 {
+            return PhysAddress(RawAddress(addr))
+        } else {
+            return nil
+        }
     }
 }

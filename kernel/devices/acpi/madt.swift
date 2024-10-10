@@ -49,12 +49,18 @@ enum IntControllerTableType: UInt8, CustomStringConvertible {
     }
 }
 
-protocol MADTEntry {
-    var tableType: IntControllerTableType { get }
-}
+
+struct MADT: CustomDebugStringConvertible {
+
+    enum MADTEntry {
+        case processorLocalApic(ProcessorLocalApicTable)
+        case ioApic(IOApicTable)
+        case interruptSourceOverride(InterruptSourceOverrideTable)
+        case localApicNmi(LocalApicNmiTable)
+        //var tableType: IntControllerTableType { get }
+    }
 
 
-struct MADT: ACPITable, CustomDebugStringConvertible {
     // Multiple APIC Flags (bit)
     private let PCAT_COMPAT = 0
 
@@ -118,7 +124,7 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
     }
 
 
-    struct ProcessorLocalApicTable: MADTEntry, CustomDebugStringConvertible {
+    struct ProcessorLocalApicTable: CustomDebugStringConvertible {
         let tableType = IntControllerTableType.processorLocalApic
         let tableLength = 8
         let processorUID: UInt8
@@ -147,7 +153,7 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
     }
 
 
-    struct IOApicTable: MADTEntry, CustomDebugStringConvertible {
+    struct IOApicTable: CustomDebugStringConvertible {
         let tableType = IntControllerTableType.ioApic
         let tableLength = 12
         let ioApicID: UInt8
@@ -174,8 +180,7 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
     }
 
 
-    struct InterruptSourceOverrideTable: MADTEntry,
-        CustomDebugStringConvertible {
+    struct InterruptSourceOverrideTable: CustomDebugStringConvertible {
 
         let tableType = IntControllerTableType.interruptSourceOverride
         let tableLength = 10
@@ -227,7 +232,7 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
     }
 
 
-    struct LocalApicNmiTable: MADTEntry, CustomDebugStringConvertible {
+    struct LocalApicNmiTable: CustomDebugStringConvertible {
         let tableType = IntControllerTableType.localApicNmi
         let tableLength = 6
         let acpiProcessorUID: UInt8
@@ -256,16 +261,16 @@ struct MADT: ACPITable, CustomDebugStringConvertible {
         }
         switch type {
         case .processorLocalApic:
-            return ProcessorLocalApicTable(table: table)
+            return  .processorLocalApic(ProcessorLocalApicTable(table: table))
 
         case .ioApic:
-            return IOApicTable(table: table)
+            return .ioApic(IOApicTable(table: table))
 
         case .interruptSourceOverride:
-            return InterruptSourceOverrideTable(table: table)
+            return .interruptSourceOverride(InterruptSourceOverrideTable(table: table))
 
         case .localApicNmi:
-            return LocalApicNmiTable(table: table)
+            return .localApicNmi(LocalApicNmiTable(table: table))
 
         default:
             fatalError("\(type): unsupported")

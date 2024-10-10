@@ -271,7 +271,7 @@ final class APIC {
         return PhysPageAlignedRegion(start: baseAddress, size: UInt(APIC_REGISTER_SPACE_SIZE))
     }
 
-    init?(madtEntries: [MADTEntry]) {
+    init?(madtEntries: [MADT.MADTEntry]) {
         guard CPU.capabilities.apic else {
             print("APIC: No APIC installed")
             return nil

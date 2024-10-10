@@ -44,13 +44,15 @@ public final class InterruptManager {
         var _overrideEntries: [MADT.InterruptSourceOverrideTable] = []
 
         madtEntries.forEach {
-            if let entry = $0 as? MADT.IOApicTable {
+            switch $0 {
+            case let .ioApic(entry):
                 let baseAddress = PhysAddress(RawAddress(entry.ioApicAddress))
                 let ioapic = IOAPIC(ioApicId: entry.ioApicID, baseAddress: baseAddress,
                                     gsiBase: entry.globalSystemInterruptBase)
                 _ioapics.append(ioapic)
-            } else if let entry = $0 as? MADT.InterruptSourceOverrideTable {
+            case let .interruptSourceOverride(entry):
                 _overrideEntries.append(entry)
+            default: break
             }
         }
         ioapics = _ioapics

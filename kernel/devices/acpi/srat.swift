@@ -6,12 +6,17 @@
 //
 //  Parsing of System Resource Affinity Table (SRAT)
 
-protocol SRATAffinityEntry {
-}
 
-struct SRAT: ACPITable, CustomStringConvertible {
+struct SRAT: CustomStringConvertible {
 
-    struct SRATApicAffinityEntry: SRATAffinityEntry {
+    enum SRATAffinityEntry {
+        case apic(SRATApicAffinityEntry)
+        case memory(SRATMemoryAffinityEntry)
+        case x2apic(SRATX2ApicAffinityEntry)
+        case gicc(SRATGiccAffinityEntry)
+    }
+
+    struct SRATApicAffinityEntry {
         private let proximityDomain: Int
         private let apicId: Int
         private let sapicEid: Int
@@ -29,7 +34,7 @@ struct SRAT: ACPITable, CustomStringConvertible {
         }
     }
 
-    struct SRATX2ApicAffinityEntry: SRATAffinityEntry {
+    struct SRATX2ApicAffinityEntry {
         private let proximityDomain: Int
         private let x2apicId: Int
         private let clockDomain: Int
@@ -42,7 +47,7 @@ struct SRAT: ACPITable, CustomStringConvertible {
         }
     }
 
-    struct SRATMemoryAffinityEntry: SRATAffinityEntry {
+    struct SRATMemoryAffinityEntry {
         private let proximityDomain: Int
         private let baseAddress: UInt64
         private let length: UInt64
@@ -60,7 +65,7 @@ struct SRAT: ACPITable, CustomStringConvertible {
         }
     }
 
-    struct SRATGiccAffinityEntry: SRATAffinityEntry {
+    struct SRATGiccAffinityEntry {
         private let proximityDomain: Int
         private let acpiProcessUid: Int
         private let clockDomain: Int
@@ -104,10 +109,10 @@ struct SRAT: ACPITable, CustomStringConvertible {
             let type = ptr.load(as: UInt8.self)
 
             switch type {
-            case 0: return SRATApicAffinityEntry(ptr)
-            case 1: return SRATMemoryAffinityEntry(ptr)
-            case 2: return SRATX2ApicAffinityEntry(ptr)
-            case 3: return SRATGiccAffinityEntry(ptr)
+            case 0: return .apic(SRATApicAffinityEntry(ptr))
+            case 1: return .memory(SRATMemoryAffinityEntry(ptr))
+            case 2: return .x2apic(SRATX2ApicAffinityEntry(ptr))
+            case 3: return .gicc(SRATGiccAffinityEntry(ptr))
             default: fatalError("ACPI: Invalid SRAT type: \(type)")
             }
         }

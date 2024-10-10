@@ -6,7 +6,7 @@
 //
 // Parsing of Simple Boot Flag (BOOT) Table.
 
-struct BOOT: ACPITable, CustomStringConvertible {
+struct BOOT: CustomStringConvertible {
 
     // Offset in CMOS memory where the BOOT register is located.
     let cmosOffset: Int

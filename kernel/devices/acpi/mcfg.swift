@@ -11,7 +11,7 @@
 
 // FIXME: This table may need to be fixedup using PNP0C01/PNP0C02 info from
 // motherboard resources as the bus range may be too big
-struct MCFG: ACPITable {
+struct MCFG {
 
     struct ConfigEntry: CustomStringConvertible {
         let baseAddress: PhysAddress

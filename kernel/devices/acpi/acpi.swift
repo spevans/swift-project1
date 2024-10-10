@@ -11,19 +11,18 @@
 typealias SDTPtr = UnsafePointer<acpi_sdt_header>
 
 
-protocol ACPITable {
-}
+enum ACPITable {
+    case madt(MADT)
+    case mcfg(MCFG)
+    case boot(BOOT)
+    case ecdt(ECDT)
+    case facp(FACP)
+    case facs(FACS)
+    case hpet(HPET)
+    case sbst(SBST)
+    case srat(SRAT)
+    case waet(WAET)
 
-extension ACPITable {
-    func physicalAddress(xAddr: UInt64, addr: UInt32) -> PhysAddress? {
-        if xAddr != 0 {
-            return PhysAddress(RawAddress(xAddr))
-        } else if addr != 0 {
-            return PhysAddress(RawAddress(addr))
-        } else {
-            return nil
-        }
-    }
 }
 
 
@@ -160,6 +159,7 @@ final class ACPI {
     private(set) var mcfg: MCFG?
     private(set) var facp: FACP?
     private(set) var madt: MADT?
+    private(set) var hpet: HPET?
     private(set) var globalObjects: ACPIObjectNode!
     private(set) var tables: [ACPITable] = []
     private var dsdt: PhysRegion?
@@ -234,17 +234,13 @@ final class ACPI {
         print("End of AML code")
     }
 
-    func entry<T>(of type: T.Type) -> T? where T: ACPITable {
-        return tables.filter { $0 is T }.first as? T
-    }
-
     func parseEntry(physAddress: PhysAddress, vendor: String, product: String) {
 
         let rawSDTPtr = physAddress.rawPointer
         let signature = tableSignature(ptr: rawSDTPtr)
         if signature == "FACS" {
             let facs = FACS(rawSDTPtr)
-            tables.append(facs)
+            tables.append(.facs(facs))
             return
         }
 
@@ -257,7 +253,7 @@ final class ACPI {
         switch signature {
         case "MCFG":
             mcfg = MCFG(rawSDTPtr, vendor: vendor, product: product)
-            tables.append(mcfg!)
+            tables.append(.mcfg(mcfg!))
             for entry in mcfg!.allocations {
                 print("MCFG:", entry)
             }
@@ -266,36 +262,36 @@ final class ACPI {
             facp = FACP(rawSDTPtr)
             if let _facp = facp {
                 print(_facp)
-                tables.append(_facp)
+                tables.append(.facp(_facp))
             }
 
         case "APIC":
             madt = MADT(rawSDTPtr)
-            tables.append(madt!)
+            tables.append(.madt(madt!))
 
         case "HPET":
-            let hpet = HPET(rawSDTPtr)
-            tables.append(hpet)
+            hpet = HPET(rawSDTPtr)
+            tables.append(.hpet(hpet!))
 
         case "ECDT":
             let table = ECDT(rawSDTPtr)
-            tables.append(table)
+            tables.append(.ecdt(table))
 
         case "SBST":
             let table = SBST(rawSDTPtr)
-            tables.append(table)
+            tables.append(.sbst(table))
 
         case "SRAT":
             let table = SRAT(rawSDTPtr)
-            tables.append(table)
+            tables.append(.srat(table))
 
         case "WAET":
             let table = WAET(rawSDTPtr)
-            tables.append(table)
+            tables.append(.waet(table))
 
         case "BOOT":
             let table = BOOT(rawSDTPtr)
-            tables.append(table)
+            tables.append(.boot(table))
 
 
         case "DSDT", "SSDT":

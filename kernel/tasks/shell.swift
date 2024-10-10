@@ -132,7 +132,7 @@ struct HPETCommand: ShellCommand {
     let helpText = "Show HPET configuration"
 
     func runCommand(arguments: [String]) {
-        guard let hpet = system.deviceManager.acpiTables.entry(of: HPET.self) else {
+        guard let hpet = system.deviceManager.acpiTables.hpet else {
             print("No HPET found")
             return
         }

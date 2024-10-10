@@ -6,7 +6,7 @@
 //
 //  Parsing of Windows ACPI Enlightenment Table (WAET) Table.
 
-struct WAET: ACPITable, CustomStringConvertible {
+struct WAET: CustomStringConvertible {
 
     private let deviceFlags: BitArray32
 

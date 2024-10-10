@@ -6,7 +6,7 @@
 //
 //  Parsing of Firmware ACPI Control Structure (FACS).
 
-struct FACS: ACPITable, CustomStringConvertible {
+struct FACS: CustomStringConvertible {
 
     private let table: acpi_facs_table
     var description: String { "FACS: 0x\(String(table.hardware_signature, radix: 16))" }
