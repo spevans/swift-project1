@@ -10,8 +10,7 @@
  */
 
 
-
-final class PS2Keyboard: DeviceDriver, PS2Device, Keyboard {
+final class PS2Keyboard: Keyboard {
     let description = "PS2Keyboard"
     private var prevScanCode: UInt16 = 0
     private var breakCode: UInt8 = 0
@@ -198,7 +197,7 @@ final class PS2Keyboard: DeviceDriver, PS2Device, Keyboard {
     func initialise() -> Bool { true }
 
 
-    public func readKeyboard() -> UnicodeScalar? {
+    override func readKeyboard() -> UnicodeScalar? {
         while let scanCode = inputBuffer.remove() {
             serialPrintf("kbd: scanCode: %#02x\n", scanCode)
 

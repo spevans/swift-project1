@@ -138,7 +138,10 @@ final class PIT8254: PNPDeviceDriver, Timer, CustomStringConvertible {
 
 
     // FIXME, Nothing to do currently, maybe read status to check for presence of device?
-    func initialise() -> Bool { true }
+    func initialise() -> Bool {
+        system.deviceManager.timer = self
+        return true
+    }
 
     func enablePeriodicInterrupt(hz: Int) {
         setChannel(.CHANNEL_0, mode: .MODE_3, hz: hz)

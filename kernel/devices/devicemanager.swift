@@ -15,6 +15,9 @@ final class DeviceManager {
     private(set) var devices: [DeviceDriver] = []
     private(set) var masterBus: MasterBus
 
+    var keyboard: Keyboard?
+    var timer: Timer?
+    var rtc: CMOSRTC?
 
     init(acpiTables: ACPI) {
         acpiTables.parseAMLTables()
@@ -207,19 +210,5 @@ final class DeviceManager {
                 print(pnpDevice)
             }
         }
-    }
-
-
-    var keyboard: Keyboard? {
-        return devices.filter { $0 is Keyboard }.first as? Keyboard
-    }
-
-
-    var timer: Timer? {
-        return devices.filter { $0 is Timer }.first as? Timer
-    }
-
-    var rtc: CMOSRTC? {
-        return devices.filter { $0 is CMOSRTC }.first as? CMOSRTC
     }
 }

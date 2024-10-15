@@ -17,7 +17,9 @@ protocol Device: AnyObject, CustomStringConvertible {
 }
 
 // Generic Keyboard device
-protocol Keyboard {
-    func readKeyboard() -> UnicodeScalar?
+class Keyboard {
+    func readKeyboard() -> UnicodeScalar? {
+        return nil
+    }
     // TODO: Add some key modifier state
 }

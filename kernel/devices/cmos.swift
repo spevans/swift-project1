@@ -45,6 +45,7 @@ final class CMOSRTC: PNPDeviceDriver {
 
 
     func initialise() -> Bool {
+        system.deviceManager.rtc = self
         return true
     }
 

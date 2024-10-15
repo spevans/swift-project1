@@ -13,8 +13,18 @@
 // keyscan codes
 
 
-protocol PS2Device {
-    init(buffer: CircularBuffer<UInt8>)
+enum PS2Device {
+    case none
+    case keyboard(PS2Keyboard)
+    //case mouse(PS2Mouse)
+
+    fileprivate var keyboard: PS2Keyboard? {
+        if case let .keyboard(keyboard) = self {
+            return keyboard
+        } else {
+            return nil
+        }
+    }
 }
 
 
@@ -194,8 +204,8 @@ final class KBD8042: PNPDeviceDriver {
 
     private var dualChannel: Bool = false
     private var keyboardBuffer = CircularBuffer<UInt8>(item: 0, capacity: 16)
-    private var port1device: PS2Device? = nil
-    private var port2device: PS2Device? = nil
+    private var port1device: PS2Device = .none
+    private var port2device: PS2Device = .none
     unowned let pnpDevice: PNPDevice
 
     var description: String { return "KBD8042 \(pnpDevice.resources)" }
@@ -298,31 +308,16 @@ final class KBD8042: PNPDeviceDriver {
 
         flushOutput()
         keyboardBuffer.clear()
-        port1device = PS2Keyboard(buffer: keyboardBuffer)
+        port1device = .keyboard(PS2Keyboard(buffer: keyboardBuffer))
         // FIXME: determine correct irq
         system.deviceManager.interruptManager.setIrqHandler(IRQSetting(isaIrq: 1), handler: kbdInterrupt)
         if dualChannel {
-            port2device = nil
             system.deviceManager.interruptManager.setIrqHandler(IRQSetting(isaIrq: 12), handler: mouseInterrupt)
-        } else {
-            port2device = nil
         }
         print("i8042: kbd initialised")
-        if let kbd = port1device as? (DeviceDriver & Keyboard) {
-            system.deviceManager.addDevice(kbd)
-        }
+        system.deviceManager.keyboard = port1device.keyboard
+
         return true
-    }
-
-
-    public var keyboardDevice: (DeviceDriver & Keyboard)? {
-        if let kbd = port1device as? (DeviceDriver & Keyboard) {
-            return kbd
-        }
-        if let kbd = port2device as? (DeviceDriver & Keyboard) {
-            return kbd
-        }
-        return nil
     }
 
 
