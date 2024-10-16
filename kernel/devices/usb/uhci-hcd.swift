@@ -146,7 +146,7 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
         uhciDebug("Enabled USB")
         sleep(milliseconds: 10)
         registerDump()
-        usbBus!.enumerate(hub: self)
+        usbBus!.enumerate(hub: .uhci(self))
         return true
     }
 
@@ -280,17 +280,14 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
         uhciDebug("HCD did not reset")
     }
 
-}
-
-
-extension HCD_UHCI: USBHCD {
-
     func pollInterrupt() -> Bool {
         return false
     }
 }
 
-extension HCD_UHCI: USBHub {
+
+// USBHub functions
+extension HCD_UHCI {
 
     var portCount: Int { 2 }
 
@@ -369,8 +366,6 @@ extension HCD_UHCI: USBHub {
         defer { maxAddress += 1 }
         return maxAddress
     }
-
-
 }
 
 
@@ -450,4 +445,3 @@ fileprivate extension HCD_UHCI {
         uhciDebug("Port1:", portStatus(port: 1))
     }
 }
-

@@ -12,7 +12,7 @@
 extension HCD_UHCI {
     // FIXME: The HCD should probably track any interrupt pipes that are allocated so that it can poll
     // all of the interrupt pipes when an IRQ actually occurs.
-    func allocatePipe(device: USBDevice, endpointDescriptor: USB.EndpointDescriptor) -> USBPipe {
+    func allocatePipe(device: USBDevice, endpointDescriptor: USB.EndpointDescriptor) -> USBPipe? {
         return UHCIPipe(hcd: self, device: device, endpointDescriptor: endpointDescriptor)
     }
 }
@@ -32,11 +32,12 @@ fileprivate extension HCD_UHCI {
         let endpointDescriptor: USB.EndpointDescriptor
 
 
-        init(hcd: HCD_UHCI, device: USBDevice, endpointDescriptor: USB.EndpointDescriptor) {
+        init?(hcd: HCD_UHCI, device: USBDevice, endpointDescriptor: USB.EndpointDescriptor) {
             switch device.speed {
                 case .lowSpeed: isLowSpeedDevice = true
                 case .fullSpeed: isLowSpeedDevice = false
-                default: fatalError("UHCI: Unsupported speed: \(device.speed)")
+                default: print("UHCI: Unsupported speed: \(device.speed)")
+                return nil
             }
             self.hcd = hcd
             self.device = device
@@ -71,7 +72,8 @@ fileprivate extension HCD_UHCI {
                     hcd.addQueueHead(queueHead, transferType: endpointDescriptor.transferType, interval: endpointDescriptor.bInterval)
 
                 default:
-                    fatalError("Pipes of type \(endpointDescriptor.transferType) are not currently supported")
+                    print("Pipes of type \(endpointDescriptor.transferType) are not currently supported")
+                    return nil
             }
 
             transferDescriptors = _tds
@@ -91,7 +93,7 @@ fileprivate extension HCD_UHCI {
         }
 
 
-        func pollInterruptPipe() -> [UInt8]? {
+        override    func pollInterruptPipe() -> [UInt8]? {
             guard case .interrupt = endpointDescriptor.transferType else {
                 print("UHCI-PIPE: Attempting to poll an non interrupt pipe")
                 return nil
@@ -114,15 +116,15 @@ fileprivate extension HCD_UHCI {
         }
 
 
-        func allocateBuffer(length: Int) -> MMIOSubRegion {
+        override func allocateBuffer(length: Int) -> MMIOSubRegion {
             return hcd.allocator.allocPhysBuffer(length: length)
         }
 
-        func freeBuffer(_ buffer: MMIOSubRegion) {
+        override func freeBuffer(_ buffer: MMIOSubRegion) {
             hcd.allocator.freePhysBuffer(buffer)
         }
 
-        func send(request: USB.ControlRequest, withBuffer: MMIOSubRegion?) -> Bool {
+        override func send(request: USB.ControlRequest, withBuffer: MMIOSubRegion?) -> Bool {
            uhciDebug("Sending request:", request, "withBuffer:", withBuffer ?? "nil")
             // copy the request into a 32byte low buffer
             let buffer = hcd.allocator.allocPhysBuffer(length: MemoryLayout<USB.ControlRequest>.size)

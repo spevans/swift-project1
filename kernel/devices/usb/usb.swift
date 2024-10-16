@@ -9,25 +9,61 @@
  */
 
 
-protocol USBHCD {
-    func pollInterrupt() -> Bool
+enum USBHCD {
+    case uhci(HCD_UHCI)
+    case ehci(HCD_EHCI)
+    case xhci(HCD_XHCI)
+
+    func pollInterrupt() -> Bool {
+        switch self {
+        case let .uhci(hcd): return hcd.pollInterrupt()
+        case let .ehci(hcd): return hcd.pollInterrupt()
+        case let .xhci(hcd): return hcd.pollInterrupt()
+        }
+    }
 }
 
 
-protocol USBHub {
-    var portCount: Int { get }
-    func reset(port: Int) -> Bool
-    func detectConnected(port: Int) -> USB.Speed?
-    func nextAddress() -> UInt8?
-    func allocatePipe(device: USBDevice, endpointDescriptor: USB.EndpointDescriptor) -> USBPipe
+enum USBHub {
+    case uhci(HCD_UHCI)
+
+    var portCount: Int {
+        switch self {
+        case let .uhci(hub): return hub.portCount
+        }
+    }
+
+    func reset(port: Int) -> Bool {
+        switch self {
+        case let .uhci(hub): return hub.reset(port: port)
+        }
+    }
+
+    func detectConnected(port: Int) -> USB.Speed? {
+        switch self {
+        case let .uhci(hub): return hub.detectConnected(port: port)
+        }
+    }
+
+    func nextAddress() -> UInt8? {
+        switch self {
+        case let .uhci(hub): return hub.nextAddress()
+        }
+    }
+
+    func allocatePipe(device: USBDevice, endpointDescriptor: USB.EndpointDescriptor) -> USBPipe? {
+        switch self {
+        case let .uhci(hub): return hub.allocatePipe(device: device, endpointDescriptor: endpointDescriptor)
+        }
+    }
 }
 
 
-protocol USBPipe {
-    func allocateBuffer(length: Int) -> MMIOSubRegion
-    func freeBuffer(_ buffer: MMIOSubRegion)
-    func send(request: USB.ControlRequest, withBuffer: MMIOSubRegion?) -> Bool
-    func pollInterruptPipe() -> [UInt8]?
+class USBPipe {
+    func allocateBuffer(length: Int) -> MMIOSubRegion { fatalError() }
+    func freeBuffer(_ buffer: MMIOSubRegion) {}
+    func send(request: USB.ControlRequest, withBuffer: MMIOSubRegion?) -> Bool { return false }
+    func pollInterruptPipe() -> [UInt8]? { return nil }
 }
 
 
@@ -62,7 +98,7 @@ final class USB: Bus {
                         if $0.initialise(), let driver = HCD_UHCI(pciDevice: $0) {
                             if driver.initialise() {
                                 $0.setDriver(driver)
-                                let hcd = driver as USBHCD
+                                let hcd = USBHCD.uhci(driver)
                                 hcds.append(hcd)
                             }
                         }
@@ -71,7 +107,7 @@ final class USB: Bus {
                         if $0.initialise(), let driver = HCD_EHCI(pciDevice: $0) {
                             if driver.initialise() {
                                 $0.setDriver(driver)
-                                let hcd = driver as USBHCD
+                                let hcd = USBHCD.ehci(driver)
                                 hcds.append(hcd)
                             }
                         }
@@ -80,7 +116,7 @@ final class USB: Bus {
                         if $0.initialise(), let driver = HCD_XHCI(pciDevice: $0) {
                             if driver.initialise() {
                                 $0.setDriver(driver)
-                                let hcd = driver as USBHCD
+                                let hcd = USBHCD.xhci(driver)
                                 hcds.append(hcd)
                             }
                         }

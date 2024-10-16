@@ -51,16 +51,19 @@ final class USBDevice {
     }
 
     private func controlPipe() -> USBPipe {
-        if _controlPipe == nil {
-            _controlPipe = hub.allocatePipe(device: self, endpointDescriptor: USB.EndpointDescriptor(controlEndPoint: 0, maxPacketSize: 8, bInterval: 0))
+        if let pipe = _controlPipe {
+            return pipe
         }
-        return _controlPipe!
+        guard let pipe = hub.allocatePipe(device: self, endpointDescriptor: USB.EndpointDescriptor(controlEndPoint: 0, maxPacketSize: 8, bInterval: 0)) else {
+            fatalError("UHCI: Cant allocate pipe")
+        }
+        _controlPipe = pipe
+        return pipe
     }
 
     func sendControlRequest(request: USB.ControlRequest) -> Bool {
-        let requestStr = String(describing: request)
         print("USBDEV: sendControlRequest:", terminator: " ")
-        print(requestStr)
+        print(request)
         let pipe = controlPipe()
 
         return pipe.send(request: request, withBuffer: nil)

@@ -9,7 +9,7 @@
  */
 
 
-final class HCD_EHCI: PCIDeviceDriver, USBHCD, CustomStringConvertible {
+final class HCD_EHCI: PCIDeviceDriver, CustomStringConvertible {
     private let pciDevice: PCIDevice       // The device (upstream) side of the bridge
     private let baseAddress: UInt32
     private let allows64BitMapping: Bool
@@ -51,7 +51,7 @@ final class HCD_EHCI: PCIDeviceDriver, USBHCD, CustomStringConvertible {
         return false
     }
 
-    func allocatePipe(device: USBDevice, endpointDescriptor: USB.EndpointDescriptor) -> USBPipe {
+    func allocatePipe(device: USBDevice, endpointDescriptor: USB.EndpointDescriptor) -> USBPipe? {
         fatalError("xhci: allocatePipe not implemented")
     }
 
