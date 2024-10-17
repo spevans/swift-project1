@@ -56,12 +56,13 @@ final class DeviceManager {
         // Step 2.
         // Check that every AMLDefDevice in the ACPI tree has a Device set
         masterBus.acpiSystemBus.walkNode { (name, object) in
-            guard let amldev = object as? AMLDefDevice else { return }
+            guard let amldev = object as? AMLDefDevice else { return false }
             if let device = amldev.device {
                 print("DEV: \(name): \(device)")
             } else {
                 print("DEV: \(name) has no device set")
             }
+            return true
         }
 
         // Step 3:

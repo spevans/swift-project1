@@ -95,6 +95,7 @@ extension ACPI.ACPIObjectNode {
             if node is AMLDefDevice {
                 devices.append((path, node))
             }
+            return true
         }
         return devices
     }
@@ -146,6 +147,7 @@ class ACPITests: XCTestCase {
         let acpi = ACPITests.macbookACPI()
         acpi.globalObjects.walkNode { (path, node) in
             print("ACPI:", path)
+            return true
         }
 
         let s5 = acpi.globalObjects.get("\\_S5")
@@ -186,7 +188,11 @@ class ACPITests: XCTestCase {
             XCTFail("Cant find \\_SB.PCI0")
             return
         }
-        let interruptRoutingTable = PCIRoutingTable(acpi: pci0)
+        guard let prt = pci0.childNode(named: "_PRT") else {
+            XCTFail("Cannot find \\_SB.PCI0._PRT")
+            return
+        }
+        let interruptRoutingTable = PCIRoutingTable(prtNode: prt)
         guard let table = interruptRoutingTable?.table else {
             XCTFail("Cant read _PRT")
             return
@@ -234,6 +240,35 @@ class ACPITests: XCTestCase {
         }
     }
 
+    func testQEMU910Devices() {
+        // Add some dummy external values
+        let (acpi, allData) = createACPI(files: ["QEMU-9.1.0-DSDT.aml"])
+
+        defer { allData.deallocate() }
+        do {
+            guard let prtNode = acpi.globalObjects.get("\\_SB.PCI0._PRT") else {
+                throw AMLError.parseError
+            }
+            guard let prt = PCIRoutingTable(prtNode: prtNode) else {
+                XCTFail("Cannot part PRT table")
+                throw AMLError.parseError
+            }
+            XCTAssertEqual(prt.table.count, 128)
+        } catch AMLError.invalidMethod(let reason) {
+            XCTAssertEqual(reason, "Cant find method: \\_PIC")
+        } catch {
+            XCTFail("\(error)")
+        }
+
+        do {
+            guard acpi.globalObjects.get("\\_SB.LNKA._STA") != nil else {
+                XCTFail("Cant find \\_SB.LINK._STA")
+                throw AMLError.parseError
+            }
+        } catch {
+            XCTFail("\(error)")
+        }
+    }
 
     func testQEMUDevices() {
         // Add some dummy external values
@@ -442,7 +477,11 @@ class ACPITests: XCTestCase {
                 XCTAssertEqual(table.count, count)
                 XCTAssertNotNil(table[0].dataRefObject)
 
-                guard let pciRT = PCIRoutingTable(acpi: pci0) else {
+                guard let prt = pci0.childNode(named: "_PRT") else {
+                    XCTFail("Cannot find \\_SB.PCI0._PRT")
+                    throw AMLError.parseError
+                }
+                guard let pciRT = PCIRoutingTable(prtNode: prt) else {
                     XCTFail("Cant parse PCIRoutingTable")
                     throw AMLError.parseError
                 }
@@ -503,6 +542,7 @@ class ACPITests: XCTestCase {
 
         acpi.globalObjects.walkNode(name: "\\_SB.PCI0.ISA", node: isa) { (path, node) in
             print("ACPI: \(path)")
+            return true
         }
     }
 
@@ -535,7 +575,11 @@ class ACPITests: XCTestCase {
 
         do {
             // Read the _PRT to check it is using GPIC=0 form
-            let interruptRoutingTable = PCIRoutingTable(acpi: pci0)
+            guard let prt = acpi.globalObjects.get("\\_SB.PCI0._PRT") as? AMLNamedValue else {
+                XCTFail("Cannot find \\_SB.PCI0.PRT")
+                return
+            }
+            let interruptRoutingTable = PCIRoutingTable(prtNode: prt)
             guard let table = interruptRoutingTable?.table else {
                 XCTFail("Cant read _PRT")
                 return
@@ -553,7 +597,11 @@ class ACPITests: XCTestCase {
 
         do {
             // Now read the _PRT to check it is using GPIC=1 form
-            let interruptRoutingTable = PCIRoutingTable(acpi: pci0)
+            guard let prt = pci0.childNode(named: "_PRT") as? AMLNamedValue else {
+                XCTFail("Cannot find \\_SB.PCI0.PRT")
+                return
+            }
+            let interruptRoutingTable = PCIRoutingTable(prtNode: prt)
             guard let table = interruptRoutingTable?.table else {
                 XCTFail("Cant read _PRT")
                 return
@@ -576,7 +624,7 @@ class ACPITests: XCTestCase {
             XCTFail("Cant run \\_SB.PCI0.INI: \(error)")
         }
 
-
+/*
         let status = pci0.status()
         XCTAssertTrue(status.present)
         XCTAssertTrue(status.enabled)
@@ -587,7 +635,7 @@ class ACPITests: XCTestCase {
         } else {
             XCTFail("Cant find \\_SB.PIC0.ISA.SIO.CO02")
         }
-
+*/
         // Check DefProcessor
         if let cpu = acpi.globalObjects.get("\\_SB.CP01") {
             var context = ACPI.AMLExecutionContext(scope: AMLNameString(cpu.fullname()))

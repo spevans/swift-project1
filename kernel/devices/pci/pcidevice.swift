@@ -40,11 +40,6 @@ final class PCIDevice: Device, CustomStringConvertible {
     }
 
     func initialise() -> Bool {
-        // FIXME: Should the caller be calling it directly, and should this only be called
-        // by the device driver?
-        guard let acpi = acpiDevice, acpi.initialiseIfPresent() else {
-            return false
-        }
         self.enabled = true
         return true
     }

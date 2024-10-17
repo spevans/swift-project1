@@ -269,8 +269,9 @@ extension ACPI {
         }
 
 
-        func walkNode(name: String, node: ACPIObjectNode, _ body: (String, ACPIObjectNode) -> Void) {
-            body(name, node)
+        func walkNode(name: String, node: ACPIObjectNode, _ body: (String, ACPIObjectNode) -> Bool) {
+            let keepWalking = body(name, node)
+            guard keepWalking else { return }
             for child in node.childNodes {
                 let fullName = (name == "\\") ? name + child.name.value :
                     name + String(AMLNameString.pathSeparatorChar) + child.name.value
@@ -278,10 +279,21 @@ extension ACPI {
             }
         }
 
-        func walkNode( _ body: (String, ACPIObjectNode) -> Void) {
-            body(self.fullname(), self)
+        func walkNode( _ body: (String, ACPIObjectNode) -> Bool) {
+            let keepWalking = body(self.fullname(), self)
+            guard keepWalking else { return }
             for child in self.childNodes {
                 child.walkNode(body)
+            }
+        }
+
+        func findNodes(name: AMLNameString, _ body: (String, ACPIObjectNode) -> Bool) {
+            walkNode { (fullName, obj) in
+                if obj.name == name {
+                    let keepWalking = body(fullName, obj)
+                    guard keepWalking else { return false }
+                }
+                return true
             }
         }
     }

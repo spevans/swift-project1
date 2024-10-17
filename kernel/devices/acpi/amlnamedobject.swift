@@ -78,46 +78,10 @@ final class AMLDefDevice: AMLNamedObj {
         }
         self.device = device
     }
+}
 
-
-    func status() -> AMLDefDevice.DeviceStatus {
-        guard let sta = childNode(named: "_STA") else {
-            return .defaultStatus()
-        }
-        var context = ACPI.AMLExecutionContext(scope: AMLNameString(sta.fullname()))
-        let result = sta.readValue(context: &context)
-        return AMLDefDevice.DeviceStatus(result.integerValue!)
-    }
-
-    // Run the _INI method if it exists
-    func initialise() throws {
-        guard let ini = childNode(named: "_INI") as? AMLMethod else { return }
-        var context = ACPI.AMLExecutionContext(scope: AMLNameString(ini.fullname()))
-        try ini.execute(context: &context)
-    }
-
-    func initialiseIfPresent() -> Bool {
-        let status = self.status()
-        if !status.present {
-            print("DEV: Ignoring", self.fullname(), "as status present:", status.present, "enabled:", status.enabled)
-            return false
-        }
-        do {
-            print("ACPI: calling \(self.fullname())._INI")
-            try self.initialise()
-        } catch {
-            let str: String
-            if let error = error as? AMLError {
-                str = error.description
-            } else {
-                str = "unknown"
-            }
-            print("ACPI: Error running _INI for", self.fullname(), str)
-        }
-        let newStatus = self.status()
-        print("initialiseIfPresent:", newStatus.enabled)
-        return newStatus.enabled
-    }
+// Helper functions for ACPI Device nodes
+extension AMLNamedObj {
 
     func currentResourceSettings() -> [AMLResourceSetting]? {
         return _resourceSettings(node: "_CRS")
@@ -136,7 +100,7 @@ final class AMLDefDevice: AMLNamedObj {
         let buffer: AMLSharedBuffer
         if let obj = (crs as? AMLNamedValue)?.value {
             guard let _buffer = obj.bufferValue else {
-                fatalError("crsObject namedValue \(value) not a buffer")
+                fatalError("crsObject namedValue \(self.fullname()) not a buffer")
             }
             buffer = _buffer
         } else {
@@ -153,8 +117,8 @@ final class AMLDefDevice: AMLNamedObj {
         return decodeResourceData(buffer)
     }
 
-    // _CID or _HID, uses for PNP
-    lazy var deviceId: String? = { hardwareId() ?? pnpName() }()
+    // _CID or _HID, used for PNP
+    var deviceId: String? { hardwareId() ?? pnpName() }
 
     func hardwareId() -> String? {
         guard let hid = childNode(named: "_HID") else {

@@ -47,6 +47,7 @@ final class System {
 
     fileprivate func initSystem() {
         CPU.getInfo()
+        deviceManager.acpiTables.startup()
         deviceManager.initialiseEarlyDevices()
 
         // gitBuildVersion defined in kernel/init/version.swift, created

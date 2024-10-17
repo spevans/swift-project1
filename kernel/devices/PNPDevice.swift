@@ -40,10 +40,6 @@ final class PNPDevice: Device {
     }
 
     func initialise() -> Bool {
-        guard _acpiDevice.initialiseIfPresent() else {
-            print("\(fullName): initialiseIfPresent() failed")
-            return false
-        }
         if let crs = _acpiDevice.currentResourceSettings() {
             resources = ISABus.Resources(crs)
         }

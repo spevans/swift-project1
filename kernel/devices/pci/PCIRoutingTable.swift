@@ -101,12 +101,7 @@ struct PCIRoutingTable {
     let prtAcpiNode: ACPI.ACPIObjectNode
     let table: [PCIRoutingTable.Entry]
 
-    init?(acpi: AMLDefDevice) {
-
-        guard let prtNode = acpi.childNode(named: "_PRT") else {
-            print("PCI: Cant find _PRT under \(acpi.fullname())")
-            return nil
-        }
+    init?(prtNode: AMLNamedObj) {
 
         guard let _prt = prtNode.asTermArg() as? AMLDataObject else {
             print("PCI: \(prtNode.fullname()) is not an AMLDataObject")

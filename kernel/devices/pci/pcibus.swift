@@ -47,9 +47,6 @@ final class PCIHostBus: Device, CustomStringConvertible {
     }
 
     func initialise() -> Bool {
-        guard let acpi = acpiDevice, acpi.initialiseIfPresent() else {
-            return false
-        }
         self.enabled = true
         return true
     }
@@ -78,7 +75,7 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
         let name = device.acpiDevice?.fullname() ?? "no name"
         print("PCIBus.init \(name): busId: \(busId)")
         // FIXME: Determine if root bus
-        interruptRoutingTable = PCIRoutingTable(acpi: acpiDevice)
+        interruptRoutingTable = nil //PCIRoutingTable(acpi: acpiDevice)
         print("PCIBus.init:", self.description)
     }
 

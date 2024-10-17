@@ -94,21 +94,7 @@ final class MasterBus: Bus {
     }
 
 
-  //  func initialiseDevices(acpiDevice: AMLDefDevice?) {
     func initialise() -> Bool {
-        // Run \\_SB.INI() before initialising devices.
-        do {
-            try ACPI.invoke(method: "\\_SB._INI")
-        } catch {
-            let str: String
-            if let error = error as? AMLError {
-                str = error.description
-            } else {
-                str = "unknown error"
-            }
-            print("ACPI: Error running \\_SB.INI:", str)
-        }
-
         for value in acpiSystemBus.childNodes {
             if let device = value as? AMLDefDevice {
                 ACPI.processNode(parentBus: self, device)

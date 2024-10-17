@@ -856,14 +856,14 @@ final class AMLParser {
 
     private func parseDefDevice() throws -> AMLDefDevice {
         let parser = try subParser()
-        let name = try parser.parseNameString().shortName
-        let fqn = resolveNameToCurrentScope(path: name)
+        let name = try parser.parseNameString()
+        let fqn = name.isFullPath ? name : resolveNameToCurrentScope(path: name)
         // open a new scope.
         parser.currentScope = fqn
         let termList = try parser.parseTermList()
 
         // No need to store any subobject as they get added to the tree as named objects themselves.
-        let dev = AMLDefDevice(name: name, value: termList)
+        let dev = AMLDefDevice(name: name.shortName, value: termList)
         try addGlobalObject(name: fqn, object: dev)
         return dev
     }

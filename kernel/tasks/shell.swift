@@ -64,6 +64,7 @@ private func dumpACPICommand(arguments: [String]) {
     }
     node.walkNode { (path, node) in
         print(path, node)
+        return true // walk children
     }
 }
 

@@ -73,6 +73,7 @@ void
 stack_trace(uintptr_t rsp, uintptr_t rbp)
 {
         kprintf("stack_trace: RSP: %16.16lx RBP: %16.16lx\n", rsp, rbp);
+    return;
         if (rsp == 0) {
                 return;
         }
@@ -93,6 +94,7 @@ stack_trace(uintptr_t rsp, uintptr_t rbp)
         size_t idx = 0;
 
         kprintf("rbp_ptr = %p _kernel_stack = %p\n", rbp_ptr, &_kernel_stack);
+        return;
         while ((uintptr_t)rbp_ptr > (uintptr_t)&_stack_start
                && (uintptr_t)rbp_ptr < (uintptr_t)&_kernel_stack) {
                 if (rbp_ptr == NULL) {

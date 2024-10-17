@@ -349,3 +349,59 @@ final class ACPI {
         return csum
     }
 }
+
+extension ACPI {
+    func startup() {
+
+        func runMethod(_ node: ACPIObjectNode) -> Bool {
+            print("ACPI: Running:", node.fullname())
+            guard let method = node as? AMLMethod else {
+                print(node.fullname(), " is not an _INI method")
+                return false
+            }
+            do {
+                print("ACPI: calling \(node.fullname())")
+                var context = ACPI.AMLExecutionContext(scope: AMLNameString(node.fullname()))
+                try method.execute(context: &context)
+                return true
+            } catch {
+                let str: String
+                if let error = error as? AMLError {
+                    str = error.description
+                } else {
+                    str = "unknown"
+                }
+                print("ACPI: Error running \(node.name) for", node.fullname(), str)
+            }
+            return true
+        }
+
+        func devStatus(_ parent: ACPIObjectNode?) -> AMLDefDevice.DeviceStatus {
+            if let sta = parent?.childNode(named: "_STA") {
+                var context = ACPI.AMLExecutionContext(scope: AMLNameString(sta.fullname()))
+                let result = sta.readValue(context: &context)
+                return AMLDefDevice.DeviceStatus(result.integerValue!)
+            } else {
+                return .defaultStatus()
+            }
+        }
+
+        print("ACPI: Finding _INI")
+        // Find _INI for ACPI devices and run if necessary
+        globalObjects.findNodes(name: AMLNameString("_INI")) { (fullName, node) in
+            // Evaluate _STA if present
+            let status = devStatus(node.parent)
+            if status.present {
+                // Dont walk child nodes if _INI does not execute OK.
+                guard runMethod(node) else { return false }
+            }
+
+            if !status.present || !status.enabled {
+                // Dont walk child nodes if device not present or not enabled
+                return false
+            } else {
+                return true
+            }
+        }
+    }
+}
