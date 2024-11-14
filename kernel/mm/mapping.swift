@@ -68,6 +68,7 @@ func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
     let pageCnt = ((size + PAGE_SIZE - 1) / PAGE_SIZE)
     var physAddress = physStart
     var addr = start
+    let initial_pml4_addr = VirtualAddress(bitPattern: &initial_pml4)
     let pmlPage = PageMapLevel4Table(at: initial_pml4_addr)
 
     // Encode cacheType (0 - 7) PAT Entry index
@@ -115,6 +116,7 @@ private func removeMapping(address: VirtualAddress) -> Bool {
     let idx0 = pml4Index(address)
     let idx1 = pdpIndex(address)
 
+    let initial_pml4_addr = VirtualAddress(bitPattern: &initial_pml4)
     let pmlPage = PageMapLevel4Table(at: initial_pml4_addr)
     guard var pdpt = pmlPage[idx0].pageDirectoryPointerTable else { return false }
 
@@ -148,6 +150,7 @@ private func changeEntry(address: VirtualAddress, cacheType: CPU.CacheType, read
     let idx1 = pdpIndex(address)
     let idx2 = pdIndex(address)
     let idx3 = ptIndex(address)
+    let initial_pml4_addr = VirtualAddress(bitPattern: &initial_pml4)
 
     let patIndex = cacheType.patEntry
     let pmlPage = PageMapLevel4Table(at: initial_pml4_addr)

@@ -22,37 +22,31 @@
 #include "usb.h"
 #include "io.h"
 
-// Export as [symbol]_addr as a unitptr_t to be manipulated as a UInt
-#define EXPORTED_SYMBOL_AS_UINTPTR(x)               \
-extern const void * _Nonnull x;                     \
-__attribute__((section("/DISCARD/")))               \
-static const uintptr_t x##_addr = (uintptr_t)&x;
-
 
 // Symbols to export as [symbol]_addr
-EXPORTED_SYMBOL_AS_UINTPTR(_text_start);
-EXPORTED_SYMBOL_AS_UINTPTR(_text_end);
-EXPORTED_SYMBOL_AS_UINTPTR(_rodata_start);
-EXPORTED_SYMBOL_AS_UINTPTR(_rodata_end);
-EXPORTED_SYMBOL_AS_UINTPTR(_data_start);
-EXPORTED_SYMBOL_AS_UINTPTR(_data_end);
-EXPORTED_SYMBOL_AS_UINTPTR(_bss_start);
-EXPORTED_SYMBOL_AS_UINTPTR(_bss_end);
-EXPORTED_SYMBOL_AS_UINTPTR(_heap_start);
-EXPORTED_SYMBOL_AS_UINTPTR(_heap_end);
-EXPORTED_SYMBOL_AS_UINTPTR(_kernel_start);
-EXPORTED_SYMBOL_AS_UINTPTR(_kernel_end);
-EXPORTED_SYMBOL_AS_UINTPTR(_guard_page);
-EXPORTED_SYMBOL_AS_UINTPTR(_stack_start);
-EXPORTED_SYMBOL_AS_UINTPTR(_ist1_stack_top);
-EXPORTED_SYMBOL_AS_UINTPTR(initial_pml4);
-EXPORTED_SYMBOL_AS_UINTPTR(physmap_pml3);
-EXPORTED_SYMBOL_AS_UINTPTR(physmap_pml2);
-EXPORTED_SYMBOL_AS_UINTPTR(physmap_pml1);
-EXPORTED_SYMBOL_AS_UINTPTR(kernmap_pml3);
-EXPORTED_SYMBOL_AS_UINTPTR(kernmap_pml2);
-EXPORTED_SYMBOL_AS_UINTPTR(kernmap_pml1);
-EXPORTED_SYMBOL_AS_UINTPTR(fontdata_8x16);
+extern const void * _Nonnull _text_start;
+extern const void * _Nonnull _text_end;
+extern const void * _Nonnull _rodata_start;
+extern const void * _Nonnull _rodata_end;
+extern const void * _Nonnull _data_start;
+extern const void * _Nonnull _data_end;
+extern const void * _Nonnull _bss_start;
+extern const void * _Nonnull _bss_end;
+extern const void * _Nonnull _heap_start;
+extern const void * _Nonnull _heap_end;
+extern const void * _Nonnull _kernel_start;
+extern const void * _Nonnull _kernel_end;
+extern const void * _Nonnull _guard_page;
+extern const void * _Nonnull _stack_start;
+extern const void * _Nonnull _ist1_stack_top;
+extern const void * _Nonnull initial_pml4;
+extern const void * _Nonnull physmap_pml3;
+extern const void * _Nonnull physmap_pml2;
+extern const void * _Nonnull physmap_pml1;
+extern const void * _Nonnull kernmap_pml3;
+extern const void * _Nonnull kernmap_pml2;
+extern const void * _Nonnull kernmap_pml1;
+extern const uint8_t * _Nonnull fontdata_8x16;
 
 extern struct task_state_segment task_state_segment;
 

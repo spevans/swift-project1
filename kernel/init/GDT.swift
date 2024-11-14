@@ -88,7 +88,7 @@ func setupGDT() {
     // Set IST1 in the TSS
     let tssPtr = UnsafeMutableRawPointer(mutating: asRawPointer(&task_state_segment))
     let tss = tssPtr.bindMemory(to: task_state_segment.self, capacity: 1)
-    tss.pointee.ist1 = UInt64(_ist1_stack_top_addr)
+    tss.pointee.ist1 = UInt64(VirtualAddress(bitPattern: &_ist1_stack_top))
 
     let gdtPtr = UnsafeMutableRawPointer(currentGdtInfo.base)!
     let tssSeg = gdtPtr.advanced(by: Int(TSS_SELECTOR))

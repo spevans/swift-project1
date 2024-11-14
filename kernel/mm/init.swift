@@ -66,6 +66,9 @@ private(set) var kernelPhysBase = PhysAddress(0)
 // Convert a virtual address between kernel_start and kernel_end into a
 // physical address
 private func kernelPhysAddress(_ address: VirtualAddress) -> PhysAddress {
+    let _kernel_start_addr = VirtualAddress(bitPattern: &_kernel_start)
+    let _kernel_end_addr = VirtualAddress(bitPattern: &_kernel_end)
+
     guard address >= _kernel_start_addr && address < _kernel_end_addr else {
         printf("kernelPhysAddress: invalid address: %p", address)
         stop()
@@ -78,6 +81,8 @@ private func kernelPhysAddress(_ address: VirtualAddress) -> PhysAddress {
 func setupMM(bootParams: BootParams) {
 
     kernelPhysBase = bootParams.kernelPhysAddress
+
+    let initial_pml4_addr = VirtualAddress(bitPattern: &initial_pml4)
 
     // Show the current memory ranges
 //    for range in bootParams.memoryRanges {
@@ -146,6 +151,11 @@ private func setupKernelMap(bootParams: BootParams) {
     let idx3 = ptIndex(addr)
     precondition(idx3 == 0)
 
+    let initial_pml4_addr = VirtualAddress(bitPattern: &initial_pml4)
+    let kernmap_pml3_addr = VirtualAddress(bitPattern: &kernmap_pml3)
+    let kernmap_pml2_addr = VirtualAddress(bitPattern: &kernmap_pml2)
+    let kernmap_pml1_addr = VirtualAddress(bitPattern: &kernmap_pml1)
+
     // Setup the pre allocated page tables in the BSS that allow mapping upto 16MB using 4K pages
     var pml4Page = PageMapLevel4Table(at: initial_pml4_addr)
     let pml4Entry = PageMapLevel4Entry(address: kernelPhysAddress(kernmap_pml3_addr), readWrite: true, userAccess: false,
@@ -159,18 +169,20 @@ private func setupKernelMap(bootParams: BootParams) {
 
     var pml2Page = pml3Entry.pageDirectory!
 
-    let textEnd: VirtualAddress = _text_end_addr
-    let rodataStart: VirtualAddress = _rodata_start_addr
-    let dataStart: VirtualAddress = _data_start_addr
-    let bssEnd: VirtualAddress = _bss_end_addr
-    let guardPage: VirtualAddress = _guard_page_addr
-    let kernelBase: VirtualAddress = _kernel_start_addr
+    let kernelStart = VirtualAddress(bitPattern: &_kernel_start)
+    let textEnd = VirtualAddress(bitPattern: &_text_end)
+    let rodataStart = VirtualAddress(bitPattern: &_rodata_start)
+    let dataStart = VirtualAddress(bitPattern: &_data_start)
+    let stackStart = VirtualAddress(bitPattern: &_stack_start)
+    let bssEnd = VirtualAddress(bitPattern: &_bss_end)
+    let guardPage = VirtualAddress(bitPattern: &_guard_page)
+    let kernelBase = VirtualAddress(bitPattern: &_kernel_start)
 
     let pageSize = PageSize()
-    let textSize = pageSize.roundToNextPage(textEnd - _kernel_start_addr)
+    let textSize = pageSize.roundToNextPage(textEnd - kernelStart)
     let rodataSize = pageSize.roundToNextPage(dataStart - rodataStart)
     let dataSize = pageSize.roundToNextPage(guardPage - dataStart)
-    let stackHeapSize = bssEnd - VirtualAddress(_stack_start_addr)
+    let stackHeapSize = bssEnd - VirtualAddress(bitPattern: &_stack_start)
 
 
     // Add 4 mappings for text, rodata, data + bss and the stack
@@ -179,9 +191,9 @@ private func setupKernelMap(bootParams: BootParams) {
     // FIXME: Dont waste the physical page that is not mapped under
     // the guard page
     printf("MM: _text:   %p - %p\nMM: _rodata: %p - %p\nMM: _data:   %p - %p\n",
-        _kernel_start_addr, _kernel_start_addr + textSize - 1,
-        _rodata_start_addr, _rodata_start_addr + rodataSize - 1,
-        _data_start_addr, _data_start_addr + dataSize - 1)
+        kernelStart, kernelStart + textSize - 1,
+        rodataStart, rodataStart + rodataSize - 1,
+        dataStart, dataStart + dataSize - 1)
 
     func addKMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
         readWrite: Bool, noExec: Bool) {
@@ -227,7 +239,7 @@ private func setupKernelMap(bootParams: BootParams) {
     }
 
 
-    addKMapping(start: _kernel_start_addr, size: textSize,
+    addKMapping(start: kernelStart, size: textSize,
         physStart: kernelPhysBase, readWrite: false, noExec: false)
 
     let rodataPhys = kernelPhysBase + textSize
@@ -239,7 +251,7 @@ private func setupKernelMap(bootParams: BootParams) {
         readWrite: true, noExec: true)
 
     let stackPhys = dataPhys + dataSize + PAGE_SIZE
-    addKMapping(start: _stack_start_addr, size: stackHeapSize,
+    addKMapping(start: stackStart, size: stackHeapSize,
         physStart: stackPhys, readWrite: true, noExec: true)
 
     // Add mapping for the symbol and string tables after the stack
@@ -272,6 +284,16 @@ private func setupKernelMap(bootParams: BootParams) {
 // 8 pages to map the 16MB.
 
 private func setupInitialPhysicalMap(_ memoryRanges: [MemoryRange]) {
+
+
+    let initial_pml4_addr = VirtualAddress(bitPattern: &initial_pml4)
+    let physmap_pml3_addr = VirtualAddress(bitPattern: &physmap_pml3)
+    let physmap_pml2_addr = VirtualAddress(bitPattern: &physmap_pml2)
+    let physmap_pml1_addr = VirtualAddress(bitPattern: &physmap_pml1)
+    let kernmap_pml1_addr = VirtualAddress(bitPattern: &kernmap_pml1)
+    let _kernel_start_addr = VirtualAddress(bitPattern: &_kernel_start)
+    let _kernel_end_addr = VirtualAddress(bitPattern: &_kernel_end)
+
     let addr = VirtualAddress(PHYSICAL_MEM_BASE)
     let idx0 = pml4Index(addr)
     let idx1 = pdpIndex(addr)
@@ -355,6 +377,7 @@ private func mapPhysicalMemory(_ ranges: [MemoryRange]) {
     guard !memoryRanges.isEmpty else { return }
     let maxAddress = memoryRanges.last!.endAddress
     printf("MM: Mapping physical memory from %p - %p , freePageCount: %ld\n", memoryRanges[0].start.value, maxAddress.value, freePageCount())
+    let initial_pml4_addr = VirtualAddress(bitPattern: &initial_pml4)
     let pmlPage = PageMapLevel4Table(at: initial_pml4_addr)
 
     // Break large chunks into 256MB chunks and add them to the free page list as they are mapped.
@@ -401,17 +424,17 @@ private func mapPhysicalMemory(_ ranges: [MemoryRange]) {
 
 // for debugging
 private func printSections() {
-    print("kernel: _text_start:   ", asHex(_text_start_addr))
-    print("kernel: _text_end:     ", asHex(_text_end_addr))
-    print("kernel: _data_start:   ", asHex(_data_start_addr))
-    print("kernel: _data_end:     ", asHex(_data_end_addr))
-    print("kernel: _bss_start:    ", asHex(_bss_start_addr))
-    print("kernel: _bss_end:      ", asHex(_bss_end_addr))
-    print("kernel: _kernel_start: ", asHex(_kernel_start_addr))
-    print("kernel: _kernel_end:   ", asHex(_kernel_end_addr))
-    print("kernel: _guard_page:   ", asHex(_guard_page_addr))
-    print("kernel: _stack_start:  ", asHex(_stack_start_addr))
-    print("kernel: initial_pml4:  ", asHex(initial_pml4_addr))
+    print("kernel: _text_start:   ", UInt(bitPattern: _text_start).hex())
+    print("kernel: _text_end:     ", UInt(bitPattern: _text_end).hex())
+    print("kernel: _data_start:   ", UInt(bitPattern: _data_start).hex())
+    print("kernel: _data_end:     ", UInt(bitPattern: _data_end).hex())
+    print("kernel: _bss_start:    ", UInt(bitPattern: _bss_start).hex())
+    print("kernel: _bss_end:      ", UInt(bitPattern: _bss_end).hex())
+    print("kernel: _kernel_start: ", UInt(bitPattern: _kernel_start).hex())
+    print("kernel: _kernel_end:   ", UInt(bitPattern: _kernel_end).hex())
+    print("kernel: _guard_page:   ", UInt(bitPattern: _guard_page).hex())
+    print("kernel: _stack_start:  ", UInt(bitPattern: _stack_start).hex())
+    print("kernel: initial_pml4:  ", UInt(bitPattern: initial_pml4).hex())
 }
 
 

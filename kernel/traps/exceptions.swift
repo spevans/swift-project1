@@ -80,6 +80,8 @@ func doubleFault(registers: ExceptionRegisters) {
     dump_registers(registers);
     let rsp = UInt(registers.pointee.rsp)
     let rbp = UInt(registers.pointee.rbp)
+    let _stack_start_addr = VirtualAddress(bitPattern: &_stack_start)
+
     if rsp <= _stack_start_addr || rbp <= _stack_start_addr {
         printf("Possible kernel stack overflow RSP: %016x RBP: %016x stack lowest address: %016x\n",
             registers.pointee.rsp, registers.pointee.rbp, UInt64(_stack_start_addr))

@@ -15,6 +15,9 @@ private let entriesPerPageMask: UInt = entriesPerPage - 1
 
 func virtualToPhys(address: VirtualAddress, base: UInt64 = getCR3()) -> PhysAddress? {
     // Quick lookups in premapped areas
+    let _kernel_start_addr = VirtualAddress(bitPattern: &_kernel_start)
+    let _kernel_end_addr = VirtualAddress(bitPattern: &_kernel_start)
+
     if address >= PHYSICAL_MEM_BASE && address < PHYSICAL_MEM_BASE + 0x400_000_000_000 { // 64TB window
         return PhysAddress(address - PHYSICAL_MEM_BASE)
     }

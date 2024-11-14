@@ -100,8 +100,4 @@ SECTIONS {
 
   . = ALIGN(PAGE_SIZE);
   _kernel_end = .;
-
-  /DISCARD/ : {
-    *(.comment)
-  }
 }

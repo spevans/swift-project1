@@ -139,6 +139,10 @@ struct BiosBootParams: CustomStringConvertible {
 
         var membuf = MemoryBufferReader(e820MapPhysAddr.vaddr,
             size: MemoryLayout<e820_entry>.stride * Int(e820Entries))
+
+        let _kernel_start_addr = VirtualAddress(bitPattern: &_kernel_start)
+        let _kernel_end_addr = VirtualAddress(bitPattern: &_kernel_end)
+
         let kernelSize = UInt(_kernel_end_addr - _kernel_start_addr)
         let kernelPhysEnd = kernelPhysAddress.advanced(by: kernelSize)
         printf("E820: Kernel size: %lx\n", kernelSize)

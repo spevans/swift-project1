@@ -24,6 +24,8 @@ private var ioPagesListHead: FreePageListEntryPtr? = nil
 // This is called the first time alloc_pages() is called, usually by malloc()
 private func initFreeList() -> FreePageListEntryPtr? {
     let pageSize = PageSize()
+    let _heap_start_addr = VirtualAddress(bitPattern: &_heap_start)
+    let _heap_end_addr = VirtualAddress(bitPattern: &_heap_end)
     let heap_phys = virtualToPhys(address: _heap_start_addr)!
     let pageCount = Int((_heap_end_addr - _heap_start_addr) / pageSize.size)
     kprintf("init_free_list: heap_start: %p ", _heap_start_addr)

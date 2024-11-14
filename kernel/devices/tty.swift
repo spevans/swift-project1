@@ -545,8 +545,12 @@ private final class FrameBufferTTY: ScreenDriver {
 
     fileprivate init(frameBufferInfo: FrameBufferInfo) {
         self.frameBufferInfo = frameBufferInfo
-        font = Font(width: 8, height: 16,
-            data: UnsafePointer<UInt8>(bitPattern: fontdata_8x16_addr)!)
+
+        let ptr = withUnsafePointer(to: &fontdata_8x16) {
+            return UnsafePointer<UInt8>(bitPattern: UInt(bitPattern: $0))!
+        }
+
+        font = Font(width: 8, height: 16, data: UnsafePointer<UInt8>(ptr))
         charsPerLine = TextCoord(frameBufferInfo.width / font.width)
         totalLines = TextCoord(frameBufferInfo.height / font.height)
         depthInBytes = Int(frameBufferInfo.depth) / 8

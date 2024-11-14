@@ -85,6 +85,9 @@ func showSymbols() {
 
 @_cdecl("dladdr")
 public func dladdr(addr: UnsafeRawPointer, info: UnsafeMutablePointer<Dl_info>) -> Int32 {
+    let _kernel_start_addr = VirtualAddress(bitPattern: &_kernel_start)
+    let _kernel_end_addr = VirtualAddress(bitPattern: &_kernel_start)
+
     let vaddr = VirtualAddress(addr.address)
     guard vaddr >= _kernel_start_addr || vaddr <= _kernel_end_addr else {
         return 0
