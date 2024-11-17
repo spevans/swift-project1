@@ -37,10 +37,11 @@ The next major tasks are:
 Use Docker to build a container that includes the swift compiler with the modified stdlib using
 the Dockerfile in `Docker/Dockerfile`.
 
-### Build the docker container
-
 ```
+# Build the docker container
 $ docker build --tag=swift-kstdlib Docker
+# Build the kernel and disk images
+$ docker run --rm -v `pwd`:`pwd` -w `pwd` -t swift-kstdlib make iso
 ```
 
 # On macOS
@@ -79,7 +80,7 @@ There is a bochsrc to specify the HD image so it can be run with:
 ![Screenshot](doc/screenshot-2.png)
 
 
-Copyright (c) 2015 - 2020 Simon Evans
+Copyright (c) 2015 - 2019 Simon Evans
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
