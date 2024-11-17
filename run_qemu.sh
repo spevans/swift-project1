@@ -30,11 +30,11 @@ done
 
 if [ "$ACCEL" != "" ]; then
     echo Using Acceleration $ACCEL
-    CMD="qemu-system-x86_64 $DEBUG -accel $ACCEL -cpu host -m $MEM $BOOT -usb -serial stdio -D log -d int,cpu_reset,guest_errors,unimp -no-reboot $ARGS"
+    CMD="qemu-system-x86_64 $DEBUG -accel $ACCEL -cpu host -m $MEM $BOOT -usb  -D log -d int,cpu_reset,guest_errors,unimp -no-reboot $ARGS"
     echo $CMD
     $CMD
 else
-    CMD="qemu-system-x86_64 $DEBUG  -m $MEM $BOOT -usb -serial stdio -D log -d int,cpu_reset,guest_errors,unimp -no-reboot $ARGS"
+    CMD="qemu-system-x86_64 $DEBUG  -m $MEM $BOOT -usb  -D log -d int,cpu_reset,guest_errors,unimp -no-reboot $ARGS"
     echo $CMD
     $CMD
 fi
