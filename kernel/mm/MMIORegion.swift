@@ -26,11 +26,15 @@ struct MMIORegion: CustomStringConvertible {
     }
 
     init(_ region: PhysPageAlignedRegion) {
-        self = Self(region: PhysRegion(region))
+        self = Self(PhysRegion(region))
     }
 
-    init(region: PhysRegion) {
+    init(_ region: PhysRegion) {
         physAddressRegion = region
+    }
+
+    static func invalidRegion() -> MMIORegion {
+        return Self(PhysRegion(start: PhysAddress(0), end: PhysAddress(0)))
     }
 
     @inline(__always)
@@ -106,7 +110,7 @@ struct MMIORegion: CustomStringConvertible {
         if let range = after {
             _ = mapRORegion(region: range)
         }
-        return Self(region: newRegion)
+        return Self(newRegion)
     }
 }
 

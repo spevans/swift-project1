@@ -10,9 +10,12 @@ import XCTest
 
 class ACPIReadWriteTests: XCTestCase {
 
+    static override func setUp() {
+        FakePhysMemory.addPhysicalMemory(start: PhysAddress(128), size: 64)
+    }
+
     override func setUp() {
         super.setUp()
-        // Put setup code here. This method is called before the invocation of each test method in the class.
     }
     
     override func tearDown() {
@@ -22,7 +25,7 @@ class ACPIReadWriteTests: XCTestCase {
 
     func testRegionSpaceUInt8() {
         let flags = AMLFieldFlags(fieldAccessType: .ByteAcc, lockRule: .NoLock, updateRule: .Preserve)
-        let regionSpace = SystemMemorySpace(offset: 0, length: 64)
+        let regionSpace = SystemMemorySpace(offset: 128, length: 64)
         for x in 0...55 {
             var v: AMLInteger = 0xff
 
@@ -57,7 +60,7 @@ class ACPIReadWriteTests: XCTestCase {
 
     func testRegionSpaceUInt16() {
         let flags = AMLFieldFlags(fieldAccessType: .WordAcc, lockRule: .NoLock, updateRule: .Preserve)
-        let regionSpace = SystemMemorySpace(offset: 0, length: 64)
+        let regionSpace = SystemMemorySpace(offset: 128, length: 64)
         for x in 0...55 {
             var v: AMLInteger = 0xff
 
@@ -92,7 +95,7 @@ class ACPIReadWriteTests: XCTestCase {
 
     func testRegionSpaceUInt32() {
         let flags = AMLFieldFlags(fieldAccessType: .DWordAcc, lockRule: .NoLock, updateRule: .Preserve)
-        let regionSpace = SystemMemorySpace(offset: 0, length: 64)
+        let regionSpace = SystemMemorySpace(offset: 128, length: 64)
         for x in 0...55 {
             var v: AMLInteger = 0xff
 
@@ -127,7 +130,7 @@ class ACPIReadWriteTests: XCTestCase {
 
     func testRegionSpaceUInt64() {
         let flags = AMLFieldFlags(fieldAccessType: .QWordAcc, lockRule: .NoLock, updateRule: .Preserve)
-        let regionSpace = SystemMemorySpace(offset: 0, length: 64)
+        let regionSpace = SystemMemorySpace(offset: 128, length: 64)
         for x in 0...55 {
             var v: AMLInteger = 0xff
 

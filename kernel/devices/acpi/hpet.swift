@@ -91,15 +91,15 @@ struct HPET: CustomStringConvertible {
         }
 
         let gas = ACPIGenericAddressStrucure(table.base_address)
-        let physicalRegion = PhysPageAlignedRegion(gas.physicalAddress, pageSize: PageSize(), pageCount: 1)
-        mmioRegion = mapIORegion(region: physicalRegion)
+        let region = PhysRegion(start: gas.physicalAddress, size: 0x400)
+        mmioRegion = mapIORegion(region: region)
     }
 
     // HPET capabilities
 
     // Main Counter Tick Period in femptoseconds (10^-15 seconds).
     var counterClockPeriod: UInt32 {
-        baseAddress.rawPointer.load(fromByteOffset: 4, as: UInt32.self)
+        mmioRegion.read(fromByteOffset: 4)
     }
 
     private var generalConfigurationRegister: UInt32 {
@@ -129,8 +129,8 @@ struct HPET: CustomStringConvertible {
     }
 
     var generalInterruptStatusRegister: UInt32 {
-        get { baseAddress.rawPointer.load(fromByteOffset: 0x20, as: UInt32.self) }
-        set { baseAddress.rawPointer.storeBytes(of: newValue, toByteOffset: 0x20, as: UInt32.self) }
+        get { mmioRegion.read(fromByteOffset: 0x20) }
+        set { mmioRegion.write(value: newValue, toByteOffset: 0x20) }
     }
 
 
@@ -170,16 +170,16 @@ struct HPET: CustomStringConvertible {
     func fsbInterruptRouteRegisterFor(timer: Int) -> (address: UInt32, value: UInt32) {
         precondition(timer <= maxComparatorIndex)
         let offset = 0x110 + (timer * 0x20)
-        let address = baseAddress.rawPointer.load(fromByteOffset: offset + 4, as: UInt32.self)
-        let value = baseAddress.rawPointer.load(fromByteOffset: offset, as: UInt32.self)
+        let address: UInt32 = mmioRegion.read(fromByteOffset: offset + 4)
+        let value: UInt32 = mmioRegion.read(fromByteOffset: offset)
         return (address, value)
     }
 
     func setFsbInterruptRouteRegisterFor(timer: Int, address: UInt32, value: UInt32) {
         precondition(timer <= maxComparatorIndex)
         let offset = 0x110 + (timer * 0x20)
-        baseAddress.rawPointer.storeBytes(of: address, toByteOffset: offset + 4, as: UInt32.self)
-        baseAddress.rawPointer.storeBytes(of: value, toByteOffset: offset, as: UInt32.self)
+        mmioRegion.write(value: address, toByteOffset: offset + 4)
+        mmioRegion.write(value: value, toByteOffset: offset)
     }
 
 

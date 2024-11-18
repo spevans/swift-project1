@@ -260,7 +260,7 @@ final class APIC {
             as: UInt32.self)
     }
 
-    static func addressRegion() -> PhysPageAlignedRegion {
+    static func addressRegion() -> PhysRegion {
         let maxPhyAddrBits = CPU.capabilities.maxPhyAddrBits
         let lomask = ~(UInt(1 << 12) - 1)
         let himask = (UInt(1) << maxPhyAddrBits) - 1
@@ -268,7 +268,7 @@ final class APIC {
         let apicStatus = BitArray64(CPU.readMSR(IA32_APIC_BASE_MSR))
         let address = RawAddress(apicStatus.toUInt64() & UInt64(mask))
         let baseAddress = PhysAddress(address)
-        return PhysPageAlignedRegion(start: baseAddress, size: UInt(APIC_REGISTER_SPACE_SIZE))
+        return PhysRegion(start: baseAddress, size: UInt(APIC_REGISTER_SPACE_SIZE))
     }
 
     init?(madtEntries: [MADT.MADTEntry]) {

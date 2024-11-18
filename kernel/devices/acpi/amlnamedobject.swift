@@ -546,9 +546,9 @@ struct EmbeddedControlRegionSpace: OpRegionSpace {
 
 
 struct SystemMemorySpace: OpRegionSpace, CustomStringConvertible {
-    private var data: UnsafeMutableRawPointer
     let offset: UInt
     let length: Int
+    private var mmioRegion: MMIORegion
 
     var description: String {
         return "SystemMemory: offset: 0x\(String(offset, radix: 16)), length: \(length)"
@@ -559,54 +559,52 @@ struct SystemMemorySpace: OpRegionSpace, CustomStringConvertible {
         precondition(length > 0)
         self.offset = UInt(offset)
         self.length = Int(length)
-#if TEST
-        data = UnsafeMutableRawPointer.allocate(byteCount: self.length, alignment: 8)
-#else
-        // Add a mapping for this region, this range should cover the region space (but may encroch on others)
-        // FIXME: Add a MMIORegion for the entire region and use subMMIORegions
-        // FIXME, unmap this.
-        let physPageRange = PhysPageAlignedRegion(start: PhysAddress(self.offset), size: UInt(length), pageSize: PageSize())
-
-        data = PhysAddress(self.offset).rawPointer
-        _ = mapIORegion(region: physPageRange, cacheType: .uncacheable)
-#endif
+        let region = PhysRegion(start: PhysAddress(UInt(offset)), size: UInt(length))
+        mmioRegion = mapIORegion(region: region)
     }
 
 
     func read(atIndex index: Int, flags: AMLFieldFlags) -> AMLInteger {
         switch flags.fieldAccessType {
             case .AnyAcc, .ByteAcc:
-                return AMLInteger(data.load(fromByteOffset: index, as: UInt8.self))
+                return AMLInteger(mmioRegion.read(fromByteOffset: index) as UInt8)
 
             case .WordAcc:
-                return AMLInteger(data.load(fromByteOffset: index * 2, as: UInt16.self))
+                return AMLInteger(mmioRegion.read(fromByteOffset: index * 2) as UInt16)
 
             case .DWordAcc:
-                return AMLInteger(data.load(fromByteOffset: index * 4, as: UInt32.self))
+                return AMLInteger(mmioRegion.read(fromByteOffset: index * 4) as UInt32)
 
             case .QWordAcc:
-                return AMLInteger(data.load(fromByteOffset: index * 8, as: UInt64.self))
+                return AMLInteger(mmioRegion.read(fromByteOffset: index * 8) as UInt64)
 
             case .BufferAcc: fatalError("Buffer access used in a SystemRegion for reading")
         }
     }
 
     func write(atIndex index: Int, value: AMLInteger, flags: AMLFieldFlags) {
+        let newIndex: Int
         switch flags.fieldAccessType {
             case .AnyAcc, .ByteAcc:
-                data.storeBytes(of: UInt8(truncatingIfNeeded: value), toByteOffset: index, as: UInt8.self)
+                mmioRegion.write(value: UInt8(truncatingIfNeeded: value), toByteOffset: index)
+                newIndex = index
 
             case .WordAcc:
-                data.storeBytes(of: UInt16(truncatingIfNeeded: value), toByteOffset: index * 2, as: UInt16.self)
+                mmioRegion.write(value: UInt16(truncatingIfNeeded: value), toByteOffset: index * 2)
+                newIndex = index * 2
 
             case .DWordAcc:
-                data.storeBytes(of: UInt32(truncatingIfNeeded: value), toByteOffset: index * 4, as: UInt32.self)
+                mmioRegion.write(value: UInt32(truncatingIfNeeded: value), toByteOffset: index * 4)
+                newIndex = index * 4
 
             case .QWordAcc:
-                data.storeBytes(of: UInt64(truncatingIfNeeded: value), toByteOffset: index * 8, as: UInt64.self)
+                mmioRegion.write(value: UInt64(truncatingIfNeeded: value), toByteOffset: index * 8)
+                newIndex = index * 8
 
             case .BufferAcc: fatalError("Buffer access used in a SystemRegion for reading")
         }
+        let address = offset + UInt(newIndex)
+        print("SystemMemorySpace.write 0x\(String(address, radix: 16)) index: \(index) value: \(value) newIndex \(newIndex) len: \(length)")
     }
 }
 

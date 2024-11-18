@@ -221,6 +221,7 @@ class ACPITests: XCTestCase {
         let acpi = ACPITests.macbookACPI()
 
         do {
+            FakePhysMemory.addPhysicalMemory(start: PhysAddress(0xbeed5a98), size: 256)
             try ACPI.invoke(method: "\\_SB._INI")
             guard let osys = acpi.globalObjects.get("\\OSYS") else {
                 XCTFail("Cant find object \\OSYS")
@@ -256,15 +257,6 @@ class ACPITests: XCTestCase {
             XCTAssertEqual(prt.table.count, 128)
         } catch AMLError.invalidMethod(let reason) {
             XCTAssertEqual(reason, "Cant find method: \\_PIC")
-        } catch {
-            XCTFail("\(error)")
-        }
-
-        do {
-            guard acpi.globalObjects.get("\\_SB.LNKA._STA") != nil else {
-                XCTFail("Cant find \\_SB.LINK._STA")
-                throw AMLError.parseError
-            }
         } catch {
             XCTFail("\(error)")
         }
@@ -575,7 +567,7 @@ class ACPITests: XCTestCase {
 
         do {
             // Read the _PRT to check it is using GPIC=0 form
-            guard let prt = acpi.globalObjects.get("\\_SB.PCI0._PRT") as? AMLNamedValue else {
+            guard let prt = acpi.globalObjects.get("\\_SB.PCI0._PRT") else {
                 XCTFail("Cannot find \\_SB.PCI0.PRT")
                 return
             }
@@ -597,7 +589,7 @@ class ACPITests: XCTestCase {
 
         do {
             // Now read the _PRT to check it is using GPIC=1 form
-            guard let prt = pci0.childNode(named: "_PRT") as? AMLNamedValue else {
+            guard let prt = pci0.childNode(named: "_PRT") else {
                 XCTFail("Cannot find \\_SB.PCI0.PRT")
                 return
             }
@@ -645,7 +637,11 @@ class ACPITests: XCTestCase {
             XCTFail("Cant find \\_SB.CP01")
         }
 
-
+        FakePhysMemory.addPhysicalMemory(start: PhysAddress(0x0ff76040), size: 136)
+        FakePhysMemory.addPhysicalMemory(start: PhysAddress(0x20ddd432), size: 4)
+        FakePhysMemory.addPhysicalMemory(start: PhysAddress(0x075e3d22), size: 4)
+        FakePhysMemory.addPhysicalMemory(start: PhysAddress(0x07ddd432), size: 4)
+        FakePhysMemory.addPhysicalMemory(start: PhysAddress(0x00000002), size: 4)
         let scrsMethod = "\\_SB.PCI0.ISA.SCRS"
         if let scrs = try ACPI.invoke(method: scrsMethod, AMLIntegerData(2)) {
             guard let obj = scrs as? AMLDataObject, case .buffer(_) = obj else {

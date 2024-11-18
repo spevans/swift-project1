@@ -204,7 +204,7 @@ final class ACPI {
 #if TEST
     // Used for testing
     init() {
-        mmioRegions.append(MMIORegion(region: PhysRegion(start: PhysAddress(0), size: 1)))
+        mmioRegions.append(MMIORegion(PhysRegion(start: PhysAddress(0), size: 1)))
     }
 #endif
 

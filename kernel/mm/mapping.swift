@@ -9,10 +9,11 @@
  */
 
 // Add a mapping to a physical region, a mapping cant already exist
-func mapIORegion(region: PhysPageAlignedRegion, cacheType: CPU.CacheType = .uncacheable) -> MMIORegion {
-    let vaddr = region.baseAddress.vaddr
+func mapIORegion(region: PhysRegion, cacheType: CPU.CacheType = .uncacheable) -> MMIORegion {
+    let alignedRegion = region.physPageAlignedRegion
+    let vaddr = alignedRegion.baseAddress.vaddr
     //print("Adding IO mapping for \(region) at 0x\(String(vaddr, radix: 16)) \(cacheType)")
-    addMapping(start: vaddr, size: region.size, physStart: region.baseAddress,
+    addMapping(start: vaddr, size: alignedRegion.size, physStart: alignedRegion.baseAddress,
                readWrite: true, noExec: true, cacheType: cacheType)
 
     return MMIORegion(region)
@@ -34,7 +35,7 @@ func mapRORegion(region: PhysRegion) -> MMIORegion {
     addMapping(start: vaddr, size: physPageRegion.size, physStart: physPageRegion.baseAddress,
                readWrite: false, noExec: true, cacheType: .writeBack)
 
-    return MMIORegion(region: region)
+    return MMIORegion(region)
 }
 
 
@@ -87,12 +88,15 @@ func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
         var ptPage = pdPage.pageTable(at: idx2, readWrite: true, userAccess: false,
             writeThrough: true, cacheDisable: false, noExec: false)
 
+        let entry = PageTableEntry(address: physAddress, readWrite: readWrite,
+            userAccess: false, patIndex: patIndex, global: false, noExec: noExec)
         if !ptPage[idx3].present {
-            let entry = PageTableEntry(address: physAddress, readWrite: readWrite,
-                userAccess: false, patIndex: patIndex, global: false, noExec: noExec)
             ptPage[idx3] = entry
         } else {
-            koops("MM: page is already present!")
+            let currentMapping = ptPage[idx3]
+            if entry != currentMapping {
+                koops("MM: page is already present!")
+            }
         }
 
         addr += PAGE_SIZE

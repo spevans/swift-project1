@@ -24,7 +24,7 @@ enum PCIConfigSpace: CustomStringConvertible {
         let mcfgTable = system.deviceManager.acpiTables.mcfg
         if let mmioBaseAddress = mcfgTable?.baseAddressFor(bus: busId) {
             let regionAddress = mmioBaseAddress + (UInt(device) << 15 | UInt(function) << 12)
-            let pageRange = PhysPageAlignedRegion(regionAddress, pageSize: PageSize(), pageCount: 1)
+            let pageRange = PhysRegion(start: regionAddress, size: 4096)
             print("PCIConfigSpace, mapping regions @ \(pageRange) for base address \(mmioBaseAddress), bus: \(busId), \(device)/\(function) => \(regionAddress)")
             self = .mmio(mmioRegion: mapIORegion(region: pageRange))
         } else {

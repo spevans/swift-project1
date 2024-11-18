@@ -71,8 +71,9 @@
 		B9DEE4F92323BBC40010F7A0 /* bochsrc in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F52323BBC30010F7A0 /* bochsrc */; };
 		B9DEE4FA2323BBC40010F7A0 /* gdb-cmds in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F62323BBC30010F7A0 /* gdb-cmds */; };
 		B9E88C162CC121B800F3F251 /* BinaryInteger+Extras.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E88C152CC121B800F3F251 /* BinaryInteger+Extras.swift */; };
-		B9E88C222CE806AB00F3F251 /* qemu-9.1.0 in Resources */ = {isa = PBXBuildFile; fileRef = B9E88C212CE806AB00F3F251 /* qemu-9.1.0 */; };
-		B9E88C282CE811EF00F3F251 /* QEMU-9.1.0-DSDT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9E88C272CE811EF00F3F251 /* QEMU-9.1.0-DSDT.aml */; };
+		B9E88C1F2CE001D800F3F251 /* FakePhysicalMemory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E88C1E2CE0001900F3F251 /* FakePhysicalMemory.swift */; };
+		B9E88C352CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9E88C332CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.dsl */; };
+		B9E88C362CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9E88C342CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.aml */; };
 		B9E8F3FB2792FAD4008F3C33 /* ioapic.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7191F2F497800FE6846 /* ioapic.swift */; };
 		B9E8F3FE2792FBEC008F3C33 /* cpu.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7141F2F497800FE6846 /* cpu.swift */; };
 		B9E8F407279315CC008F3C33 /* PhysPageAlignedRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F406279315CC008F3C33 /* PhysPageAlignedRegion.swift */; };
@@ -279,8 +280,9 @@
 		B9DEE4F62323BBC30010F7A0 /* gdb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "gdb-cmds"; sourceTree = "<group>"; };
 		B9E88C152CC121B800F3F251 /* BinaryInteger+Extras.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BinaryInteger+Extras.swift"; sourceTree = "<group>"; };
 		B9E88C1B2CC4320F00F3F251 /* mapping.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = mapping.swift; sourceTree = "<group>"; };
-		B9E88C212CE806AB00F3F251 /* qemu-9.1.0 */ = {isa = PBXFileReference; lastKnownFileType = folder; path = "qemu-9.1.0"; sourceTree = "<group>"; };
-		B9E88C272CE811EF00F3F251 /* QEMU-9.1.0-DSDT.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "QEMU-9.1.0-DSDT.aml"; sourceTree = "<group>"; };
+		B9E88C1E2CE0001900F3F251 /* FakePhysicalMemory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakePhysicalMemory.swift; sourceTree = "<group>"; };
+		B9E88C332CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = "QEMU-9.1.0-DSDT.dsl"; path = "qemu-9.1.0/QEMU-9.1.0-DSDT.dsl"; sourceTree = "<group>"; };
+		B9E88C342CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.aml */ = {isa = PBXFileReference; lastKnownFileType = file; name = "QEMU-9.1.0-DSDT.aml"; path = "qemu-9.1.0/QEMU-9.1.0-DSDT.aml"; sourceTree = "<group>"; };
 		B9E8F406279315CC008F3C33 /* PhysPageAlignedRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysPageAlignedRegion.swift; sourceTree = "<group>"; };
 		B9E8F40C27931FE1008F3C33 /* PhysRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysRegion.swift; sourceTree = "<group>"; };
 		B9E8F41027935B7A008F3C33 /* MemoryRangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryRangeTests.swift; sourceTree = "<group>"; };
@@ -593,10 +595,18 @@
 			path = pci;
 			sourceTree = "<group>";
 		};
+		B9E88C322CEB5D8800F3F251 /* qemu-9.1.0 */ = {
+			isa = PBXGroup;
+			children = (
+				B9E88C342CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.aml */,
+				B9E88C332CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.dsl */,
+			);
+			name = "qemu-9.1.0";
+			sourceTree = "<group>";
+		};
 		B9EE70401D3D536B006B6AB7 = {
 			isa = PBXGroup;
 			children = (
-				B9E88C272CE811EF00F3F251 /* QEMU-9.1.0-DSDT.aml */,
 				B9F22F872325009300A6C92B /* NOTES */,
 				B9A2C1B11F30ECF9003D4D92 /* README.md */,
 				B9A2C1B01F30ECF9003D4D92 /* TODO */,
@@ -646,6 +656,7 @@
 				B9F8317C1F38B9C0009F24AE /* test_files */,
 				B933A7781F2F8D6A00FE6846 /* Info.plist */,
 				B933A7501F2F511100FE6846 /* test.h */,
+				B9E88C1E2CE0001900F3F251 /* FakePhysicalMemory.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -680,7 +691,7 @@
 		B9F8317C1F38B9C0009F24AE /* test_files */ = {
 			isa = PBXGroup;
 			children = (
-				B9E88C212CE806AB00F3F251 /* qemu-9.1.0 */,
+				B9E88C322CEB5D8800F3F251 /* qemu-9.1.0 */,
 				B9F5D29124C1F4EC00A6114C /* vmware11 */,
 				B9F8317F1F38BA01009F24AE /* vmware */,
 				B9F8317E1F38B9F6009F24AE /* macbook31 */,
@@ -854,7 +865,6 @@
 				B9F5D2CE24C1F58D00A6114C /* vmware11-wsmt.aml in Resources */,
 				B9F5D2DC24C1F58D00A6114C /* vmware11-dsdt.aml in Resources */,
 				B9F831F71F38BD20009F24AE /* vmware-APIC.aml in Resources */,
-				B9E88C222CE806AB00F3F251 /* qemu-9.1.0 in Resources */,
 				B9F831F91F38BD20009F24AE /* vmware-BOOT.aml in Resources */,
 				B9F5D2DB24C1F58D00A6114C /* vmware11-waet.dsl in Resources */,
 				B9F831FB1F38BD20009F24AE /* vmware-DSDT.aml in Resources */,
@@ -888,6 +898,7 @@
 				B9F5D2D124C1F58D00A6114C /* vmware11-srat.dsl in Resources */,
 				B9F5D2DE24C1F58D00A6114C /* vmware11-apic.dsl in Resources */,
 				B9F8321F1F38BD20009F24AE /* macbook31-SSDT1.aml in Resources */,
+				B9E88C352CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.dsl in Resources */,
 				B9F5D2D424C1F58D00A6114C /* vmware11-waet.aml in Resources */,
 				B9F5D2E124C1F58D00A6114C /* vmware11-dsdt.dsl in Resources */,
 				B9F832211F38BD20009F24AE /* macbook31-SSDT2.aml in Resources */,
@@ -905,7 +916,7 @@
 				B9F5D2DA24C1F58D00A6114C /* vmware11-facs.aml in Resources */,
 				B9F5D2D324C1F58D00A6114C /* vmware11-wsmt.dsl in Resources */,
 				B9F8322F1F38BD20009F24AE /* QEMU-DSDT.aml in Resources */,
-				B9E88C282CE811EF00F3F251 /* QEMU-9.1.0-DSDT.aml in Resources */,
+				B9E88C362CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.aml in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -936,6 +947,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B9E88C1F2CE001D800F3F251 /* FakePhysicalMemory.swift in Sources */,
 				B9E88C162CC121B800F3F251 /* BinaryInteger+Extras.swift in Sources */,
 				B9C9A88B27C289BA003746EF /* pcibus.swift in Sources */,
 				B9C9A88C27C289BA003746EF /* PCICapability.swift in Sources */,

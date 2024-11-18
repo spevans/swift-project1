@@ -12,11 +12,6 @@ public typealias RawAddress = UInt  // 64bit address
 public typealias VirtualAddress = RawAddress
 
 
-#if TEST
-private let physicalMemory = UnsafeMutableRawPointer.allocate(byteCount: 0x100_000, alignment: 8)   // 1MB
-#endif
-
-
 struct PhysAddress: Comparable, Hashable, CustomStringConvertible {
     let value: RawAddress
 
@@ -25,11 +20,13 @@ struct PhysAddress: Comparable, Hashable, CustomStringConvertible {
         value = address
     }
 
+    #if !TEST
     // Map a physical address to a kernel virtual address using the 1-1 mapping
     // of physical memory that is setup at startup.
     var vaddr: VirtualAddress {
         return VirtualAddress(PHYSICAL_MEM_BASE + value);
     }
+    #endif
 
     public var description: String {
         return String(value, radix: 16)

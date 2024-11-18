@@ -308,7 +308,8 @@ final class KBD8042: PNPDeviceDriver {
 
         flushOutput()
         keyboardBuffer.clear()
-        port1device = .keyboard(PS2Keyboard(buffer: keyboardBuffer))
+        let keyboard = PS2Keyboard(buffer: keyboardBuffer)
+        port1device = .keyboard(keyboard)
         // FIXME: determine correct irq
         system.deviceManager.interruptManager.setIrqHandler(IRQSetting(isaIrq: 1), handler: kbdInterrupt)
         if dualChannel {

@@ -228,28 +228,3 @@ struct PhysPageAlignedRegionChunksInterator: IteratorProtocol {
         return pageRegion
     }
 }
-
-#if TEST
-import Foundation
-
-extension PhysPageAlignedRegion {
-    // For testing, create a region with some data in to emulate firmware etc
-    // This will leak but its only used for testing so keeping the data around
-    // until the end of the tests is fine.
-    init(data: Data, pageSize: PageSize = PageSize()) {
-        var ptr: UnsafeMutableRawPointer? = nil
-        let err = posix_memalign(&ptr, Int(pageSize.size), data.count)
-        guard err == 0, let ptr2 = ptr else {
-            fatalError("posix_mmalign, alignment: \(pageSize.size), size: \(data.count) failed: \(err)")
-        }
-        let dest = ptr2.bindMemory(to: UInt8.self, capacity: data.count)
-        data.copyBytes(to: UnsafeMutablePointer<UInt8>(dest), count: data.count)
-        let address = dest.address
-        let physAddress = address - PHYSICAL_MEM_BASE
-
-        self.addressBits = physAddress | UInt(pageSize.encoding)
-        self.pageCount = pageSize.pageCountCovering(size: data.count)
-    }
-}
-
-#endif
