@@ -9,36 +9,30 @@
 
 
 // Generic Timer device
-protocol Timer: CustomStringConvertible {
-    var irq: IRQSetting { get }
-    func enablePeriodicInterrupt(hz: Int)
+class Timer: CustomStringConvertible {
+    let irq: IRQSetting
+    var description: String { return "Generic Timer on IRQ: \(irq)" }
+
+    init(irq: IRQSetting) {
+        self.irq = irq
+    }
+
+    func enablePeriodicInterrupt(hz: Int) -> Bool {
+        return false
+    }
 }
 
 
 // Setup a periodic timer using either a PIT or HPET. This is set to 1Khz and
 // used to increment a counter that can be used for sleep etc.
 func setupPeriodicTimer() -> Bool {
-    // Find a timer
-    let irq: IRQSetting
-    // Set the timer interrupt for 1kHz
-    if let timer = system.deviceManager.timer {
-        timer.enablePeriodicInterrupt(hz: 1000)
-        irq = timer.irq
-        print(timer)
-    } else {
-        // Try and use the HPET to emultate the PIT
-        if var hpet = system.deviceManager.acpiTables.hpet {
-            guard hpet.emulateLegacyPIT(ticksPerSecond: 1000) else {
-                print("timer: HPET doesnt support PIT mode")
-                return false
-            }
-        } else {
-            print("timer: Cant find an HPET")
-            return false
-        }
-        // HPET is put in legacy mode so IRQ should be 0 although.
-        irq = IRQSetting(isaIrq: 0)
+    // Find a timer and set the timer interrupt for 1kHz
+    guard let timer = system.deviceManager.timer, timer.enablePeriodicInterrupt(hz: 1000)  else {
+        print("Cant setup periodic timer")
+        return false
     }
+    let irq = timer.irq
+    print(timer)
     system.deviceManager.interruptManager.setIrqHandler(irq, handler: timerInterrupt)
     print("timer: Setup for 1000Hz on irq:", irq)
     return true

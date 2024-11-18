@@ -70,10 +70,10 @@
 		B9DEE4F42323BA960010F7A0 /* lldb-cmds in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F32323BA960010F7A0 /* lldb-cmds */; };
 		B9DEE4F92323BBC40010F7A0 /* bochsrc in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F52323BBC30010F7A0 /* bochsrc */; };
 		B9DEE4FA2323BBC40010F7A0 /* gdb-cmds in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F62323BBC30010F7A0 /* gdb-cmds */; };
-		B9E88C162CC121B800F3F251 /* BinaryInteger+Extras.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E88C152CC121B800F3F251 /* BinaryInteger+Extras.swift */; };
 		B9E88C1F2CE001D800F3F251 /* FakePhysicalMemory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E88C1E2CE0001900F3F251 /* FakePhysicalMemory.swift */; };
 		B9E88C352CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9E88C332CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.dsl */; };
 		B9E88C362CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9E88C342CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.aml */; };
+		B9E88C3A2CEBE49D00F3F251 /* BinaryInteger+Extras.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E88C392CEBE48200F3F251 /* BinaryInteger+Extras.swift */; };
 		B9E8F3FB2792FAD4008F3C33 /* ioapic.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7191F2F497800FE6846 /* ioapic.swift */; };
 		B9E8F3FE2792FBEC008F3C33 /* cpu.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7141F2F497800FE6846 /* cpu.swift */; };
 		B9E8F407279315CC008F3C33 /* PhysPageAlignedRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F406279315CC008F3C33 /* PhysPageAlignedRegion.swift */; };
@@ -278,11 +278,11 @@
 		B9DEE4F32323BA960010F7A0 /* lldb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "lldb-cmds"; sourceTree = "<group>"; };
 		B9DEE4F52323BBC30010F7A0 /* bochsrc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = bochsrc; sourceTree = "<group>"; };
 		B9DEE4F62323BBC30010F7A0 /* gdb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "gdb-cmds"; sourceTree = "<group>"; };
-		B9E88C152CC121B800F3F251 /* BinaryInteger+Extras.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BinaryInteger+Extras.swift"; sourceTree = "<group>"; };
 		B9E88C1B2CC4320F00F3F251 /* mapping.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = mapping.swift; sourceTree = "<group>"; };
 		B9E88C1E2CE0001900F3F251 /* FakePhysicalMemory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakePhysicalMemory.swift; sourceTree = "<group>"; };
 		B9E88C332CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = "QEMU-9.1.0-DSDT.dsl"; path = "qemu-9.1.0/QEMU-9.1.0-DSDT.dsl"; sourceTree = "<group>"; };
 		B9E88C342CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.aml */ = {isa = PBXFileReference; lastKnownFileType = file; name = "QEMU-9.1.0-DSDT.aml"; path = "qemu-9.1.0/QEMU-9.1.0-DSDT.aml"; sourceTree = "<group>"; };
+		B9E88C392CEBE48200F3F251 /* BinaryInteger+Extras.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "BinaryInteger+Extras.swift"; sourceTree = "<group>"; };
 		B9E8F406279315CC008F3C33 /* PhysPageAlignedRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysPageAlignedRegion.swift; sourceTree = "<group>"; };
 		B9E8F40C27931FE1008F3C33 /* PhysRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysRegion.swift; sourceTree = "<group>"; };
 		B9E8F41027935B7A008F3C33 /* MemoryRangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryRangeTests.swift; sourceTree = "<group>"; };
@@ -458,7 +458,6 @@
 				B933A7321F2F49C700FE6846 /* MemoryBufferReader.swift */,
 				B933A7331F2F49C700FE6846 /* printf.swift */,
 				B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */,
-				B9E88C152CC121B800F3F251 /* BinaryInteger+Extras.swift */,
 				B9568CB02551819E00C3F49B /* BitmapAllocator.swift */,
 			);
 			path = klib;
@@ -536,6 +535,7 @@
 		B933A73B1F2F49F300FE6846 /* extensions */ = {
 			isa = PBXGroup;
 			children = (
+				B9E88C392CEBE48200F3F251 /* BinaryInteger+Extras.swift */,
 				B933A73F1F2F4A0600FE6846 /* bitarray.swift */,
 				B933A73C1F2F4A0600FE6846 /* bytearray.swift */,
 				B933A73D1F2F4A0600FE6846 /* dwordarray.swift */,
@@ -948,7 +948,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				B9E88C1F2CE001D800F3F251 /* FakePhysicalMemory.swift in Sources */,
-				B9E88C162CC121B800F3F251 /* BinaryInteger+Extras.swift in Sources */,
 				B9C9A88B27C289BA003746EF /* pcibus.swift in Sources */,
 				B9C9A88C27C289BA003746EF /* PCICapability.swift in Sources */,
 				B9C9A88D27C289BA003746EF /* pciconfigspace.swift in Sources */,
@@ -961,6 +960,7 @@
 				B9E8F3FB2792FAD4008F3C33 /* ioapic.swift in Sources */,
 				B9FB56EF2778C7E30012198D /* PageSize.swift in Sources */,
 				B9E8F41927940FF3008F3C33 /* PageSizeTests.swift in Sources */,
+				B9E88C3A2CEBE49D00F3F251 /* BinaryInteger+Extras.swift in Sources */,
 				B9D2AC14266E52B8002DA8DD /* PNPDevice.swift in Sources */,
 				B98A0E8226679D96006898DF /* ISABus.swift in Sources */,
 				B98A0E7D26679AB1006898DF /* bus.swift in Sources */,

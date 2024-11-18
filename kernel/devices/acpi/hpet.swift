@@ -7,10 +7,9 @@
 //  Parsing of High Precision Event Timer (HPET).
 
 // FIXME: The individual timers should probable be represented with a 'class HPETTimer' or something
-struct HPET: CustomStringConvertible {
+struct HPETTable: CustomStringConvertible {
 
     private let table: acpi_hpet_table
-    private let mmioRegion: MMIORegion
 
     // ACPI Fields
     var pciVendorId: UInt16 {
@@ -61,6 +60,7 @@ struct HPET: CustomStringConvertible {
     // The minimum clock ticks can be set without lost interrupts while
     // the counter is programmed to operate in periodic mode.
     var mainCounterMinClockTicks: Int { Int(table.min_clock_ticks) }
+    var gas: ACPIGenericAddressStrucure { ACPIGenericAddressStrucure(table.base_address) }
 
     // Size of page including the 1K block that can be accessed without causing an MCE.
     var pageProtection: Int {
@@ -78,8 +78,8 @@ struct HPET: CustomStringConvertible {
 
     var description: String {
         return "HPET: \(String(baseAddress.baseAddress, radix: 16)) vendor: \(asHex(pciVendorId)) legacyIrq: \(legacyIrqReplacement)"
-            + " counterSizeCap: \(counterSizeCap) clockPersion: \(counterClockPeriod) comparators: \(comparatorCount)"
-            + " revId: \(asHex(hardwareRevisionId)) hpetNumber: \(hpetNumber) legacyReplacementRoute: \(legacyReplacementRoute)"
+        + " counterSizeCap: \(counterSizeCap) comparators: \(comparatorCount)"
+        + " revId: \(asHex(hardwareRevisionId)) hpetNumber: \(hpetNumber)"
     }
 
 
@@ -89,10 +89,52 @@ struct HPET: CustomStringConvertible {
         guard length >= MemoryLayout<acpi_hpet_table>.size else {
             fatalError("ACPI: FACS table is too short at \(length) bytes")
         }
+    }
+}
 
-        let gas = ACPIGenericAddressStrucure(table.base_address)
+#if !TEST
+
+final class HPETTimer: Timer {
+    private let hpet: HPET
+    override var description: String { return "HPET: IRQ: \(irq)" }
+
+    init(hpet: HPET, irq: IRQSetting) {
+        self.hpet = hpet
+        super.init(irq: irq)
+    }
+
+    override func enablePeriodicInterrupt(hz: Int) -> Bool {
+        guard hpet.emulateLegacyPIT(ticksPerSecond: hz) else {
+            print("timer: HPET doesnt support PIT mode")
+            return false
+        }
+        return true
+    }
+}
+
+final class HPET: PNPDeviceDriver {
+    private let hpet: HPETTable
+    private var mmioRegion: MMIORegion = MMIORegion.invalidRegion()
+    private(set) var irq = IRQSetting(isaIrq: 2)
+
+    var description: String { return hpet.description }
+
+    init?(pnpDevice: PNPDevice) {
+        guard let _hpet = system.systemTables.acpiTables.hpet else {
+            print("HPET: No HPET ACPI table found")
+            return nil
+        }
+        self.hpet = _hpet
+    }
+
+    func initialise() -> Bool {
+        let gas = hpet.gas
         let region = PhysRegion(start: gas.physicalAddress, size: 0x400)
         mmioRegion = mapIORegion(region: region)
+        self.irq = legacyReplacementRoute ? IRQSetting(isaIrq: 0) : IRQSetting(isaIrq: 2)
+        let timer = HPETTimer(hpet: self, irq: irq)
+        system.deviceManager.timer = timer
+        return true
     }
 
     // HPET capabilities
@@ -116,7 +158,6 @@ struct HPET: CustomStringConvertible {
             generalConfigurationRegister = value.rawValue
         }
     }
-
 
     // LEG_RT_CNF
     var legacyReplacementRoute: Bool {
@@ -142,7 +183,7 @@ struct HPET: CustomStringConvertible {
 
     // Timer Blocks, 0 - .maxComparatorIndex
     func configFor(timer: Int) -> TimerConfiguration {
-        precondition(timer <= maxComparatorIndex)
+        precondition(timer <= hpet.maxComparatorIndex)
         let offset = 0x100 + (timer * 0x20)
         let low: UInt32 = mmioRegion.read(fromByteOffset: offset)
         let high: UInt32 = mmioRegion.read(fromByteOffset: offset + 4)
@@ -150,25 +191,25 @@ struct HPET: CustomStringConvertible {
     }
 
     func setConfigFor(timer: Int, config: TimerConfiguration) {
-        precondition(timer <= maxComparatorIndex)
+        precondition(timer <= hpet.maxComparatorIndex)
         let offset = 0x100 + (timer * 0x20)
         mmioRegion.write(value: config.rawValue, toByteOffset: offset)
     }
 
     func comparatorValueFor(timer: Int) -> UInt64 {
-        precondition(timer <= maxComparatorIndex)
+        precondition(timer <= hpet.maxComparatorIndex)
         let offset = 0x108 + (timer * 0x20)
         return mmioRegion.read(fromByteOffset: offset)
     }
 
     func setComparatorValueFor(timer: Int, value: UInt64) {
-        precondition(timer <= maxComparatorIndex)
+        precondition(timer <= hpet.maxComparatorIndex)
         let offset = 0x108 + (timer * 0x20)
         mmioRegion.write(value: value, toByteOffset: offset)
     }
 
     func fsbInterruptRouteRegisterFor(timer: Int) -> (address: UInt32, value: UInt32) {
-        precondition(timer <= maxComparatorIndex)
+        precondition(timer <= hpet.maxComparatorIndex)
         let offset = 0x110 + (timer * 0x20)
         let address: UInt32 = mmioRegion.read(fromByteOffset: offset + 4)
         let value: UInt32 = mmioRegion.read(fromByteOffset: offset)
@@ -176,7 +217,7 @@ struct HPET: CustomStringConvertible {
     }
 
     func setFsbInterruptRouteRegisterFor(timer: Int, address: UInt32, value: UInt32) {
-        precondition(timer <= maxComparatorIndex)
+        precondition(timer <= hpet.maxComparatorIndex)
         let offset = 0x110 + (timer * 0x20)
         mmioRegion.write(value: address, toByteOffset: offset + 4)
         mmioRegion.write(value: value, toByteOffset: offset)
@@ -191,20 +232,20 @@ struct HPET: CustomStringConvertible {
 
 
     func showConfiguration() {
-        print("HPET", self)
+        print("HPET", hpet)
         print("HPET: mainCounterRegister:", mainCounterRegister)
 
-        guard comparatorCount > 0 else {
+        guard hpet.comparatorCount > 0 else {
             print("HPET: No timers found")
             return
         }
-        for timer in 0...maxComparatorIndex {
+        for timer in 0...hpet.maxComparatorIndex {
             let config = configFor(timer: timer)
             print("HPET: Timer\(timer) config:", config, "comparatorValue:", comparatorValueFor(timer: timer))
         }
     }
 
-    mutating func emulateLegacyPIT(ticksPerSecond: Int) -> Bool {
+    fileprivate func emulateLegacyPIT(ticksPerSecond: Int) -> Bool {
         print("HPET: Emulating Legacy PIT with period \(ticksPerSecond)Hz")
         showConfiguration()
         var timer0 = configFor(timer: 0)
@@ -227,6 +268,9 @@ struct HPET: CustomStringConvertible {
         timer0.interruptEnabled = true
         timer0.interruptsArePeriodic = true
         timer0.enableTimerValueSet = true   // writing a value
+        // HPET is put in legacy mode so IRQ should be 0.
+        irq = IRQSetting(isaIrq: 0)
+
         setConfigFor(timer: 0, config: timer0)
 
         // Set comparator value for requested period
@@ -311,3 +355,5 @@ extension HPET {
         let interruptRoutingCapability: UInt32
     }
 }
+
+#endif

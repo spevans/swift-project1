@@ -9,7 +9,22 @@
  */
 
 
-final class PIT8254: PNPDeviceDriver, Timer, CustomStringConvertible {
+final class PIT8254Timer: Timer {
+    private let pit: PIT8254
+    override var description: String { return "PIT8254: IRQ: \(irq)" }
+
+    init(pit: PIT8254, irq: IRQSetting) {
+        self.pit = pit
+        super.init(irq: irq)
+    }
+
+    override func enablePeriodicInterrupt(hz: Int) -> Bool {
+        pit.setChannel(.CHANNEL_0, mode: .MODE_3, hz: hz)
+        return true
+    }
+}
+
+final class PIT8254: PNPDeviceDriver, CustomStringConvertible {
 
     private let oscillator = 1193182         // Base frequency
     private let channel0Port: UInt16
@@ -139,7 +154,8 @@ final class PIT8254: PNPDeviceDriver, Timer, CustomStringConvertible {
 
     // FIXME, Nothing to do currently, maybe read status to check for presence of device?
     func initialise() -> Bool {
-        system.deviceManager.timer = self
+        let timer = PIT8254Timer(pit: self, irq: irq)
+        system.deviceManager.timer = timer
         return true
     }
 
@@ -148,7 +164,7 @@ final class PIT8254: PNPDeviceDriver, Timer, CustomStringConvertible {
     }
 
 
-    private func setChannel(_ channel: TimerChannel, mode: OperatingMode,
+    fileprivate func setChannel(_ channel: TimerChannel, mode: OperatingMode,
                             hz: Int) {
         let cmd = toCommandByte(mapChannelToSelect(channel),
                                 AccessMode.LO_HI_BYTE, mode, NumberMode.BINARY)

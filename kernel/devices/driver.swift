@@ -37,6 +37,7 @@ private var pciDriversForIds: [PCISupportedVendorDevice: PCIDeviceDriver.Type] =
 #if KERNEL
 private var pnpDriversForIds: [String: PNPDeviceDriver.Type] = [
     "PNP0100": PIT8254.self,
+    "PNP0103": HPET.self,
     "PNP0303": KBD8042.self,
     "PNP030B": KBD8042.self,
     "PNP0B00": CMOSRTC.self,

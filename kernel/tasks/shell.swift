@@ -80,12 +80,12 @@ private func dumpMemCommand(arguments: [String]) {
     hexDump(buffer: buffer, offset:address)
 }
 
-private func hpetCommand(arguments: [String]) {
-    guard let hpet = system.deviceManager.acpiTables.hpet else {
-        print("No HPET found")
+private func timerCommand(arguments: [String]) {
+    guard let timer = system.deviceManager.timer else {
+        print("No timer found")
         return
     }
-    hpet.showConfiguration()
+    print(timer)
 }
 
 private func showNodeCommand(arguments: [String]) {
@@ -165,7 +165,7 @@ private let commands: [String: ShellCommand] = [
     "dumpdev":  ShellCommand(dumpDevCommand, "Dump the known system devices"),
     "dumpacpi": ShellCommand(dumpACPICommand, "[node] Dump the ACPI tree from an optional node"),
     "dumpmem":  ShellCommand(dumpMemCommand, "Dump memory contents: dumpmem <address> <count>"),
-    "hpet":     ShellCommand(hpetCommand, "Show HPET configuration"),
+    "timer":    ShellCommand(timerCommand, "Show Timer configuration"),
     "shownode": ShellCommand(showNodeCommand, "Show an ACPI node"),
     "sleep":    ShellCommand(sleepTestCommand, "Sleep for a specified number of seconds"),
     "tests":    ShellCommand(testsCommand, "Run selected commands as tests"),

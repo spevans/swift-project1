@@ -347,7 +347,7 @@ struct AMLDefLGreater: AMLType2Opcode {
     func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
         let op1 = operandAsInteger(operand: operand1, context: &context)
         let op2 = operandAsInteger(operand: operand2, context: &context)
-        return AMLBoolean(op1 < op2)
+        return AMLBoolean(op1 > op2)
     }
 }
 

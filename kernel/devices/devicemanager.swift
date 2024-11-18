@@ -80,6 +80,7 @@ final class DeviceManager {
 
         dumpPNPDevices()
         findPNPDevice(withName: "PNP0100")  // Look for a PIT timer and add to device tree if found
+        findPNPDevice(withName: "PNP0103")  // Look for an HPET timer and add to device tree if found
         findPNPDevice(withName: "PNP0C0F")  // PCI Interrupt Link Devices
         guard setupPeriodicTimer() else {
             koops("Cant find a timer to use for periodic clock")

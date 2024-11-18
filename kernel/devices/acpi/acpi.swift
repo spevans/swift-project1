@@ -18,11 +18,10 @@ enum ACPITable {
     case ecdt(ECDT)
     case facp(FACP)
     case facs(FACS)
-    case hpet(HPET)
+    case hpet(HPETTable)
     case sbst(SBST)
     case srat(SRAT)
     case waet(WAET)
-
 }
 
 
@@ -159,7 +158,7 @@ final class ACPI {
     private(set) var mcfg: MCFG?
     private(set) var facp: FACP?
     private(set) var madt: MADT?
-    private(set) var hpet: HPET?
+    private(set) var hpet: HPETTable?
     private(set) var globalObjects: ACPIObjectNode!
     private(set) var tables: [ACPITable] = []
     private var dsdt: PhysRegion?
@@ -270,7 +269,7 @@ final class ACPI {
             tables.append(.madt(madt!))
 
         case "HPET":
-            hpet = HPET(rawSDTPtr)
+            hpet = HPETTable(rawSDTPtr)
             tables.append(.hpet(hpet!))
 
         case "ECDT":
