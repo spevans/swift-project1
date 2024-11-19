@@ -9,25 +9,27 @@
 // https://github.com/qemu/qemu/blob/master/docs/specs/fw_cfg.txt
 
 final class QEMUFWCFG: PNPDeviceDriver {
-    let pnpName: String
-    let baseIOPort: UInt16
-    private(set) var hasDMAInterface = false
+    private var baseIOPort: UInt16 = 0
+    private var hasDMAInterface = false
     let description = "QEMU_FWCFG"
 
-    init?(pnpDevice: PNPDevice) {
-        self.pnpName = pnpDevice.pnpName
-        let resources = pnpDevice.resources
-        print(pnpDevice.fullName, "Resources:", resources)
-        guard let ioPorts = resources.ioPorts.first, ioPorts.count > 6,
-              let basePort = ioPorts.first else {
-            print("QEMU: port range is to small:", resources.ioPorts.count)
-            return nil
-        }
-        baseIOPort = basePort
+    override init?(pnpDevice: PNPDevice) {
+        super.init(pnpDevice: pnpDevice)
     }
 
 
-    func initialise() -> Bool {
+    override func initialise() -> Bool {
+        guard let pnpDevice = device.busDevice as? PNPDevice, let resources = pnpDevice.getResources() else {
+            print("QEMU: Cannot get ACPI resources")
+            return false
+        }
+        print(pnpDevice.device.fullName, "Resources:", resources)
+        guard let ioPorts = resources.ioPorts.first, ioPorts.count > 6,
+              let basePort = ioPorts.first else {
+            print("QEMU: port range is to small:", resources.ioPorts.count)
+            return false
+        }
+        baseIOPort = basePort
         let signature = readSignature()
         guard signature == "QEMU" else {
             print("QEMU: Invalid signature", signature)
@@ -42,6 +44,7 @@ final class QEMUFWCFG: PNPDeviceDriver {
         }
         hasDMAInterface = (features & 2) != 0
         print("QEMU: DMA interface available")
+        device.initialised = true
         return true
     }
 

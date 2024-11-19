@@ -8,42 +8,73 @@
 //  Device representing hardware identified by a _HID or _CID ACPI name,
 //  non-PCI, usually ISA or ACPI devices.
 
-final class PNPDevice: Device {
-    private unowned let _acpiDevice: AMLDefDevice
-    private(set) var pnpDeviceDriver: PNPDeviceDriver?
-    private(set) var resources = ISABus.Resources([])
-    unowned let parentBus: Bus
+final class PNPDevice: BusDevice {
+    private(set) var resources: ISABus.Resources?
     let pnpName: String
-    var enabled = false
 
-    var acpiDevice: AMLDefDevice? { _acpiDevice }
-    var fullName: String { _acpiDevice.fullname() }
-    var deviceDriver: DeviceDriver? { pnpDeviceDriver }
-    var description: String { "ISA: \(pnpName) \(fullName) \(resources)" }
+    override var description: String { "ISA: \(pnpName) \(device.fullName)" }
+    let isPCIHost: Bool
 
-
-    init(parentBus: Bus, acpiDevice: AMLDefDevice, pnpName: String) {
-        self._acpiDevice = acpiDevice
-        self.parentBus = parentBus
+    init?(device: Device, pnpName: String) {
+        guard device.busDevice == nil else {
+            print("Device \(device.fullName) already has a busDevice")
+            return nil
+        }
+        guard device.acpiDeviceConfig != nil else {
+            print("\(pnpName) has no ACPI DeviceConfgi")
+            return nil
+        }
+        self.isPCIHost = device.acpiDeviceConfig?.isPCIHost ?? false
         self.pnpName = pnpName
+        super.init(device: device)
+        device.setBusDevice(self)
     }
 
-    func setDriver(_ driver: DeviceDriver) {
-        if let deviceDriver = deviceDriver {
-            fatalError("\(self) already has a device driver: \(deviceDriver)")
+    func getResources() -> ISABus.Resources? {
+        if resources == nil {
+            if let crs = device.acpiDeviceConfig?.crs {
+                resources = ISABus.Resources(crs)
+            }
         }
-
-        guard let pnpDriver = driver as? PNPDeviceDriver else {
-            fatalError("\(self): \(driver) is not for a PNP Device")
-        }
-        pnpDeviceDriver = pnpDriver
+        return resources
     }
 
     func initialise() -> Bool {
-        if let crs = _acpiDevice.currentResourceSettings() {
-            resources = ISABus.Resources(crs)
-        }
-        self.enabled = true
+        device.initialised = true
+        resources = getResources()
+        device.enabled = true
         return true
     }
+
+    func matchesId(_ pnpId: String) -> Bool {
+        if let config = device.acpiDeviceConfig {
+            return config.matches(hidOrCid: pnpId)
+        } else {
+            return false
+        }
+    }
+
+    #if !TEST
+    static func initPnpDevice(_ pnpDevice: PNPDevice) -> DeviceDriver? {
+        guard pnpDevice.device.deviceDriver == nil else { return nil }
+        switch pnpDevice.pnpName {
+            case "PNP0100": return PIT8254(pnpDevice: pnpDevice)
+            case "PNP0303": return KBD8042(pnpDevice: pnpDevice)
+            case "PNP030B": return KBD8042(pnpDevice: pnpDevice)
+            case "PNP0B00": return CMOSRTC(pnpDevice: pnpDevice)
+            case "PNP0C0F": return PCIInterruptLinkDevice(pnpDevice: pnpDevice)
+            case "QEMU0002": return QEMUFWCFG(pnpDevice: pnpDevice)
+            case "PNP0A03", // PCI Host bridge
+                "PNP0A08": // PCIBus, PCI Express
+                return PCIBus(pnpDevice: pnpDevice)
+            case "PNP0103", // HPET System Timer
+                "PNP0C01":  // System Board
+                return HPET(pnpDevice: pnpDevice)
+            default:
+                let name = pnpDevice.device.acpiDeviceConfig?.node.fullname() ?? "unknown"
+                print("PNP: No driver for", pnpDevice.pnpName, name)
+                return nil
+        }
+    }
+    #endif
 }

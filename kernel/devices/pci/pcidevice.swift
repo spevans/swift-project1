@@ -9,38 +9,21 @@
  */
 
 
-final class PCIDevice: Device, CustomStringConvertible {
-    unowned let parentBus: Bus
-    let acpiDevice: AMLDefDevice?
-    let fullName: String
-    var enabled = false
+final class PCIDevice: BusDevice {
+
     let deviceFunction: PCIDeviceFunction
-    private(set) var pciDeviceDriver: PCIDeviceDriver?
-    var deviceDriver: DeviceDriver? { pciDeviceDriver }
+    override var description: String { "PCI \(device.fullName) \(deviceFunction.description)" }
 
-    var description: String { "PCI \(fullName) \(deviceFunction.description)" }
 
-    init?(parentBus: PCIBus, deviceFunction: PCIDeviceFunction, acpiDevice: AMLDefDevice? = nil) {
+    init?(device: Device, deviceFunction: PCIDeviceFunction) {
         guard deviceFunction.vendor != 0xffff else { return nil } // Invalid device
-        self.parentBus = parentBus
         self.deviceFunction = deviceFunction
-        self.acpiDevice = acpiDevice
-        self.fullName = acpiDevice?.fullname() ?? "PCI Device"
-    }
-
-    func setDriver(_ driver: DeviceDriver) {
-        if let deviceDriver = deviceDriver {
-            fatalError("\(self) already has a device driver: \(deviceDriver)")
-        }
-
-        guard let pciDriver = driver as? PCIDeviceDriver else {
-            fatalError("\(self): \(driver) is not for a PCI Device")
-        }
-        pciDeviceDriver = pciDriver
+        super.init(device: device)
     }
 
     func initialise() -> Bool {
-        self.enabled = true
+        self.device.initialised = true
+        self.device.enabled = true
         return true
     }
 
@@ -58,6 +41,11 @@ final class PCIDevice: Device, CustomStringConvertible {
         }
 
         return PCICapability.MSIX(offset: msixOffset, deviceFunction: deviceFunction)
+    }
+
+    func parentPCIDevice(device: Device) -> PCIDevice? {
+        return device.parent?.busDevice as? PCIDevice
+
     }
 
     // Look for MSI-X, then MSI, then the INTA-D IRQs
@@ -82,20 +70,22 @@ final class PCIDevice: Device, CustomStringConvertible {
             return nil
         }
         var slot = self.deviceFunction.slot
-        var bus = self.parentBus as! PCIBus
-
+        guard var bus = self.device.parent else {
+            fatalError("PCIDevice \(self) has no parent so cant find interrupr")
+        }
         print("PCI: slot: \(slot) device: \(self.deviceFunction.device) df: \(self.deviceFunction), pin: \(pin)")
 
-        while let parent = bus.pciDevice?.parentBus as? PCIBus, let busSlot = bus.slot {   // FIXME, add , !bus.isRootBridge test
+        while let parent = self.parentPCIDevice(device: bus), let bridge = parent.deviceFunction.deviceClass?.bridgeSubClass,
+              bridge == .isa {   // FIXME, add , !bus.isRootBridge test
             pin = pin.swizzle(slot: slot)
-            slot = busSlot
+            slot = parent.deviceFunction.slot
             print("PCI: bus: \(bus), interruptPin: \(pin)")
-            bus = parent
+            bus = parent.device
         }
 
         print("PCI: final slot: \(slot), pin: \(pin)")
 
-        guard let itr = bus.interruptRoutingTable else {
+        guard let itr = bus.acpiDeviceConfig?.prt else {
             fatalError("PCI: \(bus) cant find an Interrupt Routing Table")
         }
 
@@ -116,17 +106,17 @@ final class PCIDevice: Device, CustomStringConvertible {
                 }
 
                 print("PCI: Link device: \(fullname), sourceIndex: \(sourceIndex), \(node)")
-                guard let devNode = node as? AMLDefDevice else {
+                guard let lnkDevice = node.device else {
                     print("\(fullname) is not an AMLDefDevice")
                     return nil
                 }
 
-                guard let device = devNode.device?.deviceDriver as? PCIInterruptLinkDevice else {
+                guard let deviceDriver = lnkDevice.deviceDriver as? PCIInterruptLinkDevice else {
                     print("\(fullname) has no attached PCI InterruptLink device")
                     return nil
                 }
-                print("PCI: devNode: \(devNode) device: \(devNode.device as Any), LNK Device: \(device), irq:", device.irq)
-                return device.irq
+                print("PCI: devNode: \(fullname) device: \(node.device as Any), LNK Device: \(device), irq:", deviceDriver.irq)
+                return deviceDriver.irq
 
             case .globalSystemInterrupt(let gsi):
                 return IRQSetting(gsi: gsi, activeHigh: false, levelTriggered: true, shared: true, wakeCapable: false) // FIXME: try and determine wakeCapable status.

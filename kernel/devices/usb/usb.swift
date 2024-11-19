@@ -67,7 +67,7 @@ class USBPipe {
 }
 
 
-final class USB: Bus {
+final class USB {
 
     let devices: [Device] = []
     var resources: [MotherBoardResource] = []
@@ -90,14 +90,13 @@ final class USB: Bus {
         rootPCIBus.devicesMatching(classCode: .serialBusController, subClassCode: PCISerialBusControllerSubClass.usb.rawValue) {
             print("USB: Found pcidevice: \($0) deviceClass: \($1)")
             let deviceClass = $1
-            guard $0.pciDeviceDriver == nil else { return }
+            guard !$0.device.initialised else { return }
             if deviceClass.seriaBusSubClass == .usb, let progIf = PCIUSBProgrammingInterface(rawValue: deviceClass.progInterface) {
                 print("USB: Found a USB HCD, progIf:", progIf)
                 switch progIf {
                     case .uhci:
                         if $0.initialise(), let driver = HCD_UHCI(pciDevice: $0) {
                             if driver.initialise() {
-                                $0.setDriver(driver)
                                 let hcd = USBHCD.uhci(driver)
                                 hcds.append(hcd)
                             }
@@ -106,7 +105,6 @@ final class USB: Bus {
                     case .ehci:
                         if $0.initialise(), let driver = HCD_EHCI(pciDevice: $0) {
                             if driver.initialise() {
-                                $0.setDriver(driver)
                                 let hcd = USBHCD.ehci(driver)
                                 hcds.append(hcd)
                             }
@@ -115,7 +113,6 @@ final class USB: Bus {
                     case .xhci:
                         if $0.initialise(), let driver = HCD_XHCI(pciDevice: $0) {
                             if driver.initialise() {
-                                $0.setDriver(driver)
                                 let hcd = USBHCD.xhci(driver)
                                 hcds.append(hcd)
                             }

@@ -96,12 +96,19 @@ extension PCIRoutingTable {
 }
 
 
-struct PCIRoutingTable {
+struct PCIRoutingTable: CustomStringConvertible {
 
     let prtAcpiNode: ACPI.ACPIObjectNode
     let table: [PCIRoutingTable.Entry]
 
-    init?(prtNode: AMLNamedObj) {
+    var description: String {
+        var result = prtAcpiNode.description + "[" + table.reduce(into: "[") { $0 += $1.description + ", " }
+        result.removeLast(2)
+        result.append("]")
+        return result
+    }
+
+    init?(prtNode: ACPI.ACPIObjectNode) {
 
         guard let _prt = prtNode.asTermArg() as? AMLDataObject else {
             print("PCI: \(prtNode.fullname()) is not an AMLDataObject")

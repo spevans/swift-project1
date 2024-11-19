@@ -13,14 +13,8 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
     var description: String { "PCI Link Device: [IRQ: \(irq)]" }
 
 
-    init?(pnpDevice: PNPDevice) {
-        guard let acpiDevice = pnpDevice.acpiDevice else {
-            print("PCIInterruptLinkDevice: \(pnpDevice) has no ACPI information")
-            return nil
-        }
-
-
-        guard let uid = acpiDevice.uniqueId() else {
+    override init?(pnpDevice: PNPDevice) {
+        guard let uid = pnpDevice.device.acpiDeviceConfig?.uid else {
             print("PCIInterruptLinkDevice: cant get _UID")
             return nil
         }
@@ -30,17 +24,21 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
             return nil
         }
 
-        guard let crs = acpiDevice.currentResourceSettings() else {
+        guard let acpiConfig = pnpDevice.device.acpiDeviceConfig else {
+            print("\(pnpDevice.pnpName) has no ACPIDeviceConfig")
+            return nil
+        }
+        guard let crs = acpiConfig.crs else {
             print("PCIInterruptLinkDevice: Cant get resources")
             return nil
         }
 
         let resources = ISABus.Resources(crs)
-        let f = acpiDevice.fullname()
+        let f = acpiConfig.node.fullname()
         print("PCIInterruptLinkDevice: \(f) \(resources)")
 
-        if let prs = pnpDevice.acpiDevice?.possibleResourceSettings() {
-            print("PCI LNK \(f): _PRS:", prs)
+        if let prs = acpiConfig.prs {
+            print("PCI LNK \(f): _PRS: \(prs)")
         }
 
         if let cirq = resources.interrupts.first {
@@ -50,13 +48,13 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
             print(f, "has no configured irq")
             return nil
         }
-
+        super.init(pnpDevice: pnpDevice)
         print("PCI INT Link \(f) [_UID=\(uidValue)]: resources:", resources)
     }
 
     // FIXME: Maybe select a better IRQ to use to balance them out better or make
     // .irq into a funtion to do lazy irq allocation
-    func initialise() -> Bool {
+    override func initialise() -> Bool {
         true
     }
 }

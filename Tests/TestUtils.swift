@@ -8,6 +8,7 @@
 
 import Foundation
 
+let PAGE_SIZE = UInt(4096)
 // Mock functions and types
 
 func printk(_ format: String, _ arguments: CVarArg...) {

@@ -9,7 +9,7 @@
  */
 
 
-final class USBHIDDriver: DeviceDriver {
+final class USBHIDDriver {
     private(set) var description: String
     private let device: USBDevice
     private let interface: USB.InterfaceDescriptor

@@ -47,7 +47,7 @@ extension AMLTermArg {
         } else if let b = bufferValue {
             return "[Buffer of  \(b.count) bytes]"
         } else {
-            return "<UNKNOWN>"
+            return "\(self)"
         }
     }
 }

@@ -10,11 +10,12 @@
 extension ACPI {
     class ACPIObjectNode: AMLTermObj, Hashable, CustomStringConvertible {
         let name: AMLNameString
-        unowned private(set) var parent: ACPIObjectNode?
+        /*unowned*/ private(set) var parent: ACPIObjectNode?
         // Use an array for the childnodes even though the lookups are on the name
         // segment as this keeps the order and the number of entries is small enough
         // that a linear scan is ok.
         fileprivate(set) var childNodes: [ACPIObjectNode]
+        private(set) var device: Device?
 
         var description: String {
             var result = "ACPIObjectNode: \(name)"
@@ -33,6 +34,12 @@ extension ACPI {
             self.parent = parent
             guard name.isNameSeg else {
                 fatalError("\(type(of: self)) has invalid name: \(name.value)")
+            }
+        }
+
+        func setDevice(_ newDevice: Device) {
+            guard self.device == nil else {
+                fatalError("\(fullname()) already has a device set")
             }
         }
 

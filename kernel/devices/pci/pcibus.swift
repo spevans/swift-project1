@@ -9,73 +9,45 @@
  */
 
 
-final class PCIHostBus: Device, CustomStringConvertible {
-    private(set) var pciBus: PCIBus?                  // The bus (downstream) side of the bridge
-    var enabled = false
-
-    unowned let parentBus: Bus
-    let acpiDevice: AMLDefDevice?
-    let fullName: String
-    let busId: UInt8
-
-    var deviceDriver: DeviceDriver? {
-        // FIXME, why isnt this just pciBus as? DeviceDriver ??
-        guard let bus = pciBus else { return nil }
-        return bus as DeviceDriver
-    }
-
-    var description: String {
-        let desc = pciBus?.description ?? "not initialised"
-        return "Host BUS \(desc)"
-    }
-
-    init(parentBus: Bus, busId: UInt8, acpiDevice: AMLDefDevice) {
-        self.parentBus = parentBus
-        self.acpiDevice = acpiDevice
-        self.fullName = acpiDevice.fullname()
-        self.busId = busId
-    }
-
-    func addBus() {
-        self.pciBus = PCIBus(busId: busId, device: self, acpiDevice: acpiDevice!)
-
-    }
-
-    func setDriver(_ driver: DeviceDriver) {
-        // The PCIBus is a driver already
-        fatalError("PCIHostBus already has a driver")
-    }
-
-    func initialise() -> Bool {
-        self.enabled = true
-        return true
-    }
-}
-
-
-final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
-    private unowned let device: Device
+final class PCIBus: DeviceDriver, CustomStringConvertible {
     let interruptRoutingTable: PCIRoutingTable?
     let busId: UInt8
     var resources: [MotherBoardResource] = []
-
-    var pciDevice: PCIDevice? { device as? PCIDevice }
-    var parentBus: Bus? { device.parentBus }
-    var acpiDevice: AMLDefDevice? { device.acpiDevice }
+    let isHostBus: Bool
 
     private(set) var devices: [Device] = []
-    var slot: UInt8? { pciDevice?.deviceFunction.slot }
-    var description: String { "PCIBus: busId: \(asHex(busId)) \(acpiDevice?.fullname() ?? "")" }
+    var description: String { "PCIBus: busId: \(asHex(busId)) \(device.fullName)" }
 
     // Root Bus
-    init(busId: UInt8, device: Device, acpiDevice: AMLDefDevice) {
+    init?(pnpDevice: PNPDevice) {
+        isHostBus = true
+        // Get the Bus number
+        // FIXME: Add method to walk up the tree finding a given node by name
+        var busId: UInt8 = 0
+        var p: ACPI.ACPIObjectNode? = pnpDevice.device.acpiDeviceConfig?.node
+        while let _node = p {
+            if let bbnValue = _node.baseBusNumber() {
+                print("Found _BBN node on parent:", _node.fullname())
+                busId = bbnValue
+                break
+            }
+            p = _node.parent
+        }
         self.busId = busId
-        self.device = device
 
-        let name = device.acpiDevice?.fullname() ?? "no name"
-        print("PCIBus.init \(name): busId: \(busId)")
+        guard let acpiConfig = pnpDevice.device.acpiDeviceConfig else {
+            print("PCI: PCIBus: busId: \(asHex(busId)) \(pnpDevice.device.fullName) has no ACPI config")
+            return nil
+        }
+        print("PCIBus.init \(pnpDevice.device.fullName): busId: \(busId)")
         // FIXME: Determine if root bus
-        interruptRoutingTable = nil //PCIRoutingTable(acpi: acpiDevice)
+        if let prt = acpiConfig.prt {
+            print("PCIBus, have PRT")
+            interruptRoutingTable = prt
+        } else {
+            interruptRoutingTable = nil //PCIRoutingTable(acpi: acpiDevice)
+        }
+        super.init(device: pnpDevice.device)
         print("PCIBus.init:", self.description)
     }
 
@@ -86,8 +58,9 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
             return nil
         }
         self.busId = pciDevice.deviceFunction.bridgeDevice!.secondaryBusId
-        self.device = pciDevice
+        isHostBus = false
         self.interruptRoutingTable = nil
+        super.init(device: pciDevice.device)
     }
 
     // Non PCI Devices (eg ACPIDevice) may get added to this bus as it is in the ACPI device tree under a PCI bus
@@ -95,15 +68,13 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
         devices.append(device)
     }
 
-    func initialise() -> Bool {
+    override func initialise() -> Bool {
         print("PCIBus.initialiseDevice:", self)
-        if let device = pciDevice {
-            guard device.initialise() else { return false }
-        }
         // Scan PCI bus for any remaining devices
         for deviceFunction in scanBus() {
             print("Adding \(deviceFunction)")
-            if let device = self.device(deviceFunction: deviceFunction, acpiDevice: acpiDevice) {
+            // FIXME: Try and find matching ACPI device node
+            if let device = self.device(deviceFunction: deviceFunction) {
                 addDevice(device)
             } else {
                 print("PCIBus: Could not add \(deviceFunction)")
@@ -111,8 +82,9 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
 
         }
         devices.sort {
-            let dev0 = $0 as? PCIDevice
-            let dev1 = $1 as? PCIDevice
+            let dev0 = $0.busDevice as? PCIDevice
+            let dev1 = $1.busDevice as? PCIDevice
+
             if let dev0 = dev0, let dev1 = dev1 {
                 return dev0.deviceFunction.deviceFunction < dev1.deviceFunction.deviceFunction
             } else if dev0 != nil {
@@ -129,7 +101,8 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
     // Find PCI Devices matching a specific classCode and optional subClassCode and progInterface
     func devicesMatching(classCode: PCIClassCode? = nil, subClassCode: UInt8? = nil, progInterface: UInt8? = nil, body: (PCIDevice, PCIDeviceClass) -> ()) {
         for device in devices {
-            if let pciDevice = device as? PCIDevice, let deviceClass = pciDevice.deviceFunction.deviceClass {
+            guard let pciDevice = device.busDevice as? PCIDevice else { continue }
+            if let deviceClass = pciDevice.deviceFunction.deviceClass {
                 if let classCode = classCode {
                     if deviceClass.classCode == classCode {
                         if let subClassCode = subClassCode {
@@ -149,41 +122,23 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
     }
 
 
-    func device(acpiDevice: AMLDefDevice) -> Device? {
-        // Is it a normal PCI Device
-        if let address = acpiDevice.addressResource() {// (address >> 16) != 0 { // _ADR slot == 0 is either the Root PCI bus or not a PCI device
-            guard let deviceFunction = PCIBus.pciDeviceFunctionFor(address: address, withBusId: self.busId) else {
-                // Inactive or missing PCI device
-                return nil
-            }
-            return device(deviceFunction: deviceFunction, acpiDevice: acpiDevice)
-        }
-
-        let pnpName = acpiDevice.deviceId
-        if let pnpName = pnpName {
-            return PNPDevice(parentBus: self, acpiDevice: acpiDevice, pnpName: pnpName)
-        } else {
-            let pnpName = acpiDevice.pnpName()
-            print("PCI: Cant add device \(acpiDevice.fullname()) with pnpName:", pnpName ?? "nil")
-            return nil
-        }
-    }
-
-
-    func device(deviceFunction: PCIDeviceFunction, acpiDevice: AMLDefDevice?) -> Device? {
-        guard let pciDevice = PCIDevice(parentBus: self, deviceFunction: deviceFunction, acpiDevice: acpiDevice) else {
+    func device(deviceFunction: PCIDeviceFunction) -> Device? {
+        let device = Device(parent: self.device, fullName: deviceFunction.description)
+        guard let pciDevice = PCIDevice(device: device, deviceFunction: deviceFunction) else {
             print("PCI: Cant create PCI device for:", deviceFunction)
             return nil
         }
+        device.setBusDevice(pciDevice)
 
         if let busClass = deviceFunction.deviceClass?.bridgeSubClass {
             switch busClass {
                 case .isa:
-                    if let driver = ISABus(pciDevice: pciDevice) {
-                        print("ISABus setting driver")
-                        pciDevice.setDriver(driver)
+                    guard let driver = ISABus(pciDevice: pciDevice) else {
+                        print("PCI: Cant create ISA BUS")
+                        return nil
                     }
-                    return pciDevice
+                    _ = driver.initialise()
+                    return device
 
                 case .host:
                     // FIXME - this could be a PCIExpress Root bus
@@ -195,17 +150,16 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
                         print("PCI: Cant Create PCBus from:", pciDevice)
                         return nil
                     }
-                    pciDevice.setDriver(driver)
-                    return pciDevice
+                    _ = driver.initialise()
+                    return device
 
                 default:
                     print("PCI Ignoring bus of type \(deviceFunction)")
             }
         }
 
-        return pciDevice
+        return device
     }
-
 
 
     // Convert an ACPI _ADR PCI address and busId. Only returns if the PCI device has valid vendor/device codes.
@@ -221,7 +175,7 @@ final class PCIBus: PCIDeviceDriver, Bus, CustomStringConvertible {
         // Get current devices on bus by device number, key = devicveID (0-0x1F) value = 0 if non-multifunction else bitX = functionX
         var currentPCIDevices: [UInt8: UInt8] = [:]
         for device in devices {
-            guard let pciDevice = device as? PCIDevice else { continue }
+            guard let pciDevice = device.busDevice as? PCIDevice else { continue }
             let devId = pciDevice.deviceFunction.device
             if pciDevice.deviceFunction.function == 0 && !pciDevice.deviceFunction.hasSubFunction {
                 currentPCIDevices[devId] = 0

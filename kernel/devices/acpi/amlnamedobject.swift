@@ -15,9 +15,7 @@ typealias AMLNamedObj = ACPI.ACPIObjectNode
 final class AMLDefDataRegion: AMLNamedObj {
     var isReadOnly: Bool { return false }
 
-
     // DataRegionOp NameString TermArg TermArg TermArg
-    //let name: AMLNameString
     let arg1: AMLTermArg
     let arg2: AMLTermArg
     let arg3: AMLTermArg
@@ -53,30 +51,11 @@ final class AMLDefDevice: AMLNamedObj {
 
 
     // DeviceOp PkgLength NameString TermList
-    //let name: AMLNameString
     let value: AMLTermList
-    private(set) var device: Device? = nil
-
-    override var description: String {
-        var result = "ACPI Device:"
-        if let devname = device {
-            result += " [\(devname)]"
-        } else {
-            result += " No driver set"
-        }
-        return result
-    }
 
     init(name: AMLNameString, value: AMLTermList) {
         self.value = value
         super.init(name: name)
-    }
-
-    func setDevice(_ device: Device) {
-        if let curDevice = self.device {
-            fatalError("\(fullname()) already has a device \(curDevice), cant set to \(device)")
-        }
-        self.device = device
     }
 }
 
@@ -117,8 +96,6 @@ extension AMLNamedObj {
         return decodeResourceData(buffer)
     }
 
-    // _CID or _HID, used for PNP
-    var deviceId: String? { hardwareId() ?? pnpName() }
 
     func hardwareId() -> String? {
         guard let hid = childNode(named: "_HID") else {
@@ -131,18 +108,16 @@ extension AMLNamedObj {
                 default: fatalError("\(hid.fullname()) has invalid value for pnpname: \(hidName.value)")
             }
         }
-
-        if let hidMethod = hid as? AMLMethod {
+        else if let hidMethod = hid as? AMLMethod {
             var context = ACPI.AMLExecutionContext(scope: AMLNameString(hid.fullname()))
             return decodeHID(obj: hidMethod.readValue(context: &context))
-
+        } else {
+            fatalError("\(self.fullname()) has invalid node for _HID: \(type(of: self))")
         }
-        return nil
     }
 
 
-    // FIXME, maybe return an array of String if source is a package
-    func pnpName() -> String? {
+    func compatibleIds() -> [String]? {
         guard let cid = childNode(named: "_CID") else {
             return nil
         }
@@ -161,61 +136,65 @@ extension AMLNamedObj {
             return nil
         }
 
-
         guard let object = value as? AMLDataObject else {
             fatalError("\(cid.fullname()) has invalid value for pnpname: \(value)")
         }
 
         // _CID could be a package containg multiple values, so take the first (for now)
         if case let .package(package) = object {
+            guard package.count > 0 else { return nil }
+            var cids: [String] = []
             for value in package {
                 guard let data = value.dataRefObject?.dataObject else {
                     fatalError("\(cid.fullname()) has invalid value for pnpname: \(value)")
                 }
-                return decodeHID(obj: data)
+                cids.append(decodeHID(obj: data))
             }
+            return cids
         } else {
-            return decodeHID(obj: object)
+            return [decodeHID(obj: object)]
         }
-
-        return nil
     }
 
 
     func uniqueId() -> AMLDataObject? { // Integer or String
-        guard let uid = childNode(named: "_UID") else { return nil }
-
-        var value: AMLDataObject? = nil
-
-        if let uidValue = uid as? AMLNamedValue {
-            value = uidValue.value.dataObject
+        guard let uid = (childNode(named: "_UID") as? AMLNamedValue)?.value.dataObject else {
+            return nil
         }
-        else if let uidMethod = uid as? AMLMethod {
-            var context = ACPI.AMLExecutionContext(scope: AMLNameString(uid.fullname()))
-            value = uidMethod.readValue(context: &context) as? AMLDataObject
+        switch uid {
+            case .integer, .string:
+                return uid
+            default:
+                print("ACPI: \(fullname()) _UID is not a string or integer")
+                return nil
         }
+    }
 
-        guard let dataObject = value else {
-            fatalError("\(uid.fullname()): doesnt evaluate to a dataobject")
+
+    func baseBusNumber() -> UInt8? {
+        if let bbn = childNode(named: "_BBN") as? AMLNamedValue, let bbnValue = bbn.value.integerValue {
+            return UInt8(truncatingIfNeeded: bbnValue)
+        } else {
+            return nil
         }
-
-        switch dataObject {
-            case .integer, .string: return dataObject
-            default: break
-        }
-
-        fatalError("\(uid.fullname()) has invalid valid for _UID: \(dataObject)")
     }
 
 
     func addressResource() -> AMLInteger? {
         guard let adr = childNode(named: "_ADR") as? AMLNamedValue else {
-            print("Cant find _ADR in", self.fullname())
             // Override missing _ADR for Root PCIBus
             return self.fullname() == "\\_SB.PCI0" ? AMLInteger(0) : nil
         }
 
         return adr.value.integerValue
+    }
+
+    func pciRoutingTable() -> PCIRoutingTable? {
+        if let prtNode = childNode(named: "_PRT") {
+            return PCIRoutingTable(prtNode: prtNode)
+        } else {
+            return nil
+        }
     }
 }
 
@@ -280,7 +259,6 @@ final class AMLMethod: AMLNamedObj {
         }
     }
 }
-
 
 
 final class AMLDefMutex: AMLNamedObj {
@@ -773,26 +751,24 @@ final class AMLDefOpRegion: AMLNamedObj {
 
             case .pciConfig:
                 var node: AMLNamedObj? = self
-                var configSpace: PCIDeviceFunction?
-                while let n2 = node {
-                    if let device = (n2 as? AMLDefDevice)?.device {
-                        if let pciDevice = device as? PCIDevice {
-                            configSpace = pciDevice.deviceFunction
-                            break
-                        } else if let pciHostBus = device as? PCIHostBus {
-                            guard let pciBusDevice = pciHostBus.pciBus?.pciDevice else {
-                                fatalError("\(self.fullname()) does not have a PCI Device")
-                            }
-                            configSpace = pciBusDevice.deviceFunction
-                            break
-                        } else {
-                            fatalError("\(device): is not PCI but a \(type(of: device))")
-                        }
+                // Find the PCI address for the device
+                var address: UInt64? = nil
+                var bbn: UInt8? = nil
+
+                while let parent = node?.parent {
+                    if address == nil, let _address = parent.addressResource() {
+                        address = _address
                     }
-                    node = node?.parent
+                    if bbn == nil, let _bbn = parent.baseBusNumber() {
+                        bbn = UInt8(truncatingIfNeeded: _bbn)
+                    }
+                    node = parent
                 }
 
-                if let configSpace = configSpace {
+                if let address = address  {
+                    let configSpace = PCIDeviceFunction(busId: bbn ?? 0,
+                                                 device: UInt8(truncatingIfNeeded: address >> 16),
+                                                 function: UInt8(truncatingIfNeeded: address))
                     print("\(self.fullname()): Using \(configSpace) for PCI_Region")
                     regionSpace = PCIConfigRegionSpace(config: configSpace, offset: regionOffset, length: regionLength)
                 } else {

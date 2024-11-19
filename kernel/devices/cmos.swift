@@ -11,10 +11,10 @@
 
 final class CMOSRTC: PNPDeviceDriver {
 
-    private let addressPort: UInt16
-    private let dataPort: UInt16
-    private let irq: IRQSetting?
-    private let centuryIndex: UInt8
+    private var addressPort: UInt16 = 0
+    private var dataPort: UInt16 = 0
+    private var irq: IRQSetting?
+    private var centuryIndex: UInt8 = 0
 
 
     var description: String {
@@ -22,11 +22,20 @@ final class CMOSRTC: PNPDeviceDriver {
                               addressPort, dataPort, irq?.description ?? "none" )
     }
 
-    init?(pnpDevice: PNPDevice) {
-        print("CMOS: init:", pnpDevice.resources)
-        guard let ports = pnpDevice.resources.ioPorts.first, ports.count > 1 else {
-            print("CMOS: Requires at least 2 IO ports:", pnpDevice.resources)
-            return nil
+    override init?(pnpDevice: PNPDevice) {
+        super.init(pnpDevice: pnpDevice)
+    }
+
+
+    override func initialise() -> Bool {
+        guard let pnpDevice = device.busDevice as? PNPDevice, let resources = pnpDevice.getResources() else {
+            return false
+        }
+
+        print("CMOS: init:", resources)
+        guard let ports = resources.ioPorts.first, ports.count > 1 else {
+            print("CMOS: Requires at least 2 IO ports:", resources)
+            return false
         }
 
         let idx = ports.startIndex
@@ -34,17 +43,14 @@ final class CMOSRTC: PNPDeviceDriver {
         dataPort = ports[ports.index(idx, offsetBy: 1)]
 
         // Might be nil if no interrupt is specified in ACPI.
-        irq = pnpDevice.resources.interrupts.first
+        irq = resources.interrupts.first
 
         if let century = system.deviceManager.acpiTables.facp?.rtcCenturyIndex, century < 64 {
             centuryIndex = century
         } else {
             centuryIndex = 0
         }
-    }
-
-
-    func initialise() -> Bool {
+        device.initialised = true
         system.deviceManager.rtc = self
         return true
     }

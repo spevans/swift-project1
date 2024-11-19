@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 46;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -74,6 +74,7 @@
 		B9E88C352CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9E88C332CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.dsl */; };
 		B9E88C362CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9E88C342CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.aml */; };
 		B9E88C3A2CEBE49D00F3F251 /* BinaryInteger+Extras.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E88C392CEBE48200F3F251 /* BinaryInteger+Extras.swift */; };
+		B9E88C3C2CEC83D400F3F251 /* ACPIDeviceConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E88C3B2CEC83C100F3F251 /* ACPIDeviceConfig.swift */; };
 		B9E8F3FB2792FAD4008F3C33 /* ioapic.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7191F2F497800FE6846 /* ioapic.swift */; };
 		B9E8F3FE2792FBEC008F3C33 /* cpu.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7141F2F497800FE6846 /* cpu.swift */; };
 		B9E8F407279315CC008F3C33 /* PhysPageAlignedRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F406279315CC008F3C33 /* PhysPageAlignedRegion.swift */; };
@@ -283,6 +284,7 @@
 		B9E88C332CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = "QEMU-9.1.0-DSDT.dsl"; path = "qemu-9.1.0/QEMU-9.1.0-DSDT.dsl"; sourceTree = "<group>"; };
 		B9E88C342CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.aml */ = {isa = PBXFileReference; lastKnownFileType = file; name = "QEMU-9.1.0-DSDT.aml"; path = "qemu-9.1.0/QEMU-9.1.0-DSDT.aml"; sourceTree = "<group>"; };
 		B9E88C392CEBE48200F3F251 /* BinaryInteger+Extras.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "BinaryInteger+Extras.swift"; sourceTree = "<group>"; };
+		B9E88C3B2CEC83C100F3F251 /* ACPIDeviceConfig.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ACPIDeviceConfig.swift; sourceTree = "<group>"; };
 		B9E8F406279315CC008F3C33 /* PhysPageAlignedRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysPageAlignedRegion.swift; sourceTree = "<group>"; };
 		B9E8F40C27931FE1008F3C33 /* PhysRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysRegion.swift; sourceTree = "<group>"; };
 		B9E8F41027935B7A008F3C33 /* MemoryRangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryRangeTests.swift; sourceTree = "<group>"; };
@@ -506,6 +508,8 @@
 			isa = PBXGroup;
 			children = (
 				B933A6EE1F2F492F00FE6846 /* TODO */,
+				B9E88C3B2CEC83C100F3F251 /* ACPIDeviceConfig.swift */,
+				B96BBE4F262B5502009756A8 /* ACPIGenericAddressStructure.swift */,
 				B933A6E61F2F492F00FE6846 /* acpi.swift */,
 				B933A6E41F2F492F00FE6846 /* boot.swift */,
 				B933A6E31F2F492F00FE6846 /* ecdt.swift */,
@@ -527,7 +531,6 @@
 				B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */,
 				B962BDAA1FD30C0500D42D70 /* amlresourcedata.swift */,
 				B9362EEF24DD681000856B47 /* amlnamespacemodifier.swift */,
-				B96BBE4F262B5502009756A8 /* ACPIGenericAddressStructure.swift */,
 			);
 			path = acpi;
 			sourceTree = "<group>";
@@ -925,6 +928,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		B95867EE22E5D094005FA3BF /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 12;
 			files = (
 			);
@@ -967,7 +971,6 @@
 				B98A0E7C26679A85006898DF /* device.swift in Sources */,
 				B98A0E7B26679A60006898DF /* driver.swift in Sources */,
 				B95A1853264FEC3A00B2CB97 /* MMIORegion.swift in Sources */,
-				B98DE1BA264D052F0003775C /* ACPIGenericAddressStructure.swift in Sources */,
 				B98DE1B1264D02280003775C /* IRQSetting.swift in Sources */,
 				B9F3DADC262188A900971474 /* MemoryRegion.swift in Sources */,
 				B9568C7D2548C0A400C3F49B /* usb-configdescriptor.swift in Sources */,
@@ -986,6 +989,8 @@
 				B916850322F4DB1200F7FA13 /* AddressTests.swift in Sources */,
 				B9EF91201FC9CEB800D14A2F /* amltype1opcodes.swift in Sources */,
 				B933A7941F2F90C900FE6846 /* ACPITests.swift in Sources */,
+				B98DE1BA264D052F0003775C /* ACPIGenericAddressStructure.swift in Sources */,
+				B9E88C3C2CEC83D400F3F251 /* ACPIDeviceConfig.swift in Sources */,
 				B933A77D1F2F8F1100FE6846 /* acpi.swift in Sources */,
 				B9568C692548BA9B00C3F49B /* USBTests.swift in Sources */,
 				B933A77E1F2F8F1100FE6846 /* acpiglobalobjects.swift in Sources */,
@@ -1036,7 +1041,11 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				INFOPLIST_FILE = Tests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 10.14;
 				OTHER_SWIFT_FLAGS = "-DTEST";
 				PRODUCT_BUNDLE_IDENTIFIER = "org.si.acpi-tests";
@@ -1057,7 +1066,11 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				INFOPLIST_FILE = Tests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 10.14;
 				OTHER_SWIFT_FLAGS = "-DTEST";
 				PRODUCT_BUNDLE_IDENTIFIER = "org.si.acpi-tests";
@@ -1081,7 +1094,11 @@
 				DEVELOPMENT_TEAM = U2L29966XS;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 10.14;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -1106,7 +1123,11 @@
 				DEVELOPMENT_TEAM = U2L29966XS;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 10.14;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1214,9 +1235,10 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.12;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_INSTALL_OBJC_HEADER = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = include/acpi.h;
-				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = "";
 			};
 			name = Release;

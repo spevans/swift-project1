@@ -53,7 +53,7 @@ private func dumpPNPCommand(arguments: [String]) {
 }
 
 private func dumpDevCommand(arguments: [String]) {
-    system.deviceManager.dumpDevices()
+    system.deviceManager.dumpDeviceTree()
 }
 
 private func dumpACPICommand(arguments: [String]) {
@@ -118,7 +118,7 @@ private func testsCommand(arguments: [String]) {
     print("dumpbus")
     system.deviceManager.dumpDeviceTree()
     print("dumpdev")
-    system.deviceManager.dumpDevices()
+    system.deviceManager.dumpDeviceTree()
     uptimeCommand(arguments: [])
     sleepTest(milliseconds: 10_000)
 }

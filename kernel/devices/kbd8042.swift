@@ -206,21 +206,21 @@ final class KBD8042: PNPDeviceDriver {
     private var keyboardBuffer = CircularBuffer<UInt8>(item: 0, capacity: 16)
     private var port1device: PS2Device = .none
     private var port2device: PS2Device = .none
-    unowned let pnpDevice: PNPDevice
 
-    var description: String { return "KBD8042 \(pnpDevice.resources)" }
+    private(set) var description = "KBD8042"
 
-    init?(pnpDevice: PNPDevice) {
+    override init?(pnpDevice: PNPDevice) {
         print("kbd8042 init")
-        self.pnpDevice = pnpDevice
+        super.init(pnpDevice: pnpDevice)
     }
 
-    func initialise() -> Bool {
-        print("i8042:", pnpDevice.pnpName, pnpDevice.resources)
-        guard pnpDevice.initialise() else {
+    override func initialise() -> Bool {
+        guard let pnpDevice = device.busDevice as? PNPDevice, let resources = pnpDevice.getResources() else {
             print("i8042: Cant initialise PNPDevice")
             return false
         }
+        description = "KBD8042 \(resources)"
+        print("i8042:", pnpDevice.pnpName, resources)
 
         // 1. Flush output buffer
         if flushOutput() == false { // No device
@@ -316,7 +316,8 @@ final class KBD8042: PNPDeviceDriver {
             system.deviceManager.interruptManager.setIrqHandler(IRQSetting(isaIrq: 12), handler: mouseInterrupt)
         }
         print("i8042: kbd initialised")
-        system.deviceManager.keyboard = port1device.keyboard
+        pnpDevice.device.initialised = true
+        system.deviceManager.keyboard = keyboard
 
         return true
     }

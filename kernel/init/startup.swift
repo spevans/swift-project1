@@ -92,7 +92,7 @@ fileprivate func keyboardInput() {
     print("commandShell exited")
     if system.deviceManager.keyboard == nil {
         print("Devices:")
-        system.deviceManager.dumpDevices()
+        system.deviceManager.dumpDeviceTree()
     }
 
     print("HLTing")

@@ -10,13 +10,12 @@
 
 
 final class HCD_XHCI: PCIDeviceDriver, CustomStringConvertible {
-    private let pciDevice: PCIDevice        // The device (upstream) side of the bridge
     private let baseAddress: UInt32
 
     var description: String { "XHCI driver @ 0x\(String(baseAddress, radix: 16))" }
 
 
-    init?(pciDevice: PCIDevice) {
+    override init?(pciDevice: PCIDevice) {
         print("XHCI init")
         guard pciDevice.deviceFunction.deviceClass == PCIDeviceClass(classCode: .serialBusController,
                                                                      subClassCode: PCISerialBusControllerSubClass.usb.rawValue,
@@ -36,14 +35,16 @@ final class HCD_XHCI: PCIDeviceDriver, CustomStringConvertible {
             return nil
         }
 
-        self.pciDevice = pciDevice
         baseAddress = base & 0xffff_ff00
+        super.init(pciDevice: pciDevice)
+        pciDevice.device.setDriver(self)
         print("XHCI: 0x\(String(baseAddress, radix: 16))")
     }
 
 
-    func initialise() -> Bool {
+    override func initialise() -> Bool {
         print("XHCI driver")
+        guard let pciDevice = device.busDevice as? PCIDevice else { return false }
         let sbrn = pciDevice.deviceFunction.readConfigByte(atByteOffset: 0x60)
         print("XHCI: bus release number 0x\(String(sbrn, radix: 16))")
         return false

@@ -9,37 +9,30 @@
 // There is only one ISA (EISA) bus and it owns all of the I/O address space
 // which is defined as ports 0 - 0xffff accessed via the IN & OUT instructions.
 
-final class ISABus: PCIDeviceDriver, Bus, CustomStringConvertible {
-    private unowned let pciDevice: PCIDevice
-    private var isaDevices: [PNPDevice] = []
+final class ISABus: DeviceDriver {
+   // private var isaDevices: [PNPDevice] = []
 
     var resources: [MotherBoardResource] = []
-    var devices: [Device] { isaDevices.map { $0 as Device }}
-
     let rs = ReservedSpace(name: "IO Ports", start: 0, end: 0xfff)
-    var description: String { "ISABus: \(pciDevice.acpiDevice?.fullname() ?? "")" }
+    var description: String { "ISABus: \(device.fullName)" }
 
 
     init?(pciDevice: PCIDevice) {
-        self.pciDevice = pciDevice
-        print("Initialising ISABus, acpi:", pciDevice.acpiDevice?.fullname() ?? "unknown")
+        let device = pciDevice.device
+        print("Initialising ISABus on PCI:", device.fullName)
+        super.init(device: device)
+        self.device.setDriver(self)
     }
 
-    func device(acpiDevice: AMLDefDevice) -> Device? {
-        guard let pnpName = acpiDevice.deviceId else { return nil }
-        return PNPDevice(parentBus: self, acpiDevice: acpiDevice, pnpName: pnpName)
+    init?(pnpDevice: PNPDevice) {
+        let device = pnpDevice.device
+        print("Initialising ISABus on PNP:", device.fullName)
+        super.init(device: device)
+        self.device.setDriver(self)
     }
 
-    func addDevice(_ device: Device) {
-        guard let isaDevice = device as? PNPDevice else {
-            fatalError("\(self): trying to add device of type \(device) to ISABus")
-        }
-        isaDevices.append(isaDevice)
-    }
-
-    func initialise() -> Bool {
-        guard pciDevice.initialise() else { return false }
-        isaDevices.sort { $0.fullName < $1.fullName }
+    override func initialise() -> Bool {
+        guard device.initialise() else { return false }
         return true
     }
 }

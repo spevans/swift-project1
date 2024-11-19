@@ -79,7 +79,7 @@ struct HPETTable: CustomStringConvertible {
     var description: String {
         return "HPET: \(String(baseAddress.baseAddress, radix: 16)) vendor: \(asHex(pciVendorId)) legacyIrq: \(legacyIrqReplacement)"
         + " counterSizeCap: \(counterSizeCap) comparators: \(comparatorCount)"
-        + " revId: \(asHex(hardwareRevisionId)) hpetNumber: \(hpetNumber)"
+        + " revId: \(hardwareRevisionId.hex()) hpetNumber: \(hpetNumber)"
     }
 
 
@@ -119,15 +119,16 @@ final class HPET: PNPDeviceDriver {
 
     var description: String { return hpet.description }
 
-    init?(pnpDevice: PNPDevice) {
+    override init?(pnpDevice: PNPDevice) {
         guard let _hpet = system.systemTables.acpiTables.hpet else {
             print("HPET: No HPET ACPI table found")
             return nil
         }
         self.hpet = _hpet
+        super.init(pnpDevice: pnpDevice)
     }
 
-    func initialise() -> Bool {
+    override func initialise() -> Bool {
         let gas = hpet.gas
         let region = PhysRegion(start: gas.physicalAddress, size: 0x400)
         mmioRegion = mapIORegion(region: region)
@@ -136,6 +137,7 @@ final class HPET: PNPDeviceDriver {
         system.deviceManager.timer = timer
         return true
     }
+
 
     // HPET capabilities
 

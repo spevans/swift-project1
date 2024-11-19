@@ -24,13 +24,13 @@ final class PIT8254Timer: Timer {
     }
 }
 
-final class PIT8254: PNPDeviceDriver, CustomStringConvertible {
 
+final class PIT8254: PNPDeviceDriver, CustomStringConvertible {
     private let oscillator = 1193182         // Base frequency
-    private let channel0Port: UInt16
-    private let channel2Port: UInt16
-    private let commandPort: UInt16
-    let irq: IRQSetting
+    private var channel0Port: UInt16 = 0
+    private var channel2Port: UInt16 = 0
+    private var commandPort: UInt16 = 0
+    private(set) var irq = IRQSetting(isaIrq: 0)
 
     // Raw Value is the I/O port
     enum TimerChannel: UInt16 {
@@ -134,13 +134,21 @@ final class PIT8254: PNPDeviceDriver, CustomStringConvertible {
     }
 
 
-    init?(pnpDevice: PNPDevice) {
-        let resources = pnpDevice.resources
+    override init?(pnpDevice: PNPDevice) {
+        super.init(pnpDevice: pnpDevice)
+    }
+
+
+    // FIXME, Nothing to do currently, maybe read status to check for presence of device?
+    override func initialise() -> Bool {
+        guard let pnpDevice = device.busDevice as? PNPDevice, let resources = pnpDevice.getResources() else {
+            return false
+        }
         print("PIT8254: init:", resources)
 
         guard let ports = resources.ioPorts.first, ports.count > 3 else {
             print("PIT8254: Requires 4 IO ports and 1 IRQ")
-            return nil
+            return false
         }
 
         let idx = ports.startIndex
@@ -149,23 +157,14 @@ final class PIT8254: PNPDeviceDriver, CustomStringConvertible {
         commandPort = ports[ports.index(idx, offsetBy: 3)]
         irq = resources.interrupts.first ?? IRQSetting(isaIrq: 0)   // Default IRQ = 0
         print("PIT8254: IRQ\(irq)")
-    }
-
-
-    // FIXME, Nothing to do currently, maybe read status to check for presence of device?
-    func initialise() -> Bool {
         let timer = PIT8254Timer(pit: self, irq: irq)
         system.deviceManager.timer = timer
+        device.initialised = true
         return true
     }
 
-    func enablePeriodicInterrupt(hz: Int) {
-        setChannel(.CHANNEL_0, mode: .MODE_3, hz: hz)
-    }
 
-
-    fileprivate func setChannel(_ channel: TimerChannel, mode: OperatingMode,
-                            hz: Int) {
+    fileprivate func setChannel(_ channel: TimerChannel, mode: OperatingMode, hz: Int) {
         let cmd = toCommandByte(mapChannelToSelect(channel),
                                 AccessMode.LO_HI_BYTE, mode, NumberMode.BINARY)
         outb(commandPort, cmd)

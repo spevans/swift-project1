@@ -25,7 +25,6 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
 
     static private let GLOBAL_RESET_TRIES = 5
 
-    private let pciDevice: PCIDevice    // The device (upstream) side of the bridge
     fileprivate let ioBasePort: UInt16
     private var maxAddress: UInt8 = 1
     private(set) var controlQH = PhysQueueHead(mmioSubRegion: MMIOSubRegion(baseAddress: PhysAddress(0), count: 0))
@@ -35,7 +34,7 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
 
     var description: String { "UHCI: driver @ IO 0x\(String(ioBasePort, radix: 16))" }
 
-    init?(pciDevice: PCIDevice) {
+    override init?(pciDevice: PCIDevice) {
         uhciDebug("init")
 
         guard pciDevice.deviceFunction.deviceClass == PCIDeviceClass(classCode: .serialBusController,
@@ -55,14 +54,15 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
             return nil
         }
 
-        self.pciDevice = pciDevice
         ioBasePort = pciIOBar.ioPort
         uhciDebug("IO 0x\(String(ioBasePort, radix: 16))")
         allocator = UHCIAllocator()
+        super.init(pciDevice: pciDevice)
     }
 
 
-    func initialise() -> Bool {
+    override func initialise() -> Bool {
+        guard let pciDevice = self.device.busDevice as? PCIDevice else { return false }
         let deviceFunction = pciDevice.deviceFunction
         let sbrn = deviceFunction.readConfigByte(atByteOffset: 0x60)
         uhciDebug("bus release number 0x\(String(sbrn, radix: 16))")

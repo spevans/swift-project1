@@ -11,10 +11,21 @@ import XCTest
 final class DeviceManager {
     let acpiTables: ACPI
     let systemBusRoot: ACPI.ACPIObjectNode
+    let masterBus: MasterBus
 
     init(acpiTables: ACPI, systemBusRoot: ACPI.ACPIObjectNode) {
         self.acpiTables = acpiTables
         self.systemBusRoot = systemBusRoot
+        self.masterBus = MasterBus(acpiSystemBus: systemBusRoot)
+    }
+
+    func walkDeviceTree(bus: Device? = nil, body: (Device) -> Bool) {
+        for device in (bus ?? masterBus.device).devices {
+            if !body(device) { return }
+            if device.isBus {
+                walkDeviceTree(bus: device, body: body)
+            }
+        }
     }
 }
 
@@ -257,6 +268,32 @@ class ACPITests: XCTestCase {
             XCTAssertEqual(prt.table.count, 128)
         } catch AMLError.invalidMethod(let reason) {
             XCTAssertEqual(reason, "Cant find method: \\_PIC")
+        } catch {
+            XCTFail("\(error)")
+        }
+
+        do {
+            guard let sta = acpi.globalObjects.get("\\_SB.LNKA._STA") else {
+                XCTFail("Cant find \\_SB.LINK._STA")
+                throw AMLError.parseError
+            }
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(sta.fullname()))
+            let result = sta.readValue(context: &context)
+            XCTAssertEqual(result.integerValue, 11)
+        } catch {
+            XCTFail("\(error)")
+        }
+
+        do {
+            acpi.globalObjects.add("\\_SB.HPET.VEND", AMLNamedValue(name: AMLNameString("VEND"), value: .init(integer: 0x80860201)))
+            acpi.globalObjects.add("\\_SB.HPET.PRD", AMLNamedValue(name: AMLNameString("PRD"), value: .init(integer: 0x00989680)))
+            guard let sta = acpi.globalObjects.get("\\_SB.HPET._STA") else {
+                XCTFail("Cant find \\_SB.HPET._STA")
+                throw AMLError.parseError
+            }
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(sta.fullname()))
+            let result = sta.readValue(context: &context)
+            XCTAssertEqual(result.integerValue, AMLInteger(0xf))
         } catch {
             XCTFail("\(error)")
         }
@@ -523,7 +560,7 @@ class ACPITests: XCTestCase {
             if let node = node as? AMLDefDevice {
 
                 let fullNodeName = node.fullname()
-                if let pnpName = node.pnpName(),
+                if let pnpName = node.hardwareId(),
                     let crs = node.currentResourceSettings() {
                     print("Configuring \(fullNodeName) : \(pnpName)")
                     let resources = extractCRSSettings(crs)

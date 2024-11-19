@@ -402,5 +402,39 @@ extension ACPI {
                 return true
             }
         }
+
+        print("ACPI: Finding devices")
+        // Keep track of the devices allocated to each node so that the parent device
+        // can be determined
+        var nameDeviceMap = [ "\\_SB" : system.deviceManager.masterBus.device]
+        globalObjects.walkNode { (name, node) in
+            guard let amldev = node as? AMLDefDevice else { return true }
+            guard node.device == nil else { fatalError("\(name) already has a .device set") }
+            if !devStatus(amldev).present {
+                print("ACPI: Ignoring not present device \(name)")
+                return true
+            }
+
+            var parentDevice: Device? = nil
+            var parent = node.parent
+            while let p = parent {
+                if let device = nameDeviceMap[p.fullname()] {
+                    parentDevice = device
+                    break
+                }
+                parent = p
+            }
+            if parentDevice == nil { fatalError("Reached top of tree! for \(node.fullname())")}
+
+            let config = ACPIDeviceConfig(node: node)
+            let device = Device(parent: parentDevice, fullName: name, acpiDeviceConfig: config)
+            node.setDevice(device)
+            nameDeviceMap[name] = device
+            if let pnpName = config.pnpName {
+                _ = PNPDevice(device: device, pnpName: pnpName)
+            }
+            return true
+        }
+        print("ACPI: Found all devices")
     }
 }
