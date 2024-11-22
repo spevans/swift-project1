@@ -17,7 +17,7 @@
 #include "../include/usb.h"
 #include "../include/io.h"
 #include "../include/x86defs.h"
-#include "../include/x86funcs.h"
+//#include "../include/x86funcs.h"
 #include "../include/klibc.h"
 
 static inline int kprintf1arg(const char * _Nonnull fmt, long l1) {

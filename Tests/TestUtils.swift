@@ -80,6 +80,22 @@ func noInterrupt<Result>(_ task: () -> Result) -> Result {
     return result
 }
 
+struct CPU {
+    enum CacheType: Int {
+        case writeBack = 0
+        case writeCombining = 1
+        case weakUncacheable = 2
+        case uncacheable = 3
+        case reserved1 = 4 // WriteBack
+        case writeProtected = 5
+        case reserved2 = 6 // weakUncacheable
+        case writeThrough = 7
+
+        // This value is stored as three bits in a Page Table Entry mapping a page.
+        var patEntry: Int { rawValue }
+    }
+}
+
 func mapIORegion(region: PhysRegion, cacheType: CPU.CacheType = .uncacheable) -> MMIORegion {
     return MMIORegion(region)
 }

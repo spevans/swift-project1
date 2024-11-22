@@ -15,6 +15,7 @@
 
 #ifndef __X86_FUNCS_H__
 #define __X86_FUNCS_H__
+#ifndef TEST
 #include "x86defs.h"
 #include "vmx.h"
 
@@ -321,4 +322,5 @@ wbinvd(void)
 void reload_segments(void);
 void test_breakpoint(void);
 
+#endif  // defined(__x86_64__)
 #endif  // __X86_FUNCS_H__

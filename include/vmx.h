@@ -8,6 +8,7 @@
  *
  */
 
+#if defined(__x86_64__)
 #include <stdint.h>
 
 
@@ -161,3 +162,5 @@ vmresume()
                       : "memory", "cc");
         return res;
 }
+
+#endif // defined(__x86_64__)

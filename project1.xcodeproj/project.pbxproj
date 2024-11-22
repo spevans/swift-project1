@@ -76,7 +76,6 @@
 		B9E88C3A2CEBE49D00F3F251 /* BinaryInteger+Extras.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E88C392CEBE48200F3F251 /* BinaryInteger+Extras.swift */; };
 		B9E88C3C2CEC83D400F3F251 /* ACPIDeviceConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E88C3B2CEC83C100F3F251 /* ACPIDeviceConfig.swift */; };
 		B9E8F3FB2792FAD4008F3C33 /* ioapic.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7191F2F497800FE6846 /* ioapic.swift */; };
-		B9E8F3FE2792FBEC008F3C33 /* cpu.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7141F2F497800FE6846 /* cpu.swift */; };
 		B9E8F407279315CC008F3C33 /* PhysPageAlignedRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F406279315CC008F3C33 /* PhysPageAlignedRegion.swift */; };
 		B9E8F40D27931FE1008F3C33 /* PhysRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F40C27931FE1008F3C33 /* PhysRegion.swift */; };
 		B9E8F41127935B7A008F3C33 /* MemoryRangeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8F41027935B7A008F3C33 /* MemoryRangeTests.swift */; };
@@ -929,7 +928,7 @@
 		B95867EE22E5D094005FA3BF /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
-			buildActionMask = 12;
+			buildActionMask = 8;
 			files = (
 			);
 			inputFileListPaths = (
@@ -940,7 +939,7 @@
 			);
 			outputPaths = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
+			runOnlyForDeploymentPostprocessing = 1;
 			shellPath = /bin/sh;
 			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\ndocker run --rm -v $SRCROOT:$SRCROOT -w $SRCROOT -t -e TERM= swift-kstdlib make output/kernel.elf\n";
 		};
@@ -960,7 +959,6 @@
 				B9C9A89027C289BA003746EF /* PCIDeviceFunction.swift in Sources */,
 				B9C9A89127C289BA003746EF /* PCIInterruptLinkDevice.swift in Sources */,
 				B9C9A89227C289BA003746EF /* PCIRoutingTable.swift in Sources */,
-				B9E8F3FE2792FBEC008F3C33 /* cpu.swift in Sources */,
 				B9E8F3FB2792FAD4008F3C33 /* ioapic.swift in Sources */,
 				B9FB56EF2778C7E30012198D /* PageSize.swift in Sources */,
 				B9E8F41927940FF3008F3C33 /* PageSizeTests.swift in Sources */,
