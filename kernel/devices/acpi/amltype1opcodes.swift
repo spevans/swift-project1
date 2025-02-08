@@ -29,7 +29,7 @@ enum AMLType1Opcode {
     case amlDefUnload(AMLTarget)
     case amlDefWhile(AMLTermArg, AMLTermList)
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws {
+    func execute(context: inout ACPI.AMLExecutionContext) throws(AMLError) {
         switch self {
             case .amlDefBreak:
                 context.breakWhile = true

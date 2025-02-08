@@ -216,7 +216,7 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
         }
     }
 
-    func asInteger() throws -> AMLInteger {
+    func asInteger() throws(AMLError) -> AMLInteger {
         switch self.object {
             case .integer(let integer): return integer
             case .string(let string):
@@ -229,7 +229,7 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
     }
 
 
-    func asString() throws -> AMLString {
+    func asString() throws(AMLError) -> AMLString {
         switch self.object {
             case .integer(let integer): return AMLString(integer: integer, radix: 10)
             case .string(let string): return string
@@ -238,7 +238,7 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
         }
     }
 
-    func asBuffer() throws -> AMLBuffer {
+    func asBuffer() throws(AMLError) -> AMLBuffer {
         switch self.object {
             case .integer(let integer): return AMLBuffer(integer: integer)
             case .string(let string): return string.asAMLBuffer()
@@ -247,12 +247,12 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
         }
     }
 
-    func updateValue(to newValue: AMLObject) throws {
+    func updateValue(to newValue: AMLObject) throws(AMLError) {
         // FIXME, do conversion
         self.object = newValue.object
     }
 
-    func updateValue(at index: AMLInteger, to newValue: AMLObject) throws {
+    func updateValue(at index: AMLInteger, to newValue: AMLObject) throws(AMLError) {
         switch object {
             case .package(let package):
                 package[Int(index)] = newValue
@@ -266,7 +266,7 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
         }
     }
 
-    func updateReferencedValue(to newValue: AMLObject) throws {
+    func updateReferencedValue(to newValue: AMLObject) throws(AMLError) {
         // FIXME, do something with index
         guard case .objectReference(let reference, _) = self.object else {
             throw AMLError.invalidData(reason: "Not a reference")
@@ -274,7 +274,7 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
         reference.object = newValue.object
     }
 
-    func dereference() throws -> AMLObject {
+    func dereference() throws(AMLError) -> AMLObject {
         guard case .objectReference(let referencedObject, let index) = self.object else {
             throw AMLError.invalidData(reason: "Not a reference")
         }
@@ -459,7 +459,7 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
         }
     }
 
-    func readValue(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func readValue(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         switch self.object {
             case .uninitialised:
                 throw AMLError.invalidData(reason: "Uninitialised Data")
@@ -478,7 +478,7 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
         }
     }
 
-    func updateValue(to newValue: AMLObject, context: inout ACPI.AMLExecutionContext) throws {
+    func updateValue(to newValue: AMLObject, context: inout ACPI.AMLExecutionContext) throws(AMLError) {
         switch self.object {
             case .uninitialised:
                 throw AMLError.invalidData(reason: "Uninitialised Data")

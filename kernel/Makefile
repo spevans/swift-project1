@@ -9,6 +9,7 @@ SWIFT_SRCS := $(shell find `pwd` -name '*.swift' | grep -v version.swift) init/v
 
 KSWIFTC_FLAGS := -gnone -O -Xcc -mno-red-zone -Xcc -mcmodel=kernel				\
 	-Xcc -Wall -Xcc -Wextra -Xcc -std=gnu11	-Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2	\
+	-enable-experimental-feature FullTypedThrow 						\
 	-parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -warnings-as-errors	\
 	-Xfrontend -warn-long-function-bodies=60000 -DKERNEL					\
 	-target x86_64-unknown-none-elf -Xcc -ffreestanding -Xfrontend -disable-stack-protector	\

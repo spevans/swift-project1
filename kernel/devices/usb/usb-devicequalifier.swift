@@ -33,7 +33,7 @@ extension USB {
         var deviceClass: DeviceClass? { DeviceClass(rawValue: bDeviceClass) }
 
 
-        init(from buffer: UnsafeRawBufferPointer) throws {
+        init(from buffer: UnsafeRawBufferPointer) throws(ParsingError) {
             guard  buffer.count == MemoryLayout<usb_device_qualifier>.size else {
                 throw ParsingError.packetTooShort
             }

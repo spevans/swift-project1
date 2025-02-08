@@ -19,13 +19,13 @@
 
 enum AMLNameSpaceModifier {
     case defScope(AMLDefScope)
-    case creator(AMLNameString, (_ context: inout ACPI.AMLExecutionContext) throws -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)])
+    case creator(AMLNameString, (_ context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)])
 
-    init(name: AMLNameString, closure: @escaping (_ context: inout ACPI.AMLExecutionContext) throws -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)]) {
+    init(name: AMLNameString, closure: @escaping (_ context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)]) {
         self = .creator(name, closure)
     }
 /*
-    func createObjects(context: inout ACPI.AMLExecutionContext) throws -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] {
+    func createObjects(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] {
         switch self {
             case .creator(_, let closure): return try closure(&context)
             default: fatalError("Undefined")
@@ -45,7 +45,7 @@ struct AMLDefScope {
         self.termList = termList
     }
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws {
+    func execute(context: inout ACPI.AMLExecutionContext) throws(AMLError) {
         throw AMLError.unimplemented("AMLDefScope")
     }
 }
@@ -97,7 +97,7 @@ struct AMLNamedField {
         self.fieldSettings = fieldSettings
     }
 
-    func getRegionSpace(context: inout ACPI.AMLExecutionContext) throws -> OpRegionSpace {
+    func getRegionSpace(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> OpRegionSpace {
         let space: OpRegionSpace
 
         switch region {
@@ -122,7 +122,7 @@ struct AMLNamedField {
     }
 
 
-    func updateValue(to value: AMLObject, context: inout ACPI.AMLExecutionContext) throws {
+    func updateValue(to value: AMLObject, context: inout ACPI.AMLExecutionContext) throws(AMLError) {
         let region = try getRegionSpace(context: &context)
         let accessWidth = fieldSettings.fieldFlags.fieldAccessType.accessWidth
         var iterator = try AMLByteIterator(value, bitWidth: Int(fieldSettings.bitWidth), accessWidth: accessWidth)
@@ -136,7 +136,7 @@ struct AMLNamedField {
     }
 
 
-    func readValue(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func readValue(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         let value = try getRegionSpace(context: &context).read(bitOffset: Int(fieldSettings.bitOffset),
                                                                width: Int(fieldSettings.bitWidth),
                                                                flags: fieldSettings.fieldFlags)

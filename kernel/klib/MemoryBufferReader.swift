@@ -48,7 +48,7 @@ struct MemoryBufferReader {
     // Functions to convert ASCII strings in memory to String. Inefficient
     // conversions because Foundation isnt available
     // Only really works for 7bit ASCII as it assumes the code is valid UTF-8
-    mutating  func readASCIIZString(maxSize: Int) throws -> String {
+    mutating  func readASCIIZString(maxSize: Int) throws(ReadError) -> String {
         guard maxSize > 0 else {
             throw ReadError.InvalidOffset
         }
@@ -75,7 +75,7 @@ struct MemoryBufferReader {
 
 
     // read from the current offset until the first nul byte is found
-    mutating func scanASCIIZString() throws -> String {
+    mutating func scanASCIIZString() throws(ReadError)-> String {
         var result = ""
 
         var ch: UInt8 = try read()
@@ -88,7 +88,7 @@ struct MemoryBufferReader {
     }
 
 
-    mutating func read<T>() throws -> T {
+    mutating func read<T>() throws(ReadError) -> T {
         // This is awful but catches attempts to read an optional
         //precondition(!"\(type(of: T.self))".hasPrefix("Optional<"), "Dont call read() with an optional")
         precondition(MemoryLayout<T>.stride == MemoryLayout<T>.size, "Size \(type(of: T.self)) != Stride")
@@ -106,7 +106,7 @@ struct MemoryBufferReader {
     }
 
 
-    func readAtIndex<T>(_ index: Int) throws -> T {
+    func readAtIndex<T>(_ index: Int) throws(ReadError) -> T {
         // This is awful but catches attempts to read an optional
         //precondition(!"\(type(of: T.self))".hasPrefix("Optional<"), "Dont call readAtIndex() with an optional")
         precondition(MemoryLayout<T>.stride == MemoryLayout<T>.size, "Size \(type(of: T.self)) != Stride")
@@ -146,14 +146,14 @@ struct MemoryBufferReader {
         offset = startOffset
         for _ in 0..<count {
             let data: UInt8 = try! read()
-            print(String.sprintf("%02X ", data), terminator: "")
+            #kprint(String.sprintf("%02X ", data), terminator: "")
         }
         offset = saved
     }
     ***/
 
 
-    mutating func readULEB128() throws -> UInt64 {
+    mutating func readULEB128() throws(ReadError) -> UInt64 {
         var value: UInt64 = 0
         var shift: UInt64 = 0
         var byte: UInt8 = 0
@@ -168,7 +168,7 @@ struct MemoryBufferReader {
     }
 
 
-    mutating func readSLEB128() throws -> Int64 {
+    mutating func readSLEB128() throws(ReadError) -> Int64 {
         var value: Int64 = 0
         var shift: Int64 = 0
         var byte: UInt8 = 0

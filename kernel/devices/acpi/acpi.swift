@@ -375,18 +375,13 @@ extension ACPI {
                 try method.execute(context: &context)
                 return true
             } catch {
-                let str: String
-                if let error = error as? AMLError {
-                    str = error.description
-                } else {
-                    str = "unknown"
-                }
+                let str = error.description
                 print("ACPI: Error running \(node.name) for", node.fullname(), str)
             }
             return true
         }
 
-        func devStatus(_ parent: ACPIObjectNode?) throws -> AMLDefDevice.DeviceStatus {
+        func devStatus(_ parent: ACPIObjectNode?) throws(AMLError) -> AMLDefDevice.DeviceStatus {
             if let sta = parent?.childNode(named: "_STA") {
                 var context = ACPI.AMLExecutionContext(scope: AMLNameString(sta.fullname()))
                 let result = try sta.readValue(context: &context)

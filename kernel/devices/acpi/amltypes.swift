@@ -29,7 +29,7 @@ struct AMLString {
         data = [0]
     }
 
-    init(_ string: String) throws {
+    init(_ string: String) throws(AMLError) {
         data.reserveCapacity(string.count + 1)
         for ch in string {
             guard let byte = ch.asciiValue else {
@@ -114,7 +114,7 @@ struct AMLString {
         })
     }
 
-    func asAMLInteger() throws -> AMLInteger {
+    func asAMLInteger() throws(AMLError) -> AMLInteger {
         let string = self.asString()
         if string.hasPrefix("0x"), let result = AMLInteger(string.dropFirst(2)) {
             return result
@@ -143,7 +143,7 @@ struct AMLBufferField {
     let bitIndex: AMLInteger
     let bitLength: AMLInteger
 
-    init(buffer: AMLSharedBuffer, bitIndex: AMLInteger, bitLength: AMLInteger) throws {
+    init(buffer: AMLSharedBuffer, bitIndex: AMLInteger, bitLength: AMLInteger) throws(AMLError) {
         guard bitIndex + bitLength <= buffer.bitCount else {
             throw AMLError.invalidData(reason: "BufferField bitIndex: \(bitIndex) + bitLength \(bitLength) > buffer size \(buffer.bitCount) bits")
         }
@@ -152,11 +152,11 @@ struct AMLBufferField {
         self.bitLength = bitLength
     }
 
-    init(buffer: AMLSharedBuffer, byteIndex: AMLInteger, bitLength: AMLInteger) throws {
+    init(buffer: AMLSharedBuffer, byteIndex: AMLInteger, bitLength: AMLInteger) throws(AMLError) {
         try self.init(buffer: buffer, bitIndex: byteIndex * 8, bitLength: bitLength)
     }
 
-    func readValue(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func readValue(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         throw AMLError.unimplemented("AMLBufferField.readValue()")
 /*
         // TODO: Handle the output being a string buffer or integer
@@ -165,7 +165,7 @@ struct AMLBufferField {
  */
     }
 
-    func updateValue(to newValue: AMLObject, context: inout ACPI.AMLExecutionContext) throws {
+    func updateValue(to newValue: AMLObject, context: inout ACPI.AMLExecutionContext) throws(AMLError) {
         throw AMLError.unimplemented("AMLBufferField.updateValue()")
         // TODO: Handle the input being a string, buffer or integer
 /*
@@ -257,7 +257,7 @@ struct AMLObjectReference {
     }
 
     // FIXME: Deal with out of bounds and the fact that a String is not byte addressable
-    func readValue(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func readValue(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         switch object {
             case .string(let string):
                 let strIndex = string.index(string.startIndex, offsetBy: Int(index))
@@ -278,7 +278,7 @@ struct AMLObjectReference {
         }
     }
 
-    func updateValue(to newValue: AMLObject, context: inout ACPI.AMLExecutionContext) throws {
+    func updateValue(to newValue: AMLObject, context: inout ACPI.AMLExecutionContext) throws(AMLError) {
         fatalError("implement")
     }
 
@@ -364,7 +364,7 @@ final class AMLTermArg: CustomStringConvertible {
         if case .value(let object) = self.data { return object} else { return nil }
     }
 
-    func dataRefObject(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func dataRefObject(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         let value = try self.evaluate(context: &context)
         guard value.isDataRefObject else {
             throw AMLError.invalidData(reason: "Termarg does not evaluate to a dataRefObject")
@@ -389,7 +389,7 @@ final class AMLTermArg: CustomStringConvertible {
         return nil
     }
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         switch self.data {
             case let .value(value): return value
             case let .opcode(opcode): return try opcode.evaluate(context: &context)
@@ -407,8 +407,8 @@ final class AMLTermArg: CustomStringConvertible {
 
 enum AMLTarget {
 
-    typealias Evaluator = (inout ACPI.AMLExecutionContext) throws -> AMLObject
-    typealias Updater = (AMLObject, inout ACPI.AMLExecutionContext) throws -> Void
+    typealias Evaluator = (inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject
+    typealias Updater = (AMLObject, inout ACPI.AMLExecutionContext) throws(AMLError) -> Void
 
     case nameString(AMLNameString)              // Simplename, Supername
     case argObj(AMLArgObj)                      // Simplename, Supername
@@ -425,7 +425,7 @@ enum AMLTarget {
         }
     }
 
-    func getObject(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func getObject(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         switch self {
  //           case .objectReference(let objectReference): return AMLObject(objectReference)
             case .type6opcode(let evaluator, _): return try evaluator(&context)
@@ -437,7 +437,7 @@ enum AMLTarget {
         }
     }
 
-    func updateValue(to newValue: AMLObject, context: inout ACPI.AMLExecutionContext) throws {
+    func updateValue(to newValue: AMLObject, context: inout ACPI.AMLExecutionContext) throws(AMLError) {
         switch self {
 //            case .objectReference(let objectReference): fatalError("updateValue with \(objectReference)")
             case .type6opcode(_, let updater): try updater(newValue, &context)
@@ -465,7 +465,7 @@ extension AMLBuffer {
         }
     }
 
-    func asAMLInteger() throws -> AMLInteger {
+    func asAMLInteger() throws(AMLError) -> AMLInteger {
         if count == 0 {
             throw AMLError.invalidDataConversion
         }
@@ -497,7 +497,7 @@ struct AMLByteIterator: IteratorProtocol {
     private let lastIndex: Int
     private var nextIndex = 0
 
-    init(_ object: AMLObject, bitWidth: Int, accessWidth: Int) throws {
+    init(_ object: AMLObject, bitWidth: Int, accessWidth: Int) throws(AMLError) {
         if let integer = object.integerValue {
             self._value = .integer(integer)
             self.lastIndex = min(integer.bitWidth, (bitWidth + 7) / 8)
@@ -807,7 +807,7 @@ struct AMLNameString: Hashable, CustomStringConvertible {
     }
 
 
-    func getObject(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func getObject(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         guard let (node, _) = context.getObject(named: self) else {
             throw AMLError.invalidSymbol(reason: value)
         }
@@ -815,7 +815,7 @@ struct AMLNameString: Hashable, CustomStringConvertible {
         return node.object
     }
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         guard let (node, fullPath) = context.getObject(named: self) else {
             fatalError("Cant find node: \(value)")
         }
@@ -831,7 +831,7 @@ struct AMLNameString: Hashable, CustomStringConvertible {
     }
 
 
-    func updateValue(to newValue: AMLObject, context: inout ACPI.AMLExecutionContext) throws {
+    func updateValue(to newValue: AMLObject, context: inout ACPI.AMLExecutionContext) throws(AMLError) {
         //print("AMLNameString Updating value of \(self) to", newValue)
 
         guard let (node, fullPath) = context.getObject(named: self) else {
@@ -883,11 +883,11 @@ struct AMLMutexFlags {
         self.flags = 0
     }
 
-    init(flags: AMLByteData) throws {
+    init(flags: AMLByteData) throws(AMLError) {
         try self.init(syncLevel: flags)
     }
 
-    init(syncLevel: UInt8) throws {
+    init(syncLevel: UInt8) throws(AMLError) {
         guard syncLevel & 0x0f == syncLevel else {
             throw AMLError.invalidData(reason: "Invalid synclevel \(syncLevel)")
         }
@@ -902,7 +902,7 @@ struct AMLArgObj {
     var argIdx: Int { return Int(opcode.rawValue - AMLOpcode.arg0Op.rawValue) }
 
 
-    init(argOp: AMLOpcode) throws {
+    init(argOp: AMLOpcode) throws(AMLError) {
         switch argOp {
         case .arg0Op, .arg1Op, .arg2Op, .arg3Op, .arg4Op, .arg5Op, .arg6Op:
             opcode = argOp
@@ -911,7 +911,7 @@ struct AMLArgObj {
         }
     }
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         guard argIdx < context.args.count else {
             throw AMLError.invalidData(reason: "Arg\(argIdx) is not valid")
         }
@@ -932,7 +932,7 @@ struct AMLLocalObj {
     let opcode: AMLOpcode      // FIXME needs better type
     var argIdx: Int { return Int(opcode.rawValue - AMLOpcode.local0Op.rawValue) }
 
-    init(localOp: AMLOpcode) throws {
+    init(localOp: AMLOpcode) throws(AMLError) {
          switch localOp {
         case .local0Op, .local1Op, .local2Op, .local3Op,
             .local4Op, .local5Op, .local6Op, .local7Op:
@@ -942,7 +942,7 @@ struct AMLLocalObj {
         }
     }
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         let termArg = context.localObjects[argIdx]
         if termArg.isUninitialised {
             throw AMLError.invalidData(reason: "Local\(argIdx) is not yet initialised")

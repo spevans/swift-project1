@@ -108,21 +108,21 @@ extension USB {
             bInterval: bInterval)
         }
 
-        init(from iterator: inout MMIOSubRegion.Iterator) throws {
+        init(from iterator: inout MMIOSubRegion.Iterator) throws(ParsingError) {
             // Validate the initial bytes
             guard let lengthByte = iterator.next(), let descriptorByte = iterator.next() else { throw ParsingError.packetTooShort }
             guard Int(lengthByte) == MemoryLayout<usb_standard_endpoint_descriptor>.size else { throw ParsingError.invalidLengthByte }
             guard descriptorByte == USB.DescriptorType.ENDPOINT.rawValue else { throw ParsingError.invalidDescriptor(descriptorByte) }
 
             var _descriptor = usb_standard_endpoint_descriptor()
-            try withUnsafeMutableBytes(of: &_descriptor) {
-                assert(MemoryLayout<usb_standard_endpoint_descriptor>.size == $0.count)
-                $0[0] = lengthByte
-                $0[1] = descriptorByte
+            try withUnsafeMutableBytes(of: &_descriptor) { (buffer: UnsafeMutableRawBufferPointer) throws(ParsingError) -> () in
+                assert(MemoryLayout<usb_standard_endpoint_descriptor>.size == buffer.count)
+                buffer[0] = lengthByte
+                buffer[1] = descriptorByte
 
-                for idx in 2..<$0.count {
+                for idx in 2..<buffer.count {
                     guard let byte = iterator.next() else { throw ParsingError.packetTooShort }
-                    $0[idx] = byte
+                    buffer[idx] = byte
                 }
             }
 

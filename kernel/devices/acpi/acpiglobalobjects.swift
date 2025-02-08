@@ -46,16 +46,16 @@ extension ACPI {
             }
         }
 
-        func readValue(context: inout AMLExecutionContext) throws -> AMLObject {
+        func readValue(context: inout AMLExecutionContext) throws(AMLError) -> AMLObject {
             return try self.object.readValue(context: &context)
         }
 
-        func readValue() throws -> AMLObject? {
+        func readValue() throws(AMLError) -> AMLObject? {
             var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullname()))
             return try readValue(context:&context)
         }
 
-        func updateValue(to newValue: AMLObject, context: inout AMLExecutionContext) throws {
+        func updateValue(to newValue: AMLObject, context: inout AMLExecutionContext) throws(AMLError) {
             // Some object types can be updated in place, others require the current object to be overwritten
             try self.object.updateValue(to: newValue, context: &context)
         }
@@ -126,7 +126,7 @@ extension ACPI {
         }
 
 
-        func amlObject() throws -> AMLObject {
+        func amlObject() throws(AMLError) -> AMLObject {
             // FIXME, might need derefrerencing
             var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullname()))
             return try self.object.readValue(context: &context)

@@ -69,7 +69,7 @@ extension USB {
 
         // This will parse either a packet of size(usb_standard_interface_descriptor), sufficient to obtain wTotalLength,
         // or a packet of size wTotalLength which will include all of the sub structures.
-        init(from buffer: MMIOSubRegion) throws {
+        init(from buffer: MMIOSubRegion) throws(ParsingError) {
             guard  buffer.count >= MemoryLayout<usb_standard_interface_descriptor>.size else {
                 throw ParsingError.packetTooShort
             }
@@ -80,14 +80,15 @@ extension USB {
             guard descriptorByte == USB.DescriptorType.CONFIGURATION.rawValue else { throw ParsingError.invalidDescriptor(descriptorByte) }
 
             var _descriptor = usb_standard_config_descriptor()
-            try withUnsafeMutableBytes(of: &_descriptor) {
-                assert(MemoryLayout<usb_standard_interface_descriptor>.size == $0.count)
-                $0[0] = lengthByte
-                $0[1] = descriptorByte
+            try withUnsafeMutableBytes(of: &_descriptor) { (buffer: UnsafeMutableRawBufferPointer) throws(ParsingError) -> () in
+                assert(MemoryLayout<usb_standard_interface_descriptor>.size == buffer.count)
+                buffer[0] = lengthByte
+                buffer[1] = descriptorByte
 
-                for idx in 2..<$0.count {
+                for idx in 2..<buffer.count {
+                    // guard let byte = try? iterator.next() // else { return ParsingError.packetTooShort }
                     guard let byte = iterator.next() else { throw ParsingError.packetTooShort }
-                    $0[idx] = byte
+                    buffer[idx] = byte
                 }
             }
             descriptor = _descriptor

@@ -12,7 +12,7 @@ private func AMLBoolean(_ bool: Bool) -> AMLObject {
 }
 
 func operandAsInteger(operand: AMLTermArg,
-                      context: inout ACPI.AMLExecutionContext) throws -> AMLInteger {
+                      context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLInteger {
     let o = try operand.evaluate(context: &context)
     guard let result = o.integerValue else {
         throw AMLError.invalidOperand(reason: "\(operand) does not evaluate to an integer")
@@ -21,7 +21,7 @@ func operandAsInteger(operand: AMLTermArg,
 }
 
 func operandAsString(operand: AMLTermArg,
-                      context: inout ACPI.AMLExecutionContext) throws -> AMLString {
+                      context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLString {
     let o = try operand.evaluate(context: &context)
     guard let result = o.stringValue else {
         throw AMLError.invalidOperand(reason: "\(operand) does not evaluate to a string")
@@ -30,7 +30,7 @@ func operandAsString(operand: AMLTermArg,
 }
 
 func operandAsBuffer(operand: AMLTermArg,
-                      context: inout ACPI.AMLExecutionContext) throws -> AMLBuffer {
+                      context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLBuffer {
     let o = try operand.evaluate(context: &context)
     guard let result = o.bufferValue else {
         throw AMLError.invalidOperand(reason: "\(operand) does not evaluate to a buffer")
@@ -111,7 +111,7 @@ enum AMLType2Opcode {
     case amlMethodInvocation(AMLMethodInvocation)
     
     
-    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         switch self {
             case .amlDefAcquire(_, _):
                 // FIXME - implement
@@ -490,7 +490,7 @@ enum AMLType2Opcode {
         }
     }
     
-    private func concat(_ operand1: AMLTermArg, _ operand2: AMLTermArg, _ target: AMLTarget, _ context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    private func concat(_ operand1: AMLTermArg, _ operand2: AMLTermArg, _ target: AMLTarget, _ context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         // Operand1 => ComputationalData
         // Operand2 => ComputationalData
         
@@ -565,7 +565,7 @@ enum AMLType2Opcode {
         
     }
     
-    private func concatResource(_ operand1: AMLTermArg, _ operand2: AMLTermArg, _ target: AMLTarget, _ context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    private func concatResource(_ operand1: AMLTermArg, _ operand2: AMLTermArg, _ target: AMLTarget, _ context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         // Operand1 => Buffer, Operand2 => Buffer
         let buf1 = try operandAsBuffer(operand: operand1, context: &context)
         let buf2 = try operandAsBuffer(operand: operand2, context: &context)
@@ -579,12 +579,12 @@ enum AMLType2Opcode {
     }
     
     
-    private func loadTable(_ signature: AMLTermArg, _ oemId: AMLTermArg, _ oemTableId: AMLTermArg, _ rootPath: AMLTermArg, _ parameterPath: AMLTermArg, _ parameterData: AMLTermArg, _ context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    private func loadTable(_ signature: AMLTermArg, _ oemId: AMLTermArg, _ oemTableId: AMLTermArg, _ rootPath: AMLTermArg, _ parameterPath: AMLTermArg, _ parameterData: AMLTermArg, _ context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         throw AMLError.unimplemented("AMLDefLoadTable")
     }
     
     
-    private func findObjectMatch(_ searchPkg: AMLTermArg, _ match1: AMLByteData, _ operand1: AMLTermArg, _ match2: AMLByteData, _ operand2: AMLTermArg, _ startIndex: AMLTermArg, _ context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    private func findObjectMatch(_ searchPkg: AMLTermArg, _ match1: AMLByteData, _ operand1: AMLTermArg, _ match2: AMLByteData, _ operand2: AMLTermArg, _ startIndex: AMLTermArg, _ context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         
         enum AMLMatchOpcode: AMLByteData {
             case mtr = 0
@@ -660,7 +660,7 @@ enum AMLType2Opcode {
         }
     }
     
-    private func logicalCompare(context: inout ACPI.AMLExecutionContext, operand1: AMLTermArg, operand2: AMLTermArg) throws -> AMLLogicalCompare {
+    private func logicalCompare(context: inout ACPI.AMLExecutionContext, operand1: AMLTermArg, operand2: AMLTermArg) throws(AMLError) -> AMLLogicalCompare {
         func compareBuffers(buffer1: AMLBuffer, buffer2: AMLBuffer) -> AMLLogicalCompare {
             let count1 = buffer1.count
             let count2 = buffer2.count
@@ -707,7 +707,7 @@ struct AMLDefBuffer {
     let bufferSize: AMLTermArg // => Integer
     let byteList: AMLByteList
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         let size = try operandAsInteger(operand: bufferSize, context: &context)
         let diff = byteList.count - Int(size)
 
@@ -729,7 +729,7 @@ struct AMLDefDerefOf {
     let operand: AMLTermArg // => ObjectReference | String
 
     // FIXME: Implement
-    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         let object = try operand.evaluate(context: &context)
         if let name = object.stringValue {
             guard let (node, _) = context.getObject(named: AMLNameString(name.asString())) else {
@@ -741,14 +741,14 @@ struct AMLDefDerefOf {
     }
 
     func evaluator() -> AMLTarget.Evaluator {
-        return { (context: inout ACPI.AMLExecutionContext) throws -> AMLObject in
+        return { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject in
             return try evaluate(context: &context)
         }
     }
 
     func updater() -> AMLTarget.Updater {
         return { (newValue: AMLObject, context: inout ACPI.AMLExecutionContext) in
-            throw AMLError.unimplemented("AMLDefDerefOf.update")
+            fatalError("AMLDefDerefOf.update unimplmented")
         }
     }
 }
@@ -761,7 +761,7 @@ struct AMLDefIndex {
     let target: AMLTarget
 
     // FIXME: Implement
-    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         let object = try operand1.evaluate(context: &context)
         let index = try operandAsInteger(operand: operand2, context: &context)
 
@@ -776,7 +776,7 @@ struct AMLDefIndex {
         return objectReference
     }
 
-    func updateValue(to newValue: AMLObject, context: inout ACPI.AMLExecutionContext) throws {
+    func updateValue(to newValue: AMLObject, context: inout ACPI.AMLExecutionContext) throws(AMLError) {
         let object = try operand1.evaluate(context: &context)
         let index = try operandAsInteger(operand: operand2, context: &context)
 
@@ -784,7 +784,7 @@ struct AMLDefIndex {
     }
 
     func evaluator() -> AMLTarget.Evaluator {
-        return { (context: inout ACPI.AMLExecutionContext) throws -> AMLObject in
+        return { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject in
             return try evaluate(context: &context)
         }
     }
@@ -818,7 +818,7 @@ struct AMLDefPackage {
     }
 
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         let pkgLength = try operandAsInteger(operand: numElements, context: &context)
 
         let elementCount = min(packageElementList.count, Int(pkgLength))
@@ -857,32 +857,32 @@ struct AMLDefRefOf {
     // RefOfOp SuperName
     let name: AMLTarget
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         let object = try name.getObject(context: &context)
         let reference =  AMLObject(object)
         return reference
     }
 
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) throws {
+    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) throws(AMLError) {
         throw AMLError.unimplemented("AMLDefRefOf")
     }
 
     func evaluator() -> AMLTarget.Evaluator {
-        return { (context: inout ACPI.AMLExecutionContext) throws -> AMLObject in
+        return { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject in
             return try evaluate(context: &context)
         }
     }
 
     func updater() -> AMLTarget.Updater {
         return { (newValue: AMLObject, context: inout ACPI.AMLExecutionContext) in
-            throw AMLError.unimplemented("AMLDefDerefOf.update")
+            fatalError("AMLDefDerefOf.update unimplemented")
         }
     }
 }
 
-private func loadDefinitionBlock(from block: AMLObject, context: inout ACPI.AMLExecutionContext) throws -> Bool {
+private func loadDefinitionBlock(from block: AMLObject, context: inout ACPI.AMLExecutionContext) throws(AMLError) -> Bool {
 
-    func getBuffer() throws -> AMLBuffer? {
+    func getBuffer() throws(AMLError) -> AMLBuffer? {
         if let buffer = block.bufferValue {
             return buffer
         }

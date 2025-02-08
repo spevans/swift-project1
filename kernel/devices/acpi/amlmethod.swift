@@ -12,7 +12,7 @@ struct AMLMethodInvocation {
     let method: AMLNameString
     let args: AMLTermArgList
 
-    init(method: AMLNameString, args: AMLTermArgList) throws {
+    init(method: AMLNameString, args: AMLTermArgList) throws(AMLError) {
         guard args.count < 7 else {
             throw AMLError.invalidData(reason: "More than 7 args")
         }
@@ -20,12 +20,12 @@ struct AMLMethodInvocation {
         self.args = args
     }
 
-    init(method: AMLNameString, _ args: AMLTermArg...) throws {
+    init(method: AMLNameString, _ args: AMLTermArg...) throws(AMLError) {
         try self.init(method: method, args: args)
     }
 
 
-    fileprivate func _invokeMethod(context: inout ACPI.AMLExecutionContext) throws -> AMLObject? {
+    fileprivate func _invokeMethod(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject? {
 
         let name = self.method.value
 
@@ -49,7 +49,7 @@ struct AMLMethodInvocation {
         return newContext.returnValue
     }
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         if let result = try _invokeMethod(context: &context) {
             context.returnValue = result
             return result
@@ -59,7 +59,7 @@ struct AMLMethodInvocation {
     }
 }
 
-typealias AMLMethodInternalHandler = (inout ACPI.AMLExecutionContext) throws -> AMLObject?
+typealias AMLMethodInternalHandler = (inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject?
 final class AMLMethod {
     //let name: AMLNameString
     let name: AMLNameString
@@ -82,7 +82,7 @@ final class AMLMethod {
         self.handler = handler
     }
 
-    private func termList() throws -> AMLTermList {
+    private func termList() throws(AMLError) -> AMLTermList {
         if _termList == nil, let parser = _parser {
             _termList = try parser.parseTermList()
             _parser = nil
@@ -90,7 +90,7 @@ final class AMLMethod {
         return _termList!
     }
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws {
+    func execute(context: inout ACPI.AMLExecutionContext) throws(AMLError) {
         if let handler = handler {
             context.returnValue = try handler(&context)
             return
@@ -100,7 +100,7 @@ final class AMLMethod {
         }
     }
 
-    func readValue(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    func readValue(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         do {
             try execute(context: &context)
             // reset the context
@@ -114,7 +114,7 @@ final class AMLMethod {
 
 extension ACPI {
     @discardableResult
-    static func invoke(method: String, _ args: AMLTermArg...) throws -> AMLObject? {
+    static func invoke(method: String, _ args: AMLTermArg...) throws(AMLError) -> AMLObject? {
         let mi = try AMLMethodInvocation(method: AMLNameString(method), args: args)
         var context = ACPI.AMLExecutionContext(scope: mi.method)
 
@@ -180,7 +180,7 @@ extension ACPI {
             return ACPI.globalObjects.getGlobalObject(currentScope: scope, name: name)
         }
 
-        mutating func execute(termList: AMLTermList) throws {
+        mutating func execute(termList: AMLTermList) throws(AMLError) {
             var dynamicNamedObjects: [ACPIObjectNode] = []
             defer {
                 for object in dynamicNamedObjects.reversed() {
@@ -235,7 +235,7 @@ extension ACPI {
     }
 
 
-    static func _OSI_Method(_ context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+    static func _OSI_Method(_ context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         guard context.args.count == 1 else {
             throw AMLError.invalidData(reason: "_OSI: Should only be 1 arg")
         }

@@ -63,7 +63,7 @@ struct AMLDefDevice {
 // Helper functions for ACPI Device nodes
 extension ACPI.ACPIObjectNode {
 
-    func status() throws -> AMLDefDevice.DeviceStatus {
+    func status() throws(AMLError) -> AMLDefDevice.DeviceStatus {
         guard let sta = childNode(named: "_STA") else {
             return .defaultStatus()
         }
@@ -73,7 +73,7 @@ extension ACPI.ACPIObjectNode {
     }
 
     // Run the _INI method if it exists
-    func initialise() throws {
+    func initialise() throws(AMLError) {
         guard let iniNode = childNode(named: "_INI"),  let ini = iniNode.object.methodValue else {
             return
         }
@@ -81,7 +81,7 @@ extension ACPI.ACPIObjectNode {
         try ini.execute(context: &context)
     }
 
-    func initialiseIfPresent() throws -> Bool {
+    func initialiseIfPresent() throws(AMLError) -> Bool {
         let status = try self.status()
         if !status.present {
             print("DEV: Ignoring", self.fullname(), "as status present:", status.present, "enabled:", status.enabled)
@@ -91,12 +91,7 @@ extension ACPI.ACPIObjectNode {
             print("ACPI: calling \(self.fullname())._INI")
             try self.initialise()
         } catch {
-            let str: String
-            if let error = error as? AMLError {
-                str = error.description
-            } else {
-                str = "unknown"
-            }
+            let str = error.description
             print("ACPI: Error running _INI for", self.fullname(), str)
         }
         let newStatus = try self.status()
@@ -104,15 +99,15 @@ extension ACPI.ACPIObjectNode {
         return newStatus.enabled
     }
 
-    func currentResourceSettings() throws -> [AMLResourceSetting]? {
+    func currentResourceSettings() throws(AMLError) -> [AMLResourceSetting]? {
         return try _resourceSettings(node: "_CRS")
     }
 
-    func possibleResourceSettings() throws -> [AMLResourceSetting]? {
+    func possibleResourceSettings() throws(AMLError) -> [AMLResourceSetting]? {
         return try _resourceSettings(node: "_PRS")
     }
 
-    private func _resourceSettings(node: String) throws -> [AMLResourceSetting]? {
+    private func _resourceSettings(node: String) throws(AMLError) -> [AMLResourceSetting]? {
         guard let crs = childNode(named: node), let crsValue = try? crs.amlObject() else {
             return nil
         }
@@ -123,7 +118,7 @@ extension ACPI.ACPIObjectNode {
         return decodeResourceData(buffer)
     }
 
-    func hardwareId() throws -> String? {
+    func hardwareId() throws(AMLError) -> String? {
         guard let hidNode = childNode(named: "_HID") else {
             return nil
         }
@@ -140,7 +135,7 @@ extension ACPI.ACPIObjectNode {
     }
 
 
-    func compatibleIds() throws -> [String]? {
+    func compatibleIds() throws(AMLError) -> [String]? {
         guard let cid = childNode(named: "_CID") else {
             return nil
         }
@@ -169,7 +164,7 @@ extension ACPI.ACPIObjectNode {
     }
 
 
-    func uniqueId() throws -> AMLObject? { // Integer or String
+    func uniqueId() throws(AMLError) -> AMLObject? { // Integer or String
         if let uidValue = try childNode(named: "_UID")?.amlObject(), uidValue.isInteger || uidValue.isString {
             return uidValue
         }
@@ -177,7 +172,7 @@ extension ACPI.ACPIObjectNode {
     }
 
 
-    func baseBusNumber() throws -> UInt8? {
+    func baseBusNumber() throws(AMLError) -> UInt8? {
         if let bbnValue = try childNode(named: "_BBN")?.amlObject().integerValue {
             return UInt8(truncatingIfNeeded: bbnValue)
         } else {
@@ -186,7 +181,7 @@ extension ACPI.ACPIObjectNode {
     }
 
 
-    func addressResource() throws -> AMLInteger? {
+    func addressResource() throws(AMLError) -> AMLInteger? {
         guard let adr = try childNode(named: "_ADR")?.amlObject().integerValue else {
             print("Cant find _ADR in", self.fullname())
             // Override missing _ADR for Root PCIBus
@@ -213,7 +208,7 @@ struct AMLDefExternal {
     let type: AMLObjectType
     let argCount: AMLByteData // (0 - 7)
 
-    init(name: AMLNameString, type: AMLObjectType, argCount: AMLByteData) throws {
+    init(name: AMLNameString, type: AMLObjectType, argCount: AMLByteData) throws(AMLError) {
         guard argCount <= 7 else {
             let reason = "argCount must be 0-7, not \(argCount)"
             throw AMLError.invalidData(reason: reason)
@@ -706,7 +701,7 @@ final class AMLDefOpRegion {
     }
 
 
-    func getRegionSpace(context: inout ACPI.AMLExecutionContext) throws -> OpRegionSpace {
+    func getRegionSpace(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> OpRegionSpace {
         if let rs = regionSpace {
             return rs
         }
@@ -767,7 +762,7 @@ final class AMLDefOpRegion {
     }
 
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLTermArg {
         let o = try operandAsInteger(operand: offset, context: &context)
         let l = try operandAsInteger(operand: length, context: &context)
         fatalError("do somthing with \(o) and \(l)")
