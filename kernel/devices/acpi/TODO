@@ -1,8 +1,15 @@
+Merge AMLSharedBuffer and AMLBuffer
+Max recursion depth in execution
+Reduce stack space
+Replace all use of String with AMLNameString
+
+Move AMLObject to own file - DONE
+
+
 Use IOPort and MMapped regions for the RegionSpace, only use arrays for testing
 Make error messaging better
 Max subparser recursion depth
 Simplify parseArgs etc and merge with Var args
-Scope modifiers dont need to store the objectList
 Store local names in the context not the globalObjects
 
 - Fix RegionSpace read/write at bitOffset
@@ -11,5 +18,6 @@ Store local names in the context not the globalObjects
 - Fix enums to have lowercase first letter
 - Implement Data conversion
 - Should AMLTermArg.evaluate() throw?
+
 
 DONE - Fix dual invokeMethods, should only be one

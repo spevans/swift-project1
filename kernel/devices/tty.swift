@@ -54,6 +54,11 @@ func print(_ item: String) {
     output.write("\n")
 }
 
+func _kprint(_ string: String) {
+    var output = _tty()
+    output.write(string)
+    output.write("\n")
+}
 
 func print(_ item: StaticString) {
     kprint(item)

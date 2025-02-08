@@ -32,8 +32,8 @@ final class Device: CustomStringConvertible {
         self.parent = parent
         self.fullName = fullName
         self.acpiDeviceConfig = acpiDeviceConfig
-        let d: String = acpiDeviceConfig?.description ?? "nil"
-        print("Device:", self, "acpiDeviceConfig: \(d)")
+//        let d: String = acpiDeviceConfig?.description ?? "nil"
+//        print("Device:", self, "acpiDeviceConfig: \(d)")
         parent?.devices.append(self)
     }
 
@@ -55,6 +55,13 @@ final class Device: CustomStringConvertible {
         }
         deviceDriver = driver
     }
+/*
+    var acpiDevice: AMLDefDevice? {
+        switch config {
+            case let .acpi(acpiConfig): return acpiConfig.device
+            default: return nil
+        }
+    }*/
 }
 
 // Generic Keyboard device

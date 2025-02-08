@@ -58,6 +58,7 @@ struct ACPI_SDT: CustomStringConvertible {
 
 final class ACPI {
 
+
     struct RSDT {
         let entries: [PhysAddress]
 
@@ -154,12 +155,15 @@ final class ACPI {
         }
     }
 
+    static private(set) var globalObjects: ACPIObjectNode = ACPIObjectNode(name: AMLNameString("\\"),
+                                                                           object: AMLObject())
+    static var methodArgumentCount: [AMLNameString: Int] = [:]
+
 
     private(set) var mcfg: MCFG?
     private(set) var facp: FACP?
     private(set) var madt: MADT?
     private(set) var hpet: HPETTable?
-    private(set) var globalObjects: ACPIObjectNode!
     private(set) var tables: [ACPITable] = []
     private var dsdt: PhysRegion?
     private var ssdts: [PhysRegion] = []
@@ -207,20 +211,29 @@ final class ACPI {
     }
 #endif
 
-    func parseAMLTables() {
-        print("Parsing AML")
-        guard let ptr = dsdt else {
-            fatalError("ACPI: No valid DSDT found")
+    func parseAMLTables(allowNoDsdt: Bool = false) {
+//                print("Parsing AML")
+        if let ptr = dsdt {
+            ssdts.insert(ptr, at: 0) // Put the DSDT first
+        } else {
+            guard allowNoDsdt else {
+                fatalError("ACPI: No valid DSDT found")
+            }
         }
-        ssdts.insert(ptr, at: 0) // Put the DSDT first
 
-        let acpiGlobalObjects = ACPI.ACPIObjectNode.createGlobalObjects()
-        let parser = AMLParser(globalObjects: acpiGlobalObjects)
+        ACPI.globalObjects = ACPI.ACPIObjectNode.createGlobalObjects()
         do {
             for buffer in ssdts {
                 let amlBuffer = AMLByteBuffer(start: buffer.baseAddress.rawPointer,
                                               count: Int(buffer.size))
-                try parser.parse(amlCode: amlBuffer)
+                let byteStream = try AMLByteStream(buffer: amlBuffer)
+                let scope = AMLNameString("\\")
+                let parser = AMLParser(byteStream: byteStream, scope: scope,
+                                       globalObjects: ACPI.globalObjects, parsingMethod: true)
+                let method = AMLMethod(name: scope, flags: AMLMethodFlags(flags: 0), parser: parser)
+                var context = ACPI.AMLExecutionContext(scope: scope, args: [], isTopLevel: true)
+                try method.execute(context: &context)
+                continue
             }
         } catch {
             fatalError("parseerror: \(error)")
@@ -228,9 +241,7 @@ final class ACPI {
 
         dsdt = nil
         ssdts.removeAll()
-        //parser.parseMethods()
-        globalObjects = parser.acpiGlobalObjects
-        print("End of AML code")
+//        print("End of AML code")
     }
 
     func parseEntry(physAddress: PhysAddress, vendor: String, product: String) {
@@ -248,7 +259,7 @@ final class ACPI {
             return
         }
 
-        print("Found: \(signature)")
+//        print("Found: \(signature)")
         switch signature {
         case "MCFG":
             mcfg = MCFG(rawSDTPtr, vendor: vendor, product: product)
@@ -354,7 +365,7 @@ extension ACPI {
 
         func runMethod(_ node: ACPIObjectNode) -> Bool {
             print("ACPI: Running:", node.fullname())
-            guard let method = node as? AMLMethod else {
+            guard let method = node.object.methodValue else {
                 print(node.fullname(), " is not an _INI method")
                 return false
             }
@@ -375,10 +386,10 @@ extension ACPI {
             return true
         }
 
-        func devStatus(_ parent: ACPIObjectNode?) -> AMLDefDevice.DeviceStatus {
+        func devStatus(_ parent: ACPIObjectNode?) throws -> AMLDefDevice.DeviceStatus {
             if let sta = parent?.childNode(named: "_STA") {
                 var context = ACPI.AMLExecutionContext(scope: AMLNameString(sta.fullname()))
-                let result = sta.readValue(context: &context)
+                let result = try sta.readValue(context: &context)
                 return AMLDefDevice.DeviceStatus(result.integerValue!)
             } else {
                 return .defaultStatus()
@@ -387,9 +398,12 @@ extension ACPI {
 
         print("ACPI: Finding _INI")
         // Find _INI for ACPI devices and run if necessary
-        globalObjects.findNodes(name: AMLNameString("_INI")) { (fullName, node) in
+        ACPI.globalObjects.findNodes(name: AMLNameString("_INI")) { (fullname, node) in
             // Evaluate _STA if present
-            let status = devStatus(node.parent)
+            guard let status = try? devStatus(node.parent) else {
+                print("ACPI: Can not get _STA status for \(node.fullname())")
+                return false
+            }
             if status.present {
                 // Dont walk child nodes if _INI does not execute OK.
                 guard runMethod(node) else { return false }
@@ -407,10 +421,15 @@ extension ACPI {
         // Keep track of the devices allocated to each node so that the parent device
         // can be determined
         var nameDeviceMap = [ "\\_SB" : system.deviceManager.masterBus.device]
-        globalObjects.walkNode { (name, node) in
-            guard let amldev = node as? AMLDefDevice else { return true }
+        ACPI.globalObjects.walkNode { (name, node) in
+            guard node.object.isDevice else { return true }
             guard node.device == nil else { fatalError("\(name) already has a .device set") }
-            if !devStatus(amldev).present {
+            guard let status = try? devStatus(node) else {
+                print("ACPI: Can not get _STA status for \(name)")
+                return false
+            }
+
+            if !status.present {
                 print("ACPI: Ignoring not present device \(name)")
                 return true
             }

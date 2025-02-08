@@ -8,13 +8,15 @@
 
 
 extension ACPI {
-    class ACPIObjectNode: AMLTermObj, Hashable, CustomStringConvertible {
+
+    class ACPIObjectNode: Hashable, CustomStringConvertible {
         let name: AMLNameString
-        /*unowned*/ private(set) var parent: ACPIObjectNode?
+        private(set) var object: AMLObject
+        /*unowned*/ private(set) var parent: ACPIObjectNode? // FIXME: Can this be non-nilable, would need a fix for walking up the partent
         // Use an array for the childnodes even though the lookups are on the name
         // segment as this keeps the order and the number of entries is small enough
         // that a linear scan is ok.
-        fileprivate(set) var childNodes: [ACPIObjectNode]
+        fileprivate(set) var childNodes: [ACPIObjectNode] // FIXME: Should probably be a Set
         private(set) var device: Device?
 
         var description: String {
@@ -28,13 +30,14 @@ extension ACPI {
             return result
         }
 
-        init(name: AMLNameString, parent: ACPIObjectNode? = nil) {
-            self.name = name
-            self.childNodes = []
-            self.parent = parent
+        init(name: AMLNameString, parent: ACPIObjectNode? = nil, object: AMLObject) {
             guard name.isNameSeg else {
                 fatalError("\(type(of: self)) has invalid name: \(name.value)")
             }
+            self.name = name
+            self.object = object
+            self.childNodes = []
+            self.parent = parent
         }
 
         func setDevice(_ newDevice: Device) {
@@ -43,18 +46,18 @@ extension ACPI {
             }
         }
 
-        func readValue(context: inout AMLExecutionContext) -> AMLTermArg {
-            fatalError("Requires concrete implementation")
+        func readValue(context: inout AMLExecutionContext) throws -> AMLObject {
+            return try self.object.readValue(context: &context)
         }
 
-        func updateValue(to: AMLTermArg, context: inout AMLExecutionContext) {
-            fatalError("Requires concrete implementation")
+        func readValue() throws -> AMLObject? {
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullname()))
+            return try readValue(context:&context)
         }
 
-        func createNamedObject(context: inout AMLExecutionContext) throws {
-            let fullPath = resolveNameTo(scope: context.scope, path: name)
-            let globalObjects = system.deviceManager.acpiTables.globalObjects!
-            globalObjects.add(fullPath.value, self)
+        func updateValue(to newValue: AMLObject, context: inout AMLExecutionContext) throws {
+            // Some object types can be updated in place, others require the current object to be overwritten
+            try self.object.updateValue(to: newValue, context: &context)
         }
 
 
@@ -68,8 +71,9 @@ extension ACPI {
         }
 
 
-        fileprivate func addChildNode(_ node: ACPIObjectNode) {
-            if let index = childNodes.firstIndex(where: { $0.name == node.name }) {
+        fileprivate func addChildNode(_ node: ACPIObjectNode) -> Bool {
+            guard !childNodes.contains(where: { $0.name == node.name }) else {
+/*
                 // A generic ACPIObjectNode may have been added first to allow adding
                 // child nodes, but now the node of its correct type (eg AMLDefDevice)
                 // needs to replace it.
@@ -81,10 +85,13 @@ extension ACPI {
                 child.childNodes = []
                 child.parent = nil
                 childNodes[index] = node
-            } else {
-                childNodes.append(node)
+*/
+                print("ACPI: Ignoring duplicate node \(self.fullname()).\(node.name.value)")
+                return false
             }
+            childNodes.append(node)
             node.parent = self
+            return true
         }
 
 
@@ -119,48 +126,42 @@ extension ACPI {
         }
 
 
-        func asTermArg() -> AMLTermArg? {
-            if let namedValue = self as? AMLNamedValue {
-                return namedValue.value.dataObject
-            }
-
-            if let method = self as? AMLMethod {
-                print("method:", method)
-                var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullname()))
-                return method.readValue(context: &context)
-            }
-            return nil
+        func amlObject() throws -> AMLObject {
+            // FIXME, might need derefrerencing
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(fullname()))
+            return try self.object.readValue(context: &context)
         }
 
 
         // Create an initial ACPI tree with default nodes
         static func createGlobalObjects() -> ACPIObjectNode {
 
-            let parent = ACPIObjectNode(name: AMLNameString("\\"))
+            let parent = ACPIObjectNode(name: AMLNameString("\\"),
+                                        object: AMLObject())
 
-            let children: [AMLNamedObj] = [
-                AMLMethod(name: AMLNameString("_OSI"),
-                          flags: AMLMethodFlags(flags: 1),
-                          parser: nil),
+            let children: [ACPIObjectNode] = [
+                ACPIObjectNode(name: AMLNameString("_OSI"),
+                               object: AMLObject(AMLMethod(name: AMLNameString("_OSI"),
+                                                         flags: AMLMethodFlags(flags: 1),
+                                                         handler: _OSI_Method))),
 
-                AMLDefMutex(name: AMLNameString("_GL"),
-                            flags: AMLMutexFlags()),
+                ACPIObjectNode(name: AMLNameString("_GL"),
+                               object: AMLObject(AMLDefMutex(name: AMLNameString("_GL"),
+                                                          flags: AMLMutexFlags()))),
 
-                AMLNamedValue(name: AMLNameString("_REV"),
-                           value: AMLDataRefObject(integer: 2)),
+                ACPIObjectNode(name: AMLNameString("_REV"), object: AMLObject(2)),
 
-                AMLNamedValue(name: AMLNameString("_OS"),
-                           value: AMLDataRefObject(string: "Darwin")),
+                ACPIObjectNode(name: AMLNameString("_OS"), object: AMLObject(try! AMLString("Darwin"))),
 
                 // Root namespaces
-                AMLNamedObj(name: AMLNameString("_GPE")),
-                AMLNamedObj(name: AMLNameString("_PR")),
-                AMLNamedObj(name: AMLNameString("_SB")),
-                AMLNamedObj(name: AMLNameString("_SI")),
-                AMLNamedObj(name: AMLNameString("_TZ")),
-                ]
+                ACPIObjectNode(name: AMLNameString("_GPE"), object: AMLObject()),
+                ACPIObjectNode(name: AMLNameString("_PR"), object: AMLObject()),
+                ACPIObjectNode(name: AMLNameString("_SB"), object: AMLObject()),
+                ACPIObjectNode(name: AMLNameString("_SI"), object: AMLObject()),
+                ACPIObjectNode(name: AMLNameString("_TZ"), object: AMLObject()),
+            ]
 
-            children.forEach { parent.addChildNode($0) }
+            children.forEach { _ = parent.addChildNode($0) }
             return parent
         }
 
@@ -170,7 +171,7 @@ extension ACPI {
         }
 
 
-        func add(_ name: String, _ object: AMLNamedObj) {
+        func add(_ name: String, _ object: ACPIObjectNode) -> Bool {
 
             // Remove leading '\\'
             func removeRootChar(name: String) -> String {
@@ -194,22 +195,26 @@ extension ACPI {
                 if let node = findNode(named: part, parent: parent) {
                     parent = node
                 } else {
+                    print("ACPI: Ignoring invalid path \(name)")
+                    return false
+/**
                     // FIXME: Adding a missing part of the path directly is not the correct way as
                     // The missing part should probably generate its own subtree to add to. This
                     // occurs when eg parsing a Device and the methods in the device are added to the
                     // global tree before the device itself. The device later over writes this object.
-                    let newNode = AMLNamedObj(name: AMLNameString(part))
+                    let newNode = ACPIObjectNode(name: AMLNameString(part), object: AMLObject())
                     parent.addChildNode(newNode)
                     parent = newNode
+**/
                 }
             }
 
-            parent.addChildNode(object)
+            return parent.addChildNode(object)
         }
 
 
         // needs to be a full path starting with \\
-        func get(_ name: String) -> ACPIObjectNode? {
+        func getObject(_ name: String) -> ACPIObjectNode? {
             var name2 = name
             guard name2.remove(at: name2.startIndex) == "\\" else {
                 return nil
@@ -239,40 +244,13 @@ extension ACPI {
 
 
         // FIXME: This should walk up the parent if needed
-        func getGlobalObject(currentScope: AMLNameString, name: AMLNameString)
-            -> (ACPIObjectNode, String)? {
-                let nameStr = name.value
-                guard nameStr.first != nil else {
-                    fatalError("string is empty")
-                }
-
-                let fullPath = resolveNameTo(scope: currentScope, path: name)
-                if let obj = get(fullPath.value) {
-                    return (obj, fullPath.value)
-                }
-                // Do a search up the tree
-                guard name.isNameSeg else {
-                    return nil
-                }
-                let seperator = AMLNameString.pathSeparatorChar
-                var nameSegs = currentScope.value.components(separatedBy: seperator)
-                while nameSegs.count > 1 {
-                    _ = nameSegs.popLast()
-                    var tmpName = nameSegs.joined(separator: String(seperator))
-                    tmpName.append(AMLNameString.pathSeparatorChar)
-                    tmpName.append(name.value)
-                    if let obj = get(tmpName) {
-                        return (obj, tmpName)
-                    }
-                }
-                if nameSegs.count == 1 {
-                    var tmpName = "\\"
-                    tmpName.append(name.value)
-                    if let obj =  get(tmpName) {
-                        return (obj, tmpName)
-                    }
-                }
-                return nil
+        func getGlobalObject(currentScope: AMLNameString, name: AMLNameString) -> (ACPIObjectNode, String)? {
+            let nameStr = name.value
+            guard nameStr.first != nil else {
+                fatalError("string is empty")
+            }
+            let fullPath = resolveNameTo(scope: currentScope, path: name)
+            return walkUpFullPath(fullPath, block: getObject)
         }
 
 
@@ -280,9 +258,9 @@ extension ACPI {
             let keepWalking = body(name, node)
             guard keepWalking else { return }
             for child in node.childNodes {
-                let fullName = (name == "\\") ? name + child.name.value :
+                let fullname = (name == "\\") ? name + child.name.value :
                     name + String(AMLNameString.pathSeparatorChar) + child.name.value
-                walkNode(name: fullName, node: child, body)
+                walkNode(name: fullname, node: child, body)
             }
         }
 
@@ -295,9 +273,9 @@ extension ACPI {
         }
 
         func findNodes(name: AMLNameString, _ body: (String, ACPIObjectNode) -> Bool) {
-            walkNode { (fullName, obj) in
+            walkNode { (fullname, obj) in
                 if obj.name == name {
-                    let keepWalking = body(fullName, obj)
+                    let keepWalking = body(fullname, obj)
                     guard keepWalking else { return false }
                 }
                 return true

@@ -13,24 +13,28 @@ final class ACPIDeviceConfig: CustomStringConvertible {
     let hid: String?
     let cids: [String]?
     let adr: UInt64?
-    let uid: AMLDataObject?
+    let uid: AMLObject?
     let crs: [AMLResourceSetting]?
     let prs: [AMLResourceSetting]?
     let prt: PCIRoutingTable?
 
 
     init(node: ACPI.ACPIObjectNode) {
-        guard node as? AMLDefDevice != nil else {
+        guard node.object.isDevice else {
             fatalError("ACPI: \(node.fullname()) is not a AMLDefDevice")
         }
-        self.node = node
-        self.hid = node.hardwareId()
-        self.cids = node.compatibleIds()
-        self.adr = node.addressResource()
-        self.uid = node.uniqueId()
-        self.crs = node.currentResourceSettings()
-        self.prs = node.possibleResourceSettings()
-        self.prt = node.pciRoutingTable()
+        do {
+            self.node = node
+            self.hid = try node.hardwareId()
+            self.cids = try node.compatibleIds()
+            self.adr = try node.addressResource()
+            self.uid = try node.uniqueId()
+            self.crs = try node.currentResourceSettings()
+            self.prs = try node.possibleResourceSettings()
+            self.prt = node.pciRoutingTable()
+        } catch {
+            fatalError("ACPI: \(node.fullname()): error getting device config")
+        }
     }
 
     var description: String {

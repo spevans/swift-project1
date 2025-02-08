@@ -30,6 +30,7 @@ final class PNPDevice: BusDevice {
         device.setBusDevice(self)
     }
 
+
     func getResources() -> ISABus.Resources? {
         if resources == nil {
             if let crs = device.acpiDeviceConfig?.crs {
@@ -38,6 +39,7 @@ final class PNPDevice: BusDevice {
         }
         return resources
     }
+
 
     func initialise() -> Bool {
         device.initialised = true

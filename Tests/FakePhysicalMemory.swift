@@ -14,20 +14,25 @@ struct FakePhysMemory {
     let end: PhysAddress
     let ptr: UnsafeMutableRawPointer
 
-    init(region: PhysPageAlignedRegion) {
+    init(region: PhysPageAlignedRegion, initialiseWith bytes: [UInt8]? = nil) {
         self.start = region.baseAddress
         self.end = region.endAddress
         let size = Int(region.size)
         self.ptr = UnsafeMutableRawPointer.allocate(byteCount: size, alignment: 8)
-        for index in 0..<size {
-            ptr.storeBytes(of: 0, toByteOffset: index, as: UInt8.self)
+        self.ptr.initializeMemory(as: UInt8.self, to: 0)
+        if let bytes = bytes {
+            var index = 0
+            for byte in bytes {
+                ptr.storeBytes(of: byte, toByteOffset: index, as: UInt8.self)
+                index += 1
+            }
         }
     }
 
-    static func addPhysicalMemory(start: PhysAddress, size: Int) {
+    static func addPhysicalMemory(start: PhysAddress, size: Int, initialiseWith bytes: [UInt8]? = nil) {
         precondition(size > 0)
         let region = PhysPageAlignedRegion(start: start, size: UInt(size))
-        let fakeMemory = FakePhysMemory(region: region)
+        let fakeMemory = FakePhysMemory(region: region, initialiseWith: bytes)
         physicalMemory.append(fakeMemory)
     }
 }

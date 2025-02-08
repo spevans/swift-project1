@@ -49,7 +49,6 @@ enum IntControllerTableType: UInt8, CustomStringConvertible {
     }
 }
 
-
 struct MADT: CustomDebugStringConvertible {
 
     enum MADTEntry {

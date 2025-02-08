@@ -8,28 +8,17 @@
 //  Named Object types
 
 
-// Named Objects
-typealias AMLNamedObj = ACPI.ACPIObjectNode
+struct AMLDataRegion {
+    let name: AMLNameString
+    let signature: AMLString
+    let oemId: AMLString
+    let oemTableId: AMLString
 
-
-final class AMLDefDataRegion: AMLNamedObj {
-    var isReadOnly: Bool { return false }
-
-    // DataRegionOp NameString TermArg TermArg TermArg
-    let arg1: AMLTermArg
-    let arg2: AMLTermArg
-    let arg3: AMLTermArg
-
-    init(name: AMLNameString, arg1: AMLTermArg, arg2: AMLTermArg, arg3: AMLTermArg) {
-        self.arg1 = arg1
-        self.arg2 = arg2
-        self.arg3 = arg3
-        super.init(name: name)
-    }
+    //TODO: something here
 }
 
 
-final class AMLDefDevice: AMLNamedObj {
+struct AMLDefDevice {
 
     struct DeviceStatus {
         private let bits: BitArray32
@@ -52,127 +41,144 @@ final class AMLDefDevice: AMLNamedObj {
 
     // DeviceOp PkgLength NameString TermList
     let value: AMLTermList
-
+    let name: AMLNameString
+//    private(set) var device: Device? = nil
+/*
+    var description: String {
+        var result = "ACPI Device:"
+        if let devname = device {
+            result += " [\(devname)]"
+        } else {
+            result += " No driver set"
+        }
+        return result
+    }
+*/
     init(name: AMLNameString, value: AMLTermList) {
+        self.name = name
         self.value = value
-        super.init(name: name)
     }
 }
 
 // Helper functions for ACPI Device nodes
-extension AMLNamedObj {
+extension ACPI.ACPIObjectNode {
 
-    func currentResourceSettings() -> [AMLResourceSetting]? {
-        return _resourceSettings(node: "_CRS")
+    func status() throws -> AMLDefDevice.DeviceStatus {
+        guard let sta = childNode(named: "_STA") else {
+            return .defaultStatus()
+        }
+        var context = ACPI.AMLExecutionContext(scope: AMLNameString(sta.fullname()))
+        let result = try sta.readValue(context: &context)
+        return AMLDefDevice.DeviceStatus(result.integerValue!)
     }
 
-    func possibleResourceSettings() -> [AMLResourceSetting]? {
-        return _resourceSettings(node: "_PRS")
+    // Run the _INI method if it exists
+    func initialise() throws {
+        guard let iniNode = childNode(named: "_INI"),  let ini = iniNode.object.methodValue else {
+            return
+        }
+        var context = ACPI.AMLExecutionContext(scope: AMLNameString(iniNode.fullname()))
+        try ini.execute(context: &context)
     }
 
+    func initialiseIfPresent() throws -> Bool {
+        let status = try self.status()
+        if !status.present {
+            print("DEV: Ignoring", self.fullname(), "as status present:", status.present, "enabled:", status.enabled)
+            return false
+        }
+        do {
+            print("ACPI: calling \(self.fullname())._INI")
+            try self.initialise()
+        } catch {
+            let str: String
+            if let error = error as? AMLError {
+                str = error.description
+            } else {
+                str = "unknown"
+            }
+            print("ACPI: Error running _INI for", self.fullname(), str)
+        }
+        let newStatus = try self.status()
+        print("initialiseIfPresent:", newStatus.enabled)
+        return newStatus.enabled
+    }
 
-    private func _resourceSettings(node: String) -> [AMLResourceSetting]? {
-        guard let crs = childNode(named: node) else {
+    func currentResourceSettings() throws -> [AMLResourceSetting]? {
+        return try _resourceSettings(node: "_CRS")
+    }
+
+    func possibleResourceSettings() throws -> [AMLResourceSetting]? {
+        return try _resourceSettings(node: "_PRS")
+    }
+
+    private func _resourceSettings(node: String) throws -> [AMLResourceSetting]? {
+        guard let crs = childNode(named: node), let crsValue = try? crs.amlObject() else {
             return nil
         }
 
-        let buffer: AMLSharedBuffer
-        if let obj = (crs as? AMLNamedValue)?.value {
-            guard let _buffer = obj.bufferValue else {
-                fatalError("crsObject namedValue \(self.fullname()) not a buffer")
-            }
-            buffer = _buffer
-        } else {
-            guard let crsObject = crs as? AMLMethod else {
-                fatalError("CRS object is an \(type(of: crs))")
-            }
-            var context = ACPI.AMLExecutionContext(scope: AMLNameString(crs.fullname()))
-            let value = crsObject.readValue(context: &context)
-            guard let _buffer = value.bufferValue else {
-                fatalError("crsObject returned \(value) not a buffer")
-            }
-            buffer = _buffer
+        guard let buffer = crsValue.bufferValue else {
+            fatalError("crsObject namedValue \(crsValue) is not a buffer")
         }
         return decodeResourceData(buffer)
     }
 
-
-    func hardwareId() -> String? {
-        guard let hid = childNode(named: "_HID") else {
+    func hardwareId() throws -> String? {
+        guard let hidNode = childNode(named: "_HID") else {
             return nil
         }
 
-        if let hidName = hid as? AMLNamedValue {
-            switch hidName.value {
-                case .dataObject(let object): return decodeHID(obj: object)
-                default: fatalError("\(hid.fullname()) has invalid value for pnpname: \(hidName.value)")
-            }
+        let hidValue = try hidNode.amlObject()
+        if hidValue.isInteger || hidValue.isString {
+            return decodeHID(obj: hidValue)
         }
-        else if let hidMethod = hid as? AMLMethod {
-            var context = ACPI.AMLExecutionContext(scope: AMLNameString(hid.fullname()))
-            return decodeHID(obj: hidMethod.readValue(context: &context))
-        } else {
-            fatalError("\(self.fullname()) has invalid node for _HID: \(type(of: self))")
+        if let hidMethod = hidNode.object.methodValue {
+            var context = ACPI.AMLExecutionContext(scope: AMLNameString(hidNode.fullname()))
+            return decodeHID(obj: try hidMethod.readValue(context: &context))
         }
+        fatalError("\(hidNode.fullname()) has invalid node for _HID: \(type(of: hidNode))")
     }
 
 
-    func compatibleIds() -> [String]? {
+    func compatibleIds() throws -> [String]? {
         guard let cid = childNode(named: "_CID") else {
             return nil
         }
+        let cidValue = try cid.amlObject()
 
-        let value: AMLTermArg
-        if let cidName = cid as? AMLNamedValue {
-            let dataRefObject = cidName.value
-            guard let object = dataRefObject.dataObject else {
-                fatalError("\(cid.fullname()) has invalid value for pnpname: \(dataRefObject)")
-            }
-            value = object
-        } else if let cidMethod = cid as? AMLMethod {
-            var context = ACPI.AMLExecutionContext(scope: AMLNameString(cid.fullname()))
-            value = cidMethod.readValue(context: &context)
-        } else {
-            return nil
-        }
-
-        guard let object = value as? AMLDataObject else {
-            fatalError("\(cid.fullname()) has invalid value for pnpname: \(value)")
+        if cidValue.isInteger || cidValue.isString {
+            return [decodeHID(obj: cidValue)]
         }
 
         // _CID could be a package containg multiple values, so take the first (for now)
-        if case let .package(package) = object {
+        if let package = cidValue.packageValue {
             guard package.count > 0 else { return nil }
             var cids: [String] = []
             for value in package {
-                guard let data = value.dataRefObject?.dataObject else {
+                if value.isInteger || value.isString {
+                    cids.append(decodeHID(obj: value))
+                } else {
                     fatalError("\(cid.fullname()) has invalid value for pnpname: \(value)")
                 }
-                cids.append(decodeHID(obj: data))
+
             }
             return cids
         } else {
-            return [decodeHID(obj: object)]
+            fatalError("\(cid.fullname()) has invalid value for pnpname: \(cidValue)")
         }
     }
 
 
-    func uniqueId() -> AMLDataObject? { // Integer or String
-        guard let uid = (childNode(named: "_UID") as? AMLNamedValue)?.value.dataObject else {
-            return nil
+    func uniqueId() throws -> AMLObject? { // Integer or String
+        if let uidValue = try childNode(named: "_UID")?.amlObject(), uidValue.isInteger || uidValue.isString {
+            return uidValue
         }
-        switch uid {
-            case .integer, .string:
-                return uid
-            default:
-                print("ACPI: \(fullname()) _UID is not a string or integer")
-                return nil
-        }
+        return nil
     }
 
 
-    func baseBusNumber() -> UInt8? {
-        if let bbn = childNode(named: "_BBN") as? AMLNamedValue, let bbnValue = bbn.value.integerValue {
+    func baseBusNumber() throws -> UInt8? {
+        if let bbnValue = try childNode(named: "_BBN")?.amlObject().integerValue {
             return UInt8(truncatingIfNeeded: bbnValue)
         } else {
             return nil
@@ -180,13 +186,13 @@ extension AMLNamedObj {
     }
 
 
-    func addressResource() -> AMLInteger? {
-        guard let adr = childNode(named: "_ADR") as? AMLNamedValue else {
+    func addressResource() throws -> AMLInteger? {
+        guard let adr = try childNode(named: "_ADR")?.amlObject().integerValue else {
+            print("Cant find _ADR in", self.fullname())
             // Override missing _ADR for Root PCIBus
             return self.fullname() == "\\_SB.PCI0" ? AMLInteger(0) : nil
         }
-
-        return adr.value.integerValue
+        return adr
     }
 
     func pciRoutingTable() -> PCIRoutingTable? {
@@ -200,7 +206,7 @@ extension AMLNamedObj {
 
 
 typealias AMLObjectType = AMLByteData
-final class AMLDefExternal: AMLNamedObj {
+struct AMLDefExternal {
     // ExternalOp NameString ObjectType ArgumentCount
     // let name: AMLNameString
 
@@ -215,154 +221,133 @@ final class AMLDefExternal: AMLNamedObj {
 
         self.type = type
         self.argCount = argCount
-        super.init(name: name)
+    //    super.init(name: name)
     }
 }
 
 
-final class AMLMethod: AMLNamedObj {
-    //let name: AMLNameString
-    let flags: AMLMethodFlags
-    var parser: AMLParser!
-    private var _termList: AMLTermList?
 
 
-    init(name: AMLNameString, flags: AMLMethodFlags, parser: AMLParser?) {
-        self.flags = flags
-        self.parser = parser
-        super.init(name: name)
-    }
-
-    func termList() throws -> AMLTermList {
-        if _termList == nil {
-            _termList = try parser.parseTermList()
-            parser = nil
-        }
-        return _termList!
-    }
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws {
-        let termList = try self.termList()
-        try context.execute(termList: termList)
-    }
-
-    override func readValue(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        do {
-            try execute(context: &context)
-            return context.returnValue!
-        } catch {
-            if let error = error as? AMLError {
-                fatalError("ACPI AML parsing error: \(error.description)")
-            } else {
-                fatalError("Unknown ACPI AML error")
-            }
-        }
-    }
-}
-
-
-final class AMLDefMutex: AMLNamedObj {
-    //let name: AMLNameString
+struct AMLDefMutex {
+    let name: AMLNameString
     let flags: AMLMutexFlags
 
     init(name: AMLNameString, flags: AMLMutexFlags) {
+        self.name = name
         self.flags = flags
-        super.init(name: name)
     }
 }
 
-enum AMLFieldAccessType: AMLByteData, CustomStringConvertible {
-    case AnyAcc     = 0
-    case ByteAcc    = 1
-    case WordAcc    = 2
-    case DWordAcc   = 3
-    case QWordAcc   = 4
-    case BufferAcc  = 5 //
+
+enum AMLRegionSpace: AMLByteData {
+    case systemMemory = 0x00
+    case systemIO = 0x01
+    case pciConfig = 0x02
+    case embeddedControl = 0x03
+    case smbus = 0x04
+    case systemCMOS = 0x05
+    case pciBarTarget = 0x06
+    case ipmi = 0x07
+    case generalPurposeIO = 0x08
+    case genericSerialBus = 0x09
+    case oemDefined = 0x80 // .. 0xff fixme
+}
+
+enum OpRegionSpace: CustomStringConvertible {
+    case systemMemory(SystemMemorySpace)
+    case systemIO(SystemIO)
+    case pciConfig(PCIConfigRegionSpace)
+    case embeddedControl(EmbeddedControlRegionSpace)
+    case smbus
+    case systemCMOS
+    case pciBarTarget
+    case ipmi
+    case generalPurposeIO
+    case genericSerialBus
+    case oemDefined(UInt8)
+
+    var regionType: UInt8 {
+        switch self {
+        case .systemMemory(_): return 0x00
+        case .systemIO(_): return 0x01
+        case .pciConfig(_): return 0x02
+        case .embeddedControl(_): return 0x03
+        case .smbus: return 0x04
+        case .systemCMOS: return 0x05
+        case .pciBarTarget: return 0x06
+        case .ipmi: return 0x07
+        case .generalPurposeIO: return 0x08
+        case .genericSerialBus: return 0x09
+        case let .oemDefined(region): return region // .. 0xff fixme
+        }
+    }
 
     var description: String {
         switch self {
-            case .AnyAcc: return "AnyWidth"
-            case .ByteAcc: return "Byte"
-            case .WordAcc: return "Word"
-            case .DWordAcc: return "DWord"
-            case .QWordAcc: return "QWord"
-            case .BufferAcc: return "Buffer"
+        case let .systemMemory(region): return region.description
+        case let .systemIO(region): return region.description
+        case let .pciConfig(region): return region.description
+        case let .embeddedControl(region): return region.description
+        case .smbus: return "SMBus"
+        case .systemCMOS: return "SystemCMOS"
+        case .pciBarTarget: return "PCIBarTarget"
+        case .ipmi: return "IPMI"
+        case .generalPurposeIO: return "GPIO"
+        case .genericSerialBus: return "GPSB"
+        case .oemDefined: return "OEMDefined"
         }
     }
 
 
-    init?(_ value: AMLByteData) {
-        let type = value & 0xf
-        self.init(rawValue: type)
-    }
-}
-
-enum AMLLockRule {
-    case NoLock
-    case Lock
-
-    init(_ value: AMLByteData) {
-        if (value & 0x10) == 0x00 {
-            self = .NoLock
-        } else {
-            self = .Lock
+    var length: Int {
+        switch self {
+        case let .systemMemory(region): return region.length
+        case let .systemIO(region): return region.length
+        case let .pciConfig(region): return region.length
+        case let .embeddedControl(region): return region.length
+        case .smbus: return 0
+        case .systemCMOS: return 0
+        case .pciBarTarget: return 0
+        case .ipmi: return 0
+        case .generalPurposeIO: return 0
+        case .genericSerialBus: return 0
+        case .oemDefined: return 0
         }
     }
-}
 
-enum AMLUpdateRule: AMLByteData {
-    case Preserve     = 0
-    case WriteAsOnes  = 1
-    case WriteAsZeros = 2
 
-    init?(_ value: AMLByteData) {
-        self.init(rawValue: BitArray8(value)[5...6])
-    }
-}
-
-struct AMLFieldFlags: CustomStringConvertible {
-    // let value: AMLByteData
-    let fieldAccessType: AMLFieldAccessType
-    let lockRule: AMLLockRule
-    let updateRule: AMLUpdateRule
-
-    var description: String {
-        return "\(fieldAccessType), \(lockRule), \(updateRule)"
-    }
-
-    init(fieldAccessType: AMLFieldAccessType, lockRule: AMLLockRule, updateRule: AMLUpdateRule) {
-        self.fieldAccessType = fieldAccessType
-        self.lockRule = lockRule
-        self.updateRule = updateRule
-    }
-
-    init(flags value: AMLByteData) {
-        guard let _fieldAccessType = AMLFieldAccessType(value) else {
-            fatalError("Invalid AMLFieldAccessType")
+    func read(atIndex index: Int, flags: AMLFieldFlags) -> AMLInteger {
+        switch self {
+        case let .systemMemory(region): return region.read(atIndex: index, flags: flags)
+        case let .systemIO(region): return region.read(atIndex: index, flags: flags)
+        case let .pciConfig(region): return region.read(atIndex: index, flags: flags)
+        case let .embeddedControl(region): return region.read(atIndex: index, flags: flags)
+        case .smbus: fatalError("OpRegionSpace.read() not implemented for smbus")
+        case .systemCMOS: fatalError("OpRegionSpace.read() not implemented for systemCMOS")
+        case .pciBarTarget: fatalError("OpRegionSpace.read() not implemented for pciBarTarget")
+        case .ipmi: fatalError("OpRegionSpace.read() not implemented for ipmp")
+        case .generalPurposeIO: fatalError("OpRegionSpace.read() not implemented for generalPurposeIO")
+        case .genericSerialBus: fatalError("OpRegionSpace.read() not implemented for genericSerialBus")
+        case .oemDefined: fatalError("OpRegionSpace.read() not implemented for oemDefined")
         }
-        fieldAccessType = _fieldAccessType
-        guard let _updateRule = AMLUpdateRule(value) else {
-            fatalError("Invalid AMLUpdateRule")
-        }
-        updateRule = _updateRule
-        lockRule = AMLLockRule(value)
     }
-}
 
 
-
-
-protocol OpRegionSpace: CustomStringConvertible {
-    var length: Int { get }
-
-    func read(bitOffset: Int, width: Int, flags: AMLFieldFlags) -> AMLInteger
-    func write(bitOffset: Int, width: Int, value: AMLInteger, flags: AMLFieldFlags)
-    func read(atIndex: Int, flags: AMLFieldFlags) -> AMLInteger
-    func write(atIndex: Int, value: AMLInteger, flags: AMLFieldFlags)
-}
-
-
-extension OpRegionSpace {
+    func write(atIndex index: Int, value: AMLInteger, flags: AMLFieldFlags) {
+        switch self {
+        case let .systemMemory(region): return region.write(atIndex: index, value: value, flags: flags)
+        case let .systemIO(region): return region.write(atIndex: index, value: value, flags: flags)
+        case let .pciConfig(region): return region.write(atIndex: index, value: value, flags: flags)
+        case let .embeddedControl(region): return region.write(atIndex: index, value: value, flags: flags)
+        case .smbus: fatalError("OpRegionSpace.read() not implemented for smbus")
+        case .systemCMOS: fatalError("OpRegionSpace.read() not implemented for systemCMOS")
+        case .pciBarTarget: fatalError("OpRegionSpace.read() not implemented for pciBarTarget")
+        case .ipmi: fatalError("OpRegionSpace.read() not implemented for ipmp")
+        case .generalPurposeIO: fatalError("OpRegionSpace.read() not implemented for generalPurposeIO")
+        case .genericSerialBus: fatalError("OpRegionSpace.read() not implemented for genericSerialBus")
+        case .oemDefined: fatalError("OpRegionSpace.read() not implemented for oemDefined")
+        }
+    }
 
     private func elementBitWidth(flags: AMLFieldFlags) -> Int  {
         switch flags.fieldAccessType {
@@ -412,7 +397,7 @@ extension OpRegionSpace {
     func write(bitOffset: Int, width: Int, value: AMLInteger, flags: AMLFieldFlags) {
         precondition(bitOffset >= 0)
         precondition(width >= 1)
-        precondition(width <= AMLInteger.bitWidth)
+       // precondition(width <= AMLInteger.bitWidth)
 
         let elementBits = elementBitWidth(flags: flags)
         precondition((bitOffset + width) <= (length * elementBits))
@@ -476,21 +461,7 @@ extension OpRegionSpace {
     }
 }
 
-enum AMLRegionSpace: AMLByteData {
-    case systemMemory = 0x00
-    case systemIO = 0x01
-    case pciConfig = 0x02
-    case embeddedControl = 0x03
-    case smbus = 0x04
-    case systemCMOS = 0x05
-    case pciBarTarget = 0x06
-    case ipmi = 0x07
-    case generalPurposeIO = 0x08
-    case genericSerialBus = 0x09
-    case oemDefined = 0x80 // .. 0xff fixme
-}
-
-struct EmbeddedControlRegionSpace: OpRegionSpace {
+struct EmbeddedControlRegionSpace: CustomStringConvertible {
     let flags: AMLFieldFlags
     let offset: AMLInteger
     let length: Int
@@ -523,10 +494,10 @@ struct EmbeddedControlRegionSpace: OpRegionSpace {
 }
 
 
-struct SystemMemorySpace: OpRegionSpace, CustomStringConvertible {
+struct SystemMemorySpace: CustomStringConvertible {
     let offset: UInt
     let length: Int
-    private var mmioRegion: MMIORegion
+    private let mmioRegion: MMIORegion  // FIXME: Should probably just be an UnsafeRawPointer
 
     var description: String {
         return "SystemMemory: offset: 0x\(String(offset, radix: 16)), length: \(length)"
@@ -579,7 +550,7 @@ struct SystemMemorySpace: OpRegionSpace, CustomStringConvertible {
                 mmioRegion.write(value: UInt64(truncatingIfNeeded: value), toByteOffset: index * 8)
                 newIndex = index * 8
 
-            case .BufferAcc: fatalError("Buffer access used in a SystemRegion for reading")
+            case .BufferAcc: fatalError("Buffer access used in a SystemRegion for writing")
         }
         let address = offset + UInt(newIndex)
         print("SystemMemorySpace.write 0x\(String(address, radix: 16)) index: \(index) value: \(value) newIndex \(newIndex) len: \(length)")
@@ -587,7 +558,7 @@ struct SystemMemorySpace: OpRegionSpace, CustomStringConvertible {
 }
 
 
-struct SystemIO: OpRegionSpace, CustomStringConvertible {
+struct SystemIO: CustomStringConvertible {
     let port: UInt16
     let length: Int
 
@@ -651,7 +622,7 @@ struct SystemIO: OpRegionSpace, CustomStringConvertible {
 }
 
 
-private struct PCIConfigRegionSpace: OpRegionSpace, CustomStringConvertible {
+struct PCIConfigRegionSpace: CustomStringConvertible {
     let config: PCIDeviceFunction
     let offset: UInt
     let length: Int
@@ -708,58 +679,63 @@ private struct PCIConfigRegionSpace: OpRegionSpace, CustomStringConvertible {
 }
 
 
-final class AMLDefOpRegion: AMLNamedObj {
+final class AMLDefOpRegion {
     // OpRegionOp NameString RegionSpace RegionOffset RegionLen
+    let fullname: AMLNameString
     let regionSpaceType: AMLRegionSpace
     let offset: AMLTermArg // => Integer
     let length: AMLTermArg // => Integer
     private var regionSpace: OpRegionSpace?
 
 
-    override var description: String {
+    var description: String {
         let _offset = offset.description
         let _length = length.description
-        let rs = regionSpace?.description ?? "nil"
-        return "regionType: \(regionSpaceType)\noffset: \(_offset)\nlength: \(_length)\nregionSpace: \(rs)"
+       // let rs = regionSpace?.description ?? "nil"
+        return "regionType: \(regionSpaceType)\noffset: \(_offset)\nlength: \(_length)\nregionSpace: "
     }
 
 
     // FIXME .regionSpace can be initialised here if offset and length are both AMLIntegerData
-    init(name: AMLNameString, region: AMLRegionSpace, offset: AMLTermArg, length: AMLTermArg) {
+    init(fullname: AMLNameString, region: AMLRegionSpace, offset: AMLTermArg, length: AMLTermArg) {
+//        var context =
+        self.fullname = fullname
         self.regionSpaceType = region
         self.offset = offset
         self.length = length
-        super.init(name: name)
     }
 
 
-    func getRegionSpace(context: inout ACPI.AMLExecutionContext) -> OpRegionSpace {
+    func getRegionSpace(context: inout ACPI.AMLExecutionContext) throws -> OpRegionSpace {
         if let rs = regionSpace {
             return rs
         }
 
-        let regionOffset = offset.evaluate(context: &context).integerValue!
-        let regionLength = length.evaluate(context: &context).integerValue!
+        let regionOffset = try offset.evaluate(context: &context).integerValue!
+        let regionLength = try length.evaluate(context: &context).integerValue!
 
         switch regionSpaceType {
-
             case .systemMemory:
-                regionSpace = SystemMemorySpace(offset: regionOffset, length: regionLength)
+                regionSpace = .systemMemory(SystemMemorySpace(offset: regionOffset, length: regionLength))
 
             case .systemIO:
-                regionSpace = SystemIO(port: regionOffset, length: regionLength)
+                regionSpace = .systemIO(SystemIO(port: regionOffset, length: regionLength))
 
             case .pciConfig:
-                var node: AMLNamedObj? = self
+                guard let (_node, fullname) = context.getObject(named: self.fullname) else {
+                    fatalError("Cant find node: \(self.fullname)")
+                }
+
                 // Find the PCI address for the device
+                var node: ACPI.ACPIObjectNode? = _node
                 var address: UInt64? = nil
                 var bbn: UInt8? = nil
 
                 while let parent = node?.parent {
-                    if address == nil, let _address = parent.addressResource() {
+                    if address == nil, let _address = try parent.addressResource() {
                         address = _address
                     }
-                    if bbn == nil, let _bbn = parent.baseBusNumber() {
+                    if bbn == nil, let _bbn = try parent.baseBusNumber() {
                         bbn = UInt8(truncatingIfNeeded: _bbn)
                     }
                     node = parent
@@ -767,16 +743,16 @@ final class AMLDefOpRegion: AMLNamedObj {
 
                 if let address = address  {
                     let configSpace = PCIDeviceFunction(busId: bbn ?? 0,
-                                                 device: UInt8(truncatingIfNeeded: address >> 16),
-                                                 function: UInt8(truncatingIfNeeded: address))
-                    print("\(self.fullname()): Using \(configSpace) for PCI_Region")
-                    regionSpace = PCIConfigRegionSpace(config: configSpace, offset: regionOffset, length: regionLength)
+                                                        device: UInt8(truncatingIfNeeded: address >> 16),
+                                                        function: UInt8(truncatingIfNeeded: address))
+                    print("\(fullname): Using \(configSpace) for PCI_Region")
+                    regionSpace = .pciConfig(PCIConfigRegionSpace(config: configSpace, offset: regionOffset, length: regionLength))
                 } else {
                     fatalError("ACPI: Cant determine PCI_Region for \(self)")
                 }
 
             case .embeddedControl:
-                regionSpace = EmbeddedControlRegionSpace(offset: regionOffset, length: regionLength)
+                    regionSpace = .embeddedControl(EmbeddedControlRegionSpace(offset: regionOffset, length: regionLength))
 
             case .smbus: fallthrough
             case .systemCMOS: fallthrough
@@ -791,15 +767,15 @@ final class AMLDefOpRegion: AMLNamedObj {
     }
 
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let o = operandAsInteger(operand: offset, context: &context)
-        let l = operandAsInteger(operand: length, context: &context)
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg {
+        let o = try operandAsInteger(operand: offset, context: &context)
+        let l = try operandAsInteger(operand: length, context: &context)
         fatalError("do somthing with \(o) and \(l)")
     }
 }
 
 
-final class AMLDefProcessor: AMLNamedObj {
+struct AMLDefProcessor {
     // ProcessorOp PkgLength NameString ProcID PblkAddr PblkLen ObjectList
     let procId: AMLByteData
     let pblkAddr: AMLDWordData
@@ -811,6 +787,13 @@ final class AMLDefProcessor: AMLNamedObj {
         self.pblkAddr = pblkAddr
         self.pblkLen = pblkLen
         self.objects = objects
-        super.init(name: name)
     }
+}
+
+struct AMLDefPowerResource {
+    // PowerResOp PkgLength NameString SystemLevel ResourceOrder TermList
+    let name: AMLNameString
+    let systemLevel: AMLByteData
+    let resourceOrder: AMLWordData
+    let termList: AMLTermList
 }

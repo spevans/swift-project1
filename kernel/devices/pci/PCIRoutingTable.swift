@@ -110,7 +110,7 @@ struct PCIRoutingTable: CustomStringConvertible {
 
     init?(prtNode: ACPI.ACPIObjectNode) {
 
-        guard let _prt = prtNode.asTermArg() as? AMLDataObject else {
+        guard let _prt = try? prtNode.amlObject() else {
             print("PCI: \(prtNode.fullname()) is not an AMLDataObject")
             return nil
         }
@@ -124,12 +124,12 @@ struct PCIRoutingTable: CustomStringConvertible {
         var _table: [PCIRoutingTable.Entry] = []
         _table.reserveCapacity(routingTable.count)
 
-        for packageEntry in routingTable {
-            guard let entry = packageEntry.dataRefObject?.dataObject?.packageValue else {
+        for packageEntry in routingTable.elements {
+            guard let entry = packageEntry.packageValue else {
                 fatalError("_PTR entry is not the correct format")
             }
 
-            guard let address = entry[0].dataRefObject?.dataObject?.integerValue, address <= UInt32.max else {
+            guard let address = entry[0].integerValue, address <= UInt32.max else {
                 fatalError("PCI Interrupt: address value is too large")
             }
 
@@ -137,20 +137,20 @@ struct PCIRoutingTable: CustomStringConvertible {
                 fatalError("PCI Interrupt: address should match to all PCI functions")
             }
 
-            guard let _pin = entry[1].dataRefObject?.dataObject?.integerValue,
+            guard let _pin = entry[1].integerValue,
                   let pin = PCIInterruptPin(routingTablePin: UInt8(_pin)) else {
                 fatalError("PCI Interrupt: pin value is too large")
             }
 
-            guard let sourceIndex = entry[3].dataRefObject?.dataObject?.integerValue, sourceIndex <= UInt32.max else {
+            guard let sourceIndex = entry[3].integerValue, sourceIndex <= UInt32.max else {
                 fatalError("PCI Interrupt: Source index is invalid: \(entry[3])")
             }
 
             let source: Entry.Source
-            if let sourceName = entry[2].nameString {
+            if let sourceName = entry[2].stringValue {
                 // Determine the full name
-                source = .namePath(sourceName, UInt32(sourceIndex))
-            } else if let byteValue = entry[2].dataRefObject?.dataObject?.integerValue, byteValue == 0 {
+                source = .namePath(AMLNameString(sourceName.asString()), UInt32(sourceIndex))
+            } else if let byteValue = entry[2].integerValue, byteValue == 0 {
                 source = .globalSystemInterrupt(UInt32(sourceIndex))
             } else {
                 fatalError("PCI Interrupt: Source is not a String or 0: \(entry[2])")

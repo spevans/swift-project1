@@ -58,7 +58,7 @@ private func dumpDevCommand(arguments: [String]) {
 
 private func dumpACPICommand(arguments: [String]) {
     let name = arguments.first ?? "\\"
-    guard let node = system.deviceManager.acpiTables.globalObjects.get(name) else {
+    guard let node = ACPI.globalObjects.getObject(name) else {
         print("Error: Cant find node:", name)
         return
     }
@@ -93,7 +93,7 @@ private func showNodeCommand(arguments: [String]) {
         print("Error: missing node")
         return
     }
-    guard let node = system.deviceManager.acpiTables.globalObjects.get(name) else {
+    guard let node = ACPI.globalObjects.getObject(name) else {
         print("Error: Cant find node:", name)
         return
     }

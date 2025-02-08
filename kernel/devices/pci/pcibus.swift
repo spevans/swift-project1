@@ -26,7 +26,7 @@ final class PCIBus: DeviceDriver, CustomStringConvertible {
         var busId: UInt8 = 0
         var p: ACPI.ACPIObjectNode? = pnpDevice.device.acpiDeviceConfig?.node
         while let _node = p {
-            if let bbnValue = _node.baseBusNumber() {
+            if let bbnValue = try? _node.baseBusNumber() {
                 print("Found _BBN node on parent:", _node.fullname())
                 busId = bbnValue
                 break

@@ -421,7 +421,7 @@ struct AMLQWordAddressSpaceDescriptor: CustomStringConvertible {
 }
 
 
-func decodeResourceData(_ buffer: AMLSharedBuffer) -> [AMLResourceSetting] {
+func decodeResourceData(_ buffer: AMLBuffer) -> [AMLResourceSetting] {
     precondition(buffer.count > 0)
 
     var settings: [AMLResourceSetting] = []

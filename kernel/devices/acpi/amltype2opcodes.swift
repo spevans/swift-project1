@@ -2,856 +2,901 @@
 //  kernel/devices/acpi/amltype2ocodes.swift
 //
 //  Created by Simon Evans on 25/11/2017.
-//  Copyright © 2017 - 2019 Simon Evans. All rights reserved.
+//  Copyright © 2017 - 2025 Simon Evans. All rights reserved.
 //
 //  ACPI Type 2 Opcodes
 
-protocol AMLType2Opcode: AMLTermObj, AMLTermArg {
+
+private func AMLBoolean(_ bool: Bool) -> AMLObject {
+    return bool ? AMLObject(AMLInteger.max) : AMLObject(AMLInteger.zero)
 }
 
-extension AMLType2Opcode {
-    // FIXME: This should be removed when implemented fully
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        fatalError("\(type(of: self)) is not implemented")
+func operandAsInteger(operand: AMLTermArg,
+                      context: inout ACPI.AMLExecutionContext) throws -> AMLInteger {
+    let o = try operand.evaluate(context: &context)
+    guard let result = o.integerValue else {
+        throw AMLError.invalidOperand(reason: "\(operand) does not evaluate to an integer")
     }
+    return result
 }
 
-
-private func AMLBoolean(_ bool: Bool) -> AMLDataObject {
-    return bool ? AMLOnesOp() : AMLZeroOp()
+func operandAsString(operand: AMLTermArg,
+                      context: inout ACPI.AMLExecutionContext) throws -> AMLString {
+    let o = try operand.evaluate(context: &context)
+    guard let result = o.stringValue else {
+        throw AMLError.invalidOperand(reason: "\(operand) does not evaluate to a string")
+    }
+    return result
 }
 
-
-func operandAsInteger(operand: AMLTermArg, context: inout ACPI.AMLExecutionContext) -> AMLInteger {
-    guard let result = operand.evaluate(context: &context).integerValue else {
-        fatalError("\(operand) does not evaluate to an integer")
+func operandAsBuffer(operand: AMLTermArg,
+                      context: inout ACPI.AMLExecutionContext) throws -> AMLBuffer {
+    let o = try operand.evaluate(context: &context)
+    guard let result = o.bufferValue else {
+        throw AMLError.invalidOperand(reason: "\(operand) does not evaluate to a buffer")
     }
     return result
 }
 
 
-// AMLType2Opcode
-struct AMLDefAcquire: AMLType2Opcode {
+enum AMLType2Opcode {
     // AcquireOp MutexObject Timeout
-    let mutex: AMLMutexObject
-    let timeout: AMLWordData
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        // FIXME - implement
-        print("Acquiring Mutex")
-        return AMLBoolean(false)   // acquired
-    }
-}
-
-
-struct AMLDefAdd: AMLType2Opcode {
+    case amlDefAcquire(AMLTarget, AMLWordData)
+    
     // AddOp Operand Operand Target
-    let operand1: AMLTermArg // => Integer
-    let operand2: AMLTermArg // => Integer
-    let target: AMLTarget
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op1 = operandAsInteger(operand: operand1, context: &context)
-        let op2 = operandAsInteger(operand: operand2, context: &context)
-        let result = AMLIntegerData(op1 &+ op2)
-        target.updateValue(to: result, context: &context)
-        return result
-    }
-}
-
-
-struct AMLDefAnd: AMLType2Opcode {
+    case amlDefAdd(AMLTermArg, AMLTermArg, AMLTarget)
+    
     // AndOp Operand Operand Target
-    let operand1: AMLTermArg // => Integer
-    let operand2: AMLTermArg // => Integer
-    let target: AMLTarget
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op1 = operandAsInteger(operand: operand1, context: &context)
-        let op2 = operandAsInteger(operand: operand2, context: &context)
-        let result = AMLIntegerData(op1 & op2)
-        target.updateValue(to: result, context: &context)
-        return result
-    }
-}
-
-
-struct AMLDefConcat: AMLType2Opcode {
+    case amlDefAnd(AMLTermArg, AMLTermArg, AMLTarget)
+    
+    // BufferOp PkgLength BufferSize ByteList
+    case amlDefBuffer(AMLDefBuffer)
     // ConcatOp Data Data Target
-    let data1: AMLTermArg // => ComputationalData
-    let data2: AMLTermArg // => ComputationalData
-    let target: AMLTarget
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        fatalError("\(type(of: self))")
-    }
-}
-
-
-struct AMLDefConcatRes: AMLType2Opcode {
+    case amlDefConcat(AMLTermArg, AMLTermArg, AMLTarget)
     // ConcatResOp BufData BufData Target
-    let data1: AMLTermArg // => Buffer
-    let data2: AMLTermArg // => Buffer
-    let target: AMLTarget
+    case amlDefConcatRes(AMLTermArg, AMLTermArg, AMLTarget)
+    case amlDefCondRefOf(AMLTarget, AMLTarget)
+    // CopyObjectOp TermArg SimpleName
+    
+    case amlDefCopyObject(AMLTermArg, AMLTarget)
+    // DecrementOp SuperName
+    case amlDefDecrement(AMLTarget)
+    case amlDefDerefOf(AMLDefDerefOf)
+    case amlDefDivide(AMLTermArg, AMLTermArg, AMLTarget, AMLTarget)
+    case amlDefFindSetLeftBit(AMLTermArg, AMLTarget)
+    case amlDefFindSetRightBit(AMLTermArg, AMLTarget)
+    // FromBCDOp BCDValue Target
+    case amlDefFromBCD(AMLTermArg, AMLTarget)
+    case amlDefIncrement(AMLTarget)
+    case amlDefIndex(AMLDefIndex)
+    case amlDefLAnd(AMLTermArg, AMLTermArg)
+    case amlDefLEqual(AMLTermArg, AMLTermArg)
+    case amlDefLGreater(AMLTermArg, AMLTermArg)
+    case amlDefLGreaterEqual(AMLTermArg, AMLTermArg)
+    case amlDefLLess(AMLTermArg, AMLTermArg)
+    case amlDefLLessEqual(AMLTermArg, AMLTermArg)
+    case amlDefLNot(AMLTermArg)
+    case amlDefLNotEqual(AMLTermArg, AMLTermArg)    
+    case amlDefLoad(AMLNameString, AMLTarget)
+    case amlDefLoadTable(AMLTermArg, AMLTermArg, AMLTermArg, AMLTermArg, AMLTermArg, AMLTermArg)
+    case amlDefLOr(AMLTermArg, AMLTermArg)
+    case amlDefMatch(AMLTermArg, AMLByteData, AMLTermArg, AMLByteData, AMLTermArg, AMLTermArg)
+    case amlDefMid(AMLTermArg, AMLTermArg, AMLTermArg, AMLTarget)
+    case amlDefMod(AMLTermArg, AMLTermArg, AMLTarget)
+    case amlDefMultiply(AMLTermArg, AMLTermArg, AMLTarget)
+    case amlDefNAnd(AMLTermArg, AMLTermArg, AMLTarget)
+    case amlDefNOr(AMLTermArg, AMLTermArg, AMLTarget)
+    case amlDefNot(AMLTermArg, AMLTarget)
+    case amlDefObjectType(AMLTarget)
+    case amlDefOr(AMLTermArg, AMLTermArg, AMLTarget)
+    case amlDefPackage(AMLDefPackage)
+    case amlDefRefOf(AMLDefRefOf)
+    case amlDefShiftLeft(AMLTermArg, AMLTermArg, AMLTarget)
+    case amlDefShiftRight(AMLTermArg, AMLTermArg, AMLTarget)
+    case amlDefSizeOf(AMLTarget)
+    case amlDefStore(AMLTermArg, AMLTarget)
+    case amlDefSubtract(AMLTermArg, AMLTermArg, AMLTarget)
+    case amlDefTimer
+    // ToBCDOp Operand Target
+    case amlDefToBCD(AMLTermArg, AMLTarget)
+    case amlDefToBuffer(AMLTermArg, AMLTarget)
+    // ToDecimalStringOp Operand Target
+    case amlDefToDecimalString(AMLTermArg, AMLTarget)
+    // ToHexStringOp Operand Target
+    case amlDefToHexString(AMLTermArg, AMLTarget)
+    case amlDefToInteger(AMLTermArg, AMLTarget)
+    case amlDefToString(AMLTermArg, AMLTermArg, AMLTarget)
+    case amlDefWait(AMLTarget, AMLTermArg)
+    case amlDefXor(AMLTermArg, AMLTermArg, AMLTarget)
+    case amlMethodInvocation(AMLMethodInvocation)
+    
+    
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+        switch self {
+            case .amlDefAcquire(_, _):
+                // FIXME - implement
+                print("Acquiring Mutex")
+                return AMLBoolean(false)   // NOT acquired
+                
+            case .amlDefAdd(let operand1, let operand2, let target):
+                let op1 = try operandAsInteger(operand: operand1, context: &context)
+                let op2 = try operandAsInteger(operand: operand2, context: &context)
+                let result = AMLObject(op1 &+ op2)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefAnd(let operand1, let operand2, let target):
+                let op1 = try operandAsInteger(operand: operand1, context: &context)
+                let op2 = try operandAsInteger(operand: operand2, context: &context)
+                let result = AMLObject(op1 & op2)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefBuffer(let data):
+                return try data.evaluate(context: &context)
+                
+            case .amlDefConcat(let operand1, let operand2, let target):
+                return try concat(operand1, operand2, target, &context)
+                
+            case .amlDefConcatRes(let operand1, let operand2, let target):
+                return try concatResource(operand1, operand2, target, &context)
+                
+            case .amlDefCondRefOf(let name, let target):
+                guard let object = try? name.getObject(context: &context) else {
+                    return AMLObject(0)
+                }
+                let reference = AMLObject(object)
+                try target.updateValue(to: reference, context: &context)
+                return AMLObject(1)
+                
+            case .amlDefCopyObject(let object, let target):
+                let value = try object.dataRefObject(context: &context)
+                if try target.getObject(context: &context).isDataRefObject {
+                    try target.updateValue(to: value, context: &context)
+                } else {
+                    throw AMLError.invalidData(reason: "CopyObject: Target is not a DataRefObject")
+                }
+                return AMLObject(AMLInteger(0))
+                
+            case .amlDefDecrement(let target):
+                let operand = try target.getObject(context: &context)
+                let object = operand.isObjectReference ? try operand.dereference() : operand
+                guard let value = object.integerValue else {
+                    throw AMLError.invalidOperand(reason: "\(target) is not an integer")
+                }
+                let result = AMLObject(value &- 1)
+                if operand.isObjectReference {
+                    try operand.updateReferencedValue(to: result)
+                } else {
+                    try target.updateValue(to: result, context: &context)
+                }
+                return result
+                
+            case .amlDefDerefOf(let data):
+                return try data.evaluate(context: &context)
+                
+            case .amlDefDivide(let operand1, let operand2, let quotient, let remainder):
+                let dividend = try operandAsInteger(operand: operand1, context: &context)
+                let divisor = try operandAsInteger(operand: operand2, context: &context)
+                guard divisor != 0 else {
+                    throw AMLError.invalidOperand(reason: "Divisor is zero")
+                }
+                let q = AMLObject(dividend / divisor)
+                let r = AMLObject(dividend % divisor)
+                try quotient.updateValue(to: q, context: &context)
+                try remainder.updateValue(to: r, context: &context)
+                return q
+                
+            case .amlDefFindSetLeftBit(let operand, let target):
+                let op = try operandAsInteger(operand: operand, context: &context)
+                let value = (op == 0) ? AMLInteger(0) : AMLInteger(op.leadingZeroBitCount + 1)
+                let result = AMLObject(value)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefFindSetRightBit(let operand, let target):
+                let op = try operandAsInteger(operand: operand, context: &context)
+                let value = (op == 0) ? AMLInteger(0) : AMLInteger(op.trailingZeroBitCount + 1)
+                let result = AMLObject(value)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefFromBCD(let operand, let target):
+                // Operand => Integer
+                let bcdValue = try operandAsInteger(operand: operand, context: &context)
+                var tmpBcdValue = bcdValue
+                var newValue: AMLInteger = 0
+                var idx: AMLInteger = 1
+                
+                while tmpBcdValue != 0 {
+                    let bcd = tmpBcdValue & 0xf
+                    guard bcd < 10 else {
+                        throw AMLError.invalidData(reason: "BCD value \(String(bcdValue, radix: 16)) contains nonBCD \(bcd)")
+                    }
+                    newValue += AMLInteger(idx * bcd)
+                    idx *= 10
+                    tmpBcdValue >>= 4
+                }
+                let result = AMLObject(newValue)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefIncrement(let target):
+                let operand = try target.getObject(context: &context)
+                let object = operand.isObjectReference ? try operand.dereference() : operand
+                guard let value = object.integerValue else {
+                    throw AMLError.invalidOperand(reason: "\(target) is not an integer")
+                }
+                let result = AMLObject(value &+ 1)
+                if operand.isObjectReference {
+                    try operand.updateReferencedValue(to: result)
+                } else {
+                    try target.updateValue(to: result, context: &context)
+                }
+                return result
+                
+            case .amlDefIndex(let data):
+                return try data.evaluate(context: &context)
+                
+            case .amlDefLAnd(let operand1, let operand2):
+                let op1 = try operandAsInteger(operand: operand1, context: &context)
+                let op2 = try operandAsInteger(operand: operand2, context: &context)
+                return AMLBoolean(op1 != 0 && op2 != 0)
+                
+            case .amlDefLEqual(let operand1, let operand2):
+                let compare = try logicalCompare(context: &context, operand1: operand1, operand2: operand2)
+                return AMLBoolean(compare.isEqual)
+                
+            case .amlDefLGreater(let operand1, let operand2):
+                let compare = try logicalCompare(context: &context, operand1: operand1, operand2: operand2)
+                return AMLBoolean(compare.isGreaterThan)
+                
+            case .amlDefLGreaterEqual(let operand1, let operand2):
+                let compare = try logicalCompare(context: &context, operand1: operand1, operand2: operand2)
+                return AMLBoolean(compare.isGreaterThanOrEqual)
+                
+            case .amlDefLLess(let operand1, let operand2):
+                let compare = try logicalCompare(context: &context, operand1: operand1, operand2: operand2)
+                return AMLBoolean(compare.isLessThan)
+                
+            case .amlDefLLessEqual(let operand1, let operand2):
+                let compare = try logicalCompare(context: &context, operand1: operand1, operand2: operand2)
+                return AMLBoolean(compare.isLessThanOrEqual)
+                
+            case .amlDefLNot(let operand):
+                let op = try operandAsInteger(operand: operand, context: &context)
+                return AMLBoolean(op == 0)
+                
+            case .amlDefLNotEqual(let operand1, let operand2):
+                let compare = try logicalCompare(context: &context, operand1: operand1, operand2: operand2)
+                return AMLBoolean(compare.isNotEqual)
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        guard let buf1 = data1.evaluate(context: &context).bufferValue?.copyBuffer(),
-            let buf2 = data2.evaluate(context: &context).bufferValue?.copyBuffer() else {
-                fatalError("AMLDefConcatRes: cant evaulate operands as buffers")
+                // FIXME Implement
+            case .amlDefLoad(let name, let target):
+                // LoadOp NameString DDBHandleObject
+                guard let (source, _) = context.getObject(named: name) else {
+                    throw AMLError.invalidSymbol(reason: name.value)
+                }
+                let result = AMLObject(AMLInteger.zero)
+                try target.updateValue(to: result, context: &context)
+                throw AMLError.unimplemented("Load for \(source)")
+
+            case .amlDefLoadTable(let signature, let oemId, let oemTableId, let rootPath, let parameterPath, let parameterData):
+                return try loadTable(signature, oemId, oemTableId, rootPath, parameterPath, parameterData, &context)
+                
+            case .amlDefLOr(let operand1, let operand2):
+                let op1 = try operandAsInteger(operand: operand1, context: &context)
+                let op2 = try operandAsInteger(operand: operand2, context: &context)
+                return AMLBoolean(op1 != 0 || op2 != 0)
+                
+            case .amlDefMatch(let searchPackage, let operand1, let match1, let operand2, let match2, let startIndex):
+                return try findObjectMatch(searchPackage, operand1, match1, operand2, match2, startIndex, &context)
+                
+            case .amlDefMid(let operand1, let operand2, _, _):
+                // Operand1 => Buffer | String, Operand2 => Integer, Operand3 => Integer
+                let object = try operand1.evaluate(context: &context)
+                let index = try operandAsInteger(operand: operand2, context: &context)
+                print("defmid: object: \(object) index: \(index)")
+                // dummy for now
+                throw AMLError.unimplemented("AMLDefMid")
+                
+            case .amlDefMod(let operand1, let operand2, let target):
+                let dividend = try operandAsInteger(operand: operand1, context: &context)
+                let divisor = try operandAsInteger(operand: operand2, context: &context)
+                guard divisor != 0 else {
+                    throw AMLError.invalidOperand(reason: "Divisor is zero")
+                }
+                let result = AMLObject(dividend % divisor)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefMultiply(let operand1, let operand2, let target):
+                let op1 = try operandAsInteger(operand: operand1, context: &context)
+                let op2 = try operandAsInteger(operand: operand2, context: &context)
+                let result = AMLObject(op1 &* op2)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefNAnd(let operand1, let operand2, let target):
+                let op1 = try operandAsInteger(operand: operand1, context: &context)
+                let op2 = try operandAsInteger(operand: operand2, context: &context)
+                let result = AMLObject( ~(op1 & op2))
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefNOr(let operand1, let operand2, let target):
+                let op1 = try operandAsInteger(operand: operand1, context: &context)
+                let op2 = try operandAsInteger(operand: operand2, context: &context)
+                let result = AMLObject( ~(op1 | op2))
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefNot(let operand, let target):
+                let op = try operandAsInteger(operand: operand, context: &context)
+                let result = AMLObject(~op)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefObjectType(let object):
+                let obj = try object.getObject(context: &context)
+                return AMLObject(obj.objectType)
+                
+            case .amlDefOr(let operand1, let operand2, let target):
+                let op1 = try operandAsInteger(operand: operand1, context: &context)
+                let op2 = try operandAsInteger(operand: operand2, context: &context)
+                let result = AMLObject(op1 | op2)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefPackage(let data):
+                return try data.evaluate(context: &context)
+                
+            case .amlDefRefOf(let data):
+                let result = try data.evaluate(context: &context)
+                return result
+                
+            case .amlDefShiftLeft(let operand, let count, let target):
+                let op = try operandAsInteger(operand: operand, context: &context)
+                let shiftCount = try operandAsInteger(operand: count, context: &context)
+                let result = AMLObject(op << shiftCount)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefShiftRight(let operand, let count, let target):
+                let op = try operandAsInteger(operand: operand, context: &context)
+                let shiftCount = try operandAsInteger(operand: count, context: &context)
+                let result = AMLObject(op >> shiftCount)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefSizeOf(let name):
+                let object = try name.getObject(context: &context)
+                if let size = object.sizeof() { return AMLObject(size) }
+                throw AMLError.invalidData(reason: "Cannot get sizeof fo \(object)")
+                
+            case .amlDefStore(let operand, let target):
+                let value = try operand.evaluate(context: &context)
+                try target.updateValue(to: value, context: &context)
+                return value
+                
+            case .amlDefSubtract(let operand1, let operand2, let target):
+                let op1 = try operandAsInteger(operand: operand1, context: &context)
+                let op2 = try operandAsInteger(operand: operand2, context: &context)
+                let result = AMLObject(op1 &- op2)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefTimer:
+                throw AMLError.unimplemented("AMLDefTimer")
+                
+            case .amlDefToBCD(let operand, let target):
+                // Operand => Integer
+                var value = try operandAsInteger(operand: operand, context: &context)
+                var bcdValue = AMLInteger(0)
+                var idx = 0
+                
+                while value != 0 {
+                    let x = value % 10
+                    bcdValue |= (x << idx)
+                    idx += 4
+                    value /= 10
+                }
+                
+                let result = AMLObject(bcdValue)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefToBuffer(let operand, let target):
+                let data = try operand.evaluate(context: &context)
+                let result = AMLObject(try data.asBuffer())
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefToDecimalString(let operand, let target):
+                // Operand => Integer
+                let data = try operand.evaluate(context: &context)
+                
+                let value: AMLString
+                if let integer = data.integerValue {
+                    value = AMLString(integer: integer, radix: 10)
+                } else if let string = data.stringValue {
+                    value = string
+                } else if let buffer = data.bufferValue {
+                    let s = buffer.map { String($0, radix: 10) }.joined(separator: ",")
+                    value = AMLString(asciiString: s)
+                } else {
+                    throw AMLError.invalidData(reason: "Cannot convert to \(data)")
+                }
+                let result = AMLObject(value)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefToHexString(let operand, let target):
+                // Operand => Integer
+                let data = try operand.evaluate(context: &context)
+                let value: AMLString
+                if let integer = data.integerValue {
+                    value = AMLString(integer: integer, radix: 16)
+                } else if let string = data.stringValue {
+                    value = string
+                } else if let buffer = data.bufferValue {
+                    let s = buffer.map { String($0, radix: 16) }.joined(separator: ",")
+                    value = AMLString(asciiString: s)
+                } else {
+                    throw AMLError.invalidData(reason: "Cannot convert to \(data)")
+                }
+                let result = AMLObject(value)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefToInteger(let operand, let target):
+                let value: AMLInteger
+                let data = try operand.evaluate(context: &context)
+                if let i = data.integerValue {
+                    value = i
+                } else if let s = data.stringValue {
+                    value = try s.asAMLInteger()
+                } else if let b = data.bufferValue {
+                    value = try b.asAMLInteger()
+                } else {
+                    throw AMLError.invalidData(reason: "Cannot convert to \(data)")
+                }
+                let result = AMLObject(value)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefToString(let operand1, let operand2, let target):
+                let buffer = try operandAsBuffer(operand: operand1, context: &context)
+                let maxLength = try operandAsInteger(operand: operand2, context: &context)
+                let string = buffer.asAMLString(maxLength: maxLength)
+                let result = AMLObject(string)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case .amlDefWait(_, let operand):
+                // Object => AMLEventObject, operand => Integer
+                let timeout = try operandAsInteger(operand: operand, context: &context)
+                throw AMLError.unimplemented("AMLDefWait, timeout\(timeout)")
+                
+            case .amlDefXor(let operand1, let operand2, let target):
+                let op1 = try operandAsInteger(operand: operand1, context: &context)
+                let op2 = try operandAsInteger(operand: operand2, context: &context)
+                let result = AMLObject(op1 ^ op2)
+                try target.updateValue(to: result, context: &context)
+                return result
+                
+            case let .amlMethodInvocation(data):
+                return try data.evaluate(context: &context)
         }
-        // Fixme, iterate validating the individual entries and add an endtag
+    }
+    
+    private func concat(_ operand1: AMLTermArg, _ operand2: AMLTermArg, _ target: AMLTarget, _ context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+        // Operand1 => ComputationalData
+        // Operand2 => ComputationalData
+        
+        let source1 = try operand1.evaluate(context: &context)
+        let source2 = try operand2.evaluate(context: &context)
+        let result: AMLObject
+        
+        func asString(_ object: AMLObject) -> AMLString {
+            if let string = object.stringValue {
+                return string
+            }
+            else if let integer = object.integerValue {
+                return AMLString(integer: integer, radix: 16)
+            }
+            else if let buffer = object.bufferValue {
+                return buffer.asAMLString()
+            }
+            else {
+                return AMLString(asciiString: "[\(source2.description)]")
+            }
+        }
+        
+        // Integer
+        if let source1Data = source1.integerValue {
+            var data = AMLBuffer(integer: source1Data)
+            
+            if let source2Data = source2.integerValue {
+                data.append(contentsOf: AMLBuffer(integer: source2Data))
+            }
+            else if let source2Data = source2.stringValue {
+                data.append(contentsOf: AMLBuffer(integer: try source2Data.asAMLInteger()))
+            }
+            else if let source2Data = source2.bufferValue {
+                data.append(contentsOf: AMLBuffer(integer: try source2Data.asAMLInteger()))
+            }
+            else {
+                throw AMLError.invalidDataConversion
+            }
+            result = AMLObject(data)
+        }
+        // String
+        else if var source1Data = source1.stringValue {
+            source1Data.append(other: asString(source2))
+            result = AMLObject(source1Data)
+        }
+        // Buffer
+        else if var source1Data = source1.bufferValue {
+            if let source2Data = source2.bufferValue {
+                source1Data.append(contentsOf: source2Data)
+            }
+            else if let source2Data = source2.integerValue {
+                source1Data.append(contentsOf: AMLBuffer(integer: source2Data))
+            }
+            else if let source2Data = source2.stringValue {
+                source1Data.append(contentsOf: source2Data.asAMLBuffer())
+            }
+            else {
+                let source2Data = asString(source2).asAMLBuffer()
+                source1Data.append(contentsOf: source2Data)
+            }
+            result = AMLObject(source1Data)
+        }
+        // Other
+        else {
+            var source1Data = asString(source1)
+            let source2Data = asString(source2)
+            source1Data.append(other: source2Data)
+            result = AMLObject(source1Data)
+        }
+        try target.updateValue(to: result, context: &context)
+        return result
+        
+    }
+    
+    private func concatResource(_ operand1: AMLTermArg, _ operand2: AMLTermArg, _ target: AMLTarget, _ context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+        // Operand1 => Buffer, Operand2 => Buffer
+        let buf1 = try operandAsBuffer(operand: operand1, context: &context)
+        let buf2 = try operandAsBuffer(operand: operand2, context: &context)
+        
+        // FIXME: iterate validating the individual entries and add an endtag
         let result = AMLBuffer(buf1[0..<buf1.count-2]) + buf2
-
-        let newBuffer = AMLDataObject.buffer(AMLSharedBuffer(bytes: result))
-        target.updateValue(to: newBuffer, context: &context)
+        
+        let newBuffer = AMLObject(result)
+        try target.updateValue(to: newBuffer, context: &context)
         return newBuffer
     }
+    
+    
+    private func loadTable(_ signature: AMLTermArg, _ oemId: AMLTermArg, _ oemTableId: AMLTermArg, _ rootPath: AMLTermArg, _ parameterPath: AMLTermArg, _ parameterData: AMLTermArg, _ context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+        throw AMLError.unimplemented("AMLDefLoadTable")
+    }
+    
+    
+    private func findObjectMatch(_ searchPkg: AMLTermArg, _ match1: AMLByteData, _ operand1: AMLTermArg, _ match2: AMLByteData, _ operand2: AMLTermArg, _ startIndex: AMLTermArg, _ context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+        
+        enum AMLMatchOpcode: AMLByteData {
+            case mtr = 0
+            case meq = 1
+            case mle = 2
+            case mlt = 3
+            case mge = 4
+            case mgt = 5
+        }
+      /*
+        // MatchOp SearchPkg MatchOpcode Operand MatchOpcode Operand StartIndex
+        let package: AMLTermArg // => Package
+        let matchOpcode1: AMLMatchOpcode
+        let operand1: AMLTermArg // => Integer
+        let matchOpcode2: AMLMatchOpcode
+        let operand2: AMLTermArg // => Integer
+        let startIndex: AMLTermArg // => Integer
+        */
+        // FIXME: Implement
+        throw AMLError.unimplemented("AMLDefMatch")
+    }
+    
+    
+    private enum AMLLogicalCompare {
+        case equal
+        case lessThan
+        case greaterThan
+        
+        init(_ operand1: AMLInteger, _ operand2: AMLInteger) {
+            if operand1 < operand2 {
+                self = .lessThan
+            } else if operand1 > operand2 {
+                self = .greaterThan
+            } else {
+                self = .equal
+            }
+        }
+        
+        var isEqual: Bool {
+            if case .equal = self {
+                return true
+            } else {
+                return false
+            }
+        }
+        
+        var isNotEqual: Bool {
+            return !isEqual
+        }
+        
+        var isLessThan: Bool {
+            if case .lessThan = self {
+                return true
+            } else {
+                return false
+            }
+        }
+        
+        var isGreaterThan: Bool {
+            if case .greaterThan = self {
+                return true
+            } else {
+                return false
+            }
+        }
+        
+        var isLessThanOrEqual: Bool {
+            return !isGreaterThan
+        }
+        
+        var isGreaterThanOrEqual: Bool {
+            return !isLessThan
+        }
+    }
+    
+    private func logicalCompare(context: inout ACPI.AMLExecutionContext, operand1: AMLTermArg, operand2: AMLTermArg) throws -> AMLLogicalCompare {
+        func compareBuffers(buffer1: AMLBuffer, buffer2: AMLBuffer) -> AMLLogicalCompare {
+            let count1 = buffer1.count
+            let count2 = buffer2.count
+            
+            let maxIdx = min(count1, count2)
+            for index in 0..<maxIdx {
+                let byte1 = buffer1[index]
+                let byte2 = buffer2[index]
+                
+                if byte1 < byte2 {
+                    return .lessThan
+                }
+                if byte1 > byte2 {
+                    return .greaterThan
+                }
+            }
+            if count1 < count2 {
+                return .lessThan
+            } else if count1 > count2 {
+                return .greaterThan
+            } else {
+                return .equal
+            }
+        }
+        
+        let data1 = try operand1.evaluate(context: &context)
+        let data2 = try operand2.evaluate(context: &context)
+        
+        if let integer = data1.integerValue {
+            return try AMLLogicalCompare(integer, data2.asInteger())
+        }
+        else if let string = data1.stringValue {
+            return try compareBuffers(buffer1: string.data, buffer2: data2.asString().data)
+        }
+        else if let buffer = data1.bufferValue {
+            return try compareBuffers(buffer1: buffer, buffer2: data2.asBuffer())
+        }
+        throw AMLError.invalidData(reason: "\(data1.description)/\(data2.description) are not logical operands")
+    }
 }
 
+struct AMLDefBuffer {
+    // BufferOp PkgLength BufferSize ByteList
+    let bufferSize: AMLTermArg // => Integer
+    let byteList: AMLByteList
 
-struct AMLDefCondRefOf: AMLType2Opcode {
-    // CondRefOfOp SuperName Target
-    let name: AMLSuperName
-    var target: AMLTarget
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+        let size = try operandAsInteger(operand: bufferSize, context: &context)
+        let diff = byteList.count - Int(size)
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-
-        guard let n = name.evaluate(context: &context).stringValue else {
-            print("AMLDefCondRef \(name) does not evanulate to a string")
-            return AMLIntegerData(0)
+        let resultBuffer: AMLByteList
+        if diff > 0 {
+            resultBuffer = Array(byteList.prefix(diff))
+        } else if diff < 0  {
+            resultBuffer = byteList + Array<AMLByteData>(repeating: 0, count: Int(diff.magnitude))
+        } else {
+            resultBuffer = byteList
         }
-
-        let globalObjects = system.deviceManager.acpiTables.globalObjects!
-        guard let (obj, _) = globalObjects.getGlobalObject(currentScope: context.scope, name: AMLNameString(n)) else {
-            return AMLIntegerData(0)
-        }
-        let ref = AMLNameString(obj.fullname())
-        target.updateValue(to: ref, context: &context)
-        return AMLIntegerData(1)
+        return AMLObject(AMLBuffer(resultBuffer))
     }
 }
 
 
-struct AMLDefCopyObject: AMLType2Opcode {
-    // CopyObjectOp TermArg SimpleName
-    let object: AMLTermArg
-    let target: AMLSimpleName
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        fatalError("Implement DefCopyObject")
-    }
-}
-
-
-struct AMLDefDecrement: AMLType2Opcode {
-    // DecrementOp SuperName
-    let target: AMLSuperName
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        guard let value = target.evaluate(context: &context).integerValue else {
-            fatalError("\target) is not an integer")
-        }
-        let result = AMLIntegerData(value &- 1)
-        target.updateValue(to: result, context: &context)
-        return result
-    }
-}
-
-
-struct AMLDefDerefOf: AMLType2Opcode, AMLType6Opcode {
+struct AMLDefDerefOf {
     // DerefOfOp ObjReference
-    let name: AMLSuperName
+    let operand: AMLTermArg // => ObjectReference | String
 
     // FIXME: Implement
-
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        fatalError("AMLDefDerefOf.updateValue not implemented")
-    }
-}
-
-
-struct AMLDefDivide: AMLType2Opcode {
-    // DivideOp Dividend Divisor Remainder Quotient
-    let dividend: AMLTermArg // => Integer
-    let divisor: AMLTermArg // => Integer
-    let remainder: AMLTarget
-    let quotient: AMLTarget
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let d1 = operandAsInteger(operand: dividend, context: &context)
-        let d2 = operandAsInteger(operand: divisor, context: &context)
-        guard d2 != 0 else {
-            fatalError("divisor is 0")
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+        let object = try operand.evaluate(context: &context)
+        if let name = object.stringValue {
+            guard let (node, _) = context.getObject(named: AMLNameString(name.asString())) else {
+                throw AMLError.invalidData(reason: "Derefof: invalid object: \(name)")
+            }
+            return node.object
         }
-        let q = AMLIntegerData((d1 / d2))
-        let r = AMLIntegerData((d1 % d2))
-        quotient.updateValue(to: q, context: &context)
-        remainder.updateValue(to: r, context: &context)
-        return q
+        return try object.dereference()
     }
-}
 
-
-struct AMLDefFindSetLeftBit: AMLType2Opcode {
-    // FindSetLeftBitOp Operand Target
-    let operand: AMLTermArg // => Integer
-    let target: AMLTarget
-
-    func execute(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op = operandAsInteger(operand: operand, context: &context)
-        let value = (op == 0) ? AMLInteger(0) : AMLInteger(op.leadingZeroBitCount + 1)
-        let result = AMLIntegerData(value)
-        target.updateValue(to: result, context: &context)
-        return result
-    }
-}
-
-
-struct AMLDefFindSetRightBit: AMLType2Opcode {
-    // FindSetRightBitOp Operand Target
-    let operand: AMLTermArg // => Integer
-    let target: AMLTarget
-
-    func execute(context: inout ACPI.AMLExecutionContext)  -> AMLTermArg {
-        let op = operandAsInteger(operand: operand, context: &context)
-        let value = (op == 0) ? AMLInteger(0) : AMLInteger(op.trailingZeroBitCount + 1)
-        let result = AMLIntegerData(value)
-        target.updateValue(to: result, context: &context)
-        return result
-    }
-}
-
-
-struct AMLDefFromBCD: AMLType2Opcode {
-    // FromBCDOp BCDValue Target
-    let value: AMLTermArg // => Integer
-    let target: AMLTarget
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let bcdValue = operandAsInteger(operand: value, context: &context)
-        var tmpBcdValue = bcdValue
-        var newValue: AMLInteger = 0
-        var idx: AMLInteger = 1
-
-        while tmpBcdValue != 0 {
-            let bcd = tmpBcdValue & 0xf
-            guard bcd < 10 else { fatalError("BCD value \(String(bcdValue, radix: 16)) contains nonBCD \(bcd)") }
-            newValue += AMLInteger(idx * bcd)
-            idx *= 10
-            tmpBcdValue >>= 4
+    func evaluator() -> AMLTarget.Evaluator {
+        return { (context: inout ACPI.AMLExecutionContext) throws -> AMLObject in
+            return try evaluate(context: &context)
         }
-        let result = AMLIntegerData(newValue)
-        target.updateValue(to: result, context: &context)
-        return result
     }
-}
 
-
-struct AMLDefIncrement: AMLType2Opcode {
-    // IncrementOp SuperName
-    let target: AMLSuperName
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        guard let value = target.evaluate(context: &context).integerValue else {
-            fatalError("\target) is not an integer")
+    func updater() -> AMLTarget.Updater {
+        return { (newValue: AMLObject, context: inout ACPI.AMLExecutionContext) in
+            throw AMLError.unimplemented("AMLDefDerefOf.update")
         }
-        let result = AMLIntegerData(value &+ 1)
-        target.updateValue(to: result, context: &context)
-        return result
     }
 }
 
 
-struct AMLDefIndex: AMLType2Opcode, AMLType6Opcode {
+struct AMLDefIndex {
     // IndexOp BuffPkgStrObj IndexValue Target
     let operand1: AMLTermArg // => Buffer, Package or String
     let operand2: AMLTermArg // => Integer
     let target: AMLTarget
 
     // FIXME: Implement
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        guard let object = operand1.evaluate(context: &context) as? AMLDataObject else {
-            fatalError("\(operand1) does not evaluate to an AMLDataObject")
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+        let object = try operand1.evaluate(context: &context)
+        let index = try operandAsInteger(operand: operand2, context: &context)
+
+        guard let bound = object.maxIndex else {
+            throw AMLError.invalidData(reason: "Cannot take an index for a \(object)")
         }
-
-        let index = operandAsInteger(operand: operand2, context: &context)
-
-        switch object {
-            case .buffer(let buffer):   precondition(index < buffer.count)
-            case .package(let package): precondition(index < package.count)
-            case .string(let string):   precondition(index < string.count)
-
-            default:
-            fatalError("ACPI: Index passed an integer as the source")
+        guard index < bound else {
+            throw AMLError.invalidIndex(index: index, bound: bound)
         }
-        fatalError("Implement Index (Index Reference to Member objecr")
+        let objectReference = AMLObject(object, index: index)
+        try target.updateValue(to: objectReference, context: &context)
+        return objectReference
     }
 
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        guard let object = operand1.evaluate(context: &context) as? AMLDataObject else {
-            fatalError("\(operand1) does not evaluate to an AMLDataObject")
+    func updateValue(to newValue: AMLObject, context: inout ACPI.AMLExecutionContext) throws {
+        let object = try operand1.evaluate(context: &context)
+        let index = try operandAsInteger(operand: operand2, context: &context)
+
+        try object.updateValue(at: index, to: newValue)
+    }
+
+    func evaluator() -> AMLTarget.Evaluator {
+        return { (context: inout ACPI.AMLExecutionContext) throws -> AMLObject in
+            return try evaluate(context: &context)
         }
-        let index = operandAsInteger(operand: operand2, context: &context)
+    }
 
-        switch object {
-            case .buffer(let buffer):
-                fatalError("buffer [index=\(index)] \(buffer)")
-
-            case .package(let package):
-                guard let element = AMLPackageElement(termarg: to) else {
-                    fatalError("\(to) cant be stored as a package element")
-                }
-                package[Int(index)] = element
-
-            case .string(let string):
-                fatalError("string [index=\(index)] \(string)")
-
-            default:
-            fatalError("ACPI: DefIndex attempt to update \(object) with index: \(index)")
+    func updater() -> AMLTarget.Updater {
+        return { (newValue: AMLObject, context: inout ACPI.AMLExecutionContext) in
+            try updateValue(to: newValue, context: &context)
         }
     }
 }
 
 
-struct AMLDefLAnd: AMLType2Opcode {
-    // LandOp Operand Operand
-    let operand1: AMLTermArg // => Integer
-    let operand2: AMLTermArg // => Integer
+// Handles both Package and VarPackage as the only difference is that the package length is a termarg => Integer for the VarPackage
+// and a constant for the package
+struct AMLDefPackage {
+    // PackageOp PkgLength NumElement PackageElementList
+    // VarPackageOp PkgLength VarNumElements PackageElementList
 
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op1 = operandAsInteger(operand: operand1, context: &context)
-        let op2 = operandAsInteger(operand: operand2, context: &context)
-        return AMLBoolean(op1 != 0 && op2 != 0)
-    }
-}
+    let numElements: AMLTermArg // => Integer
+    let packageElementList: [AMLParsedItem]
 
-
-struct AMLDefLEqual: AMLType2Opcode {
-    // LequalOp Operand Operand
-    let operand1: AMLTermArg // => Integer
-    let operand2: AMLTermArg // => Integer
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op1 = operandAsInteger(operand: operand1, context: &context)
-        let op2 = operandAsInteger(operand: operand2, context: &context)
-        return AMLBoolean(op1 == op2)
-    }
-}
-
-
-struct AMLDefLGreater: AMLType2Opcode {
-    // LgreaterOp Operand Operand
-    let operand1: AMLTermArg // => Integer
-    let operand2: AMLTermArg // => Integer
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op1 = operandAsInteger(operand: operand1, context: &context)
-        let op2 = operandAsInteger(operand: operand2, context: &context)
-        return AMLBoolean(op1 > op2)
-    }
-}
-
-
-struct AMLDefLGreaterEqual: AMLType2Opcode {
-    // LgreaterEqualOp Operand Operand
-    let operand1: AMLTermArg // => Integer
-    let operand2: AMLTermArg // => Integer
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op1 = operandAsInteger(operand: operand1, context: &context)
-        let op2 = operandAsInteger(operand: operand2, context: &context)
-        return AMLBoolean(op1 >= op2)
-    }
-}
-
-
-struct AMLDefLLess: AMLType2Opcode {
-    // LlessOp Operand Operand
-    let operand1: AMLTermArg // => Integer
-    let operand2: AMLTermArg // => Integer
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op1 = operandAsInteger(operand: operand1, context: &context)
-        let op2 = operandAsInteger(operand: operand2, context: &context)
-        return AMLBoolean(op1 < op2)
-    }
-}
-
-
-struct AMLDefLLessEqual: AMLType2Opcode {
-    // LlessEqualOp Operand Operand
-    let operand1: AMLTermArg // => Integer
-    let operand2: AMLTermArg // => Integer
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op1 = operandAsInteger(operand: operand1, context: &context)
-        let op2 = operandAsInteger(operand: operand2, context: &context)
-        return AMLBoolean(op1 <= op2)
-    }
-}
-
-
-struct AMLDefLNot: AMLType2Opcode {
-    // LnotOp Operand
-    let operand: AMLTermArg // => Integer
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op = operandAsInteger(operand: operand, context: &context)
-        return AMLBoolean(op == 0)
-    }
-}
-
-
-struct AMLDefLNotEqual: AMLType2Opcode {
-    // LnotEqualOp Operand Operand
-    let operand1: AMLTermArg
-    let operand2: AMLTermArg
-
-    // FIXME: Implement
-}
-
-
-struct AMLDefLoadTable: AMLType2Opcode {
-    // LoadTableOp TermArg TermArg TermArg TermArg TermArg TermArg
-    let arg1: AMLTermArg
-    let arg2: AMLTermArg
-    let arg3: AMLTermArg
-    let arg4: AMLTermArg
-    let arg5: AMLTermArg
-    let arg6: AMLTermArg
-
-
-    // FIXME: Implement
-}
-
-
-struct AMLDefLOr: AMLType2Opcode {
-    // LorOp Operand Operand
-    let operand1: AMLTermArg // => Integer
-    let operand2: AMLTermArg // => Integer
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op1 = operandAsInteger(operand: operand1, context: &context)
-        let op2 = operandAsInteger(operand: operand2, context: &context)
-        return AMLBoolean(op1 != 0 || op2 != 0)
-    }
-}
-
-
-struct AMLDefMatch: AMLType2Opcode {
-    enum AMLMatchOpcode: AMLByteData {
-        case mtr = 0
-        case meq = 1
-        case mle = 2
-        case mlt = 3
-        case mge = 4
-        case mgt = 5
+    // DefPackage
+    init(numElements: AMLByteData, packageElementList: [AMLParsedItem]) {
+        self.numElements = AMLTermArg(AMLObject(AMLInteger(numElements)))
+        self.packageElementList = packageElementList
     }
 
-    // MatchOp SearchPkg MatchOpcode Operand MatchOpcode Operand StartIndex
-    let package: AMLTermArg // => Package
-    let matchOpcode1: AMLMatchOpcode
-    let operand1: AMLTermArg // => Integer
-    let matchOpcode2: AMLMatchOpcode
-    let operand2: AMLTermArg // => Integer
-    let startIndex: AMLTermArg // => Integer
-
-
-    // FIXME: Implement
-}
-
-
-struct AMLDefMid: AMLType2Opcode {
-    // MidOp MidObj TermArg TermArg Target
-    let obj: AMLTermArg // => Buffer | String
-    let arg1: AMLTermArg
-    let arg2: AMLTermArg
-    let target: AMLTarget
-
-
-    // FIXME: Implement
-}
-
-
-struct AMLDefMod: AMLType2Opcode {
-    // ModOp Dividend Divisor Target
-    let dividend: AMLTermArg // => Integer
-    let divisor: AMLTermArg // => Integer
-    let target: AMLTarget
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let d1 = operandAsInteger(operand: dividend, context: &context)
-        let d2 = operandAsInteger(operand: divisor, context: &context)
-        guard d2 != 0 else {
-            fatalError("divisor is 0")
-        }
-        let result = AMLIntegerData(d1 % d2)
-        target.updateValue(to: result, context: &context)
-        return result
-    }
-}
-
-
-struct AMLDefMultiply: AMLType2Opcode {
-    // MultiplyOp Operand Operand Target
-    let operand1: AMLTermArg // => Integer
-    let operand2: AMLTermArg // => Integer
-    let target: AMLTarget
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op1 = operandAsInteger(operand: operand1, context: &context)
-        let op2 = operandAsInteger(operand: operand2, context: &context)
-        let result = AMLIntegerData(op1 &* op2)
-        target.updateValue(to: result, context: &context)
-        return result
-    }
-}
-
-
-struct AMLDefNAnd: AMLType2Opcode {
-    // NandOp Operand Operand Target
-    let operand1: AMLTermArg // => Integer
-    let operand2: AMLTermArg // => Integer
-    let target: AMLTarget
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op1 = operandAsInteger(operand: operand1, context: &context)
-        let op2 = operandAsInteger(operand: operand2, context: &context)
-        let result = AMLIntegerData( ~(op1 & op2))
-        target.updateValue(to: result, context: &context)
-        return result
-    }
-}
-
-
-struct AMLDefNOr: AMLType2Opcode {
-    // NorOp Operand Operand Target
-    let operand1: AMLTermArg // => Integer
-    let operand2: AMLTermArg // => Integer
-    let target: AMLTarget
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op1 = operandAsInteger(operand: operand1, context: &context)
-        let op2 = operandAsInteger(operand: operand2, context: &context)
-        let result = AMLIntegerData( ~(op1 | op2))
-        target.updateValue(to: result, context: &context)
-        return result
-    }
-}
-
-
-struct AMLDefNot: AMLType2Opcode {
-    // NotOp Operand Target
-    let operand: AMLTermArg // => Integer
-    let target: AMLTarget
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op = operandAsInteger(operand: operand, context: &context)
-        let result = AMLIntegerData(~op)
-        target.updateValue(to: result, context: &context)
-        return result
-    }
-}
-
-
-struct AMLDefObjectType: AMLType2Opcode {
-
-    // ObjectTypeOp <SimpleName | DebugObj | DefRefOf | DefDerefOf | DefIndex>
-    let object: AMLSuperName
-
-
-    // FIXME: Implement
-}
-
-
-struct AMLDefOr: AMLType2Opcode {
-    // OrOp Operand Operand Target
-    let operand1: AMLTermArg // => Integer
-    let operand2: AMLTermArg // => Integer
-    let target: AMLTarget
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op1 = operandAsInteger(operand: operand1, context: &context)
-        let op2 = operandAsInteger(operand: operand2, context: &context)
-        let result = AMLIntegerData(op1 | op2)
-        target.updateValue(to: result, context: &context)
-        return result
-    }
-}
-
-
-struct AMLDefRefOf: AMLType2Opcode, AMLType6Opcode {
-    // RefOfOp SuperName
-    let name: AMLSuperName
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        fatalError("AMLDefRefOf.evaluate not implemented")
+    init(varNumElements: AMLTermArg, packageElementList: [AMLParsedItem]) {
+        self.numElements = varNumElements
+        self.packageElementList = packageElementList
     }
 
-    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) {
-        fatalError("AMLDefRefOf.updateValue not implenented")
-    }
-}
 
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+        let pkgLength = try operandAsInteger(operand: numElements, context: &context)
 
-struct AMLDefShiftLeft: AMLType2Opcode {
-    // ShiftLeftOp Operand ShiftCount Target
-    let operand: AMLTermArg // => Integer
-    let count: AMLTermArg //=> Integer
-    let target: AMLTarget
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op = operandAsInteger(operand: operand, context: &context)
-        let shiftCount = operandAsInteger(operand: count, context: &context)
-        let result = AMLIntegerData(op << shiftCount)
-        target.updateValue(to: result, context: &context)
-        return result
-    }
-}
-
-
-struct AMLDefShiftRight: AMLType2Opcode {
-    // ShiftRightOp Operand ShiftCount Target
-    let operand: AMLTermArg // => Integer
-    let count: AMLTermArg //=> Integer
-    let target: AMLTarget
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op = operandAsInteger(operand: operand, context: &context)
-        let shiftCount = operandAsInteger(operand: count, context: &context)
-        let result = AMLIntegerData(op >> shiftCount)
-        target.updateValue(to: result, context: &context)
-        return result
-    }
-}
-
-
-struct AMLDefSizeOf: AMLType2Opcode {
-    // SizeOfOp SuperName
-    let name: AMLSuperName
-
-    // FIXME: Implement
-}
-
-
-struct AMLDefStore: AMLType2Opcode {
-    // StoreOp TermArg SuperName
-    let arg: AMLTermArg
-    let name: AMLSuperName
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        var source = arg
-
-        // FIXME: Is this required or can it just be replaced with the evaluate?
-        if let args2 = arg as? AMLArgObj {
-            guard args2.argIdx < context.args.count else {
-                fatalError("Tried to access arg \(args2.argIdx) but only have \(context.args.count) args")
+        let elementCount = min(packageElementList.count, Int(pkgLength))
+        let subElements = packageElementList[0..<elementCount]
+        var elements: [AMLObject] = []
+        elements.reserveCapacity(subElements.count)
+        for element in subElements {
+            var object: AMLObject?
+            switch element {
+                case .type2opcode(let opcode):
+                    switch opcode {
+                        case .amlDefPackage(let package):
+                            object = try package.evaluate(context: &context)
+                        case .amlDefBuffer(let buffer):
+                            object = try buffer.evaluate(context: &context)
+                        default: break
+                    }
+                case .dataRefObject(let data):
+                    object = data
+                default:
+                    break
             }
-            source = context.args[Int(args2.argIdx)]
-        }
-
-        let value = source.evaluate(context: &context)
-        name.updateValue(to: value, context: &context)
-        return value
-    }
-}
-
-
-struct AMLDefSubtract: AMLType2Opcode {
-    // SubtractOp Operand Operand Target
-    let operand1: AMLTermArg // => Integer
-    let operand2: AMLTermArg // => Integer
-    let target: AMLTarget
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op1 = operandAsInteger(operand: operand1, context: &context)
-        let op2 = operandAsInteger(operand: operand2, context: &context)
-        let result = AMLIntegerData(op1 &- op2)
-        target.updateValue(to: result, context: &context)
-        return result
-    }
-}
-
-
-struct AMLDefTimer: AMLType2Opcode {
-
-    // TimerOp
-
-    // FIXME: Implement
-}
-
-
-struct AMLDefToBCD: AMLType2Opcode {
-    // ToBCDOp Operand Target
-    let operand: AMLTermArg // => Integer
-    let target: AMLTarget
-    var description: String { return "ToBCD(\(operand), \(target)" }
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        var value = operandAsInteger(operand: operand, context: &context)
-        var bcdValue = AMLInteger(0)
-        var idx = 0
-
-        while value != 0 {
-            let x = value % 10
-            bcdValue |= (x << idx)
-            idx += 4
-            value /= 10
-        }
-
-        let result = AMLIntegerData(bcdValue)
-        target.updateValue(to: result, context: &context)
-        return result
-    }
-}
-
-
-struct AMLDefToBuffer: AMLType2Opcode {
-
-    // ToBufferOp Operand Target
-    let operand: AMLTermArg // => Integer
-    let target: AMLTarget
-    var description: String { return "ToBuffer(\(operand), \(target)" }
-
-    // FIXME: Implement
-}
-
-
-struct AMLDefToDecimalString: AMLType2Opcode {
-
-    // ToDecimalStringOp Operand Target
-    let operand: AMLTermArg // => Integer
-    let target: AMLTarget
-
-    // FIXME: Implement
-}
-
-
-struct AMLDefToHexString: AMLType2Opcode {
-
-    // ToHexStringOp Operand Target
-    let operand: AMLTermArg // => Integer
-    let target: AMLTarget
-
-
-    // FIXME: Implement
-}
-
-
-struct AMLDefToInteger: AMLType2Opcode {
-    // ToIntegerOp Operand Target
-    let operand: AMLTermArg // => Integer
-    let target: AMLTarget
-
-
-    // FIXME: Implement
-}
-
-
-struct AMLDefToString: AMLType2Opcode {
-    // ToStringOp TermArg LengthArg Target
-    let arg: AMLTermArg
-    let length: AMLTermArg // => Integer
-    let target: AMLTarget
-
-
-    // FIXME: Implement
-}
-
-
-struct AMLDefWait: AMLType2Opcode {
-    // WaitOp EventObject Operand
-    let object: AMLEventObject
-    let operand: AMLTermArg // => Integer
-
-
-    // FIXME: Implement
-}
-
-
-struct AMLDefXor: AMLType2Opcode {
-    // XorOp Operand Operand Target
-    let operand1: AMLTermArg // => Integer
-    let operand2: AMLTermArg // => Integer
-    var target: AMLTarget
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        let op1 = operandAsInteger(operand: operand1, context: &context)
-        let op2 = operandAsInteger(operand: operand2, context: &context)
-        let result = AMLIntegerData(op1 ^ op2)
-        target.updateValue(to: result, context: &context)
-        return result
-    }
-}
-
-
-struct AMLMethodInvocation: AMLType2Opcode {
-    // NameString TermArgList
-    let method: AMLNameString
-    let args: AMLTermArgList
-
-    init(method: AMLNameString, args: AMLTermArgList) throws {
-        guard args.count < 8 else {
-            throw AMLError.invalidData(reason: "More than 7 args")
-        }
-        self.method = method
-        self.args = args
-    }
-
-    init(method: AMLNameString, _ args: AMLTermArg...) throws {
-        try self.init(method: method, args: args)
-    }
-
-
-    fileprivate func _invokeMethod(context: inout ACPI.AMLExecutionContext) throws -> AMLTermArg? {
-
-        let name = self.method.value
-        if name == "\\_OSI" || name == "_OSI" {
-            return try ACPI._OSI_Method(args)
-        }
-
-        guard let globalObjects = system.deviceManager.acpiTables.globalObjects,
-            let (obj, fullPath) = globalObjects.getGlobalObject(currentScope: context.scope,
-                                                                name: method) else {
-                throw AMLError.invalidMethod(reason: "Cant find method: \(name)")
-        }
-        guard let method = obj as? AMLMethod else {
-            throw AMLError.invalidMethod(reason: "\(name) [\(obj.description))] is not an AMLMethod")
-        }
-        let termList = try method.termList()
-        let newArgs = args.map { $0.evaluate(context: &context) }
-        var newContext = ACPI.AMLExecutionContext(scope: AMLNameString(fullPath),
-                                                  args: newArgs)
-        try newContext.execute(termList: termList)
-        return newContext.returnValue
-    }
-
-    func evaluate(context: inout ACPI.AMLExecutionContext) -> AMLTermArg {
-        do {
-            if let result = try _invokeMethod(context: &context) {
-                context.returnValue = result
-                return result
+            if let object = object {
+                elements.append(object)
             } else {
-                return AMLIntegerData(0)
+                // FIXME - add an enum for pre-evaulated packages to avoid the default cases
+                throw AMLError.invalidData(reason: "Invalid package element \(element)")
             }
-        } catch {
-            fatalError("Cant run method: \(self): \(error)")
+        }
+        return AMLObject(AMLPackage(numElements: Int(pkgLength), elements: elements))
+    }
+}
+
+
+struct AMLDefRefOf {
+    // RefOfOp SuperName
+    let name: AMLTarget
+
+    func evaluate(context: inout ACPI.AMLExecutionContext) throws -> AMLObject {
+        let object = try name.getObject(context: &context)
+        let reference =  AMLObject(object)
+        return reference
+    }
+
+    func updateValue(to: AMLTermArg, context: inout ACPI.AMLExecutionContext) throws {
+        throw AMLError.unimplemented("AMLDefRefOf")
+    }
+
+    func evaluator() -> AMLTarget.Evaluator {
+        return { (context: inout ACPI.AMLExecutionContext) throws -> AMLObject in
+            return try evaluate(context: &context)
+        }
+    }
+
+    func updater() -> AMLTarget.Updater {
+        return { (newValue: AMLObject, context: inout ACPI.AMLExecutionContext) in
+            throw AMLError.unimplemented("AMLDefDerefOf.update")
         }
     }
 }
 
-extension ACPI {
+private func loadDefinitionBlock(from block: AMLObject, context: inout ACPI.AMLExecutionContext) throws -> Bool {
 
-    @discardableResult
-    static func invoke(method: String, _ args: AMLTermArg...) throws -> AMLTermArg? {
-        let mi = try AMLMethodInvocation(method: AMLNameString(method), args: args)
-        var context = ACPI.AMLExecutionContext(scope: mi.method)
-
-        if let result = try mi._invokeMethod(context: &context) {
-            context.returnValue = result
-            return result
-        } else {
-            return nil
+    func getBuffer() throws -> AMLBuffer? {
+        if let buffer = block.bufferValue {
+            return buffer
         }
+        if let opRegion = block.operationRegionValue {
+            let regionSpace = try opRegion.getRegionSpace(context: &context)
+            if case .systemMemory(_) = regionSpace {
+                throw AMLError.unimplemented("Loading SSDT")
+            }
+        }
+        return nil
     }
+
+    //guard let buffer = try getBuffer() else { return false }
+    guard (try getBuffer()) != nil else { return false }
+
+    return false
 }

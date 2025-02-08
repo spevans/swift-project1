@@ -67,6 +67,8 @@
 		B9C9A89127C289BA003746EF /* PCIInterruptLinkDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C9A88427C2893E003746EF /* PCIInterruptLinkDevice.swift */; };
 		B9C9A89227C289BA003746EF /* PCIRoutingTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C9A88527C2893E003746EF /* PCIRoutingTable.swift */; };
 		B9D2AC14266E52B8002DA8DD /* PNPDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = B981795B266E329D0043D38C /* PNPDevice.swift */; };
+		B9D9E7492DBF7C4400CC1E2C /* AMLObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D9E7482DBF7C4400CC1E2C /* AMLObject.swift */; };
+		B9D9E74B2DBF7C5B00CC1E2C /* AMLFieldSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D9E74A2DBF7C5B00CC1E2C /* AMLFieldSettings.swift */; };
 		B9DEE4F42323BA960010F7A0 /* lldb-cmds in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F32323BA960010F7A0 /* lldb-cmds */; };
 		B9DEE4F92323BBC40010F7A0 /* bochsrc in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F52323BBC30010F7A0 /* bochsrc */; };
 		B9DEE4FA2323BBC40010F7A0 /* gdb-cmds in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F62323BBC30010F7A0 /* gdb-cmds */; };
@@ -275,6 +277,8 @@
 		B9C9A88827C2893E003746EF /* PCIDeviceFunction.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PCIDeviceFunction.swift; sourceTree = "<group>"; };
 		B9CB7297255901A000A6C3C8 /* usb-hid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "usb-hid.swift"; sourceTree = "<group>"; };
 		B9CB729C255F5A6700A6C3C8 /* uhci-transferdescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "uhci-transferdescriptor.swift"; sourceTree = "<group>"; };
+		B9D9E7482DBF7C4400CC1E2C /* AMLObject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AMLObject.swift; sourceTree = "<group>"; };
+		B9D9E74A2DBF7C5B00CC1E2C /* AMLFieldSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AMLFieldSettings.swift; sourceTree = "<group>"; };
 		B9DEE4F32323BA960010F7A0 /* lldb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "lldb-cmds"; sourceTree = "<group>"; };
 		B9DEE4F52323BBC30010F7A0 /* bochsrc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = bochsrc; sourceTree = "<group>"; };
 		B9DEE4F62323BBC30010F7A0 /* gdb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "gdb-cmds"; sourceTree = "<group>"; };
@@ -506,6 +510,8 @@
 		B933A6DB1F2F491C00FE6846 /* acpi */ = {
 			isa = PBXGroup;
 			children = (
+				B9D9E7482DBF7C4400CC1E2C /* AMLObject.swift */,
+				B9D9E74A2DBF7C5B00CC1E2C /* AMLFieldSettings.swift */,
 				B933A6EE1F2F492F00FE6846 /* TODO */,
 				B9E88C3B2CEC83C100F3F251 /* ACPIDeviceConfig.swift */,
 				B96BBE4F262B5502009756A8 /* ACPIGenericAddressStructure.swift */,
@@ -964,6 +970,7 @@
 				B9E8F41927940FF3008F3C33 /* PageSizeTests.swift in Sources */,
 				B9E88C3A2CEBE49D00F3F251 /* BinaryInteger+Extras.swift in Sources */,
 				B9D2AC14266E52B8002DA8DD /* PNPDevice.swift in Sources */,
+				B9D9E74B2DBF7C5B00CC1E2C /* AMLFieldSettings.swift in Sources */,
 				B98A0E8226679D96006898DF /* ISABus.swift in Sources */,
 				B98A0E7D26679AB1006898DF /* bus.swift in Sources */,
 				B98A0E7C26679A85006898DF /* device.swift in Sources */,
@@ -1001,6 +1008,7 @@
 				B933A7831F2F8F1100FE6846 /* boot.swift in Sources */,
 				B9E8F41527935C47008F3C33 /* PhysPageRangeTests.swift in Sources */,
 				B933A7841F2F8F1100FE6846 /* ecdt.swift in Sources */,
+				B9D9E7492DBF7C4400CC1E2C /* AMLObject.swift in Sources */,
 				B933A7851F2F8F1100FE6846 /* facp.swift in Sources */,
 				B9EF91261FC9D6EA00D14A2F /* amlnamedobject.swift in Sources */,
 				B933A7861F2F8F1100FE6846 /* facs.swift in Sources */,
@@ -1044,7 +1052,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MACOSX_DEPLOYMENT_TARGET = 13.5;
 				OTHER_SWIFT_FLAGS = "-DTEST";
 				PRODUCT_BUNDLE_IDENTIFIER = "org.si.acpi-tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1069,7 +1077,7 @@
 					"@executable_path/../Frameworks",
 					"@loader_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MACOSX_DEPLOYMENT_TARGET = 13.5;
 				OTHER_SWIFT_FLAGS = "-DTEST";
 				PRODUCT_BUNDLE_IDENTIFIER = "org.si.acpi-tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";

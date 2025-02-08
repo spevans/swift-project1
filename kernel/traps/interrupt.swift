@@ -70,7 +70,7 @@ public final class InterruptManager {
     func enableGpicMode() {
         // Set _PIC mode to APIC (1)
         do {
-            try ACPI.invoke(method: "\\_PIC", AMLDataObject.integer(1))
+            try ACPI.invoke(method: "\\_PIC", AMLTermArg(1))
             print("INT-MAN: _PIC mode set to APIC")
         } catch AMLError.invalidMethod {
             // ignore, _PIC is optional

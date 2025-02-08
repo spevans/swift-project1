@@ -2,195 +2,127 @@
 //  kernel/devices/acpi/amltype1opcodes.swift
 //
 //  Created by Simon Evans on 25/11/2017.
-//  Copyright © 2017 - 2019 Simon Evans. All rights reserved.
+//  Copyright © 2017 - 2025 Simon Evans. All rights reserved.
 //
 //  ACPI Type 1 Opcodes
 
-protocol AMLType1Opcode: AMLTermObj {
-    func execute(context: inout ACPI.AMLExecutionContext) throws
-}
 
-extension AMLType1Opcode {
-    // FIXME - this should be removed when all type1 opcodes implemented
-    func execute(context: inout ACPI.AMLExecutionContext) throws {
-        throw AMLError.unimplemented("\(type(of: self))")
-    }
-}
+enum AMLType1Opcode {
+    case amlDefBreak
+    case amlDefBreakPoint
+    case amlDefContinue
 
-
-// AMLType1Opcode
-struct AMLDefBreak: AMLType1Opcode {
-    // empty
-}
-
-
-struct AMLDefBreakPoint: AMLType1Opcode {
-    // empty
-}
-
-
-struct AMLDefContinue: AMLType1Opcode {
-    // empty
-}
-
-
-struct AMLDefElse: AMLType1Opcode {
     // Nothing | <ElseOp PkgLength TermList>
-    let value: AMLTermList?
+    case amlDefElse(AMLTermList?)
+    case amlDefFatal(AMLByteData, AMLDWordData, AMLTermArg)
 
-    func execute(context: inout ACPI.AMLExecutionContext) throws {
-        if let termList = value {
-            try context.execute(termList: termList)
-        }
-    }
-}
-
-
-struct AMLDefFatal: AMLType1Opcode {
-    let type: AMLByteData
-    let code: AMLDWordData
-    let arg: AMLTermArg // => Integer
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws {
-        fatalError("FatalError Type: \(type) code: \(code) arg: \(arg)")
-    }
-}
-
-
-struct AMLDefIfElse: AMLType1Opcode {
     // IfOp PkgLength Predicate TermList DefElse
-    let predicate: AMLTermArg // => Integer
-    let value: AMLTermList
-    let elseValue: AMLTermList?
-
-    init(predicate: AMLTermArg, value: AMLTermList, defElse: AMLDefElse) {
-        self.predicate = predicate
-        self.value = value
-        elseValue = defElse.value
-    }
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws {
-        guard let result = predicate.evaluate(context: &context).integerValue else {
-            fatalError("Predicate does not evaluate to an integer")
-        }
-        if result != 0 {
-            try context.execute(termList: value)
-        } else if let elseTermList = elseValue {
-            try context.execute(termList: elseTermList)
-        }
-    }
-}
-
-
-struct AMLDefLoad: AMLType1Opcode {
-    // LoadOp NameString DDBHandleObject
-    let name: AMLNameString
-    let value: AMLDDBHandleObject
-}
-
-
-struct AMLDefNoop: AMLType1Opcode {
-    // NoopOp
+    case amlDefIfElse(AMLTermArg, AMLTermList, AMLTermList?)
+    case amlDefNoop
+    case amlDefNotify(AMLTarget, AMLTermArg)
+    case amlDefRelease(AMLTarget)
+    case amlDefReset(AMLTarget)
+    case amlDefReturn(AMLTermArg)
+    case amlDefSignal(AMLTarget)
+    case amlDefSleep(AMLTermArg)
+    case amlDefStall(AMLTermArg)
+    case amlDefUnload(AMLTarget)
+    case amlDefWhile(AMLTermArg, AMLTermList)
 
     func execute(context: inout ACPI.AMLExecutionContext) throws {
-    }
-}
-
-
-struct AMLDefNotify: AMLType1Opcode {
-    // NotifyOp NotifyObject NotifyValue
-    let object: AMLSuperName // => ThermalZone | Processor | Device AMLNotifyObject
-    let value: AMLTermArg // -> Integer AMLNotifyValue
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws {
-        let _value = operandAsInteger(operand: value, context: &context)
-        let string = String(describing: object)
-        let v = String(describing: _value)
-        print("NOTIFY:", string, v)
-    }
-}
-
-
-struct AMLDefRelease: AMLType1Opcode {
-    // ReleaseOp MutexObject
-    let mutex: AMLMutexObject
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws {
-        // TODO: implement
-        print("Releasing Mutex")
-    }
-}
-
-
-struct AMLDefReset: AMLType1Opcode {
-    // ResetOp EventObject
-    let object: AMLEventObject
-}
-
-
-struct AMLDefReturn: AMLType1Opcode {
-    // ReturnOp ArgObject
-    let object: AMLTermArg // => DataRefObject
-
-    init(object: AMLTermArg?) {
-        self.object = object ?? AMLIntegerData(0)
-    }
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws {
-        context.returnValue = object.evaluate(context: &context)
-        context.endOfMethod = true
-    }
-}
-
-
-struct AMLDefSignal: AMLType1Opcode {
-    // SignalOp EventObject
-    let object: AMLEventObject
-}
-
-
-struct AMLDefSleep: AMLType1Opcode {
-    // SleepOp MsecTime
-    let msecTime: AMLTermArg // => Integer
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws {
-        print("SLEEP: \(msecTime) ms")
-    }
-}
-
-
-struct AMLDefStall: AMLType1Opcode {
-    // StallOp UsecTime
-    let usecTime: AMLTermArg // => ByteData
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws {
-        let value = operandAsInteger(operand: usecTime, context: &context)
-        print("Stalling for \(value) us)")
-    }
-}
-
-
-struct AMLDefUnload: AMLType1Opcode {
-    // UnloadOp DDBHandleObject
-    let object: AMLDDBHandleObject
-}
-
-
-struct AMLDefWhile: AMLType1Opcode {
-    // WhileOp PkgLength Predicate TermList
-    let predicate: AMLTermArg // => Integer
-    let list: AMLTermList
-
-    func execute(context: inout ACPI.AMLExecutionContext) throws {
-        while true {
-            let result = (predicate.evaluate(context: &context) as! AMLDataObject).integerValue!
-            if result == 0 {
+        switch self {
+            case .amlDefBreak:
+                context.breakWhile = true
                 return
-            }
-            try context.execute(termList: list)
-            if context.endOfMethod {
+
+            case .amlDefBreakPoint:
                 return
-            }
+
+            case .amlDefContinue:
+                context.continueWhile = true
+                return
+
+            case .amlDefElse(let termList):
+                if let termList = termList {
+                    try context.execute(termList: termList)
+                }
+
+            case .amlDefFatal(let type, let code, let arg):
+                fatalError("FatalError Type: \(type) code: \(code) arg: \(arg)")
+
+            case .amlDefIfElse(let predicate, let termList, let elseTermList):
+                let result = try operandAsInteger(operand: predicate, context: &context)
+                if result != 0 {
+                    try context.execute(termList: termList)
+                } else if let elseTermList = elseTermList {
+                    try context.execute(termList: elseTermList)
+                }
+
+            case .amlDefNoop:
+                return
+
+            case .amlDefNotify(let object, let value):
+                // NotifyOp NotifyObject NotifyValue
+                let _value = try operandAsInteger(operand: value, context: &context)
+                let string = "TODO" //object.description
+                let v = String(describing: _value)
+                print("NOTIFY:", string, v)
+                throw AMLError.unimplemented("Notify \(object) \(_value)")
+
+            case .amlDefRelease(let mutex):
+                // ReleaseOp MutexObject
+                throw AMLError.unimplemented("Release \(mutex))")
+
+            case .amlDefReset(let object):
+                // ResetOp EventObject
+                throw AMLError.unimplemented("Reset \(object)")
+
+            case .amlDefReturn(let termArg):
+                // ReturnOp ArgObject
+                context.returnValue = try termArg.evaluate(context: &context)
+                context.endOfMethod = true
+
+            case .amlDefSignal(let object):
+                // SignalOp EventObject
+                throw AMLError.unimplemented("Signal \(object)")
+
+            case .amlDefSleep(let msecTime):
+                // SleepOp MsecTime
+                let value = try operandAsInteger(operand: msecTime, context: &context)
+                throw AMLError.unimplemented("SLEEP: \(value) ms")
+
+            case .amlDefStall(let usecTime):
+                // StallOp UsecTime
+                let value = try operandAsInteger(operand: usecTime, context: &context)
+                throw AMLError.unimplemented("Stalling for \(value) usec)")
+
+            case .amlDefUnload(let target):
+                // UnloadOp DDBHandleObject (AMLTarget // => Supername)
+                throw AMLError.unimplemented("Unload \(target)")
+
+            case .amlDefWhile(let predicate, let termList):
+                // WhileOp PkgLength Predicate TermList
+                while true {
+                    context.breakWhile = false
+                    context.continueWhile = false
+                    let result = try predicate.evaluate(context: &context).integerValue!
+                    if result == 0 {
+                        return
+                    }
+                    try context.execute(termList: termList)
+                    if context.breakWhile {
+                        context.breakWhile = false
+                        break
+                    }
+                    if context.continueWhile {
+                        context.continueWhile = false
+                        continue
+                    }
+                    if context.endOfMethod {
+                        return
+                    }
+                }
+                return
         }
     }
 }

@@ -8,7 +8,8 @@
 
 
 // Convert a compressed 32bit EISA type ID to a string
-private func decodeEISAId(_ id: UInt32) -> AMLString {
+// FIXME, this shoule be a function in AMLString
+private func decodeEISAId(_ id: UInt32) -> String {
     let eisaid = BitArray32(UInt32(bigEndian: id))
 
     func hexDigit(_ x: Int) -> UnicodeScalar {
@@ -30,13 +31,13 @@ private func decodeEISAId(_ id: UInt32) -> AMLString {
     hexDigit(Int(eisaid[4...7])).write(to: &hid)
     hexDigit(Int(eisaid[0...3])).write(to: &hid)
 
-    return AMLString(hid)
+    return try! AMLString(hid).asString()
 }
 
 
-func decodeHID(obj: AMLTermArg) -> AMLString {
+func decodeHID(obj: AMLObject) -> String {
     if let string = obj.stringValue {
-        return string
+        return string.asString()
     }
     else if let value = obj.integerValue {
         return decodeEISAId(UInt32(value))
@@ -75,3 +76,29 @@ func resolveNameTo(scope: AMLNameString, path: AMLNameString) -> AMLNameString {
     }
 }
 
+func walkUpFullPath<R>(_ name: AMLNameString, block: (String) -> R?) -> (R, String)? {
+    // Do a search up the tree
+    guard name.isFullPath else {
+        return nil
+    }
+    let separator = AMLNameString.pathSeparatorChar
+    var path = name.value
+    while let separatorIndex = path.lastIndex(of: separator) {
+        if let obj = block(path) {
+            return (obj, path)
+        }
+        let subRange = path[..<separatorIndex]
+        if let prevIndex = subRange.lastIndex(of: separator) {
+            path.removeSubrange(prevIndex..<separatorIndex)
+        } else {
+            path.removeSubrange(...separatorIndex)
+        }
+    }
+    if !path.hasPrefix(String(AMLNameString.rootChar)) {
+        path = String(AMLNameString.rootChar) + path
+    }
+    if let obj = block(path) {
+        return (obj, path)
+    }
+    return nil
+}
