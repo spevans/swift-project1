@@ -93,8 +93,14 @@ struct PageTableEntry: Equatable, CustomStringConvertible {
     var userAccess: Bool { Bool(bits[2]) }
     var writeThrough: Bool { Bool(bits[3]) }
     var cacheDisable: Bool { Bool(bits[4]) }
-    var accessed: Bool { Bool(bits[5]) }
-    var dirty: Bool { Bool(bits[6]) }
+    var accessed: Bool {
+        get { Bool(bits[5]) }
+        set { bits[5] = newValue ? 1 : 0 }
+    }
+    var dirty: Bool {
+        get { Bool(bits[6]) }
+        set { bits[6] = newValue ? 1 : 0 }
+    }
     var pat: Bool { Bool(bits[7]) }
     var global: Bool { Bool(bits[8]) }
     var physicalAddress: PhysAddress { PhysAddress(RawAddress(bits.rawValue) & pageAddressMask) }

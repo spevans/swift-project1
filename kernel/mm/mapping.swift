@@ -93,8 +93,12 @@ func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
         if !ptPage[idx3].present {
             ptPage[idx3] = entry
         } else {
-            let currentMapping = ptPage[idx3]
+            var currentMapping = ptPage[idx3]
+            currentMapping.accessed = false
+            currentMapping.dirty = false
             if entry != currentMapping {
+                print("entry:         ", entry)
+                print("currentMapping:", currentMapping)
                 koops("MM: page is already present!")
             }
         }
