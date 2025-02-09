@@ -9,7 +9,7 @@
 
 
 struct BiosBootParams: CustomStringConvertible {
-    enum E820Type: UInt32 {
+    enum E820Type: UInt32, CustomStringConvertible {
     case ram      = 1
     case reserved = 2
     case acpi     = 3

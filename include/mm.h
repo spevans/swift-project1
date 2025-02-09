@@ -20,7 +20,7 @@
 #else
 #define PHYSICAL_MEM_BASE       0x0000000000001000UL    // 4K - For testing in userspace
 #endif
-#define MAX_PHYSICAL_MEMORY     0x1000000000UL          // 64GB Physical RAM
+#define MAX_PHYSICAL_MEMORY     0x20000000000UL         // 2TB Physical RAM
 
 #define PAGE_SHIFT 12
 #define PAGE_SIZE (1UL << PAGE_SHIFT)

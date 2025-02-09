@@ -16,7 +16,9 @@ struct PhysAddress: Comparable, Hashable, CustomStringConvertible {
     let value: RawAddress
 
     init(_ address: RawAddress) {
-        precondition(address < MAX_PHYSICAL_MEMORY, "PhysAddress out of range")
+        if(address >= MAX_PHYSICAL_MEMORY) {
+            fatalError("\(address.hex()) >= \(MAX_PHYSICAL_MEMORY.hex())")
+        }
         value = address
     }
 
