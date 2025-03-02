@@ -51,6 +51,22 @@ struct FrameBufferInfo: CustomStringConvertible {
         blueMask = fb.blue_mask
     }
 
+    init() {
+        address = PhysAddress(0)
+        size = 0
+        width = 0
+        height = 0
+        pxPerScanline = 0
+        depth = 0
+        redShift = 0
+        redMask = 0
+        greenShift = 0
+        greenMask = 0
+        blueShift = 0
+        blueMask = 0
+    }
+
+
     var memoryRange: MemoryRange {
         MemoryRange(type: .FrameBuffer, start: address, size: size)
     }

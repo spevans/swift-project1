@@ -183,10 +183,9 @@ func commandShell() {
         return
     }
 
-    let tty = TTY.sharedInstance
     print("'help' lists available commands")
     while true {
-        let line = tty.readLine(prompt: "> ", keyboard: kbd)
+        let line = readLine(prompt: "> ", keyboard: kbd)
         var parts = line.split(separator: " ")
         if let cmd = parts.first, cmd != "" {
             if cmd == "exit" { break }

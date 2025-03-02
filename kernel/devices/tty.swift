@@ -66,18 +66,27 @@ func print(_ item: StaticString) {
 
 
 internal struct _tty : UnicodeOutputStream {
+    mutating func write(_ string: StaticString) {
+        if string.utf8CodeUnitCount == 0 { return }
+        string.withUTF8Buffer { buffer in
+            for ch in buffer {
+                tty.printChar(CChar(bitPattern: ch))
+            }
+        }
+    }
+    
     mutating func write(_ string: String) {
         // FIXME: Get precondition to work
         //precondition(string._guts.isASCII, "String must be ASCII")
         if string.isEmpty { return }
         for c in string.unicodeScalars {
-            TTY.sharedInstance.printChar(CChar(truncatingIfNeeded: c.value))
+            tty.printChar(CChar(truncatingIfNeeded: c.value))
         }
     }
 
     mutating func write(_ unicodeScalar: UnicodeScalar) {
         if let ch = Int32(exactly: unicodeScalar.value) {
-            TTY.sharedInstance.printChar(CChar(ch))
+            tty.printChar(CChar(ch))
         }
     }
 }
@@ -101,26 +110,33 @@ internal struct _serial: UnicodeOutputStream {
 }
 
 
-protocol ScreenDriver {
-    var charsPerLine: TextCoord { get }
-    var totalLines:   TextCoord { get }
-    var cursorX:      TextCoord { get set }
-    var cursorY:      TextCoord { get set }
 
-    func printChar(_ character: CUnsignedChar, x: TextCoord, y: TextCoord)
-    func clearScreen()
-    func scrollUp()
+private var earlyTTY = EarlyTTY()
+private var textTTY = TextTTY()
+private var framebufferTTY = FrameBufferTTY()
+private(set)var tty = TTY.early
+
+
+// This is called to remap the text screen or framebuffer after new page maps have been
+// setup but before they are switched to. This
+func setTTY(frameBufferInfo: FrameBufferInfo?) {
+    print("TTY: Switching to Swift TTY driver")
+    if let frameBufferInfo = frameBufferInfo {
+        framebufferTTY.setFrameBuffer(frameBufferInfo)
+        tty = .framebuffer
+        print("TTY: Set to FrameBufferTTY")
+    } else {
+        textTTY.setActive()
+        tty = .text
+        print("TTY: Set to TextTTY")
+    }
 }
 
 
-final class TTY {
-
-    // singleton
-    static let sharedInstance = TTY()
-
-    fileprivate let earlyTTY = EarlyTTY()
-    private var driver: ScreenDriver
-
+enum TTY {
+    case early
+    case text
+    case framebuffer
 
     // The cursorX and cursorY and managed by early_tty.c so they
     // can be kept in sync
@@ -128,7 +144,11 @@ final class TTY {
         get { earlyTTY.cursorX }
         set {
             earlyTTY.cursorX = newValue
-            driver.cursorX = newValue
+            switch self {
+                case .text: textTTY.cursorX = newValue
+                case .framebuffer: framebufferTTY.cursorX = newValue
+                case .early: break
+            }
         }
     }
 
@@ -137,82 +157,108 @@ final class TTY {
         get { earlyTTY.cursorY }
         set {
             earlyTTY.cursorY = newValue
-            driver.cursorY = newValue
+            switch self {
+                case .text: textTTY.cursorY = newValue
+                case .framebuffer: framebufferTTY.cursorY = newValue
+                case .early: break
+            }
         }
-    }
-
-
-    private init() {
-        driver = earlyTTY
-    }
-
-
-    // This is called to remap the text screen or framebuffer after new page maps have been
-    // setup but before they are switched to. This
-    func setTTY(frameBufferInfo: FrameBufferInfo?) {
-        print("tty: Switching to Swift TTY driver")
-        if (frameBufferInfo != nil) {
-            driver = FrameBufferTTY(frameBufferInfo: frameBufferInfo!)
-        } else {
-            driver = TextTTY()
-        }
-        // Dont output anything until the page tables are switched over to the new ones.
     }
 
 
     func clearScreen() {
-        driver.clearScreen()
-        cursorX = 0
-        cursorY = 0
+        switch self {
+            case .early:
+                earlyTTY.clearScreen()
+            case .text:
+                textTTY.clearScreen()
+            case .framebuffer:
+                framebufferTTY.clearScreen()
+        }
+        earlyTTY.cursorX = 0
+        earlyTTY.cursorY = 0
     }
 
 
     func scrollUp() {
-        driver.scrollUp()
+        switch self {
+            case .early:
+                earlyTTY.scrollUp()
+            case .text:
+                textTTY.scrollUp()
+            case .framebuffer:
+                framebufferTTY.scrollUp()
+        }
     }
 
+    private func printChar(_ character: CUnsignedChar, x: TextCoord, y: TextCoord) {
+        switch self {
+            case .early:
+                earlyTTY.printChar(character, x: x, y: y)
+            case .text:
+                textTTY.printChar(character, x: x, y: y)
+            case .framebuffer:
+                framebufferTTY.printChar(character, x: x, y: y)
+        }
+    }
 
-    func printChar(_ character: CChar) {
+    private var charsPerLine: TextCoord {
+        switch self {
+            case .early: return earlyTTY.charsPerLine
+            case .text:  return textTTY.charsPerLine
+            case .framebuffer: return framebufferTTY.charsPerLine
+        }
+    }
+
+    private var totalLines: TextCoord {
+        switch self {
+            case .early: return earlyTTY.totalLines
+            case .text: return textTTY.totalLines
+            case .framebuffer: return framebufferTTY.totalLines
+        }
+    }
+
+    mutating func printChar(_ character: CChar) {
         /* FIXME: Disable interrupts for exclusive access to screen memory
          * and instance vars but this function takes far too long because of
          * scrollUp() and so lots of timer interrupts are currently missed
          */
         serial_print_char(character)
         noInterrupt({
-                let ch = CUnsignedChar(character)
-                var (x, y) = (cursorX, cursorY)
+            let ch = CUnsignedChar(character)
+            var (x, y) = (cursorX, cursorY)
 
-                if ch == NEWLINE {
-                    x = 0
-                    y += 1
-                } else if ch == TAB {
-                    let newX = (x + 8) & ~7
-                    while (x < newX && x < driver.charsPerLine) {
-                        driver.printChar(SPACE, x: x, y: y)
-                        x += 1
-                    }
-                    x = newX
-                } else {
-                    driver.printChar(ch, x: x, y: y)
+            if ch == NEWLINE {
+                x = 0
+                y += 1
+            } else if ch == TAB {
+                let newX = (x + 8) & ~7
+                while (x < newX && x < charsPerLine) {
+                    printChar(SPACE, x: x, y: y)
                     x += 1
                 }
+                x = newX
+            } else {
+                printChar(ch, x: x, y: y)
+                x += 1
+            }
 
-                if x >= driver.charsPerLine {
-                    x = 0
-                    y += 1
-                }
+            if x >= charsPerLine {
+                x = 0
+                y += 1
+            }
 
-                while (y >= driver.totalLines) {
-                    driver.scrollUp()
-                    y -= 1
-                }
-                cursorX = x
-                cursorY = y
-            })
+            while (y >= totalLines) {
+                scrollUp()
+                y -= 1
+            }
+            cursorX = x
+            cursorY = y
+        })
     }
 
 
-    func readLine(prompt: String, keyboard: Keyboard) -> String {
+    mutating func readLine(prompt: String, keyboard: Keyboard) -> String {
         var cmdString: [CChar] = []
         var clipboard: [CChar] = []
 
@@ -303,32 +349,39 @@ final class TTY {
         return line!
     }
 
-
     func scrollTimingTest() {
-        let earlyTicks = benchmark(TTY.sharedInstance.earlyTTY.scrollUp)
-        let swiftTicks = benchmark(TTY.sharedInstance.scrollUp)
+/** DISABLED for now due to SILgen error compiling this
+        let earlyTicks = benchmark(earlyTTY.scrollUp)
+        let swiftTicks = benchmark(tty.scrollUp)
         let ratio = swiftTicks / earlyTicks
         print("tty: EarlyTTY.scrollUp():", earlyTicks)
         print("tty: TTY.scrollUp():", swiftTicks)
         print("tty: Ratio: ", ratio)
+**/
     }
-
 }
 
 
-private final class EarlyTTY: ScreenDriver {
+private struct EarlyTTY {
+    let charsPerLine: TextCoord
+    let totalLines:   TextCoord
 
-    var charsPerLine: TextCoord { return etty_chars_per_line() }
-    var totalLines:   TextCoord { return etty_total_lines() }
 
-    var cursorX:      TextCoord {
+    var cursorX: TextCoord {
         get { etty_get_cursor_x() }
         set { etty_set_cursor_x(newValue) }
     }
 
-    var cursorY:      TextCoord {
+
+    var cursorY: TextCoord {
         get { etty_get_cursor_y() }
         set { etty_set_cursor_y(newValue) }
+    }
+
+
+    init() {
+        charsPerLine = etty_chars_per_line()
+        totalLines = etty_total_lines()
     }
 
 
@@ -348,28 +401,27 @@ private final class EarlyTTY: ScreenDriver {
 }
 
 
-private final class TextTTY: ScreenDriver {
+private struct TextTTY {
     // VGA Text Mode Hardware constants
-    private let SCREEN_BASE_ADDRESS: UInt = 0xB8000
+    static private let SCREEN_BASE_ADDRESS: UInt = 0xB8000
     // Motorola 6845 CRT Controller registers
-    private let CRT_IDX_REG: UInt16 = 0x3d4
-    private let CRT_DATA_REG: UInt16 = 0x3d5
-    private let CURSOR_MSB_IDX: UInt8 = 0xE
-    private let CURSOR_LSB_IDX: UInt8 = 0xF
-
-    let totalLines: TextCoord = 25
-    let charsPerLine: TextCoord = 80
-    private let bytesPerLine: TextCoord = 160
-    private let totalChars: Int
-    private let screen: UnsafeMutableBufferPointer<UInt16>
-
+    static private let CRT_IDX_REG: UInt16 = 0x3d4
+    static private let CRT_DATA_REG: UInt16 = 0x3d5
+    static private let CURSOR_MSB_IDX: UInt8 = 0xE
+    static private let CURSOR_LSB_IDX: UInt8 = 0xF
     // bright green characters on a black background
-    private let textColour: CUnsignedChar = 0xA
+    static private let textColour: CUnsignedChar = 0xA
     // black space on black background
-    private let blankChar = UInt16(withBytes: SPACE, 0)
+    static private let blankChar = UInt16(withBytes: SPACE, 0)
+
+    private var totalChars: Int = 0
+    private(set) var charsPerLine: TextCoord = 0
+    private(set) var totalLines:   TextCoord = 0
+    private var screen = UnsafeMutableBufferPointer<UInt16>(start: UnsafeMutablePointer<UInt16>(bitPattern: UInt(1)), count: 0)
 
     private var _cursorX: TextCoord = 0
     private var _cursorY: TextCoord = 0
+
 
     var cursorX: TextCoord {
         get { _cursorX }
@@ -395,26 +447,32 @@ private final class TextTTY: ScreenDriver {
 
 
     init() {
+    }
+
+    fileprivate mutating func setActive() {
+        // This exists so that init() can be called as the instance is global and will be in the .bss
+        // init() cannot be called directly.
+        charsPerLine = 80
+        totalLines = 25
         totalChars = Int(totalLines) * Int(charsPerLine)
-        let physRegion = PhysRegion(start: PhysAddress(SCREEN_BASE_ADDRESS), size: UInt(totalChars))
+        let physRegion = PhysRegion(start: PhysAddress(Self.SCREEN_BASE_ADDRESS), size: UInt(totalChars))
         let mmioRegion = mapIORegion(region: physRegion, cacheType: .writeCombining)
         let screenBase = UnsafeMutablePointer<UInt16>(bitPattern: mmioRegion.baseAddress.vaddr)
         screen = UnsafeMutableBufferPointer(start: screenBase, count: totalChars)
     }
-
 
     func printChar(_ character: CUnsignedChar, x: TextCoord, y: TextCoord) {
         guard x < charsPerLine && y < totalLines else {
             return
         }
         let offset = Int((y * charsPerLine) + x)
-        screen[offset] = UInt16(withBytes: character, textColour)
+        screen[offset] = UInt16(withBytes: character, Self.textColour)
     }
 
 
     func clearScreen() {
         for i in 0..<screen.count {
-            screen[i] = blankChar
+            screen[i] = Self.blankChar
         }
     }
 
@@ -430,7 +488,7 @@ private final class TextTTY: ScreenDriver {
         // Clear new bottom line with blank characters
         let bottomLine = Int((totalLines - 1) * charsPerLine)
         for i in 0..<Int(charsPerLine) {
-            screen[bottomLine + i] = blankChar
+            screen[bottomLine + i] = Self.blankChar
         }
     }
 
@@ -438,10 +496,10 @@ private final class TextTTY: ScreenDriver {
     // FIXME: I/O Access to CRT Registers should be behind a lock
     // Return hardware cursor x, y from video card
     private func readCursor() -> (TextCoord, TextCoord) {
-        outb(CRT_IDX_REG, CURSOR_MSB_IDX)
-        let msb = inb(CRT_DATA_REG)
-        outb(CRT_IDX_REG, CURSOR_LSB_IDX)
-        let lsb = inb(CRT_DATA_REG)
+        outb(Self.CRT_IDX_REG, Self.CURSOR_MSB_IDX)
+        let msb = inb(Self.CRT_DATA_REG)
+        outb(Self.CRT_IDX_REG, Self.CURSOR_LSB_IDX)
+        let lsb = inb(Self.CRT_DATA_REG)
         let address = UInt16(withBytes: lsb, msb)
         let x = address % UInt16(charsPerLine)
         let y = address / UInt16(charsPerLine)
@@ -455,10 +513,10 @@ private final class TextTTY: ScreenDriver {
         let address = ByteArray2(y * charsPerLine + x)
         let addressLSB = address[0]
         let addressMSB = address[1]
-        outb(CRT_IDX_REG, CURSOR_MSB_IDX)
-        outb(CRT_DATA_REG, addressMSB)
-        outb(CRT_IDX_REG, CURSOR_MSB_IDX)
-        outb(CRT_DATA_REG, addressLSB)
+        outb(Self.CRT_IDX_REG, Self.CURSOR_MSB_IDX)
+        outb(Self.CRT_DATA_REG, addressMSB)
+        outb(Self.CRT_IDX_REG, Self.CURSOR_MSB_IDX)
+        outb(Self.CRT_DATA_REG, addressLSB)
     }
 
 
@@ -468,60 +526,74 @@ private final class TextTTY: ScreenDriver {
     }
 }
 
+private struct Font: CustomStringConvertible {
+    let width:  UInt32
+    let height: UInt32
+    let data: UnsafePointer<UInt8>
+    let bytesPerFontLine: UInt32
+    let bytesPerChar: UInt32
 
-private final class FrameBufferTTY: ScreenDriver {
-    private struct Font: CustomStringConvertible {
-        let width:  UInt32
-        let height: UInt32
-        let data: UnsafePointer<UInt8>
-        let bytesPerFontLine: UInt32
-        let bytesPerChar: UInt32
+    var fontData: UnsafeBufferPointer<UInt8> {
+        let size = Int(width) * Int(height)
+        return UnsafeBufferPointer(start: data, count: size / 8)
+    }
 
-        var fontData: UnsafeBufferPointer<UInt8> {
-            let size = Int(width) * Int(height)
-            return UnsafeBufferPointer(start: data, count: size / 8)
-        }
+    var description: String {
+        return String.sprintf("width: %ld height: %ld data @ %p",
+            width, height, data)
+    }
 
-        var description: String {
-            return String.sprintf("width: %ld height: %ld data @ %p",
-                width, height, data)
-        }
+    init() {
+        self.width = 0
+        self.height = 0
+        self.data = UnsafePointer<UInt8>(bitPattern: 1)!
+        self.bytesPerFontLine = 0
+        self.bytesPerChar = 0
+    }
 
-
-        init(width: UInt32, height: UInt32, data: UnsafePointer<UInt8>) {
-            self.width = width
-            self.height = height
-            self.data = data
-            self.bytesPerFontLine = ((width + 7) / 8)
-            self.bytesPerChar = bytesPerFontLine * height
-        }
-
-
-        func characterData(_ ch: CUnsignedChar) -> UnsafeBufferPointer<UInt8> {
-            let offset = Int(ch) * Int(bytesPerChar)
-            return UnsafeBufferPointer(start: data.advancedBy(bytes: offset),
-                count: Int(bytesPerChar))
-        }
+    init(width: UInt32, height: UInt32, data: UnsafePointer<UInt8>) {
+        self.width = width
+        self.height = height
+        self.data = data
+        self.bytesPerFontLine = ((width + 7) / 8)
+        self.bytesPerChar = bytesPerFontLine * height
     }
 
 
-    let charsPerLine: TextCoord
-    let totalLines: TextCoord
-    private let screenBase: UnsafeMutablePointer<UInt8>
-    private let screen: UnsafeMutableBufferPointer<UInt8>
-    private let font: Font
-    private let bytesPerChar: Int
-    private let depthInBytes: Int
-    private let bytesPerTextLine: Int
-    private let lastLineScrollArea: Int
+    func characterData(_ ch: CUnsignedChar) -> UnsafeBufferPointer<UInt8> {
+        let offset = Int(ch) * Int(bytesPerChar)
+        return UnsafeBufferPointer(start: data.advancedBy(bytes: offset),
+            count: Int(bytesPerChar))
+    }
+}
 
-    private var textRed: UInt8 = 0x2f
-    private var textGreen: UInt8 = 0xff
-    private var textBlue: UInt8 = 0x12
-    private var frameBufferInfo: FrameBufferInfo
+// Expose the font as a global for now to avoid a one time initialiser function on the Framebuffer
+// This seems to be a bug as this whold structure should be a constant in .data
+private let _font = Font(
+    width: 8, height: 16, data: UnsafePointer<UInt8>(bitPattern: UInt(bitPattern: &fontdata_8x16))!
+)
+
+private struct FrameBufferTTY {
+    private var font = Font()
+    private var screen = UnsafeMutableBufferPointer<UInt8>(
+        start: UnsafeMutablePointer<UInt8>(bitPattern: 0x1)!, count: 0
+    )
+    private var bytesPerChar: Int = 0
+    private var depthInBytes: Int = 0
+    private var bytesPerTextLine: Int = 0
+    private var lastLineScrollArea: Int = 0
+
+    private let textRed: UInt8 = 0x2f
+    private let textGreen: UInt8 = 0xff
+    private let textBlue: UInt8 = 0x12
+    private var colourMask: UInt32 = 0
+    private var frameBufferInfo =  FrameBufferInfo()
 
     private var _cursorX: TextCoord = 0
     private var _cursorY: TextCoord = 0
+    private(set) var charsPerLine: TextCoord = 0
+    private(set) var totalLines:   TextCoord = 0
+
 
     var cursorX: TextCoord {
         get { _cursorX }
@@ -547,15 +619,14 @@ private final class FrameBufferTTY: ScreenDriver {
         return frameBufferInfo.description + font.description
     }
 
+    // Empty initialiser avoids one time initialisation functions.
+    init() {
+    }
 
-    fileprivate init(frameBufferInfo: FrameBufferInfo) {
+    mutating func setFrameBuffer(_ frameBufferInfo: FrameBufferInfo) {
+        // TODO: Deinit the old settings?
+        self.font = _font
         self.frameBufferInfo = frameBufferInfo
-
-        let ptr = withUnsafePointer(to: &fontdata_8x16) {
-            return UnsafePointer<UInt8>(bitPattern: UInt(bitPattern: $0))!
-        }
-
-        font = Font(width: 8, height: 16, data: UnsafePointer<UInt8>(ptr))
         charsPerLine = TextCoord(frameBufferInfo.width / font.width)
         totalLines = TextCoord(frameBufferInfo.height / font.height)
         depthInBytes = Int(frameBufferInfo.depth) / 8
@@ -568,17 +639,17 @@ private final class FrameBufferTTY: ScreenDriver {
 
         let physRegion = PhysRegion(start: frameBufferInfo.address, size: UInt(size))
         let mmioRegion = mapIORegion(region: physRegion, cacheType: .writeCombining)
-        screenBase = UnsafeMutablePointer<UInt8>(bitPattern: mmioRegion.baseAddress.vaddr)!
+        let screenBase = UnsafeMutablePointer<UInt8>(bitPattern: mmioRegion.baseAddress.vaddr)!
         screen = UnsafeMutableBufferPointer<UInt8>(start: screenBase,
             count: size)
+        colourMask = computeColourMask()
     }
 
 
-    fileprivate func printChar(_ ch: CUnsignedChar, x: TextCoord, y: TextCoord) {
+    func printChar(_ ch: CUnsignedChar, x: TextCoord, y: TextCoord) {
         guard x < charsPerLine && y < totalLines else {
             return
         }
-        let colourMask = computeColourMask()
         let data = font.characterData(ch)
         var pixel = Int(UInt32(y) * font.height * frameBufferInfo.pxPerScanline)
             + Int(UInt32(x) * font.width)
@@ -597,14 +668,15 @@ private final class FrameBufferTTY: ScreenDriver {
     }
 
 
-    fileprivate func clearScreen() {
+    func clearScreen() {
         for i in 0..<screen.count {
             screen[i] = 0
         }
     }
 
 
-    fileprivate func scrollUp() {
+    func scrollUp() {
+        let screenBase = screen.baseAddress!
         screenBase.assign(from: screenBase.advancedBy(bytes: bytesPerTextLine),
             count: lastLineScrollArea)
 
@@ -624,7 +696,7 @@ private final class FrameBufferTTY: ScreenDriver {
     }
 
 
-    private func writeFontLine(data: UnsafeBufferPointer<UInt8>, mask: UInt32,
+    func writeFontLine(data: UnsafeBufferPointer<UInt8>, mask: UInt32,
         offset: Int, screenLine: UnsafeMutableBufferPointer<UInt8>) {
 
         var screenByte = 0
@@ -643,4 +715,9 @@ private final class FrameBufferTTY: ScreenDriver {
             }
         }
     }
+}
+
+// TODO - Should be in a 'Console' type
+func readLine(prompt: String, keyboard: Keyboard) -> String {
+    tty.readLine(prompt: prompt, keyboard: keyboard)
 }

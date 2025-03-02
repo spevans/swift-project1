@@ -46,7 +46,7 @@ extern const void * _Nonnull physmap_pml1;
 extern const void * _Nonnull kernmap_pml3;
 extern const void * _Nonnull kernmap_pml2;
 extern const void * _Nonnull kernmap_pml1;
-extern const uint8_t * _Nonnull fontdata_8x16;
+extern const void * _Nonnull fontdata_8x16;
 
 extern struct task_state_segment task_state_segment;
 

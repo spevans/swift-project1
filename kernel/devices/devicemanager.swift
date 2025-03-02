@@ -130,7 +130,7 @@ final class DeviceManager {
             print("Error: Cant Find ROOT PCI Bus")
         }
 
-        TTY.sharedInstance.scrollTimingTest()
+        tty.scrollTimingTest()
         dumpDeviceTree()
     }
 
