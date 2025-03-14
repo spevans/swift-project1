@@ -10,7 +10,7 @@
 final class MotherBoardResource: PNPDeviceDriver {
     private let resources: [AMLResourceSetting]
 
-    var description: String { "\(device.fullName): \(resources)" }
+    override var description: String { "\(device.fullName): \(resources)" }
 
 
     override init?(pnpDevice: PNPDevice) {

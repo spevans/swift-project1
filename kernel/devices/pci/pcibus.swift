@@ -9,14 +9,14 @@
  */
 
 
-final class PCIBus: DeviceDriver, CustomStringConvertible {
+final class PCIBus: DeviceDriver {
     let interruptRoutingTable: PCIRoutingTable?
     let busId: UInt8
     var resources: [MotherBoardResource] = []
     let isHostBus: Bool
 
     private(set) var devices: [Device] = []
-    var description: String { "PCIBus: busId: \(asHex(busId)) \(device.fullName)" }
+    override var description: String { "PCIBus: busId: \(asHex(busId)) \(device.fullName)" }
 
     // Root Bus
     init?(pnpDevice: PNPDevice) {

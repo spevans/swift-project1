@@ -51,12 +51,25 @@ enum IntControllerTableType: UInt8, CustomStringConvertible {
 
 struct MADT: CustomDebugStringConvertible {
 
-    enum MADTEntry {
+    enum MADTEntry: CustomStringConvertible {
         case processorLocalApic(ProcessorLocalApicTable)
         case ioApic(IOApicTable)
         case interruptSourceOverride(InterruptSourceOverrideTable)
         case localApicNmi(LocalApicNmiTable)
         //var tableType: IntControllerTableType { get }
+
+        var description: String {
+            switch self {
+                case .processorLocalApic(_):
+                    return "Local-APIC"
+                case .ioApic(_):
+                    return "IO-APIC"
+                case .interruptSourceOverride(_):
+                    return "INT-SrcOverride"
+                case .localApicNmi(_):
+                    return "Local-APIC-NMI"
+            }
+        }
     }
 
 

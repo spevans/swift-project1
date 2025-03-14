@@ -713,7 +713,7 @@ final class AMLPackage: Sequence {
 }
 
 
-struct AMLNameString: Hashable {
+struct AMLNameString: Hashable, CustomStringConvertible {
     static let rootChar = Character(UnicodeScalar("\\"))
     static let parentPrefixChar = Character(UnicodeScalar("^"))
     static let pathSeparatorChar = Character(UnicodeScalar("."))
@@ -723,6 +723,7 @@ struct AMLNameString: Hashable {
     // Name starts with '\\'
     var isFullPath: Bool { return value.first == AMLNameString.rootChar }
 
+    var description: String { return value }
 
     init(_ value: String) {
         self.value = value

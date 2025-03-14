@@ -47,7 +47,7 @@ let IA32_MTRR_PHYSMASK9: UInt32 = 0x213
 
 struct MTRR: CustomStringConvertible {
 
-    enum MemoryType: UInt8 {
+    enum MemoryType: UInt8, CustomStringConvertible {
         case uncacheable = 0
         case writeCombining = 1
         case writeThrough = 4

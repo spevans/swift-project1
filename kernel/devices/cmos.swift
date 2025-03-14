@@ -17,7 +17,7 @@ final class CMOSRTC: PNPDeviceDriver {
     private var centuryIndex: UInt8 = 0
 
 
-    var description: String {
+    override var description: String {
         return String.sprintf("CMOS RTC addr: 0x%2.2x data: 0x%2.2x irq: %s",
                               addressPort, dataPort, irq?.description ?? "none" )
     }

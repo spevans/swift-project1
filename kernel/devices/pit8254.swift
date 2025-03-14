@@ -25,7 +25,7 @@ final class PIT8254Timer: Timer {
 }
 
 
-final class PIT8254: PNPDeviceDriver, CustomStringConvertible {
+final class PIT8254: PNPDeviceDriver {
     private let oscillator = 1193182         // Base frequency
     private var channel0Port: UInt16 = 0
     private var channel2Port: UInt16 = 0
@@ -111,7 +111,7 @@ final class PIT8254: PNPDeviceDriver, CustomStringConvertible {
         }
     }
 
-    var description: String {
+    override var description: String {
         return String.sprintf("PIT8254: cmd: 0x%2.2x chan0: 0x%2.2x chan2: 0x%2.2x, irq: %s",
                               commandPort, channel0Port, channel2Port, irq.description)
     }

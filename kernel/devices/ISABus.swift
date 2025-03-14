@@ -14,7 +14,7 @@ final class ISABus: DeviceDriver {
 
     var resources: [MotherBoardResource] = []
     let rs = ReservedSpace(name: "IO Ports", start: 0, end: 0xfff)
-    var description: String { "ISABus: \(device.fullName)" }
+    override var description: String { "ISABus: \(device.fullName)" }
 
 
     init?(pciDevice: PCIDevice) {

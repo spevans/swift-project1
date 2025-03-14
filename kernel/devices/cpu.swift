@@ -186,13 +186,30 @@ private let cpuId = CPUID()
 struct CPU {
 
     // These are the values stored in the PAT MSRs
-    enum PATEntry: UInt8 {
+    enum PATEntry: UInt8, CustomStringConvertible {
         case uncacheable = 0
         case writeCombining = 1
         case writeThrough = 4
         case writeProtected = 5
         case writeBack = 6
         case weakUncacheable = 7 // Uncacheable (UC-), Overrideable by MTRRs
+
+        var description: String {
+            switch self {
+                case .uncacheable:
+                    return "Uncacheable"
+                case .writeCombining:
+                    return "WriteCombining"
+                case .writeThrough:
+                    return "WriteThrough"
+                case .writeProtected:
+                    return "WriteProtected"
+                case .writeBack:
+                    return "WriteBack"
+                case .weakUncacheable:
+                    return "WeakUncacheable"
+            }
+        }
     }
 
     // The Page Attribute Table (PAT) entries will be setup so that the cache type rawValues get setup to match the MTRR values.

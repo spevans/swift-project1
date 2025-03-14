@@ -9,11 +9,11 @@
  */
 
 
-final class HCD_EHCI: PCIDeviceDriver, CustomStringConvertible {
+final class HCD_EHCI: PCIDeviceDriver {
     private let baseAddress: UInt32
     private let allows64BitMapping: Bool
 
-    var description: String { "EHCI driver @ 0x\(String(baseAddress, radix: 16))" }
+    override var description: String { "EHCI driver @ 0x\(String(baseAddress, radix: 16))" }
 
 
     override init?(pciDevice: PCIDevice) {

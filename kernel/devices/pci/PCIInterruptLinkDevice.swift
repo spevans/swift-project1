@@ -10,7 +10,7 @@
 
 final class PCIInterruptLinkDevice: PNPDeviceDriver {
     let irq: IRQSetting  // The IRQ signaled by this device
-    var description: String { "PCI Link Device: [IRQ: \(irq)]" }
+    override var description: String { "PCI Link Device: [IRQ: \(irq)]" }
 
 
     override init?(pnpDevice: PNPDevice) {

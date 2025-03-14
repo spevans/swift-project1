@@ -138,7 +138,7 @@ final class DeviceManager {
         let spaces = String(repeating: " ", count: depth * 6)
         for device in bus.devices {
             var driverName = ""
-            if let driver = device.deviceDriver { driverName = ": [\(driver)]" }
+            if let driver = device.deviceDriver { driverName = ": [\(driver.description)]" }
             print("\(spaces)+--- \(device)\(driverName) [init: \(device.initialised) enab: \(device.enabled)]")
             if device.isBus {
                 dumpBus(device, depth: depth + 1)

@@ -7,7 +7,8 @@
 //
 
 
-class DeviceDriver {
+class DeviceDriver: CustomStringConvertible {
+    var description: String { "Unnamed device" }
     let device: Device
     func initialise() -> Bool {
         return false
@@ -20,6 +21,7 @@ class DeviceDriver {
 
 
 class PNPDeviceDriver: DeviceDriver {
+    override var description: String { "A PNP device" }
     init?(pnpDevice: PNPDevice) {
         super.init(device: pnpDevice.device)
     }
@@ -27,6 +29,7 @@ class PNPDeviceDriver: DeviceDriver {
 
 
 class PCIDeviceDriver: DeviceDriver {
+    override var description: String { "A PCI device" }
     init?(pciDevice: PCIDevice) {
         super.init(device: pciDevice.device)
     }

@@ -117,7 +117,7 @@ final class HPET: PNPDeviceDriver {
     private var mmioRegion: MMIORegion = MMIORegion.invalidRegion()
     private(set) var irq = IRQSetting(isaIrq: 2)
 
-    var description: String { return hpet.description }
+    override var description: String { return hpet.description }
 
     override init?(pnpDevice: PNPDevice) {
         guard let _hpet = system.systemTables.acpiTables.hpet else {

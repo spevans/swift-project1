@@ -11,7 +11,7 @@
 final class QEMUFWCFG: PNPDeviceDriver {
     private var baseIOPort: UInt16 = 0
     private var hasDMAInterface = false
-    let description = "QEMU_FWCFG"
+    override var description: String { return "QEMU_FWCFG" }
 
     override init?(pnpDevice: PNPDevice) {
         super.init(pnpDevice: pnpDevice)

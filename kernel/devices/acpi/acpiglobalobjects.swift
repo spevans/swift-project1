@@ -20,9 +20,9 @@ extension ACPI {
         private(set) var device: Device?
 
         var description: String {
-            var result = "ACPIObjectNode: \(name)"
+            var result = "ACPIObjectNode: \(name.description)"
             if let p = parent {
-                result += " parent: \(p.name)"
+                result += " parent: \(p.name.description)"
             }
             result += "children ["
             result += childNodes.map { $0.name.value }.joined(separator: ", ")

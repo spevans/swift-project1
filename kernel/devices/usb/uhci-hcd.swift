@@ -21,7 +21,7 @@ internal func uhciDebug(_ msg: CustomStringConvertible...) {
 }
 
 
-final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
+final class HCD_UHCI: PCIDeviceDriver {
 
     static private let GLOBAL_RESET_TRIES = 5
 
@@ -29,10 +29,9 @@ final class HCD_UHCI: PCIDeviceDriver, CustomStringConvertible {
     private var maxAddress: UInt8 = 1
     private(set) var controlQH = PhysQueueHead(mmioSubRegion: MMIOSubRegion(baseAddress: PhysAddress(0), count: 0))
     let allocator: UHCIAllocator
-
     var enabled = true
 
-    var description: String { "UHCI: driver @ IO 0x\(String(ioBasePort, radix: 16))" }
+    override var description: String { "UHCI: driver @ IO 0x\(String(ioBasePort, radix: 16))" }
 
     override init?(pciDevice: PCIDevice) {
         uhciDebug("init")

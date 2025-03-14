@@ -9,10 +9,10 @@
  */
 
 
-final class HCD_XHCI: PCIDeviceDriver, CustomStringConvertible {
+final class HCD_XHCI: PCIDeviceDriver {
     private let baseAddress: UInt32
 
-    var description: String { "XHCI driver @ 0x\(String(baseAddress, radix: 16))" }
+    override var description: String { "XHCI driver @ 0x\(String(baseAddress, radix: 16))" }
 
 
     override init?(pciDevice: PCIDevice) {

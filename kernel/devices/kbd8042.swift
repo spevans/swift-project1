@@ -207,7 +207,9 @@ final class KBD8042: PNPDeviceDriver {
     private var port1device: PS2Device = .none
     private var port2device: PS2Device = .none
 
-    private(set) var description = "KBD8042"
+    private var _description = "KBD8042"
+    override var description: String { return _description }
+
 
     override init?(pnpDevice: PNPDevice) {
         print("kbd8042 init")
@@ -219,7 +221,7 @@ final class KBD8042: PNPDeviceDriver {
             print("i8042: Cant initialise PNPDevice")
             return false
         }
-        description = "KBD8042 \(resources)"
+        _description = "KBD8042 \(resources)"
         print("i8042:", pnpDevice.pnpName, resources)
 
         // 1. Flush output buffer
