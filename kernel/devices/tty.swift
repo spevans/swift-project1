@@ -108,7 +108,7 @@ func setTTY(frameBufferInfo: FrameBufferInfo?) {
 }
 
 
-enum TTY {
+enum TTY: ~Copyable {
     case early
     case text
     case framebuffer
@@ -655,7 +655,7 @@ private struct FrameBufferTTY {
 
     func scrollUp() {
         let screenBase = screen.baseAddress!
-        screenBase.assign(from: screenBase.advancedBy(bytes: bytesPerTextLine),
+        screenBase.update(from: screenBase.advancedBy(bytes: bytesPerTextLine),
             count: lastLineScrollArea)
 
         // Clear the bottom line

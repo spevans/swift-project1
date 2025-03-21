@@ -21,27 +21,24 @@ struct ByteArray2: RandomAccessCollection, Sequence, CustomStringConvertible {
     var description: String { return String(rawValue, radix: 16) }
 
 
+    @inline(__always)
     init() {
         rawValue = 0
     }
 
+    @inline(__always)
     init(_ rawValue: Int) {
         self.rawValue = UInt16(rawValue)
     }
 
+    @inline(__always)
     init(_ rawValue: UInt16) {
         self.rawValue = rawValue
     }
 
-    init(withBytes bytes: Element...) {
-        precondition(bytes.count <= 2)
-
-        self.rawValue = 0
-        var shift: UInt16 = 0
-        for byte in bytes {
-            rawValue |= (UInt16(byte) << shift)
-            shift += 8
-        }
+    @inline(__always)
+    init(withBytes loByte: Element, _ hiByte: Element) {
+        self.rawValue = UInt16(hiByte) << 8 | UInt16(loByte)
     }
 
     init(_ bytes: [Element]) {
@@ -124,27 +121,24 @@ struct ByteArray4: RandomAccessCollection, Sequence, CustomStringConvertible {
     var description: String { return String(rawValue, radix: 16) }
 
 
+    @inline(__always)
     init() {
         rawValue = 0
     }
 
+    @inline(__always)
     init(_ rawValue: Int) {
         self.rawValue = UInt32(rawValue)
     }
 
+    @inline(__always)
     init(_ rawValue: UInt32) {
         self.rawValue = rawValue
     }
 
-    init(withBytes bytes: Element...) {
-        precondition(bytes.count <= 4)
-
-        self.rawValue = 0
-        var shift: UInt32 = 0
-        for byte in bytes {
-            rawValue |= (UInt32(byte) << shift)
-            shift += 8
-        }
+    @inline(__always)
+    init(withBytes loByte: Element, _ byte1: Element, _ byte2: Element, _ hiByte: Element) {
+        self.rawValue = (UInt32(hiByte) << 24) | (UInt32(byte2) << 16) | (UInt32(byte2) << 24) | UInt32(loByte)
     }
 
     init(_ bytes: [Element]) {

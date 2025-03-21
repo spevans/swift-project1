@@ -16,7 +16,7 @@ enum ReadError: Error {
 struct MemoryBufferReader {
 
     let ptr: UnsafeRawPointer
-    let buffer: UnsafeBufferPointer<UInt8>
+    let buffer: UnsafeRawBufferPointer
     var offset: Int = 0
     var bytesRemaining: Int { return (buffer.count - offset) }
 
@@ -24,14 +24,14 @@ struct MemoryBufferReader {
     init(_ baseAddr: VirtualAddress, size: Int) {
         ptr = UnsafeRawPointer(bitPattern: baseAddr)!
         let bufferPtr = ptr.bindMemory(to: UInt8.self, capacity: size)
-        buffer = UnsafeBufferPointer(start: bufferPtr, count: size)
+        buffer = UnsafeRawBufferPointer(start: bufferPtr, count: size)
     }
 
 
     init(_ basePtr: UnsafeRawPointer, size: Int) {
         ptr = basePtr
         let bufferPtr = ptr.bindMemory(to: UInt8.self, capacity: size)
-        buffer = UnsafeBufferPointer(start: bufferPtr, count: size)
+        buffer = UnsafeRawBufferPointer(start: bufferPtr, count: size)
     }
 
 
@@ -99,7 +99,7 @@ struct MemoryBufferReader {
         guard bytesRemaining >= MemoryLayout<T>.size else {
             throw ReadError.InvalidOffset
         }
-        let result = ptr.load(fromByteOffset: offset, as: T.self)
+        let result = ptr.loadUnaligned(fromByteOffset: offset, as: T.self)
         offset += MemoryLayout<T>.size
 
         return result
@@ -113,7 +113,7 @@ struct MemoryBufferReader {
         guard index + MemoryLayout<T>.size <= buffer.count else {
             throw ReadError.InvalidOffset
         }
-        return ptr.load(fromByteOffset: index, as: T.self)
+        return ptr.loadUnaligned(fromByteOffset: index, as: T.self)
     }
 
 

@@ -59,7 +59,7 @@ public func getFirstTask() -> UInt {
 
 
 // Currently decides the next task to run but doesnt switch to it
-@_silgen_name("sched_yield")
+@_cdecl("sched_yield")
 @discardableResult  // return value is only to satisfy the C definition
 public func yield() -> Int {
     if tasks.count > 0 {

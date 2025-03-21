@@ -135,7 +135,7 @@ extension LocalInterruptEntry {
 }
 
 
-struct APIC {
+struct APIC: ~Copyable {
 
     // 256 bit register composed of 8x32bit values
     // Each 32bit value is on a 128bit (16byte) boundary

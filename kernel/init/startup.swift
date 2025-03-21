@@ -11,7 +11,7 @@
 
 fileprivate(set) var system: System!
 
-@_silgen_name("startup")
+@_cdecl("startup")
 public func startup(bootParamsAddr: UInt) {
     system = System(bootParamsAddr: bootParamsAddr)
     system.initSystem()

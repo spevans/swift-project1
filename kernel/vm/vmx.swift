@@ -8,9 +8,9 @@
  *
  */
 
-private var globalVmcs: VMCS?  // pointer to global VMCS
+nonisolated(unsafe) private var globalVmcs: VMCS?  // pointer to global VMCS
 
-private var guestVmcs: VMCS?
+nonisolated(unsafe) private var guestVmcs: VMCS?
 
 enum VMXError: Error, Equatable, CustomStringConvertible {
 

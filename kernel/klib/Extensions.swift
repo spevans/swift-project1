@@ -117,6 +117,14 @@ extension UnsafeMutableRawPointer {
     }
 }
 
+extension Optional where Wrapped: _Pointer {
+    public var address: UInt {
+        return switch self {
+            case .none: 0
+            case .some(let ptr): UInt(bitPattern: ptr)
+        }
+    }
+}
 
 /// Convert the given numeric value to a hexadecimal string.
 public func asHex<T : SignedInteger>(_ x: T) -> String {

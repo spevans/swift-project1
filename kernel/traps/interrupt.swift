@@ -24,7 +24,7 @@ protocol InterruptController {
 }
 
 
-public struct InterruptManager {
+public struct InterruptManager: ~Copyable {
 
     private(set) var localAPIC = APIC()
     fileprivate var irqHandlers: [IRQHandler?] = Array(repeating: nil, count: NR_IRQS)
@@ -171,7 +171,7 @@ public struct InterruptManager {
 // The following function runs inside an IRQ so cannot call malloc().
 // The irqHandler does everything except save/restore the registers and
 // the IRET. The IRQ number is passed on the stack in the ExceptionRegisters
-// (include/x86defs.h:excpetion_regs) as the error_code.
+// (include/x86defs.h:exception_regs) as the error_code.
 @_silgen_name("irqHandler")
 public func irqHandler(registers: ExceptionRegisters,
     interruptManager: inout InterruptManager) {

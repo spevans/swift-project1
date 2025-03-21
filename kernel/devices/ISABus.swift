@@ -10,7 +10,6 @@
 // which is defined as ports 0 - 0xffff accessed via the IN & OUT instructions.
 
 final class ISABus: DeviceDriver {
-   // private var isaDevices: [PNPDevice] = []
 
     var resources: [MotherBoardResource] = []
     let rs = ReservedSpace(name: "IO Ports", start: 0, end: 0xfff)

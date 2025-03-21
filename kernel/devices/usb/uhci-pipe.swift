@@ -20,8 +20,8 @@ extension HCD_UHCI {
 
 fileprivate extension HCD_UHCI {
     final class UHCIPipe: USBPipe {
-        private unowned let hcd: HCD_UHCI
-        private unowned let device: USBDevice
+        private /*unowned*/ let hcd: HCD_UHCI
+        private /*unowned*/ let device: USBDevice
         private let maxPacketSize: UInt16 = 8
         private let isLowSpeedDevice: Bool
         private var queueHead: PhysQueueHead
