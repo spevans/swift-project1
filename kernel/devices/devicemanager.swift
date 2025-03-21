@@ -9,9 +9,11 @@
 
 internal var usbBus: USB!
 
+private(set) var interruptManager = InterruptManager()
+
 final class DeviceManager {
     let acpiTables: ACPI
-    private(set) var interruptManager: InterruptManager
+
     private(set) var masterBus: MasterBus
 
     var keyboard: Keyboard?
@@ -26,8 +28,10 @@ final class DeviceManager {
             fatalError("No \\_SB system bus node")
         }
         self.acpiTables = acpiTables
-        interruptManager = InterruptManager(acpiTables: acpiTables)
-        set_interrupt_manager(&interruptManager)
+        interruptManager.setup(with: acpiTables)
+        withUnsafePointer(to: &interruptManager) {
+            set_interrupt_manager($0)
+        }
         masterBus = MasterBus(acpiSystemBus: sb)
     }
 
@@ -133,6 +137,16 @@ final class DeviceManager {
         tty.scrollTimingTest()
         dumpDeviceTree()
     }
+
+
+    func setIrqHandler(_ irqSetting: IRQSetting, handler: @escaping IRQHandler) {
+        interruptManager.setIrqHandler(irqSetting, handler: handler)
+    }
+
+    func enableIRQs(){
+        interruptManager.enableIRQs()
+    }
+
 
     private func dumpBus(_ bus: Device, depth: Int) {
         let spaces = String(repeating: " ", count: depth * 6)

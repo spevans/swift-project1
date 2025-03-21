@@ -72,11 +72,11 @@ func benchmark(_ function: () -> ()) -> UInt64 {
 
 
 fileprivate func mainLoop() {
-    let interruptManager = system.deviceManager.interruptManager
-    // Idle, woken up by interrupts
-    interruptManager.enableIRQs()
+    print("Runing mainLoop, enabling IRQs")
+    system.deviceManager.enableIRQs()
     system.deviceManager.initialiseDevices()
 
+    // Idle, woken up by interrupts
     while true {
         hlt()
         yield()

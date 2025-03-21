@@ -14,7 +14,6 @@
 // otherwise. This if for when shared interrupts are used.
 typealias IRQHandler = () -> Bool
 
-private(set) var localAPIC: APIC!
 
 protocol InterruptController {
     func enableIRQ(_ irqSetting: IRQSetting)
@@ -25,34 +24,42 @@ protocol InterruptController {
 }
 
 
-public final class InterruptManager {
+public struct InterruptManager {
 
+    private(set) var localAPIC = APIC()
     fileprivate var irqHandlers: [IRQHandler?] = Array(repeating: nil, count: NR_IRQS)
-    private let ioapics: [IOAPIC]
-    private let overrideEntries: [MADT.InterruptSourceOverrideTable]
+    private var ioapics: [IOAPIC] = []
+    private var overrideEntries: [MADT.InterruptSourceOverrideTable] = []
 
 
-    init(acpiTables: ACPI) {
+    init() {
+    }
+
+    mutating func setup(with acpiTables: ACPI) {
 
         guard let madtEntries = acpiTables.madt?.madtEntries else {
             fatalError("Cant find MADT Table")
         }
-        localAPIC = APIC(madtEntries: madtEntries)
+        guard localAPIC.setup(with: madtEntries) else {
+            fatalError("Cannot setup ACPI")
+        }
 
         // Find the IO-APICS and interrupt overrides
         var _ioapics: [IOAPIC] = []
         var _overrideEntries: [MADT.InterruptSourceOverrideTable] = []
 
+        printf("INT-MAN: Have %d MADT Entries\n", madtEntries.count)
         madtEntries.forEach {
+            print("INT-MAN: MADT entry:", $0)
             switch $0 {
-            case let .ioApic(entry):
-                let baseAddress = PhysAddress(RawAddress(entry.ioApicAddress))
-                let ioapic = IOAPIC(ioApicId: entry.ioApicID, baseAddress: baseAddress,
-                                    gsiBase: entry.globalSystemInterruptBase)
-                _ioapics.append(ioapic)
-            case let .interruptSourceOverride(entry):
-                _overrideEntries.append(entry)
-            default: break
+                case let .ioApic(entry):
+                    let baseAddress = PhysAddress(RawAddress(entry.ioApicAddress))
+                    let ioapic = IOAPIC(ioApicId: entry.ioApicID, baseAddress: baseAddress,
+                                        gsiBase: entry.globalSystemInterruptBase)
+                    _ioapics.append(ioapic)
+                case let .interruptSourceOverride(entry):
+                    _overrideEntries.append(entry)
+                default: break
             }
         }
         ioapics = _ioapics
@@ -146,14 +153,14 @@ public final class InterruptManager {
         localAPIC.ackIRQ(irq)
     }
 
-    func setIrqHandler(_ irqSetting: IRQSetting, handler: @escaping IRQHandler) {
+    mutating func setIrqHandler(_ irqSetting: IRQSetting, handler: @escaping IRQHandler) {
         // FIXME, deal with shared interrupts
         print("INT-MAN: Setting IRQ handler for \(irqSetting.irq)")
         irqHandlers[irqSetting.irq] = handler
         enableIRQ(irqSetting)
     }
 
-    func removeIrqHandler(_ irqSetting: IRQSetting) {
+    mutating func removeIrqHandler(_ irqSetting: IRQSetting) {
         disableIRQ(irqSetting)
         irqHandlers[irqSetting.irq] = nil
     }

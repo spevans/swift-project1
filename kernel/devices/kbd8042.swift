@@ -313,9 +313,9 @@ final class KBD8042: PNPDeviceDriver {
         let keyboard = PS2Keyboard(buffer: keyboardBuffer)
         port1device = .keyboard(keyboard)
         // FIXME: determine correct irq
-        system.deviceManager.interruptManager.setIrqHandler(IRQSetting(isaIrq: 1), handler: kbdInterrupt)
+        system.deviceManager.setIrqHandler(IRQSetting(isaIrq: 1), handler: kbdInterrupt)
         if dualChannel {
-            system.deviceManager.interruptManager.setIrqHandler(IRQSetting(isaIrq: 12), handler: mouseInterrupt)
+            system.deviceManager.setIrqHandler(IRQSetting(isaIrq: 12), handler: mouseInterrupt)
         }
         print("i8042: kbd initialised")
         pnpDevice.device.initialised = true

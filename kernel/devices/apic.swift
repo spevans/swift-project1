@@ -135,7 +135,7 @@ extension LocalInterruptEntry {
 }
 
 
-final class APIC {
+struct APIC {
 
     // 256 bit register composed of 8x32bit values
     // Each 32bit value is on a 128bit (16byte) boundary
@@ -163,7 +163,45 @@ final class APIC {
     private let bootProcessorBit = 8
     private let globalEnableBit = 11
 
-    private let apicRegisters: UnsafeMutableRawBufferPointer
+    private var apicRegisters: UnsafeMutableRawBufferPointer = UnsafeMutableRawBufferPointer(start: nil, count: 0)
+
+
+    mutating func setup(with madtEntries: [MADT.MADTEntry]) -> Bool {
+        guard CPU.capabilities.apic else {
+            print("APIC: No APIC installed")
+            return false
+        }
+        print("APIC: Initialising..")
+
+        var apicStatus = BitArray64(CPU.readMSR(APIC.IA32_APIC_BASE_MSR))
+
+        // Enable the APIC if currently disabled
+        if apicStatus[globalEnableBit] != 1 {
+            apicStatus[globalEnableBit] = 1
+            CPU.writeMSR(APIC.IA32_APIC_BASE_MSR, apicStatus.toUInt64())
+            apicStatus = BitArray64(CPU.readMSR(APIC.IA32_APIC_BASE_MSR))
+            if apicStatus[globalEnableBit] != 1 {
+                print("APIC: failed to enable")
+                return false
+            }
+        }
+
+        let region = APIC.addressRegion()
+        printf("APIC: base address: 0x%X\n", region.baseAddress.value)
+        let mmio = mapIORegion(region: region, cacheType: .uncacheable)
+        let ptr = mmio.baseAddress.rawPointer
+        apicRegisters = UnsafeMutableRawBufferPointer(start: ptr,
+            count: APIC.APIC_REGISTER_SPACE_SIZE)
+
+        let bootProcessor = apicStatus[bootProcessorBit] == 1
+        print("APIC: boot \(bootProcessor)")
+
+        printStatus()
+        setupTimer()
+        spuriousIntVector = 0x1ff
+        return true
+    }
+
 
     var localAPICId:      UInt32 { return atOffset(0x20) }
     var localAPICVersion: UInt32 { return atOffset(0x30) }
@@ -271,47 +309,12 @@ final class APIC {
         return PhysRegion(start: baseAddress, size: UInt(APIC_REGISTER_SPACE_SIZE))
     }
 
-    init?(madtEntries: [MADT.MADTEntry]) {
-        guard CPU.capabilities.apic else {
-            print("APIC: No APIC installed")
-            return nil
-        }
-        print("APIC: Initialising..")
-
-        var apicStatus = BitArray64(CPU.readMSR(APIC.IA32_APIC_BASE_MSR))
-
-        // Enable the APIC if currently disabled
-        if apicStatus[globalEnableBit] != 1 {
-            apicStatus[globalEnableBit] = 1
-            CPU.writeMSR(APIC.IA32_APIC_BASE_MSR, apicStatus.toUInt64())
-            apicStatus = BitArray64(CPU.readMSR(APIC.IA32_APIC_BASE_MSR))
-            if apicStatus[globalEnableBit] != 1 {
-                print("APIC: failed to enable")
-                return nil
-            }
-        }
-
-        let region = APIC.addressRegion()
-        printf("APIC: base address: 0x%X\n", region.baseAddress.value)
-        let mmio = mapIORegion(region: region, cacheType: .uncacheable)
-        let ptr = mmio.baseAddress.rawPointer
-        apicRegisters = UnsafeMutableRawBufferPointer(start: ptr,
-            count: APIC.APIC_REGISTER_SPACE_SIZE)
-
-        let bootProcessor = apicStatus[bootProcessorBit] == 1
-        print("APIC: boot \(bootProcessor)")
-
-        printStatus()
-        setupTimer()
-        spuriousIntVector = 0x1ff
-    }
-
     func disableAllIRQs() {
     }
 
 
     func ackIRQ(_ irq: Int) {
-        EOI = 1
+        atOffset(0xB0, value: 1)    // Send EOI
     }
 
     func printStatus() {
@@ -333,7 +336,7 @@ final class APIC {
     }
 
 
-    func setupTimer() {
+    mutating func setupTimer() {
         printf("APIC: InitialCount: %8.8X CurrentCount: %8.8X Divide Config: %8.8X\n",
             initialCount, currentCount, divideConfig)
 
@@ -364,7 +367,5 @@ public func apicIntHandler(registers: ExceptionRegisters) {
     }
 
     //printf("APIC INT Handler: %d\n", apicInt)
-    if let apic = localAPIC {
-        apic.EOI = 1
-    }
+    interruptManager.ackIRQ(apicInt)
 }

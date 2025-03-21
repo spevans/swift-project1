@@ -33,7 +33,7 @@ func setupPeriodicTimer() -> Bool {
     }
     let irq = timer.irq
     print(timer)
-    system.deviceManager.interruptManager.setIrqHandler(irq, handler: timerInterrupt)
+    system.deviceManager.setIrqHandler(irq, handler: timerInterrupt)
     print("timer: Setup for 1000Hz on irq:", irq)
     return true
 }
