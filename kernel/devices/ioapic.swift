@@ -12,9 +12,8 @@
 final class IOAPIC {
 
     static let regionSize: UInt = 0x20
-
-    fileprivate let registerSelect: UnsafeMutablePointer<UInt32>
-    fileprivate let registerData: UnsafeMutablePointer<UInt32>
+    static let registerSelectOffset = 0x0
+    static let registerDataOffset = 0x10
 
     private let registerBase: MMIORegion
     let globalSystemInterruptBase: UInt32
@@ -28,8 +27,9 @@ final class IOAPIC {
         // FIXME: Use MMIO
         let region = PhysRegion(start: baseAddress, size: IOAPIC.regionSize)
         registerBase = mapIORegion(region: region, cacheType: .uncacheable)
-        registerSelect = UnsafeMutablePointer<UInt32>(bitPattern: registerBase.baseAddress.vaddr)!
-        registerData = registerSelect.advanced(by: 4)
+        let mre = Int(versionRegister.maximumRedirectionEntry)
+        printf("IO-APIC: maximumRedirectionEntry: %d\n", mre)
+        guard mre > 0 else { fatalError("MRE is zero!") }
     }
 
 
@@ -94,7 +94,7 @@ final class IOAPIC {
 }
 
 
-fileprivate extension IOAPIC.IORedirectionRegister {
+private extension IOAPIC.IORedirectionRegister {
     // Bits 10:8
     enum DeliveryMode: Int {
         case fixed = 0b000
@@ -197,7 +197,7 @@ fileprivate extension IOAPIC {
 }
 
 
-fileprivate extension IOAPIC {
+private extension IOAPIC {
     /// Registers are 32bits wide and indexed using an 8 bit address
     /// WideRegisters are 64bits wide using 2 32bit reads at address
     /// and address+1
@@ -229,26 +229,24 @@ fileprivate extension IOAPIC {
     }
 
     func readRegister(_ register: UInt8) -> UInt32 {
-        let f = UInt32(register)
-        registerSelect.pointee = f
-        let data = registerData.pointee
-        return data
+        // Register Select
+        registerBase.write(value: UInt32(register), toByteOffset: IOAPIC.registerSelectOffset)
+        // Register Data
+        return registerBase.read(fromByteOffset: IOAPIC.registerDataOffset)
     }
-
 
     func writeRegister(_ register: UInt8, data: UInt32) {
-        let f = UInt32(register)
-        registerSelect.pointee = f
-        registerData.pointee = data
+        // Register Select
+        registerBase.write(value: UInt32(register), toByteOffset: IOAPIC.registerSelectOffset)
+        // Register Data
+        registerBase.write(value: data, toByteOffset: IOAPIC.registerDataOffset)
     }
-
 
     func readWideRegister(_ register: UInt8) -> IORedirectionRegister {
         let lo = UInt64(readRegister(register))
         let hi = UInt64(readRegister(register + 1)) << 32
         return IORedirectionRegister(rawValue: hi | lo)
     }
-
 
     func writeWideRegister(_ register: UInt8, data: IORedirectionRegister) {
         let value = data.rawValue
