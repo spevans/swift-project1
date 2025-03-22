@@ -34,26 +34,26 @@ extension USB {
         case vendorSpecific = 0xFF
 
         var description: String {
-            switch self {
-            case .audio:                return "Audio"
-            case .cdcControl:           return "CDC Control"
-            case .hid:                  return "hid"
-            case .physical:             return "Physical"
-            case .image:                return "Image"
-            case .printer:              return "Printer"
-            case .massStorage:          return "Mass Storage"
-            case .cdcData:              return "CDC Data"
-            case .smartCard:            return "Smart Card"
-            case .contentSecurity:      return "Content Security"
-            case .video:                return "Video"
-            case .personalHealthcare:   return "Personal Healthcare"
-            case .audioVideo:           return "Audio Video"
-            case .usbTypeCBridgeClass:  return "USB TypeC Bridge Class"
-            case .diagnosticDevice:     return "Diagnostic Device"
-            case .wirelessController:   return "Wireless Controller"
-            case .miscellaneous:        return "Miscallaneous"
-            case .applicationSpecific:  return "Application Specific"
-            case .vendorSpecific:       return "Vendor Specific"
+            return switch self {
+            case .audio:                "Audio"
+            case .cdcControl:           "CDC Control"
+            case .hid:                  "HID"
+            case .physical:             "Physical"
+            case .image:                "Image"
+            case .printer:              "Printer"
+            case .massStorage:          "Mass Storage"
+            case .cdcData:              "CDC Data"
+            case .smartCard:            "Smart Card"
+            case .contentSecurity:      "Content Security"
+            case .video:                "Video"
+            case .personalHealthcare:   "Personal Healthcare"
+            case .audioVideo:           "Audio Video"
+            case .usbTypeCBridgeClass:  "USB TypeC Bridge Class"
+            case .diagnosticDevice:     "Diagnostic Device"
+            case .wirelessController:   "Wireless Controller"
+            case .miscellaneous:        "Miscallaneous"
+            case .applicationSpecific:  "Application Specific"
+            case .vendorSpecific:       "Vendor Specific"
 
             }
         }

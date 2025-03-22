@@ -195,19 +195,19 @@ struct CPU {
         case weakUncacheable = 7 // Uncacheable (UC-), Overrideable by MTRRs
 
         var description: String {
-            switch self {
+            return switch self {
                 case .uncacheable:
-                    return "Uncacheable"
+                    "Uncacheable"
                 case .writeCombining:
-                    return "WriteCombining"
+                    "WriteCombining"
                 case .writeThrough:
-                    return "WriteThrough"
+                    "WriteThrough"
                 case .writeProtected:
-                    return "WriteProtected"
+                    "WriteProtected"
                 case .writeBack:
-                    return "WriteBack"
+                    "WriteBack"
                 case .weakUncacheable:
-                    return "WeakUncacheable"
+                    "WeakUncacheable"
             }
         }
     }

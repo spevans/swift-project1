@@ -17,12 +17,12 @@ struct BiosBootParams: CustomStringConvertible {
     case unusable = 5
 
         var description: String {
-            switch self {
-            case .ram:      return "RAM"
-            case .reserved: return "RESERVED"
-            case .acpi:     return "ACPI"
-            case .nvs:      return "NVS"
-            case .unusable: return "UNUSABLE"
+            return switch self {
+            case .ram:      "RAM"
+            case .reserved: "RESERVED"
+            case .acpi:     "ACPI"
+            case .nvs:      "NVS"
+            case .unusable: "UNUSABLE"
             }
         }
     }

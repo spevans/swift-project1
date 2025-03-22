@@ -59,15 +59,15 @@ struct MADT: CustomDebugStringConvertible {
         //var tableType: IntControllerTableType { get }
 
         var description: String {
-            switch self {
+            return switch self {
                 case .processorLocalApic(_):
-                    return "Local-APIC"
+                    "Local-APIC"
                 case .ioApic(_):
-                    return "IO-APIC"
+                    "IO-APIC"
                 case .interruptSourceOverride(_):
-                    return "INT-SrcOverride"
+                    "INT-SrcOverride"
                 case .localApicNmi(_):
-                    return "Local-APIC-NMI"
+                    "Local-APIC-NMI"
             }
         }
     }

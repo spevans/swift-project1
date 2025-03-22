@@ -178,18 +178,18 @@ enum TTY {
     }
 
     private var charsPerLine: TextCoord {
-        switch self {
-            case .early: return earlyTTY.charsPerLine
-            case .text:  return textTTY.charsPerLine
-            case .framebuffer: return framebufferTTY.charsPerLine
+        return switch self {
+            case .early: earlyTTY.charsPerLine
+            case .text: textTTY.charsPerLine
+            case .framebuffer: framebufferTTY.charsPerLine
         }
     }
 
     private var totalLines: TextCoord {
-        switch self {
-            case .early: return earlyTTY.totalLines
-            case .text: return textTTY.totalLines
-            case .framebuffer: return framebufferTTY.totalLines
+        return switch self {
+            case .early: earlyTTY.totalLines
+            case .text: textTTY.totalLines
+            case .framebuffer: framebufferTTY.totalLines
         }
     }
 

@@ -21,14 +21,14 @@ extension USB {
         case vendorSpecific = 0xFF
 
         var description: String {
-            switch self {
-            case .interfaceSpecific:  return "Interface Specific"
-            case .communications:     return "Communications"
-            case .hub:                return "Hub"
-            case .billboard:          return "Billboard"
-            case .diagnosticDevice:   return "Diagnostic"
-            case .miscellaneous:      return "Miscellaneous"
-            case .vendorSpecific:     return "VendorSpecific"
+            return switch self {
+            case .interfaceSpecific:  "Interface Specific"
+            case .communications:     "Communications"
+            case .hub:                "Hub"
+            case .billboard:          "Billboard"
+            case .diagnosticDevice:   "Diagnostic"
+            case .miscellaneous:      "Miscellaneous"
+            case .vendorSpecific:     "VendorSpecific"
             }
         }
     }

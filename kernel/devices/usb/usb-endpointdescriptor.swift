@@ -20,11 +20,11 @@ extension USB {
             case interrupt = 3
 
             var description: String {
-                switch self {
-                case .control:     return "control"
-                case .isochronous: return "isochronous"
-                case .bulk:        return "bulk"
-                case .interrupt:   return "interrupt"
+                return switch self {
+                case .control:     "control"
+                case .isochronous: "isochronous"
+                case .bulk:        "bulk"
+                case .interrupt:   "interrupt"
                 }
             }
         }
@@ -36,11 +36,11 @@ extension USB {
             case synchronous = 3
 
             var description: String {
-                switch self {
-                case .none:         return "none"
-                case .asynchronous: return "asynchronous"
-                case .adaptive:     return "adaptive"
-                case .synchronous:  return "synchronous"
+                return switch self {
+                case .none:         "none"
+                case .asynchronous: "asynchronous"
+                case .adaptive:     "adaptive"
+                case .synchronous:  "synchronous"
                 }
             }
         }
@@ -52,11 +52,11 @@ extension USB {
             case reserved = 3
 
             var description: String {
-                switch self {
-                case .data:             return "data"
-                case .feedback:         return "feedback"
-                case .implicitFeedback: return "implicitFeedback"
-                case .reserved:         return "reserved"
+                return switch self {
+                case .data:             "data"
+                case .feedback:         "feedback"
+                case .implicitFeedback: "implicitFeedback"
+                case .reserved:         "reserved"
                 }
             }
         }

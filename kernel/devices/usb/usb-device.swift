@@ -17,11 +17,11 @@ extension USB {
         case superSpeed
 
         var description: String {
-            switch self {
-            case .lowSpeed: return "lowSpeed"
-            case .fullSpeed: return "fullSpeed"
-            case .highSpeed: return "highSpeed"
-            case .superSpeed: return "superSpeed"
+            return switch self {
+            case .lowSpeed: "lowSpeed"
+            case .fullSpeed: "fullSpeed"
+            case .highSpeed: "highSpeed"
+            case .superSpeed: "superSpeed"
             }
         }
 

@@ -110,13 +110,13 @@ enum PCIUSBProgrammingInterface: UInt8, CustomStringConvertible {
     case device = 0xfe
 
     var description: String {
-        switch self {
-        case .uhci: return "UHCI"
-        case .ohci: return "OHCI"
-        case .ehci: return "EHCI"
-        case .xhci: return "XHCI"
-        case .other: return "Other"
-        case .device: return "Device"
+        return switch self {
+        case .uhci: "UHCI"
+        case .ohci: "OHCI"
+        case .ehci: "EHCI"
+        case .xhci: "XHCI"
+        case .other: "Other"
+        case .device: "Device"
         }
     }
 }
