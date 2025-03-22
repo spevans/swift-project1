@@ -17,11 +17,11 @@ final class PNPDevice: BusDevice {
 
     init?(device: Device, pnpName: String) {
         guard device.busDevice == nil else {
-            print("Device \(device.fullName) already has a busDevice")
+            #kprint("Device \(device.fullName) already has a busDevice")
             return nil
         }
         guard device.acpiDeviceConfig != nil else {
-            print("\(pnpName) has no ACPI DeviceConfgi")
+            #kprint("\(pnpName) has no ACPI DeviceConfgi")
             return nil
         }
         self.isPCIHost = device.acpiDeviceConfig?.isPCIHost ?? false
@@ -74,7 +74,7 @@ final class PNPDevice: BusDevice {
                 return HPET(pnpDevice: pnpDevice)
             default:
                 let name = pnpDevice.device.acpiDeviceConfig?.node.fullname() ?? "unknown"
-                print("PNP: No driver for", pnpDevice.pnpName, name)
+                #kprint("PNP: No driver for", pnpDevice.pnpName, name)
                 return nil
         }
     }

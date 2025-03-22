@@ -19,14 +19,14 @@ final class ISABus: DeviceDriver {
 
     init?(pciDevice: PCIDevice) {
         let device = pciDevice.device
-        print("Initialising ISABus on PCI:", device.fullName)
+        #kprint("Initialising ISABus on PCI:", device.fullName)
         super.init(device: device)
         self.device.setDriver(self)
     }
 
     init?(pnpDevice: PNPDevice) {
         let device = pnpDevice.device
-        print("Initialising ISABus on PNP:", device.fullName)
+        #kprint("Initialising ISABus on PNP:", device.fullName)
         super.init(device: device)
         self.device.setDriver(self)
     }
@@ -88,14 +88,14 @@ extension ISABus {
                 case let .extendedIrqSetting(irq): interrupts.append(contentsOf: irq.interrupts())
                 case let .dmaSetting(dma): dmaChannels.append(contentsOf: dma.channels())
                 case let .fixedMemoryRangeDescriptor(fixedRange): guard fixedRange.rangeLength > 0 else {
-                        print("Ignoring AMLFixedMemoryRangeDescriptor with base: 0x\(String(fixedRange.baseAddress, radix: 16)) length of 0 ")
+                        #kprint("Ignoring AMLFixedMemoryRangeDescriptor with base: 0x\(String(fixedRange.baseAddress, radix: 16)) length of 0 ")
                         continue
                     }
                     let range = fixedRange.baseAddress..<(fixedRange.baseAddress + (fixedRange.rangeLength - 1))
                     fixedMemoryRanges.append((range, fixedRange.writeable))
                 case let .dwordAddressSpaceDescriptor(spaceDescriptor):
                     // FIXME
-                    print("Ignoring:", spaceDescriptor)
+                    #kprint("Ignoring:", spaceDescriptor)
                 default: fatalError("Cant convert \(resource) to an ISABus.Resource")
                 }
             }

@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "6BA5A424-D614-4BDD-B20B-B9EE44885A2F",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "PrintfTests",
+        "name" : "PrintfTests"
+      }
+    }
+  ],
+  "version" : 1
+}

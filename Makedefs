@@ -4,6 +4,7 @@ NASM_FLAGS := -Werror -p$(TOPDIR)/include/macros.asm
 MODULE_DIR := $(TOPDIR)/modules
 GITVER := $(shell git rev-parse HEAD)
 CWD=$(shell pwd)
+BUILD_ARCH=$(shell uname -m)
 
 # The normal swift compiler
 SWIFT := swift

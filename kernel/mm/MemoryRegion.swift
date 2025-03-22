@@ -132,10 +132,10 @@ struct MemoryRange: Equatable, CustomStringConvertible {
     }
 
     var description: String {
-        let str = (size >= mb) ? String.sprintf(" %6uMB  ", size / mb) :
-        String.sprintf(" %6uKB  ", size / kb)
+        let str = (size >= mb) ? #sprintf(" %6uMB  ", size / mb) :
+        #sprintf(" %6uKB  ", size / kb)
 
-        return String.sprintf("%12X - %12X %s %s", start.value,  endAddress.value, str, type.description)
+        return #sprintf("%12X - %12X %s %s", start.value,  endAddress.value, str, type.description)
     }
 }
 

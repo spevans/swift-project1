@@ -29,12 +29,12 @@ func symbolLookupInit(bootParams: BootParams) {
     _symbolCount = Int(bootParams.symbolTableSize) / MemoryLayout<Elf64_Sym>.stride
 
     guard _symbolCount > 0 else {
-        print("Empty symbol table")
+        #kprint("Empty symbol table")
         return
     }
 
     guard bootParams.stringTableSize > 0 else {
-        print("Empty string table")
+        #kprint("Empty string table")
         return
     }
 
@@ -55,15 +55,15 @@ func showSymbolAt(addr: VirtualAddress) {
     if let sym = lookupSymbolBy(addr: addr) {
         //print("Found symbol:", sym)
         let name = symbolName(sym.st_name)
-        print("Name:", name ?? "name not found")
+        #kprint("Name:", name ?? "name not found")
     } else {
-        printf("Cant find symbol for address %p\n", addr)
+        #kprintf("Cant find symbol for address %p\n", addr)
     }
 }
 
 
 func showSymbols() {
-    print("Dumping \(_symbolCount) symbols")
+    #kprint("Dumping \(_symbolCount) symbols")
     guard _symbolCount > 0 else {
         return
     }
@@ -74,8 +74,8 @@ func showSymbols() {
     for symIdx in 0..<_symbolCount {
         let symbolPtr = ptr.advanced(by: symIdx)
         let symbol = symbolPtr.pointee
-        printf("%016lx: %08x: ", symbol.st_value, symbol.st_size)
-        print(symbolName(symbol.st_name) ?? "unknown")
+        #kprintf("%016lx: %08x: ", symbol.st_value, symbol.st_size)
+        #kprint(symbolName(symbol.st_name) ?? "unknown")
 
         count = count + 1
         if count > 100 { return }

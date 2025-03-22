@@ -18,7 +18,7 @@ final class CMOSRTC: PNPDeviceDriver {
 
 
     override var description: String {
-        return String.sprintf("CMOS RTC addr: 0x%2.2x data: 0x%2.2x irq: %s",
+        return #sprintf("CMOS RTC addr: 0x%2.2x data: 0x%2.2x irq: %s",
                               addressPort, dataPort, irq?.description ?? "none" )
     }
 
@@ -32,9 +32,9 @@ final class CMOSRTC: PNPDeviceDriver {
             return false
         }
 
-        print("CMOS: init:", resources)
+        #kprint("CMOS: init:", resources)
         guard let ports = resources.ioPorts.first, ports.count > 1 else {
-            print("CMOS: Requires at least 2 IO ports:", resources)
+            #kprint("CMOS: Requires at least 2 IO ports:", resources)
             return false
         }
 
@@ -97,7 +97,7 @@ final class CMOSRTC: PNPDeviceDriver {
             values = readTimeComponents()
             if lastValues == values {
                 let century = convertValue(self.century)
-                return String.sprintf("%2.2d%2.2d-%2.2d-%2.2d %2.2d:%2.2d:%2.2d",
+                return #sprintf("%2.2d%2.2d-%2.2d-%2.2d %2.2d:%2.2d:%2.2d",
                     century > 0 ? century : 20,
                     convertValue(values.0),
                     convertValue(values.1),

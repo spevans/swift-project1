@@ -7,12 +7,16 @@
 //
 
 // FIXME, use accessField, extendedAccessField correctly
-struct AMLFieldSettings {
+struct AMLFieldSettings: CustomStringConvertible {
     let bitOffset: UInt
     let bitWidth: UInt
     let fieldFlags: AMLFieldFlags
     let accessField: AMLAccessField
     let extendedAccessField: AMLExtendedAccessField?
+
+    var description: String {
+        #sprintf("bitOffset: %u width: %u flags: %s", bitOffset, bitWidth, fieldFlags.description)
+    }
 }
 
 struct AMLFieldFlags: CustomStringConvertible {

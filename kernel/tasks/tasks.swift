@@ -26,7 +26,7 @@ private var nextPID: UInt = 1
 @discardableResult
 func addTask(name: String, task: @escaping @convention(c)() -> ()) -> UInt {
     let newTask = Task(name: name, entry: task)
-    print("Adding task:", newTask)
+    #kprint("Adding task:", newTask)
     tasks.append(newTask)
     return newTask.pid
 }
@@ -79,26 +79,26 @@ final class Task: CustomStringConvertible {
     var description: String {
         let stack = stackPage.rawPointer
 
-        var r = "\(name)\nStack: \(stack) state: \(state)\n"
- /*       r += String.sprintf("RAX: %16.16lx ", state.pointee.rax)
-        r += String.sprintf("RBX: %16.16lx ", state.pointee.rbx)
-        r += String.sprintf("RCX: %16.16lx\n", state.pointee.rcx)
-        r += String.sprintf("RDX: %16.16lx ", state.pointee.rdx)
-        r += String.sprintf("RSI: %16.16lx ", state.pointee.rsi)
-        r += String.sprintf("RDI: %16.16lx\n", state.pointee.rdi)*/
-        r += String.sprintf("RBP: %16.16lx ", state.pointee.rbp)
-        r += String.sprintf("RSP: %16.16lx ", state.pointee.rsp)
-        r += String.sprintf("RIP: %16.16lx\n", state.pointee.rip)
-/*        r += String.sprintf("R8 : %16.16lx ", state.pointee.r8)
-        r += String.sprintf("R9 : %16.16lx ", state.pointee.r9)
-        r += String.sprintf("R10: %16.16lx\n", state.pointee.r10)
-        r += String.sprintf("R11: %16.16lx ", state.pointee.r11)
-        r += String.sprintf("R12: %16.16lx ", state.pointee.r12)
-        r += String.sprintf("R13: %16.16lx\n", state.pointee.r13)
-        r += String.sprintf("R14: %16.16lx ", state.pointee.r14)
-        r += String.sprintf("R15: %16.16lx ", state.pointee.r15)
-        r += String.sprintf("CR2: %16.16lx\n", getCR2())*/
-        r += String.sprintf("CS: %lx DS: %lx ES: %lx FS: %lx GS:%lx SS: %lx\n",
+        var r = #sprintf("%s\nStack: %p state: %p\n", name, stack, state)
+ /*       r += #sprintf("RAX: %16.16lx ", state.pointee.rax)
+        r += #sprintf("RBX: %16.16lx ", state.pointee.rbx)
+        r += #sprintf("RCX: %16.16lx\n", state.pointee.rcx)
+        r += #sprintf("RDX: %16.16lx ", state.pointee.rdx)
+        r += #sprintf("RSI: %16.16lx ", state.pointee.rsi)
+        r += #sprintf("RDI: %16.16lx\n", state.pointee.rdi)*/
+        r += #sprintf("RBP: %16.16lx ", state.pointee.rbp)
+        r += #sprintf("RSP: %16.16lx ", state.pointee.rsp)
+        r += #sprintf("RIP: %16.16lx\n", state.pointee.rip)
+/*        r += #sprintf("R8 : %16.16lx ", state.pointee.r8)
+        r += #sprintf("R9 : %16.16lx ", state.pointee.r9)
+        r += #sprintf("R10: %16.16lx\n", state.pointee.r10)
+        r += #sprintf("R11: %16.16lx ", state.pointee.r11)
+        r += #sprintf("R12: %16.16lx ", state.pointee.r12)
+        r += #sprintf("R13: %16.16lx\n", state.pointee.r13)
+        r += #sprintf("R14: %16.16lx ", state.pointee.r14)
+        r += #sprintf("R15: %16.16lx ", state.pointee.r15)
+        r += #sprintf("CR2: %16.16lx\n", getCR2())*/
+        r += #sprintf("CS: %lx DS: %lx ES: %lx FS: %lx GS:%lx SS: %lx\n",
             state.pointee.cs, state.pointee.ds, state.pointee.es,
             state.pointee.fs, state.pointee.gs, state.pointee.ss)
         return r

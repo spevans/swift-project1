@@ -92,7 +92,7 @@ struct MTRR: CustomStringConvertible {
 
 
 private func fixedWidthMTRRs(base: UInt64, regionSize: UInt64, _ memoryTypes: UInt64) -> [MTRR] {
-//    print("Reading fixed width mtrr, base: \(asHex(base)), regionSize: \(asHex(regionSize)), types: \(asHex(memoryTypes))")
+    #kprintf("Reading fixed width mtrr, base: %x, regionSize: %x, types: %x\n", base, regionSize, memoryTypes)
     var mtrrs: [MTRR] = []
     mtrrs.reserveCapacity(8)
 

@@ -245,56 +245,56 @@ struct VMXExit: Error, CustomStringConvertible {
 
 func enableVMX() -> VMXError {
     guard CPU.capabilities.vmx else {
-        print("VMX extensions not supported")
+        #kprint("VMX extensions not supported")
         return .vmFailInvalid
     }
     guard globalVmcs == nil else {
-        print("VMX already enabled")
+        #kprint("VMX already enabled")
         return .vmFailInvalid
     }
 
     let vmxInfo = VMXBasicInfo()
-    print(vmxInfo)
+    #kprint(vmxInfo)
 
     let vmxMiscInfo = VMXMiscInfo()
-    print("VMX: MiscInfo:", vmxMiscInfo)
+    #kprint("VMX: MiscInfo:", vmxMiscInfo)
 
     var fc = CPU.IA32FeatureControl()
     if !fc.lock || !fc.enableVMXOutsideSMX {
         fc.enableVMXOutsideSMX = true
         fc.lock = true
         guard fc.update() else {
-            print("Cant update lock or enableVMXOutsideSMX")
+            #kprint("Cant update lock or enableVMXOutsideSMX")
             return .vmFailInvalid
         }
     }
 
     // Check fixed 0 and 1 bits in CR0 and CR4 are set
-    print("VMX: Setting CR0 and CR4 Fixed0 and Fixed1 bits")
+    #kprint("VMX: Setting CR0 and CR4 Fixed0 and Fixed1 bits")
     var cr0 = CPU.cr0
     var cr4 = CPU.cr4
     let vmxFixedBits = VMXFixedBits()
 
-    print("VMX: cr0Fixed0Bits:", String(vmxFixedBits.cr0Fixed0Bits, radix: 16),
+    #kprint("VMX: cr0Fixed0Bits:", String(vmxFixedBits.cr0Fixed0Bits, radix: 16),
         CPU.CR0Register(vmxFixedBits.cr0Fixed0Bits))
-    print("VMX: cr0Fixed1Bits:", String(vmxFixedBits.cr0Fixed1Bits, radix: 16),
+    #kprint("VMX: cr0Fixed1Bits:", String(vmxFixedBits.cr0Fixed1Bits, radix: 16),
         CPU.CR0Register(vmxFixedBits.cr0Fixed1Bits))
-    print("VMX: cr4Fixed0Bits:", String(vmxFixedBits.cr4Fixed0Bits, radix: 16),
+    #kprint("VMX: cr4Fixed0Bits:", String(vmxFixedBits.cr4Fixed0Bits, radix: 16),
         CPU.CR4Register(vmxFixedBits.cr4Fixed0Bits))
-    print("VMX: cr4Fixed1Bits:", String(vmxFixedBits.cr4Fixed1Bits, radix: 16),
+    #kprint("VMX: cr4Fixed1Bits:", String(vmxFixedBits.cr4Fixed1Bits, radix: 16),
         CPU.CR4Register(vmxFixedBits.cr4Fixed1Bits))
 
     let vmxPrimaryCtrl = VMXPrimaryProcessorBasedControls()
     let vmxSecondaryCtrl = VMXSecondaryProcessorBasedControls()
-    print("vmxPrimaryCtrl:", String(vmxPrimaryCtrl.bits.rawValue, radix: 16))
-    print("vmxSecondaryCtrl:", String(vmxSecondaryCtrl.bits.rawValue, radix: 16))
-    print("vmxPrimaryCtrl.activateSecondaryControls:", vmxPrimaryCtrl.activateSecondaryControls.allowedToBeOne)
+    #kprint("vmxPrimaryCtrl:", String(vmxPrimaryCtrl.bits.rawValue, radix: 16))
+    #kprint("vmxSecondaryCtrl:", String(vmxSecondaryCtrl.bits.rawValue, radix: 16))
+    #kprint("vmxPrimaryCtrl.activateSecondaryControls:", vmxPrimaryCtrl.activateSecondaryControls.allowedToBeOne)
     if vmxPrimaryCtrl.activateSecondaryControls.allowedToBeOne {
-        print("VMX: Secondary Ctrl:", vmxSecondaryCtrl.unrestrictedGuest.allowedToBeOne)
+        #kprint("VMX: Secondary Ctrl:", vmxSecondaryCtrl.unrestrictedGuest.allowedToBeOne)
     }
 
     if !vmxFixedBits.allowsUnrestrictedGuest {
-        print("VMX: Unrestricted guest not allowed")
+        #kprint("VMX: Unrestricted guest not allowed")
     }
 
     cr0 = vmxFixedBits.updateCR0(bits: cr0)
@@ -304,14 +304,14 @@ func enableVMX() -> VMXError {
 
     let newVMCS = VMCS()
     let paddr = newVMCS.page.baseAddress
-    print("VMX: Enabling @ \(String(paddr.value, radix: 16))")
+    #kprint("VMX: Enabling @ \(String(paddr.value, radix: 16))")
     let error = vmxon(UInt64(newVMCS.physicalAddress))
     let result = VMXError(error)
     if result != .vmSucceed {
-        print("VMX: VMXON failed, error: \(result)")
+        #kprint("VMX: VMXON failed, error: \(result)")
     } else {
         globalVmcs = newVMCS
-        print("VMX: Enabled @ \(String(newVMCS.physicalAddress, radix: 16))")
+        #kprint("VMX: Enabled @ \(String(newVMCS.physicalAddress, radix: 16))")
     }
     return result
 }
@@ -319,39 +319,39 @@ func enableVMX() -> VMXError {
 
 func disableVMX() {
     guard globalVmcs != nil else {
-        print("VMX not enabled")
+        #kprint("VMX not enabled")
         return
     }
     let error = vmxoff()
     let result = VMXError(error)
     if  result != .vmSucceed {
-        printf("VMXOFF failed:", result)
+        #kprint("VMXOFF failed:", result)
         return
     }
     globalVmcs = nil
     guestVmcs = nil
-    print("VMX disabled")
+    #kprint("VMX disabled")
 }
 
 
 func testVMX() -> Result<VMXExit, VMXError> {
     guard globalVmcs != nil else {
-        print("VMX not enabled")
+        #kprint("VMX not enabled")
         return .failure(.vmFailInvalid)
     }
     guard guestVmcs == nil else {
-        print("guestVMCS already setup")
+        #kprint("guestVMCS already setup")
         return .failure(.vmFailInvalid)
     }
     let vmcs = VMCS()
     let ok = vmcs.vmClear()
-    print("clearing guest VMCS with good address:", ok)
+    #kprint("clearing guest VMCS with good address:", ok)
     if ok == .vmSucceed {
         guestVmcs = vmcs
     }
 
     let ptre = vmcs.vmPtrLoad()
-    print("vmptrld:", ptre)
+    #kprint("vmptrld:", ptre)
 
 
     var realModeTestProgram: [UInt8] = [
@@ -378,7 +378,7 @@ func testVMX() -> Result<VMXExit, VMXError> {
     // VM Execution control fields
     let vmxBasicInfo = VMXBasicInfo()
     if vmxBasicInfo.vmxControlsCanBeCleared == false {
-        print("VMX: vmxControlsCanBeCleared == false")
+        #kprint("VMX: vmxControlsCanBeCleared == false")
         vmcs.pinBasedVMExecControls = VMXPinBasedControls().defaultValue
         vmcs.primaryProcVMExecControls = VMXPrimaryProcessorBasedControls().defaultValue
         vmcs.vmEntryControls = VMXEntryControls().defaultValue
@@ -394,8 +394,8 @@ func testVMX() -> Result<VMXExit, VMXError> {
             vmcs.primaryProcVMExecControls = proc | 0x80000000
         }
         let x = VMXSecondaryProcessorBasedControls()
-        print("VMX unrestricted guest:", x.unrestrictedGuest.allowedToBeOne)
-        print("VMX: VMXSecondaryProcessorBasedControls: low: \(String(x.low, radix: 16)), high: \(String(x.high, radix: 16)))")
+        #kprint("VMX unrestricted guest:", x.unrestrictedGuest.allowedToBeOne)
+        #kprint("VMX: VMXSecondaryProcessorBasedControls: low: \(String(x.low, radix: 16)), high: \(String(x.high, radix: 16)))")
         vmcs.secondaryProcVMExecControls = x.defaultValue //UInt32(2 | 128)
     }
 
@@ -507,30 +507,22 @@ func testVMX() -> Result<VMXExit, VMXError> {
 
     vmcs.printVMCS()
 
-    print("Calling vmentry")
+    #kprint("Calling vmentry")
     let ret = vmentry(&vmcs.vcpu)
-    print("ret:", ret)
+    #kprint("ret:", ret)
     let vmxError = VMXError(UInt64(ret))
-    print("vmxError:", vmxError)
-    print("ExitReason:", vmcs.exitReason!)
-    print("Guest Registers:")
-    print("RAX:", String(vmcs.vcpu.rax, radix: 16), terminator: " ")
-    print("RBX:", String(vmcs.vcpu.rbx, radix: 16), terminator: " ")
-    print("RCX:", String(vmcs.vcpu.rcx, radix: 16), terminator: " ")
-    print("RDX:", String(vmcs.vcpu.rdx, radix: 16))
-    print("R8 :", String(vmcs.vcpu.rdx, radix: 16), terminator: " ")
-    print("R9 :", String(vmcs.vcpu.r9 , radix: 16), terminator: " ")
-    print("R10:", String(vmcs.vcpu.r10, radix: 16), terminator: " ")
-    print("R11:", String(vmcs.vcpu.r11, radix: 16))
-    print("R12:", String(vmcs.vcpu.r12, radix: 16), terminator: " ")
-    print("R13:", String(vmcs.vcpu.r13, radix: 16), terminator: " ")
-    print("R14:", String(vmcs.vcpu.r14, radix: 16), terminator: " ")
-    print("R15:", String(vmcs.vcpu.r15, radix: 16))
-    print("RDI:", String(vmcs.vcpu.rdi, radix: 16), terminator: " ")
-    print("RSI:", String(vmcs.vcpu.rsi, radix: 16), terminator: " ")
-    print("RBP:", String(vmcs.vcpu.rbp, radix: 16), terminator: " ")
-    print("RSP:", String(vmcs.guestRSP!, radix: 16))
-    print("RIP:", String(vmcs.guestRIP!, radix: 16))
+    #kprint("vmxError:", vmxError)
+    #kprint("ExitReason:", vmcs.exitReason!)
+    #kprint("Guest Registers:")
+    #kprintf("RAX: %8.8X RBX: %8.8X RCX: %8.8X RDX: %8.8X\n",
+        vmcs.vcpu.rax, vmcs.vcpu.rbx, vmcs.vcpu.rcx, vmcs.vcpu.rdx)
+    #kprintf("RDI: %8.8X RSI: %8.8X RBP: %8.8X RSP: %8.8X\n",
+        vmcs.vcpu.rdi, vmcs.vcpu.rsi, vmcs.vcpu.rbp, vmcs.guestRSP!)
+    #kprintf("R8:  %8.8X R9:  %8.8X R10: %8.8X R11: %8.8X\n",
+        vmcs.vcpu.r8, vmcs.vcpu.r9, vmcs.vcpu.r9, vmcs.vcpu.r10)
+    #kprintf("R12: %8.8X R13: %8.8X R14: %8.8X R15: %8.8X\n",
+        vmcs.vcpu.r12, vmcs.vcpu.r13, vmcs.vcpu.r14, vmcs.vcpu.r15)
+    #kprintf("RIP: %8.8X\n", vmcs.guestRIP!)
 
     if vmxError == .vmSucceed {
         let vmxExit = VMXExit(vmcs.exitReason!)

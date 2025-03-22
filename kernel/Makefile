@@ -14,6 +14,7 @@ KSWIFTC_FLAGS := -gnone -O -Xcc -mno-red-zone -Xcc -mcmodel=kernel				\
 	-Xfrontend -warn-long-function-bodies=60000 -DKERNEL					\
 	-target x86_64-unknown-none-elf -Xcc -ffreestanding -Xfrontend -disable-stack-protector	\
 	-enable-experimental-feature Embedded -Xfrontend -embedded-runtime-variant=kernel 	\
+	-Xfrontend -load-plugin-executable -Xfrontend $(PRINTF_MACROS)\#PrintfMacros
 
 all: kernel.o
 

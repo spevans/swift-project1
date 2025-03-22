@@ -48,9 +48,9 @@ public struct InterruptManager {
         var _ioapics: [IOAPIC] = []
         var _overrideEntries: [MADT.InterruptSourceOverrideTable] = []
 
-        printf("INT-MAN: Have %d MADT Entries\n", madtEntries.count)
+        #kprintf("INT-MAN: Have %d MADT Entries\n", madtEntries.count)
         madtEntries.forEach {
-            print("INT-MAN: MADT entry:", $0)
+            #kprint("INT-MAN: MADT entry:", $0)
             switch $0 {
                 case let .ioApic(entry):
                     let baseAddress = PhysAddress(RawAddress(entry.ioApicAddress))
@@ -69,7 +69,7 @@ public struct InterruptManager {
             fatalError("Cant find any IO-APICs in the ACPI: MADT tables")
         }
 
-        print("INT-MAN: Have \(ioapics.count) IO-APICs")
+        #kprint("INT-MAN: Have \(ioapics.count) IO-APICs")
         localAPIC.disableAllIRQs()
     }
 
@@ -78,7 +78,7 @@ public struct InterruptManager {
         // Set _PIC mode to APIC (1)
         do {
             try ACPI.invoke(method: "\\_PIC", AMLTermArg(1))
-            print("INT-MAN: _PIC mode set to APIC")
+            #kprint("INT-MAN: _PIC mode set to APIC")
         } catch AMLError.invalidMethod {
             // ignore, _PIC is optional
         } catch {
@@ -87,7 +87,7 @@ public struct InterruptManager {
     }
 
     func enableIRQs() {
-        print("INT-MAN: Enabling IRQs")
+        #kprint("INT-MAN: Enabling IRQs")
         sti()
     }
 
@@ -111,7 +111,7 @@ public struct InterruptManager {
             guard newIrqSetting.isGSI else {
                 fatalError("INT-MAN: Remapped \(irqSetting) to \(newIrqSetting) but it is not a GSI")
             }
-            print("INT-MAN: Remap IRQ:", irqSetting, "overriden to:", newIrqSetting)
+            #kprint("INT-MAN: Remap IRQ:", irqSetting, "overriden to:", newIrqSetting)
         } else {
             newIrqSetting = irqSetting
         }
@@ -124,11 +124,11 @@ public struct InterruptManager {
 
 
     private func ioapicForIrq(_ irqSetting: IRQSetting) -> IOAPIC? {
-        print("INT-MAN: looking for ioapic for IRQ", irqSetting)
+        #kprint("INT-MAN: looking for ioapic for IRQ", irqSetting)
         if let ioapic = ioapics.first(where: { $0.canHandleIrq(irqSetting) }) {
             return ioapic
         }
-        print("INT-MAN: cant find an IOAPIC!")
+        #kprint("INT-MAN: cant find an IOAPIC!")
         return nil
     }
 
@@ -155,7 +155,7 @@ public struct InterruptManager {
 
     mutating func setIrqHandler(_ irqSetting: IRQSetting, handler: @escaping IRQHandler) {
         // FIXME, deal with shared interrupts
-        print("INT-MAN: Setting IRQ handler for \(irqSetting.irq)")
+        #kprint("INT-MAN: Setting IRQ handler for \(irqSetting.irq)")
         irqHandlers[irqSetting.irq] = handler
         enableIRQ(irqSetting)
     }
@@ -178,17 +178,17 @@ public func irqHandler(registers: ExceptionRegisters,
 
     let irq = Int(registers.pointee.error_code)
     guard irq >= 0 && irq < NR_IRQS else {
-        printf("\nInvalid interrupt: %x\n", UInt(irq))
+        #kprintf("\nInvalid interrupt: %x\n", UInt(irq))
         return
     }
     let c = read_int_nest_count()
     if c > 1 {
-        printf("\nint_nest_count: %d\n", c)
+        #kprintf("\nint_nest_count: %d\n", c)
     }
     if let handler = interruptManager.irqHandlers[irq] {
         _ = handler()
     } else {
-        printf("INT-MAN: Unexpected interrupt: %d\n", irq)
+        #kprintf("INT-MAN: Unexpected interrupt: %d\n", irq)
     }
     // EOI
     interruptManager.ackIRQ(irq)

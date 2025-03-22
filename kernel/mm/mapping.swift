@@ -98,8 +98,8 @@ func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
             currentMapping.accessed = false
             currentMapping.dirty = false
             if entry != currentMapping {
-                print("entry:         ", entry)
-                print("currentMapping:", currentMapping)
+                #kprint("entry:         ", entry)
+                #kprint("currentMapping:", currentMapping)
                 koops("MM: page is already present!")
             }
         }
@@ -107,7 +107,7 @@ func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
         addr += PAGE_SIZE
         physAddress = physAddress.advanced(by: PAGE_SIZE)
     }
-    printf("MM: Added kernel mapping from %p-%p [%p-%p]\n", start, addr - 1, physStart.value, physAddress.value - 1)
+    #kprintf("MM: Added kernel mapping from %p-%p [%p-%p]\n", start, addr - 1, physStart.value, physAddress.value - 1)
 }
 
 
@@ -253,7 +253,7 @@ private func add1GBMapping(_ addr: VirtualAddress, physAddress: PhysAddress, rea
         let patIndex = CPU.CacheType.writeBack.patEntry
         let entry = PageDirectoryPointerTableEntry(largePageAddress: physAddress, readWrite: readWrite,
             userAccess: false, patIndex: patIndex, global: false, noExec: noExec)
-        printf("1GB Mapping entry: %16.16llx\n", entry);
+        #kprintf("1GB Mapping entry: %16.16llx\n", entry);
         pdpPage[idx1] = entry
     } else {
         koops("MM: 1GB mapping cant be added, already present")

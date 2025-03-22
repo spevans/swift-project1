@@ -112,7 +112,7 @@ final class PIT8254: PNPDeviceDriver {
     }
 
     override var description: String {
-        return String.sprintf("PIT8254: cmd: 0x%2.2x chan0: 0x%2.2x chan2: 0x%2.2x, irq: %s",
+        return #sprintf("PIT8254: cmd: 0x%2.2x chan0: 0x%2.2x chan2: 0x%2.2x, irq: %s",
                               commandPort, channel0Port, channel2Port, irq.description)
     }
 
@@ -144,10 +144,10 @@ final class PIT8254: PNPDeviceDriver {
         guard let pnpDevice = device.busDevice as? PNPDevice, let resources = pnpDevice.getResources() else {
             return false
         }
-        print("PIT8254: init:", resources)
+        #kprint("PIT8254: init:", resources)
 
         guard let ports = resources.ioPorts.first, ports.count > 3 else {
-            print("PIT8254: Requires 4 IO ports and 1 IRQ")
+            #kprint("PIT8254: Requires 4 IO ports and 1 IRQ")
             return false
         }
 
@@ -156,7 +156,7 @@ final class PIT8254: PNPDeviceDriver {
         channel2Port = ports[ports.index(idx, offsetBy: 2)]
         commandPort = ports[ports.index(idx, offsetBy: 3)]
         irq = resources.interrupts.first ?? IRQSetting(isaIrq: 0)   // Default IRQ = 0
-        print("PIT8254: IRQ\(irq)")
+        #kprint("PIT8254: IRQ\(irq)")
         let timer = PIT8254Timer(pit: self, irq: irq)
         system.deviceManager.timer = timer
         device.initialised = true

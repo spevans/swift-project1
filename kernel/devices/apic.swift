@@ -168,10 +168,10 @@ struct APIC {
 
     mutating func setup(with madtEntries: [MADT.MADTEntry]) -> Bool {
         guard CPU.capabilities.apic else {
-            print("APIC: No APIC installed")
+            #kprint("APIC: No APIC installed")
             return false
         }
-        print("APIC: Initialising..")
+        #kprint("APIC: Initialising..")
 
         var apicStatus = BitArray64(CPU.readMSR(APIC.IA32_APIC_BASE_MSR))
 
@@ -181,20 +181,20 @@ struct APIC {
             CPU.writeMSR(APIC.IA32_APIC_BASE_MSR, apicStatus.toUInt64())
             apicStatus = BitArray64(CPU.readMSR(APIC.IA32_APIC_BASE_MSR))
             if apicStatus[globalEnableBit] != 1 {
-                print("APIC: failed to enable")
+                #kprint("APIC: failed to enable")
                 return false
             }
         }
 
         let region = APIC.addressRegion()
-        printf("APIC: base address: 0x%X\n", region.baseAddress.value)
+        #kprintf("APIC: base address: 0x%X\n", region.baseAddress.value)
         let mmio = mapIORegion(region: region, cacheType: .uncacheable)
         let ptr = mmio.baseAddress.rawPointer
         apicRegisters = UnsafeMutableRawBufferPointer(start: ptr,
             count: APIC.APIC_REGISTER_SPACE_SIZE)
 
         let bootProcessor = apicStatus[bootProcessorBit] == 1
-        print("APIC: boot \(bootProcessor)")
+        #kprint("APIC: boot \(bootProcessor)")
 
         printStatus()
         setupTimer()
@@ -318,26 +318,25 @@ struct APIC {
     }
 
     func printStatus() {
-        print("APIC id: \(localAPICId) version: \(localAPICVersion)")
-        printf("APIC: TPR: %8.8x APR: %8.8x PPR: %8.8x RRD: %8.8x ICR: %16.16X\n",
+        #kprint("APIC id: \(localAPICId) version: \(localAPICVersion)")
+        #kprintf("APIC: TPR: %8.8x APR: %8.8x PPR: %8.8x RRD: %8.8x ICR: %16.16X\n",
             taskPriority, arbitrationPriority, processorPriority, remoteRead,
             interruptCmd)
-        printf("APIC: Logical Dest: %8.8x format: %8.8x Spurious INT: %8.8x\n",
+        #kprintf("APIC: Logical Dest: %8.8x format: %8.8x Spurious INT: %8.8x\n",
             logicalDestination, destinationFormat, spuriousIntVector)
 
-
-        print("APIC: LVT:   Timer:", lvtTimer)
-        print("APIC: LVT:    CMCI:", lvtCMCI)
-        print("APIC: LVT:   LINT0:", lvtLint0)
-        print("APIC: LVT:   LINT1:", lvtLint1)
-        print("APIC: LVT:   Error:", lvtError)
-        print("APIC: LVT: PerfMon:", lvtPerfMonitorCounters)
-        print("APIC: LVT: Thermal:", lvtThermalSensor)
+        #kprint("APIC: LVT:   Timer:", lvtTimer)
+        #kprint("APIC: LVT:    CMCI:", lvtCMCI)
+        #kprint("APIC: LVT:   LINT0:", lvtLint0)
+        #kprint("APIC: LVT:   LINT1:", lvtLint1)
+        #kprint("APIC: LVT:   Error:", lvtError)
+        #kprint("APIC: LVT: PerfMon:", lvtPerfMonitorCounters)
+        #kprint("APIC: LVT: Thermal:", lvtThermalSensor)
     }
 
 
     mutating func setupTimer() {
-        printf("APIC: InitialCount: %8.8X CurrentCount: %8.8X Divide Config: %8.8X\n",
+        #kprintf("APIC: InitialCount: %8.8X CurrentCount: %8.8X Divide Config: %8.8X\n",
             initialCount, currentCount, divideConfig)
 
         var newLvtTimer = lvtTimer
@@ -349,9 +348,9 @@ struct APIC {
         lvtTimer = newLvtTimer
         divideConfig = 0b1001
         initialCount = 100000000
-        print("APIC, new Timer: ", lvtTimer)
+        #kprint("APIC, new Timer: ", lvtTimer)
 
-        printf("APIC: InitialCount: %8.8X CurrentCount: %8.8X Divide Config: %8.8X\n",
+        #kprintf("APIC: InitialCount: %8.8X CurrentCount: %8.8X Divide Config: %8.8X\n",
             initialCount, currentCount, divideConfig)
     }
 }
@@ -362,7 +361,7 @@ struct APIC {
 public func apicIntHandler(registers: ExceptionRegisters) {
     let apicInt = Int(registers.pointee.error_code)
     guard apicInt >= 0 && apicInt < 7 else {
-        printf("OOPS: Invalid APIC interrupt: %#x\n", apicInt)
+        #kprintf("OOPS: Invalid APIC interrupt: %#x\n", apicInt)
         stop()
     }
 

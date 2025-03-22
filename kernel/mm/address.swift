@@ -91,10 +91,6 @@ struct PhysAddress: Comparable, Hashable, CustomStringConvertible {
     static func |(lhs: PhysAddress, rhs: RawAddress) -> PhysAddress {
         return PhysAddress(lhs.value & rhs)
     }
-
-    public var _cVarArgEncoding: [Int] {
-        return _encodeBitsAsWords(value)
-    }
 }
 
 extension PageSize {
@@ -117,4 +113,9 @@ extension PageSize {
     func onSamePage(_ address1: PhysAddress, _ address2: PhysAddress) -> Bool {
         onSamePage(address1.value, address2.value)
     }
+}
+
+
+extension PhysAddress: PrintfArg {
+    var _printfArg: _PrintfArg { _PrintfArg.unsignedInteger(UInt64(self.value)) }
 }

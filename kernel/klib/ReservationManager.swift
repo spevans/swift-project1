@@ -55,7 +55,7 @@ struct ReservationSpace {
 
     func showReservedSpaces() {
         for space in reservedSpaces.sorted(by: { $0.start < $1.start }) {
-            print(space)
+            #kprint(space)
         }
     }
 }

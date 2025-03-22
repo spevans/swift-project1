@@ -28,13 +28,13 @@ class Timer: CustomStringConvertible {
 func setupPeriodicTimer() -> Bool {
     // Find a timer and set the timer interrupt for 1kHz
     guard let timer = system.deviceManager.timer, timer.enablePeriodicInterrupt(hz: 1000)  else {
-        print("Cant setup periodic timer")
+        #kprint("Cant setup periodic timer")
         return false
     }
     let irq = timer.irq
-    print(timer)
+    #kprint(timer)
     system.deviceManager.setIrqHandler(irq, handler: timerInterrupt)
-    print("timer: Setup for 1000Hz on irq:", irq)
+    #kprint("timer: Setup for 1000Hz on irq:", irq)
     return true
 }
 

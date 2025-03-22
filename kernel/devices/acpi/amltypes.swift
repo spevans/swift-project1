@@ -214,7 +214,7 @@ enum AMLError: Error, CustomStringConvertible {
 
 
     static func unimplemented(_ function: String = #function, line: Int = #line) -> AMLError {
-        print("line:", line, function, "is unimplemented")
+        #kprint("line:", line, function, "is unimplemented")
         return unimplementedError(reason: function)
     }
 }
@@ -649,7 +649,7 @@ final class AMLSharedBuffer: RandomAccessCollection {
     }
 
     func writeBits<C: RandomAccessCollection>(atBitIndex bitIndex: Int, numBits: Int, value: C) where C.Element == UInt8, C.Index == Int {
-        print("WriteBits bitIndex: \(bitIndex) numBits: \(numBits) buffer.count \(buffer.count) value.count: \(value.count)")
+        #kprint("WriteBits bitIndex: %d numBits: %d buffer.count: %d value.count: %d\n", bitIndex, numBits, buffer.count, value.count)
         if bitIndex.isMultiple(of: 8) && numBits.isMultiple(of: 8) {
             let start = bitIndex / 8
             let count = numBits / 8
@@ -964,7 +964,7 @@ struct AMLDebugObj {
     }
 
     func updateValue(to newValue: AMLObject, context: inout ACPI.AMLExecutionContext) {
-        print("ACPI: DEBUG:", newValue.stringValue?.asString() ?? "<unknown>")
+        #kprint("ACPI: DEBUG:", newValue.stringValue?.asString() ?? "<unknown>")
     }
 }
 

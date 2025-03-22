@@ -17,36 +17,36 @@ final class HCD_EHCI: PCIDeviceDriver {
 
 
     override init?(pciDevice: PCIDevice) {
-        print("EHCI init:", pciDevice)
+        #kprint("EHCI init:", pciDevice)
         guard pciDevice.deviceFunction.deviceClass == PCIDeviceClass(classCode: .serialBusController,
                                                                     subClassCode: PCISerialBusControllerSubClass.usb.rawValue,
                                                                     progInterface: PCIUSBProgrammingInterface.ehci.rawValue) else {
-            print("EHCI: \(pciDevice) is not a EHCI Device")
+            #kprint("EHCI: \(pciDevice) is not a EHCI Device")
             return nil
         }
 
         guard let generalDevice = pciDevice.deviceFunction.generalDevice else {
-            print("EHCI: Not a PCI generalDevice")
+            #kprint("EHCI: Not a PCI generalDevice")
             return nil
         }
 
         let base = generalDevice.bar0
         guard base & 1 == 0 else {
-            print("EHCI: BAR0 address 0x\(String(base, radix: 16)) is not a memory resource")
+            #kprint("EHCI: BAR0 address 0x\(String(base, radix: 16)) is not a memory resource")
             return nil
         }
         allows64BitMapping = base & 0b110 == 0b100
         baseAddress = base & 0xffff_ff00
         super.init(pciDevice: pciDevice)
-        print("EHCI: 0x\(String(baseAddress, radix: 16)) allows64BitMapping: \(allows64BitMapping)")
+        #kprint("EHCI: 0x\(String(baseAddress, radix: 16)) allows64BitMapping: \(allows64BitMapping)")
     }
 
 
     override func initialise() -> Bool {
-        print("EHCI driver")
+        #kprint("EHCI driver")
         guard let pciDevice = device.busDevice as? PCIDevice else { return false }
         let sbrn = pciDevice.deviceFunction.readConfigByte(atByteOffset: 0x60)
-        print("EHCI: bus release number 0x\(String(sbrn, radix: 16))")
+        #kprint("EHCI: bus release number 0x\(String(sbrn, radix: 16))")
         return false
     }
 

@@ -108,7 +108,7 @@ struct AMLByteStream {
     }
 
     func dump() {
-        print("AMLByteStream count: \(buffer.count), position: \(position)")
+        #kprintf("AMLByteStream count: %d, position: %d\n", buffer.count, position)
         hexDump(buffer: UnsafeRawBufferPointer(start: buffer.baseAddress!.advanced(by: 0),
                                                count: buffer.count))
     }
@@ -541,7 +541,7 @@ final class AMLParser {
 
                 let fullname = resolveNameTo(scope: currentScope, path: name)
                 if objectType != 8 {
-                    print("Ignoring External Objectype \(objectType)")
+                    #kprint("Ignoring External Objectype", objectType)
                 }
                 ACPI.methodArgumentCount[fullname] = Int(argCount)
                 return .type1opcode(.amlDefNoop)
@@ -722,7 +722,7 @@ final class AMLParser {
         let closure = { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let fullname = resolveNameTo(scope: context.scope, path: sourceObject)
             guard let (node, _) = context.getObject(named: aliasObject) else {
-                print("ACPI: Alias target \(aliasObject) does not exist")
+                #kprint("ACPI: Alias target", aliasObject, "does not exist")
                 return []
             }
             return [(fullname, node, nil)]
@@ -816,12 +816,15 @@ final class AMLParser {
         let fieldList = try parseFieldList(fieldFlags: fieldFlags)
 
         let closure = { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
-            print("regionName: \(regionName)")
-            print("bankName: \(bankName)")
+            #kprint("regionName:", regionName)
+            #kprint("bankName:", bankName)
             let value = try operandAsInteger(operand: bankValue, context: &context)
-            print("bankValue: \(value)")
-            print("fieldFlags: \(fieldFlags)")
-            print("fieldList: \(fieldList)")
+            #kprint("bankValue:", value)
+            #kprint("fieldFlags:", fieldFlags)
+            #kprint("fieldList:")
+            for field in fieldList {
+                #kprintf("    %s: %s\n", field.0.description, field.1.description)
+            }
             fatalError("implement bank field")
         }
         return AMLNameSpaceModifier(name: regionName, closure: closure)
@@ -1222,7 +1225,6 @@ final class AMLParser {
         }
 
         // HACK, should not be needed, should be covered with .nullChar above
-        print(symbol)
         if symbol.currentChar!.value == 0 {
             return .nullName
         }

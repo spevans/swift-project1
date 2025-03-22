@@ -54,16 +54,11 @@ private func IDTEntry(function: (@escaping @convention(c) () -> Void),
 
 
 func setupIDT() {
-    print("IDT: Initialising..")
-
-    func printIDT(_ msg: String, _ idt: dt_info) {
-        print("IDT:", msg, terminator: "")
-        printf(": Info: %p/%u\n", UInt(bitPattern: idt.base), idt.limit)
-    }
+    #kprint("IDT: Initialising..")
 
     var currentIdtInfo = dt_info()
     sidt(&currentIdtInfo)
-    printIDT("Current", currentIdtInfo)
+    #kprintf("IDT: Current: Info: %p/%u\n", UInt(bitPattern: currentIdtInfo.base), currentIdtInfo.limit)
 
     idt.0 = IDTEntry(function: divide_by_zero_stub, gateType: .TRAP_GATE)
     idt.1 = IDTEntry(function: debug_exception_stub, gateType: .TRAP_GATE)
@@ -147,8 +142,8 @@ func setupIDT() {
     // Below is not needed except to validate that the setup worked ok
     // and test some exceptions
     sidt(&currentIdtInfo)
-    printIDT("New", currentIdtInfo)
-    print("IDT: Testing Breakpoint:")
+    #kprintf("IDT: New: Info: %p/%u\n", UInt(bitPattern: currentIdtInfo.base), currentIdtInfo.limit)
+    #kprint("IDT: Testing Breakpoint:")
     test_breakpoint()
 }
 

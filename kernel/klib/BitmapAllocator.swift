@@ -56,7 +56,7 @@ struct BitmapAllocator8: BitmapAllocatorProtocol {
         func padding(_ str: String) -> String {
             return String(repeating: "0", count: BitmapType.bitWidth - str.count) + str
         }
-        print("0b\(padding(String(bitmap, radix: 2)))")
+        #kprint("0b\(padding(String(bitmap, radix: 2)))")
     }
 }
 
@@ -104,7 +104,7 @@ struct BitmapAllocator32: BitmapAllocatorProtocol {
         func padding(_ str: String) -> String {
             return String(repeating: "0", count: BitmapType.bitWidth - str.count) + str
         }
-        print("0b\(padding(String(bitmap, radix: 2)))")
+        #kprint("0b\(padding(String(bitmap, radix: 2)))")
     }
 }
 
@@ -147,7 +147,7 @@ struct BitmapAllocator64: BitmapAllocatorProtocol {
         func padding(_ str: String) -> String {
             return String(repeating: "0", count: BitmapType.bitWidth - str.count) + str
         }
-        print("0b\(padding(String(bitmap, radix: 2)))")
+        #kprint("0b\(padding(String(bitmap, radix: 2)))")
     }
 }
 
@@ -211,6 +211,6 @@ struct BitmapAllocator128: BitmapAllocatorProtocol {
         func padding(_ str: String) -> String {
             return String(repeating: "0", count: BitmapType.bitWidth - str.count) + str
         }
-        print("0b\(padding(String(bitmap1, radix: 2)))_\(padding(String(bitmap0, radix: 2)))")
+        #kprint("0b\(padding(String(bitmap1, radix: 2)))_\(padding(String(bitmap0, radix: 2)))")
     }
 }

@@ -124,25 +124,25 @@ stack_trace(uintptr_t rsp, uintptr_t rbp)
 void
 dump_registers(struct exception_regs *registers)
 {
-        kprintf("RAX: %16.16lx ", registers->rax);
-        kprintf("RBX: %16.16lx ", registers->rbx);
-        kprintf("RCX: %16.16lx\n", registers->rcx);
-        kprintf("RDX: %16.16lx ", registers->rdx);
-        kprintf("RSI: %16.16lx ", registers->rsi);
-        kprintf("RDI: %16.16lx\n", registers->rdi);
-        kprintf("RBP: %16.16lx ", registers->rbp);
-        kprintf("RSP: %16.16lx ", registers->rsp);
-        kprintf("RIP: %16.16lx\n", registers->rip);
-        kprintf("R8 : %16.16lx ", registers->r8);
-        kprintf("R9 : %16.16lx ", registers->r9);
-        kprintf("R10: %16.16lx\n", registers->r10);
-        kprintf("R11: %16.16lx ", registers->r11);
-        kprintf("R12: %16.16lx ", registers->r12);
-        kprintf("R13: %16.16lx\n", registers->r13);
-        kprintf("R14: %16.16lx ", registers->r14);
-        kprintf("R15: %16.16lx ", registers->r15);
-        kprintf("CR2: %16.16lx\n", getCR2());
-        kprintf("CS: %lx DS: %lx ES: %lx FS: %lx GS:%lx SS: %lx\n",
+        serial_printf("RAX: %16.16lx ", registers->rax);
+        serial_printf("RBX: %16.16lx ", registers->rbx);
+        serial_printf("RCX: %16.16lx\n", registers->rcx);
+        serial_printf("RDX: %16.16lx ", registers->rdx);
+        serial_printf("RSI: %16.16lx ", registers->rsi);
+        serial_printf("RDI: %16.16lx\n", registers->rdi);
+        serial_printf("RBP: %16.16lx ", registers->rbp);
+        serial_printf("RSP: %16.16lx ", registers->rsp);
+        serial_printf("RIP: %16.16lx\n", registers->rip);
+        serial_printf("R8 : %16.16lx ", registers->r8);
+        serial_printf("R9 : %16.16lx ", registers->r9);
+        serial_printf("R10: %16.16lx\n", registers->r10);
+        serial_printf("R11: %16.16lx ", registers->r11);
+        serial_printf("R12: %16.16lx ", registers->r12);
+        serial_printf("R13: %16.16lx\n", registers->r13);
+        serial_printf("R14: %16.16lx ", registers->r14);
+        serial_printf("R15: %16.16lx ", registers->r15);
+        serial_printf("CR2: %16.16lx\n", getCR2());
+        serial_printf("CS: %lx DS: %lx ES: %lx FS: %lx GS:%lx SS: %lx\n",
                 registers->cs, registers->ds, registers->es,
                 registers->fs, registers->gs, registers->ss);
 }

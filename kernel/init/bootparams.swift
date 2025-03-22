@@ -27,11 +27,11 @@ struct FrameBufferInfo: CustomStringConvertible {
     let blueMask:      UInt8
 
     var description: String {
-        var str = String.sprintf("Framebuffer: %dx%d bpp: %d px per line: %d addr:%p size: %lx\n",
+        var str = #sprintf("Framebuffer: %dx%d bpp: %d px per line: %d addr:%p size: %lx\n",
             width, height, depth, pxPerScanline, address,  size);
-        str += String.sprintf("Red shift:   %2d Red mask:   %x\n", redShift, redMask);
-        str += String.sprintf("Green shift: %2d Green mask: %x\n", greenShift, greenMask);
-        str += String.sprintf("Blue shift:  %2d Blue mask:  %x\n", blueShift, blueMask);
+        str += #sprintf("Red shift:   %2d Red mask:   %x\n", redShift, redMask);
+        str += #sprintf("Green shift: %2d Green mask: %x\n", greenShift, greenMask);
+        str += #sprintf("Blue shift:  %2d Blue mask:  %x\n", blueShift, blueMask);
 
         return str
     }
@@ -151,27 +151,27 @@ enum BootParams {
  * setupMM(), but setupMM() requires some of the data from step1.
  */
 func parse(bootParamsAddr: VirtualAddress) -> BootParams {
-    printf("bootparams: parsing bootParams @ 0x%lx\n", bootParamsAddr)
+    #kprintf("bootparams: parsing bootParams @ 0x%lx\n", bootParamsAddr)
     if (bootParamsAddr == 0) {
         koops("bootParamsAddr is null")
     }
     guard let signature = readSignature(bootParamsAddr) else {
         koops("bootparams: Cant find boot params signature")
     }
-    print("bootparams: signature:", signature)
+    #kprint("bootparams: signature:", signature)
 
     if (signature == "BIOS") {
-        print("bootparams: Found BIOS boot params")
+        #kprint("bootparams: Found BIOS boot params")
         if let params = BiosBootParams(bootParamsAddr: bootParamsAddr) {
             return .bios(params)
         }
     } else if (signature == "EFI") {
-        print("bootparams: Found EFI boot params")
+        #kprint("bootparams: Found EFI boot params")
         if let params = EFIBootParams(bootParamsAddr: bootParamsAddr) {
             return .efi(params)
         }
     } else {
-        print("bootparams: Found unknown boot params: \(signature)")
+        #kprint("bootparams: Found unknown boot params: \(signature)")
         stop()
     }
     koops("bootparams: BiosBootParams returned null")

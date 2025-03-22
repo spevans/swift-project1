@@ -7,14 +7,16 @@ SUBDIRS := boot kernel klibc
 EXTRA_LIBS :=
 
 
-.PHONY: all iso clean kernel
+.PHONY: all iso clean kernel macros
 
 all: iso
 
 iso: output/boot-cd.iso
 
+macros:
+	cd macros/Printf && swift build -c release
 
-output/kernel.elf: $(ALL_SOURCES)
+output/kernel.elf: macros $(ALL_SOURCES)
 	mkdir -p $(MODULE_DIR) output
 	$(RUNNER) make -C klibc
 	$(RUNNER) make -C kernel

@@ -28,10 +28,10 @@ private func initFreeList() -> FreePageListEntryPtr? {
     let _heap_end_addr = VirtualAddress(bitPattern: &_heap_end)
     let heap_phys = virtualToPhys(address: _heap_start_addr)!
     let pageCount = Int((_heap_end_addr - _heap_start_addr) / pageSize.size)
-    kprintf("init_free_list: heap_start: %p ", _heap_start_addr)
-    kprintf("heap_end: %p ", _heap_end_addr)
-    kprintf("heap_phys: %p ", heap_phys.value)
-    kprintf("pageCount: %llu\n", pageCount)
+    #kprintf("init_free_list: heap_start: %p ", _heap_start_addr)
+    #kprintf("heap_end: %p ", _heap_end_addr)
+    #kprintf("heap_phys: %p ", heap_phys.value)
+    #kprintf("pageCount: %d\n", pageCount)
 
     guard let ptr = FreePageListEntryPtr(bitPattern: _heap_start_addr) else {
         koops("Cant init free list")
@@ -40,7 +40,7 @@ private func initFreeList() -> FreePageListEntryPtr? {
         region: PhysPageAlignedRegion(heap_phys, pageSize: pageSize, pageCount: pageCount),
         next: nil
     )
-    // Use single argument versions of kprintf() which has specialisation for
+    // Use single argument versions of #kprintf() which has specialisation for
     // 1 Int or UInt arg. see printf.swift.
     return ptr
 }
@@ -107,7 +107,7 @@ func addPagesToFreePageList(pages: PhysPageAlignedRegion) {
         else {
             let lowerPageCount = (address - pageRange.baseAddress) / Int(pageRange.pageSize.size)
             let (lower, upper) = pageRange.splitRegion(withFirstRegionCount: lowerPageCount)
-            print("addPagesToFreePageList split \(pageRange) into \(lower) and \(upper)")
+            #kprint("addPagesToFreePageList split \(pageRange) into \(lower) and \(upper)")
             return (lower, upper)
         }
     }
@@ -190,6 +190,6 @@ private func alloc(pages: Int, fromList list: inout FreePageListEntryPtr?) -> Ph
         head = entry.next
     }
 
-    kprintf("No more free pages for allocation of: %d pages\n", pages)
+    #kprintf("No more free pages for allocation of: %d pages\n", pages)
     stop()
 }

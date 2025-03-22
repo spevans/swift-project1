@@ -63,7 +63,7 @@ struct SMBIOS {
                 }
                 return strings[stringId - 1]
             } catch {
-                print("SMBIOS: error reading id")
+                #kprint("SMBIOS: error reading id")
                 return nil
             }
         }
@@ -83,24 +83,24 @@ struct SMBIOS {
 
             let anchor = String(ptr, maxLength: 4)
             if (anchor != "_SM_") {
-                print("SMBIOS: anchor is \(anchor)")
+                #kprint("SMBIOS: anchor is \(anchor)")
                 return nil
             }
 
             if Int(header.ep_length) != headerSize {
-                print("header length should be", headerSize, "but is",
+                #kprint("header length should be", headerSize, "but is",
                     header.ep_length)
                 return nil
             }
             maxStructureSize = UInt(header.max_structure_size)
             if header.eps_revision != 0 {
-                printf("Unknown EPS revision: %2.2x", header.eps_revision)
+                #kprintf("Unknown EPS revision: %2.2x", header.eps_revision)
                 return nil
             }
 
             let dmi = String(ptr + 16, maxLength: 5)
             if dmi != "_DMI_" {
-                print("SMBIOS: DMI anchor is", dmi)
+                #kprint("SMBIOS: DMI anchor is", dmi)
                 return nil
             }
         }
@@ -122,7 +122,7 @@ struct SMBIOS {
             minor = header.minor_version
         }
 
-        print("SMBIOS \(major).\(minor): \(entryCount) entries "
+        #kprint("SMBIOS \(major).\(minor): \(entryCount) entries "
             + "@ \(tableAddress) size: \(tableLength)")
 
         func str(_ a: String?) -> String {
@@ -136,7 +136,7 @@ struct SMBIOS {
                 dmiBiosVendor = entry.stringByOffset(4)
                 dmiBiosVersion = entry.stringByOffset(5)
                 dmiBiosReleaseDate = entry.stringByOffset(8)
-                print("SMBIOS: BIOS: vendor:", str(dmiBiosVendor),
+                #kprint("SMBIOS: BIOS: vendor:", str(dmiBiosVendor),
                     "version:", str(dmiBiosVersion),
                     "date:", str(dmiBiosReleaseDate))
 
@@ -146,8 +146,8 @@ struct SMBIOS {
                 dmiProductVersion = entry.stringByOffset(6)
                 dmiProductSerial = entry.stringByOffset(7)
                 dmiProductUUID = entry.stringByOffset(8)
-                print("SMBIOS: system:", str(dmiSystemVendor))
-                print("SMBIOS: product:", str(dmiProductName),
+                #kprint("SMBIOS: system:", str(dmiSystemVendor))
+                #kprint("SMBIOS: product:", str(dmiProductName),
                     "version:", str(dmiProductVersion),
                     "serial:", str(dmiProductSerial),
                     "uuid:", str(dmiProductUUID))
@@ -157,7 +157,7 @@ struct SMBIOS {
                 dmiBoardName = entry.stringByOffset(5)
                 dmiBoardVersion = entry.stringByOffset(6)
                 dmiBoardSerial = entry.stringByOffset(7)
-                print("SMBIOS: board: vendor:", str(dmiBoardVendor),
+                #kprint("SMBIOS: board: vendor:", str(dmiBoardVendor),
                     "name:", str(dmiBoardName),
                     "version:", str(dmiBoardVersion),
                     "serial:", str(dmiBoardSerial))
@@ -167,7 +167,7 @@ struct SMBIOS {
                 dmiChassisType = entry.stringByOffset(5)
                 dmiChassisVersion = entry.stringByOffset(6)
                 dmiChassisSerial = entry.stringByOffset(7)
-                print("SMBIOS: chassis: vendor", str(dmiChassisVendor),
+                #kprint("SMBIOS: chassis: vendor", str(dmiChassisVendor),
                     "type:", str(dmiChassisType), "version:", str(dmiChassisVersion),
                     "serial:", str(dmiChassisSerial))
 
@@ -175,7 +175,7 @@ struct SMBIOS {
                 break
             }
         }
-        print("SMBIOS scan finished")
+        #kprint("SMBIOS scan finished")
     }
 
 
@@ -212,7 +212,7 @@ struct SMBIOS {
                         handle: handle, data: data, strings: strings))
                 buffer.offset = buffer.offset + tableLength + stringTable.offset
             } catch {
-                print("SMBIOS: invalid offset")
+                #kprint("SMBIOS: invalid offset")
             }
         }
 

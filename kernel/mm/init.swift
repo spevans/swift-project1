@@ -70,7 +70,7 @@ private func kernelPhysAddress(_ address: VirtualAddress) -> PhysAddress {
     let _kernel_end_addr = VirtualAddress(bitPattern: &_kernel_end)
 
     guard address >= _kernel_start_addr && address < _kernel_end_addr else {
-        printf("kernelPhysAddress: invalid address: %p", address)
+        #kprintf("kernelPhysAddress: invalid address: %p", address)
         stop()
     }
     return kernelPhysBase.advanced(by: address - _kernel_start_addr)
@@ -86,28 +86,28 @@ func setupMM(bootParams: BootParams) {
 
     // Show the current memory ranges
 //    for range in bootParams.memoryRanges {
-//        print("MM:", bootParams.source, ":", range)
+//        #kprint("MM:", bootParams.source, ":", range)
 //    }
 
     let lastEntry = bootParams.memoryRanges[bootParams.memoryRanges.count - 1]
     let highestMemoryAddress = lastEntry.start.advanced(by: lastEntry.size - 1)
 
-    printf("kernel: Highest Address: %#x kernel phys address: %lx\n",
+    #kprintf("kernel: Highest Address: %#x kernel phys address: %lx\n",
         highestMemoryAddress.value, kernelPhysBase.value)
 
     // Show status of MTRRs
-    print("Reading MTRR settings")
+    #kprint("Reading MTRR settings")
     let mtrrs = MTRRS()
-    print("MTRR: capabilities: \(mtrrs.capabilities)")
-    print("MTRR: control: \(mtrrs.control)")
+    #kprint("MTRR: capabilities: \(mtrrs.capabilities)")
+    #kprint("MTRR: control: \(mtrrs.control)")
 
     // Enable No Execute so data mappings can be set XD (Execute Disable)
     _ = CPU.enableNXE(true)
     // Disable MTRRs
     disableMTRRsetupPAT()
     let mtrrs2 = MTRRS()
-    print("MTRR: capabilities: \(mtrrs2.capabilities)")
-    print("MTRR: control: \(mtrrs2.control)")
+    #kprint("MTRR: capabilities: \(mtrrs2.capabilities)")
+    #kprint("MTRR: control: \(mtrrs2.control)")
 
     setupKernelMap(bootParams: bootParams)
     setupInitialPhysicalMap(bootParams.memoryRanges)
@@ -116,25 +116,25 @@ func setupMM(bootParams: BootParams) {
     setTTY(frameBufferInfo: bootParams.frameBufferInfo)
 
     let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_addr).value)
-    printf("MM: Updating CR3 to %p\n", pml4paddr)
+    #kprintf("MM: Updating CR3 to %p\n", pml4paddr)
     setCR3(pml4paddr)
     CPU.enableWP(true)
-    printf("MM: CR3 Updated to %p\n", pml4paddr)
+    #kprintf("MM: CR3 Updated to %p\n", pml4paddr)
     // Now add in all the RAM memory ranges
     do {
         let freeMemoryRanges = bootParams.memoryRanges.filter {
             $0.type == MemoryType.Conventional && $0.start >= PhysAddress(1 * mb) && $0.endAddress < PhysAddress(16 * mb)
         }
-        printf("MM: Before adding pages <16MB to freelist, freePageCount: %d freeIOPageCount: %d\n",
+        #kprintf("MM: Before adding pages <16MB to freelist, freePageCount: %d freeIOPageCount: %d\n",
             freePageCount(), freeIOPageCount())
         addPagesToFreePageList(freeMemoryRanges)
-        printf("MM: After adding pages <16MB to freelist, freePageCount: %d freeIOPageCount: %d\n",
+        #kprintf("MM: After adding pages <16MB to freelist, freePageCount: %d freeIOPageCount: %d\n",
             freePageCount(), freeIOPageCount())
     }
 
     // Map the rest of the physical memory
     mapPhysicalMemory(bootParams.memoryRanges)
-    printf("MM: After adding pages >16MB to freelist, freePageCount: %d freeIOPageCount: %d\n",
+    #kprintf("MM: After adding pages >16MB to freelist, freePageCount: %d freeIOPageCount: %d\n",
         freePageCount(), freeIOPageCount())
 
     // TODO: Reclaim any memory used in the boot process that can now be used as free RAM
@@ -190,7 +190,7 @@ private func setupKernelMap(bootParams: BootParams) {
     // BSS and stack that isnt mapped.
     // FIXME: Dont waste the physical page that is not mapped under
     // the guard page
-    printf("MM: _text:   %p - %p\nMM: _rodata: %p - %p\nMM: _data:   %p - %p\n",
+    #kprintf("MM: _text:   %p - %p\nMM: _rodata: %p - %p\nMM: _data:   %p - %p\n",
         kernelStart, kernelStart + textSize - 1,
         rodataStart, rodataStart + rodataSize - 1,
         dataStart, dataStart + dataSize - 1)
@@ -198,7 +198,7 @@ private func setupKernelMap(bootParams: BootParams) {
     func addKMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
         readWrite: Bool, noExec: Bool) {
 
-        printf("Adding kernel mapping start: %p phys: %p, size: 0x%lx\n", start, physStart.value, size)
+        #kprintf("Adding kernel mapping start: %p phys: %p, size: 0x%lx\n", start, physStart.value, size)
         let pageCnt = pageSize.pageCountCovering(size: Int(size))
         var physAddress = physStart
         var addr = start
@@ -224,7 +224,7 @@ private func setupKernelMap(bootParams: BootParams) {
 
             var pageTable = pml2Page[kidx2].pageTable!
             if pageTable[kidx3].present {
-                printf("Kernel mapping p: %p v: %p %u/%u/%u/%u is present!\n",
+                #kprintf("Kernel mapping p: %p v: %p %u/%u/%u/%u is present!\n",
                     physAddress, addr, kidx0, kidx1, kidx2, kidx3);
                 stop()
             }
@@ -264,15 +264,15 @@ private func setupKernelMap(bootParams: BootParams) {
                     physStart: symtabPhys, readWrite: true, noExec: true)
     }
 
-    printf("MM: Physical address of kernelBase     (%p): (%p)\n",
+    #kprintf("MM: Physical address of kernelBase     (%p): (%p)\n",
         kernelBase, kernelPhysAddress(kernelBase).value)
-    printf("MM: Physical address of rodata         (%p): (%p)\n",
+    #kprintf("MM: Physical address of rodata         (%p): (%p)\n",
         kernelBase + textSize,
         kernelPhysAddress(kernelBase + textSize).value)
-    printf("MM: Physical address of data           (%p): (%p)\n",
+    #kprintf("MM: Physical address of data           (%p): (%p)\n",
         kernelBase + textSize + rodataSize,
         kernelPhysAddress(kernelBase + textSize + rodataSize).value)
-    printf("MM: Physical address of stack and heap (%p): (%p)\n",
+    #kprintf("MM: Physical address of stack and heap (%p): (%p)\n",
         kernelBase + textSize + rodataSize + dataSize + PAGE_SIZE,
         kernelPhysAddress(kernelBase + textSize + rodataSize + dataSize
             + PAGE_SIZE).value)
@@ -355,7 +355,7 @@ private func setupInitialPhysicalMap(_ memoryRanges: [MemoryRange]) {
     // kernel physical mapping.
     let kernelSize = _kernel_end_addr - _kernel_start_addr
     let kernel2MBPages = (kernelSize + UInt(2 * mb) - 1) / (2 * mb)
-    printf("kernelStart: %p kernelEnd: %p kernelSize: %lx 2mb pages: %u\n",
+    #kprintf("kernelStart: %p kernelEnd: %p kernelSize: %lx 2mb pages: %u\n",
         _kernel_start_addr, _kernel_end_addr, kernelSize, kernel2MBPages)
 
     for idx in 0..<kernel2MBPages {
@@ -376,7 +376,7 @@ private func mapPhysicalMemory(_ ranges: [MemoryRange]) {
 
     guard !memoryRanges.isEmpty else { return }
     let maxAddress = memoryRanges.last!.endAddress
-    printf("MM: Mapping physical memory from %p - %p , freePageCount: %ld\n", memoryRanges[0].start.value, maxAddress.value, freePageCount())
+    #kprintf("MM: Mapping physical memory from %p - %p , freePageCount: %ld\n", memoryRanges[0].start.value, maxAddress.value, freePageCount())
     let initial_pml4_addr = VirtualAddress(bitPattern: &initial_pml4)
     let pmlPage = PageMapLevel4Table(at: initial_pml4_addr)
 
@@ -412,7 +412,7 @@ private func mapPhysicalMemory(_ ranges: [MemoryRange]) {
                         userAccess: false, patIndex: patIndex, global: false, noExec: true)
                     ptPage[idx3] = entry
                 } else {
-                    print("Cant add mapping for \(physPage) @ 0x\(String(vaddr, radix: 16))")
+                    #kprint("Cant add mapping for \(physPage) @ 0x\(String(vaddr, radix: 16))")
                     koops("MM: page is already present!")
                 }
             }
@@ -424,17 +424,17 @@ private func mapPhysicalMemory(_ ranges: [MemoryRange]) {
 
 // for debugging
 private func printSections() {
-    print("kernel: _text_start:   ", UInt(bitPattern: _text_start).hex())
-    print("kernel: _text_end:     ", UInt(bitPattern: _text_end).hex())
-    print("kernel: _data_start:   ", UInt(bitPattern: _data_start).hex())
-    print("kernel: _data_end:     ", UInt(bitPattern: _data_end).hex())
-    print("kernel: _bss_start:    ", UInt(bitPattern: _bss_start).hex())
-    print("kernel: _bss_end:      ", UInt(bitPattern: _bss_end).hex())
-    print("kernel: _kernel_start: ", UInt(bitPattern: _kernel_start).hex())
-    print("kernel: _kernel_end:   ", UInt(bitPattern: _kernel_end).hex())
-    print("kernel: _guard_page:   ", UInt(bitPattern: _guard_page).hex())
-    print("kernel: _stack_start:  ", UInt(bitPattern: _stack_start).hex())
-    print("kernel: initial_pml4:  ", UInt(bitPattern: initial_pml4).hex())
+    #kprint("kernel: _text_start:   ", UInt(bitPattern: _text_start).hex())
+    #kprint("kernel: _text_end:     ", UInt(bitPattern: _text_end).hex())
+    #kprint("kernel: _data_start:   ", UInt(bitPattern: _data_start).hex())
+    #kprint("kernel: _data_end:     ", UInt(bitPattern: _data_end).hex())
+    #kprint("kernel: _bss_start:    ", UInt(bitPattern: _bss_start).hex())
+    #kprint("kernel: _bss_end:      ", UInt(bitPattern: _bss_end).hex())
+    #kprint("kernel: _kernel_start: ", UInt(bitPattern: _kernel_start).hex())
+    #kprint("kernel: _kernel_end:   ", UInt(bitPattern: _kernel_end).hex())
+    #kprint("kernel: _guard_page:   ", UInt(bitPattern: _guard_page).hex())
+    #kprint("kernel: _stack_start:  ", UInt(bitPattern: _stack_start).hex())
+    #kprint("kernel: initial_pml4:  ", UInt(bitPattern: initial_pml4).hex())
 }
 
 

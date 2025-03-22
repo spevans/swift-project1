@@ -17,55 +17,10 @@ private let SPACE: CUnsignedChar = 0x20
 typealias TextCoord = text_coord
 
 
-// kprint via the C early_tty.c driver. This should avoid any memory allocation
-// as the pointer to the string is being passed directly and the single unicode
-// scalar case is explictly rejected.
-@inline(__always)
-func kprint(_ string: StaticString) {
-    precondition(string.hasPointerRepresentation)
-    precondition(string.isASCII)
-    string.utf8Start.withMemoryRebound(to: Int8.self, capacity: string.utf8CodeUnitCount) {
-        (ptr: UnsafePointer<Int8>) -> Void in
-        early_print_string_len(ptr, string.utf8CodeUnitCount)
-    }
-}
+internal struct _TTY: UnicodeOutputStream {
 
+    init() {}
 
-@inline(never)
-func print(_ items: CustomStringConvertible..., separator: String = " ",
-    terminator: String = "\n") {
-
-    var output = _tty()
-    var prefix = ""
-    for item in items {
-        // Print the items one at a time as varargs will be passed as an array
-        output.write(prefix)
-        print(item, separator: "", terminator: "", to: &output)
-        prefix = separator
-    }
-    output.write(terminator)
-}
-
-
-@inline(never)
-func print(_ item: String) {
-    var output = _tty()
-    output.write(item)
-    output.write("\n")
-}
-
-func _kprint(_ string: String) {
-    var output = _tty()
-    output.write(string)
-    output.write("\n")
-}
-
-func print(_ item: StaticString) {
-    kprint(item)
-}
-
-
-internal struct _tty : UnicodeOutputStream {
     mutating func write(_ string: StaticString) {
         if string.utf8CodeUnitCount == 0 { return }
         string.withUTF8Buffer { buffer in
@@ -89,10 +44,25 @@ internal struct _tty : UnicodeOutputStream {
             tty.printChar(CChar(ch))
         }
     }
+
+    mutating func write(_ character: Character) {
+        if let ch = character.asciiValue {
+            tty.printChar(CChar(ch))
+        }
+    }
 }
 
 
-internal struct _serial: UnicodeOutputStream {
+internal struct _Serial: UnicodeOutputStream {
+    mutating func write(_ string: StaticString) {
+        if string.utf8CodeUnitCount == 0 { return }
+        string.withUTF8Buffer { buffer in
+            for ch in buffer {
+                serial_print_char(CChar(bitPattern: ch))
+            }
+        }
+    }
+
     mutating func write(_ string: String) {
         if string.isEmpty { return }
         for c in string.unicodeScalars {
@@ -107,8 +77,13 @@ internal struct _serial: UnicodeOutputStream {
             serial_print_char(CChar(ch))
         }
     }
-}
 
+    mutating func write(_ character: Character) {
+        if let ch = character.asciiValue {
+            serial_print_char(CChar(ch))
+        }
+    }
+}
 
 
 private var earlyTTY = EarlyTTY()
@@ -120,15 +95,15 @@ private(set)var tty = TTY.early
 // This is called to remap the text screen or framebuffer after new page maps have been
 // setup but before they are switched to. This
 func setTTY(frameBufferInfo: FrameBufferInfo?) {
-    print("TTY: Switching to Swift TTY driver")
-    if let frameBufferInfo = frameBufferInfo {
+    #kprint("TTY: Switching to Swift TTY driver")
+    if let frameBufferInfo {
         framebufferTTY.setFrameBuffer(frameBufferInfo)
         tty = .framebuffer
-        print("TTY: Set to FrameBufferTTY")
+        #kprint("TTY: Set to FrameBufferTTY")
     } else {
         textTTY.setActive()
         tty = .text
-        print("TTY: Set to TextTTY")
+        #kprint("TTY: Set to TextTTY")
     }
 }
 
@@ -218,6 +193,7 @@ enum TTY {
         }
     }
 
+    @inline(never)
     mutating func printChar(_ character: CChar) {
         /* FIXME: Disable interrupts for exclusive access to screen memory
          * and instance vars but this function takes far too long because of
@@ -262,7 +238,7 @@ enum TTY {
         var cmdString: [CChar] = []
         var clipboard: [CChar] = []
 
-        print(prompt, terminator: "")
+        #kprintf("%s", prompt)
         var initialCursorX = cursorX
         var initialCursorY = cursorY
         var idx = 0 // index in current string
@@ -303,10 +279,10 @@ enum TTY {
                 else if ch == 10 || ch == 13 { // ctrl-j, ctrl-m NL, CR
                     cmdString.append(0)
                     line = cmdString.withUnsafeBufferPointer {
-                        return String(validatingUTF8: $0.baseAddress!)
+                        return String(validatingCString: $0.baseAddress!)
                     }
                     if line == nil {
-                        print("\nCant convert to a String");
+                        #kprint("\nCant convert to a String");
                         line = ""
                     }
                     cmdString.removeLast()
@@ -323,7 +299,7 @@ enum TTY {
                     idx += clipboard.count
                 } else if ch == 12 { // ctrl-l
                     clearScreen()
-                    print(prompt, terminator: "")
+                    #kprintf("%s", prompt)
                     initialCursorX = cursorX
                     initialCursorY = cursorY
                 }
@@ -349,16 +325,18 @@ enum TTY {
         return line!
     }
 
+
     func scrollTimingTest() {
-/** DISABLED for now due to SILgen error compiling this
+/** FIXME: DISABLED for now due to SILgen error compiling this
         let earlyTicks = benchmark(earlyTTY.scrollUp)
         let swiftTicks = benchmark(tty.scrollUp)
         let ratio = swiftTicks / earlyTicks
-        print("tty: EarlyTTY.scrollUp():", earlyTicks)
-        print("tty: TTY.scrollUp():", swiftTicks)
-        print("tty: Ratio: ", ratio)
+        #kprint("tty: EarlyTTY.scrollUp():", earlyTicks)
+        #kprint("tty: TTY.scrollUp():", swiftTicks)
+        #kprint("tty: Ratio: ", ratio)
 **/
     }
+
 }
 
 
@@ -539,7 +517,7 @@ private struct Font: CustomStringConvertible {
     }
 
     var description: String {
-        return String.sprintf("width: %ld height: %ld data @ %p",
+        return #sprintf("width: %ld height: %ld data @ %p",
             width, height, data)
     }
 

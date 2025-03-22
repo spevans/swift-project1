@@ -48,7 +48,7 @@ final class PCIDeviceFunction: CustomStringConvertible {
     var description: String {
         let fmt: StaticString =  "%2.2X:%2.2X/%u: %4.4X:%4.4X [%2.2X%2.2X] HT: %2.2X %s [IRQ: %u/%s]"
         let int = interruptPin?.description ?? "none"
-        return String.sprintf(fmt, busId, device, function, vendor, deviceId,
+        return #sprintf(fmt, busId, device, function, vendor, deviceId,
                               classCode, subClassCode, headerType, configSpace.description, interruptLine, int)
     }
 

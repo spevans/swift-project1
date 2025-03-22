@@ -86,7 +86,7 @@ extension ACPI {
                 child.parent = nil
                 childNodes[index] = node
 */
-                print("ACPI: Ignoring duplicate node \(self.fullname()).\(node.name.value)")
+                #kprint("ACPI: Ignoring duplicate node \(self.fullname()).\(node.name.value)")
                 return false
             }
             childNodes.append(node)
@@ -195,7 +195,7 @@ extension ACPI {
                 if let node = findNode(named: part, parent: parent) {
                     parent = node
                 } else {
-                    print("ACPI: Ignoring invalid path \(name)")
+                    #kprint("ACPI: Ignoring invalid path", name)
                     return false
 /**
                     // FIXME: Adding a missing part of the path directly is not the correct way as

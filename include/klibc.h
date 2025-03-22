@@ -69,7 +69,6 @@ size_t strlen(const char * _Nonnull s);
 // early_tty.c
 typedef uint16_t text_coord;
 
-void kprint(const char * _Nonnull string);
 void serial_print_char(const char ch);
 void early_print_char(const char c);
 void early_print_string(const char * _Nonnull text);

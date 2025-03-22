@@ -124,7 +124,7 @@ struct MemoryBufferReader {
         if (buffer.count > 0) {
             for idx in 0..<buffer.count {
                 if (idx > 0) && (idx % 32) == 0 {
-                    print(str)
+                    #kprint(str)
                     str = String(idx, radix: 16format: "%04X: ", idx)
                 }
 
@@ -132,7 +132,7 @@ struct MemoryBufferReader {
                 str += String(format: " %02X", data)
             }
             if !str.isEmpty {
-                print(str)
+                #kprint(str)
             }
         }
         offset = 0

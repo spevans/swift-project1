@@ -83,16 +83,16 @@ final class USB {
     func initialiseDevices(acpiDevice: AMLDefDevice? = nil) {
 
         guard let  rootPCIBus = system.deviceManager.masterBus.rootPCIBus() else {
-            print("USB: No Root PCI bus found, extiing USB initialisation")
+            #kprint("USB: No Root PCI bus found, extiing USB initialisation")
             return
         }
 
         rootPCIBus.devicesMatching(classCode: .serialBusController, subClassCode: PCISerialBusControllerSubClass.usb.rawValue) {
-            print("USB: Found pcidevice: \($0) deviceClass: \($1)")
+            #kprint("USB: Found pcidevice: \($0) deviceClass: \($1)")
             let deviceClass = $1
             guard !$0.device.initialised else { return }
             if deviceClass.seriaBusSubClass == .usb, let progIf = PCIUSBProgrammingInterface(rawValue: deviceClass.progInterface) {
-                print("USB: Found a USB HCD, progIf:", progIf)
+                #kprint("USB: Found a USB HCD, progIf:", progIf)
                 switch progIf {
                     case .uhci:
                         if $0.initialise(), let driver = HCD_UHCI(pciDevice: $0) {
@@ -118,7 +118,7 @@ final class USB {
                             }
                         }
 
-                    default: print("USB: unsupported HCD:", progIf)
+                    default: #kprint("USB: unsupported HCD:", progIf)
                 }
             }
         }
@@ -133,33 +133,33 @@ final class USB {
     func enumerate(hub: USBHub) {
         for portIdx in 0..<hub.portCount {
             guard hub.reset(port: portIdx) else {
-                print("USB: Port \(portIdx) reset failed")
+                #kprint("USB: Port \(portIdx) reset failed")
                 continue
             }
 
             guard let connectedSpeed = hub.detectConnected(port: portIdx) else {
-                print("USB: Port \(portIdx) has no device")
+                #kprint("USB: Port \(portIdx) has no device")
                 continue
             }
 
-            print("USB: port \(portIdx) speed: \(connectedSpeed)")
-            print("USB: Creating device")
+            #kprint("USB: port \(portIdx) speed: \(connectedSpeed)")
+            #kprint("USB: Creating device")
             let device = USBDevice(hub: hub, port: portIdx, speed: connectedSpeed)
 
             var _deviceDescriptor: USB.DeviceDescriptor?
-            print("\nUSB: Getting device info8")
+            #kprint("\nUSB: Getting device info8")
             for _ in 1...3 {
                 // Configure device - get_device_info8
                 if let descriptor = device.getDeviceConfig(length: 8) {
                     _deviceDescriptor = descriptor
                     break
                 } else {
-                    print("USB: Couldnt get device descriptor of device on port: \(portIdx)")
+                    #kprint("USB: Couldnt get device descriptor of device on port: \(portIdx)")
                     sleep(milliseconds: 100)
                 }
             }
             guard let deviceDescriptor = _deviceDescriptor else { continue }
-            print("USB: deviceDescriptor:", deviceDescriptor)
+            #kprint("USB: deviceDescriptor:", deviceDescriptor)
             guard deviceDescriptor.bLength != 0 else {
                 fatalError("info8 returned zero length bLength")
             }
@@ -168,34 +168,34 @@ final class USB {
             guard let address = hub.nextAddress() else {
                 fatalError("No more addresses!")
             }
-            print("\nUSB: Setting address of device on port \(portIdx) to \(address)")
+            #kprint("\nUSB: Setting address of device on port \(portIdx) to \(address)")
             guard device.setAddress(address) else {
-                print("USB: Cant set address of device on port: \(portIdx) - ignoring device")
+                #kprint("USB: Cant set address of device on port: \(portIdx) - ignoring device")
                 continue
             }
 
             // Get full DeviceDescriptor
-            print("\nUSB: Getting full DeviceDescriptor of length:", deviceDescriptor.bLength)
+            #kprint("\nUSB: Getting full DeviceDescriptor of length:", deviceDescriptor.bLength)
             guard let _descriptor = device.getDeviceConfig(length: UInt16(deviceDescriptor.bLength)) else {
-                print("USB: Cant get full DeviceDescriptor")
+                #kprint("USB: Cant get full DeviceDescriptor")
                 continue
             }
             let fullDeviceDescriptor = _descriptor
-            print("USB: fullDeviceDescriptor:", fullDeviceDescriptor)
+            #kprint("USB: fullDeviceDescriptor:", fullDeviceDescriptor)
 
-            print("\nUSB: Getting ConfigurationDescriptor")
+            #kprint("\nUSB: Getting ConfigurationDescriptor")
             guard let configDescriptor = device.getConfigurationDescriptor() else {
-                print("USB: Cant get device ConfigurationDescriptor of device on port: \(portIdx) - ignoring device")
+                #kprint("USB: Cant get device ConfigurationDescriptor of device on port: \(portIdx) - ignoring device")
                 continue
             }
-            print("USB: configDescriptor:", configDescriptor)
+            #kprint("USB: configDescriptor:", configDescriptor)
 
             // Configure device - set_configuration
             for interface in configDescriptor.interfaces {
                 if case .hid = interface.interfaceClass {
-                    print("Found a HID Device, setting configuration")
+                    #kprint("Found a HID Device, setting configuration")
                     guard device.setConfiguration(to: configDescriptor.bConfigurationValue) else {
-                        print("USB: Cant set configuration")
+                        #kprint("USB: Cant set configuration")
                         continue
                     }
 

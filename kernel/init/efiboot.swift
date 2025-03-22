@@ -24,7 +24,7 @@ struct EFIBootParams {
         var description: String {
             let size = UInt(numberOfPages) * PAGE_SIZE
             let endAddr = physicalStart + size - 1
-            return String.sprintf("%12X - %12X %8.8X ", physicalStart,
+            return #sprintf("%12X - %12X %8.8X ", physicalStart,
                 endAddr, size) + "\(type)"
         }
 
@@ -33,7 +33,7 @@ struct EFIBootParams {
             let offset = descriptor.offset
             do {
                 guard let dt = MemoryType(rawValue: try descriptor.read()) else {
-                    printf("EFI: Cant read descriptor at offset: %d\n", offset)
+                    #kprintf("EFI: Cant read descriptor at offset: %d\n", offset)
                     return nil
                 }
                 type = dt
@@ -65,7 +65,7 @@ struct EFIBootParams {
     init?(bootParamsAddr: VirtualAddress) {
         let sig = readSignature(bootParamsAddr)
         if sig == nil || sig! != "EFI" {
-            print("bootparams: boot_params are not EFI")
+            #kprint("bootparams: boot_params are not EFI")
             return nil
         }
         var membuf = MemoryBufferReader(bootParamsAddr,
@@ -74,28 +74,28 @@ struct EFIBootParams {
             let efiBootParams: efi_boot_params = try membuf.read()
             let bootParamsSize = efiBootParams.size
             guard bootParamsSize > 0 else {
-                print("bootparams: bootParamsSize = 0")
+                #kprint("bootparams: bootParamsSize = 0")
                 return nil
             }
             kernelPhysAddress = PhysAddress(efiBootParams.kernel_phys_addr.address)
 
-            printf("bootparams: bootParamsSize = %ld kernelPhysAddress: %p\n",
+            #kprintf("bootparams: bootParamsSize = %ld kernelPhysAddress: %p\n",
                 bootParamsSize, kernelPhysAddress.value)
 
             let memoryMapAddr = VirtualAddress(efiBootParams.memory_map.address)
             let memoryMapSize = efiBootParams.memory_map_size
             let descriptorSize = efiBootParams.memory_map_desc_size
 
-            print("bootparams: reading frameBufferInfo")
+            #kprint("bootparams: reading frameBufferInfo")
             frameBufferInfo = FrameBufferInfo(fb: efiBootParams.fb)
 
             memoryRanges = EFIBootParams.parseMemoryMap(memoryMapAddr,
                 UInt(memoryMapSize), UInt(descriptorSize), frameBufferInfo)
 
             configTableCount = UInt(efiBootParams.nr_efi_config_entries)
-            print("bootparams: reading ctp")
+            #kprint("bootparams: reading ctp")
             configTablePtr = efiBootParams.efi_config_table
-            printf("bootparams: configTableCount: %ld configTablePtr: %#x\n",
+            #kprintf("bootparams: configTableCount: %ld configTablePtr: %#x\n",
                 configTableCount, configTablePtr.address)
             symbolTablePtr = efiBootParams.symbol_table
             symbolTableSize = efiBootParams.symbol_table_size
@@ -123,7 +123,7 @@ struct EFIBootParams {
         for i in 0..<descriptorCount {
             descriptorBuf.offset = Int(descriptorSize * i)
             guard let descriptor = EFIMemoryDescriptor(descriptor: &descriptorBuf) else {
-                print("bootparams: Failed to read descriptor")
+                #kprint("bootparams: Failed to read descriptor")
                 continue
             }
             let entry = MemoryRange(type: descriptor.type,
@@ -220,7 +220,7 @@ struct EFIBootParams {
         }
 
         static private func printGUID(_ guid: efi_guid_t) {
-            printf("EFI: { %#8.8x, %#8.4x, %#4.4x, { %#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x }}\n",
+            #kprintf("EFI: { %#8.8x, %#8.4x, %#4.4x, { %#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x,%#2.2x }}\n",
                 guid.data1, guid.data2, guid.data3, guid.data4.0, guid.data4.1,
                 guid.data4.2, guid.data4.3, guid.data4.4, guid.data4.5,
                 guid.data4.6, guid.data4.7)

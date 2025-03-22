@@ -40,13 +40,13 @@ struct BiosBootParams: CustomStringConvertible {
         }
 
         var description: String {
-            var desc = String.sprintf("%12X - %12X %4.4X", baseAddress,
+            var desc = #sprintf("%12X - %12X %4.4X", baseAddress,
                 baseAddress + length - 1, type)
             let size = UInt(length)
             if (size >= mb) {
-                desc += String.sprintf(" %6uMB  ", size / mb)
+                desc += #sprintf(" %6uMB  ", size / mb)
             } else {
-                desc += String.sprintf(" %6uKB  ", size / kb)
+                desc += #sprintf(" %6uKB  ", size / kb)
             }
             if let x = E820Type(rawValue: type) {
                 desc += x.description
@@ -60,7 +60,7 @@ struct BiosBootParams: CustomStringConvertible {
 
         fileprivate func toMemoryRange() -> MemoryRange? {
             guard let e820type = E820Type(rawValue: self.type) else {
-                print("bootparams: Invalid memory type: \(self.type)")
+                #kprint("bootparams: Invalid memory type: \(self.type)")
                 return nil
             }
             var mtype: MemoryType
@@ -99,7 +99,7 @@ struct BiosBootParams: CustomStringConvertible {
     init?(bootParamsAddr: VirtualAddress) {
         let sig = readSignature(bootParamsAddr)
         if sig == nil || sig! != "BIOS" {
-            print("bootparams: boot_params are not BIOS")
+            #kprint("bootparams: boot_params are not BIOS")
             return nil
         }
         var membuf = MemoryBufferReader(bootParamsAddr, size: MemoryLayout<bios_boot_params>.stride)
@@ -107,11 +107,11 @@ struct BiosBootParams: CustomStringConvertible {
             let biosBootParams: bios_boot_params = try membuf.read()
             // FIXME: use bootParamsSize to size a buffer limit
             guard biosBootParams.table_size > 0 else {
-                print("bootparams: biosBootParams.table_size = 0")
+                #kprint("bootparams: biosBootParams.table_size = 0")
                 return nil
             }
             kernelPhysAddress = PhysAddress(biosBootParams.kernel_phys_addr.address)
-            printf("bootParamsSize = %ld kernelPhysAddress: %#x\n",
+            #kprintf("bootParamsSize = %ld kernelPhysAddress: %#x\n",
                 biosBootParams.table_size, kernelPhysAddress.value)
 
             let e820MapAddr = PhysAddress(biosBootParams.e820_map.address)
@@ -145,7 +145,7 @@ struct BiosBootParams: CustomStringConvertible {
 
         let kernelSize = UInt(_kernel_end_addr - _kernel_start_addr)
         let kernelPhysEnd = kernelPhysAddress.advanced(by: kernelSize)
-        printf("E820: Kernel size: %lx\n", kernelSize)
+        #kprintf("E820: Kernel size: %lx\n", kernelSize)
 
         for _ in 0..<e820Entries {
             do {
@@ -176,7 +176,7 @@ struct BiosBootParams: CustomStringConvertible {
                     }
                 }
             } catch {
-                print("Error reading E820 tables:")
+                #kprint("Error reading E820 tables:")
             }
         }
 
@@ -216,9 +216,9 @@ struct BiosBootParams: CustomStringConvertible {
         let apicRegion = APIC.addressRegion()
         let apicRange = MemoryRange(type: .MemoryMappedIO, start: apicRegion.baseAddress, endAddress: apicRegion.endAddress)
         ranges.insertRange(apicRange)
-        print("Added APIC into memory ranges")
+        #kprint("Added APIC into memory ranges")
         for range in ranges {
-            print(range)
+            #kprint(range.description)
         }
         findHoles(&ranges)
 
@@ -238,13 +238,13 @@ struct BiosBootParams: CustomStringConvertible {
     // Root System Description Pointer
     private func findRSDP() -> PhysAddress? {
         if let region = getEBDA() {
-            printf("ACPI: EBDA: %p len: 0x%x\n", region.baseAddress.value, region.size)
+            #kprintf("ACPI: EBDA: %p len: 0x%x\n", region.baseAddress.value, region.size)
             if let rsdp = scanForSignature(RSDP_SIG, inRegion: region) {
                 return rsdp
             }
         }
         let region = PhysRegion(start: PhysAddress(0xE0000), size: 0x20000)
-        printf("ACPI: Upper: %p len: 0x%x\n", region.baseAddress.value, region.size)
+        #kprintf("ACPI: Upper: %p len: 0x%x\n", region.baseAddress.value, region.size)
         return scanForSignature(RSDP_SIG, inRegion: region)
     }
 

@@ -15,7 +15,7 @@ final class MotherBoardResource: PNPDeviceDriver {
 
     override init?(pnpDevice: PNPDevice) {
         guard let crs = pnpDevice.device.acpiDeviceConfig?.crs else {
-            print("\(pnpDevice.device.fullName) No valid resources found")
+            #kprint("\(pnpDevice.device.fullName) No valid resources found")
             return nil
         }
         self.resources = crs
@@ -40,11 +40,11 @@ final class MasterBus: CustomStringConvertible {
 
     func rootPCIBus() -> PCIBus? {
         if pciHostBus == nil {
-            print("Looking for rootPCIBus")
+            #kprint("Looking for rootPCIBus")
             system.deviceManager.walkDeviceTree(bus: self.device) { device in
-                print("Looking at", device.fullName, unsafeBitCast(device, to: UInt.self).hex())
+                #kprint("Looking at", device.fullName, unsafeBitCast(device, to: UInt.self).hex())
                 if let driver = device.deviceDriver as? PCIBus, driver.isHostBus {
-                    print("Found match on device", device.fullName)
+                    #kprint("Found match on device", device.fullName)
                     self.pciHostBus = driver
                     return false
                 } else {

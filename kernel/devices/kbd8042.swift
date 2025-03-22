@@ -212,21 +212,21 @@ final class KBD8042: PNPDeviceDriver {
 
 
     override init?(pnpDevice: PNPDevice) {
-        print("kbd8042 init")
+        #kprint("kbd8042 init")
         super.init(pnpDevice: pnpDevice)
     }
 
     override func initialise() -> Bool {
         guard let pnpDevice = device.busDevice as? PNPDevice, let resources = pnpDevice.getResources() else {
-            print("i8042: Cant initialise PNPDevice")
+            #kprint("i8042: Cant initialise PNPDevice")
             return false
         }
         _description = "KBD8042 \(resources)"
-        print("i8042:", pnpDevice.pnpName, resources)
+        #kprint("i8042:", pnpDevice.pnpName, resources)
 
         // 1. Flush output buffer
         if flushOutput() == false { // No device
-            print("i8042: Cant find i8042")
+            #kprint("i8042: Cant find i8042")
             return false
         }
 
@@ -240,7 +240,7 @@ final class KBD8042: PNPDeviceDriver {
             // Only set if dual channel
             dualChannel = command.port2Disable
             if dualChannel {
-                print("i8042: 2nd PS2 port found")
+                #kprint("i8042: 2nd PS2 port found")
             }
             command.interrupt1 = false
             command.interrupt2 = false
@@ -249,31 +249,31 @@ final class KBD8042: PNPDeviceDriver {
             sendCommand(.WriteCommandByte, data: command.rawValue)
             //sendCommand(.Disable2ndPort)
         } else {
-            print("i8042: Cant get command byte")
+            #kprint("i8042: Cant get command byte")
             return false
         }
 
         // 4. Send POST to controller
         if let postResult = sendCommandGetResponse(.SelfTestController) {
             if (postResult == 0x55) {
-                print("i8042: POST ok")
+                #kprint("i8042: POST ok")
             } else {
-                printf("i8042: POST returned: %X\n", postResult)
+                #kprintf("i8042: POST returned: %X\n", postResult)
                 return false
             }
         } else {
-            print("i8042: cant send POST")
+            #kprint("i8042: cant send POST")
         }
 
         // 5. Interface tests
         if let resp = sendCommandGetResponse(.SelfTest1stPort) {
             if resp != 0 {
-                printf("i8042: port 1 test failed: %2.2x\n", resp)
+                #kprintf("i8042: port 1 test failed: %2.2x\n", resp)
             }
             if dualChannel {
                 if let resp = sendCommandGetResponse(.SelfTest2ndPort) {
                     if resp != 0 {
-                        printf("i8042: port 2 test failed: %2.2x\n", resp)
+                        #kprintf("i8042: port 2 test failed: %2.2x\n", resp)
                     }
                 }
             }
@@ -291,20 +291,20 @@ final class KBD8042: PNPDeviceDriver {
         // 7. Reset
         if sendCommand1stPort(.ResetAndSelfTest) {
             if let resp = getResponse() {
-                printf("kbd: Reset 1st port: %2x\n", resp)
+                #kprintf("kbd: Reset 1st port: %2x\n", resp)
             } else {
-                print("kbd: Reset 1st port: failed");
+                #kprint("kbd: Reset 1st port: failed");
             }
         }
 
         if sendCommand1stPort(.ScanCodeSet, data: 0) {
             if let resp = getResponse() {
-                printf("kbd: Current scan code set: %d\n", resp)
+                #kprintf("kbd: Current scan code set: %d\n", resp)
                 if resp != 2 {
                     sendCommand1stPort(.ScanCodeSet, data: 2)
                 }
             } else {
-                print("kbd: Cant get scan code set")
+                #kprint("kbd: Cant get scan code set")
             }
         }
 
@@ -317,7 +317,7 @@ final class KBD8042: PNPDeviceDriver {
         if dualChannel {
             system.deviceManager.setIrqHandler(IRQSetting(isaIrq: 12), handler: mouseInterrupt)
         }
-        print("i8042: kbd initialised")
+        #kprint("i8042: kbd initialised")
         pnpDevice.device.initialised = true
         system.deviceManager.keyboard = keyboard
 
@@ -400,7 +400,7 @@ final class KBD8042: PNPDeviceDriver {
             outb(KBD8042.COMMAND_REGISTER, cmd.rawValue)
             return true
         } else {
-            print("i8042: Error sending command:", cmd)
+            #kprint("i8042: Error sending command:", cmd)
             return false
         }
     }
@@ -430,7 +430,7 @@ final class KBD8042: PNPDeviceDriver {
         if sendCommand(cmd) {
             return getResponse()
         }
-        print("i8042: Timed out getting response to comand:", cmd)
+        #kprint("i8042: Timed out getting response to comand:", cmd)
 
         return nil
     }
@@ -446,11 +446,11 @@ final class KBD8042: PNPDeviceDriver {
                         return true
                     }
                     if resp == .Resend {
-                        print("kbd: got resend")
+                        #kprint("kbd: got resend")
                         return false
                     }
                 }
-                printf("kbd: Got unexpected response: %2.2x\n", data)
+                #kprintf("kbd: Got unexpected response: %2.2x\n", data)
             }
         }
 
@@ -486,7 +486,7 @@ final class KBD8042: PNPDeviceDriver {
         while readStatus().outputFull {
             let scanCode = readData()
             if (keyboardBuffer.add(scanCode) == false) {
-                kprint("kbd: Keyboard buffer full\n")
+                #kprint("kbd: Keyboard buffer full\n")
             }
         }
         sendCommand(.Enable1stPort)

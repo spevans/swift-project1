@@ -49,18 +49,18 @@ final class USBHIDDriver {
         self.interface = interface
 
         guard case .hid = interface.interfaceClass else {
-            print("USB-HID: interface is not a HID")
+            #kprint("USB-HID: interface is not a HID")
             return nil
         }
 
         guard interface.bInterfaceSubClass == 0x1, let interfaceProtocol = HIDInterfaceProtocol(rawValue: interface.bInterfaceProtocol) else {
-            print("USB-HID: Device has no boot protocol or cant determine device type (subClass=\(interface.bInterfaceSubClass), protocol=\(interface.bInterfaceProtocol)")
+            #kprint("USB-HID: Device has no boot protocol or cant determine device type (subClass=\(interface.bInterfaceSubClass), protocol=\(interface.bInterfaceProtocol)")
             return nil
         }
 
         switch interfaceProtocol {
         case .none:
-            print("USB-HID: Device is not a keyboard or mouse")
+            #kprint("USB-HID: Device is not a keyboard or mouse")
             return nil
         case .keyboard:
             description = "USB Keyboard"
@@ -71,22 +71,22 @@ final class USBHIDDriver {
 
 
     func initialise() -> Bool {
-        print("USB: Setting protocol to GetReport")
+        #kprint("USB: Setting protocol to GetReport")
         // Set protocol to 'GetReport'
 
         let request = setProtocolRequest(hidProtocol: .report)
-        print("USB: request:", request)
+        #kprint("USB: request:", request)
         guard device.sendControlRequest(request: request) else {
-            print("USB: Cant set HID Protocol to Report Protocol")
+            #kprint("USB: Cant set HID Protocol to Report Protocol")
             return false
         }
 
         // Find the INTR endpoint
         guard let intrEndpoint = interface.endpointMatching(transferType: .interrupt) else {
-            print("USB-HID: Cant find an interrupt endpoint")
+            #kprint("USB-HID: Cant find an interrupt endpoint")
             return false
         }
-        print("USB-HID: Interrupt endpoint:", intrEndpoint)
+        #kprint("USB-HID: Interrupt endpoint:", intrEndpoint)
 
         // Create a pipe for the interrupt endpoint and add it to the active queues
         intrPipe = device.hub.allocatePipe(device: device, endpointDescriptor: intrEndpoint)
@@ -144,12 +144,12 @@ extension USBHIDDriver {
             sleep(milliseconds: 10)
             guard let data = intrPipe.pollInterruptPipe() else { continue }
             guard data.count >= 3 else {
-                print("USB-Mouse, not enough data: \(data.count)")
+                #kprint("USB-Mouse, not enough data: \(data.count)")
                 continue
             }
             let event = MouseEvent(data: data)
             if event.buttons != oldEvent.buttons || event.movement {
-                print(event)
+                #kprint(event)
                 oldEvent = event
             }
         }
@@ -231,7 +231,7 @@ extension USBHIDDriver {
             guard var keys = intrPipe.pollInterruptPipe() else { continue }
 
             guard let modifierKeys = keys.first else {
-                print("No modifier data")
+                #kprint("No modifier data")
                 return
             }
             keys.removeFirst(2)
@@ -240,11 +240,11 @@ extension USBHIDDriver {
 
             for key in keysDown {
                 let event = KeyEvent(keyDown: key, modifierKeys: modifierKeys)
-                print(event)
+                #kprint(event)
             }
             for key in keysUp {
                 let event = KeyEvent(keyUp: key, modifierKeys: modifierKeys)
-                print(event)
+                #kprint(event)
             }
             oldkeys = keys
         }

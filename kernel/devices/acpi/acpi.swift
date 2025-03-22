@@ -172,12 +172,12 @@ final class ACPI {
     init?(rsdp: PhysAddress, vendor: String, product: String, memoryRanges: [MemoryRange]) {
         let rsdp = RSDP(rsdp)
         guard let entries = rsdp.xsdt()?.entries ?? rsdp.rsdt()?.entries else {
-            print("Cant find a XSDT or RSDT")
+            #kprint("Cant find a XSDT or RSDT")
             return nil
         }
 
         guard !entries.isEmpty else {
-            print("Cant find any ACPI tables")
+            #kprint("Cant find any ACPI tables")
             return nil
         }
 
@@ -185,12 +185,12 @@ final class ACPI {
         // Ensure each table phys address is covered by an MMIORegion
         for entry in entries {
             guard let memoryRange = memoryRanges.findRange(containing: entry) else {
-                print("Cant find MemoryRange containing:", entry)
+                #kprint("Cant find MemoryRange containing:", entry)
                 return nil
             }
             if !mRanges.contains(memoryRange) {
                 mRanges.append(memoryRange)
-                print("ACPI: using range:", memoryRange)
+                #kprint("ACPI: using range:", memoryRange)
                 let region = PhysRegion(start: memoryRange.start, size: memoryRange.size)
                 let mmioRegion = mapRORegion(region: region)
                 mmioRegions.append(mmioRegion)
@@ -199,7 +199,7 @@ final class ACPI {
         }
 
         if dsdt == nil, let dsdtAddr = facp?.dsdtAddress {
-            print("Found DSDT address in FACP: 0x\(asHex(dsdtAddr.value))")
+            #kprint("Found DSDT address in FACP: 0x\(asHex(dsdtAddr.value))")
             parseEntry(physAddress: dsdtAddr, vendor: vendor, product: product)
         }
     }
@@ -212,7 +212,7 @@ final class ACPI {
 #endif
 
     func parseAMLTables(allowNoDsdt: Bool = false) {
-//                print("Parsing AML")
+//                #kprintf("Parsing AML")
         if let ptr = dsdt {
             ssdts.insert(ptr, at: 0) // Put the DSDT first
         } else {
@@ -241,7 +241,7 @@ final class ACPI {
 
         dsdt = nil
         ssdts.removeAll()
-//        print("End of AML code")
+//        #kprintf("End of AML code")
     }
 
     func parseEntry(physAddress: PhysAddress, vendor: String, product: String) {
@@ -255,23 +255,23 @@ final class ACPI {
         }
 
         guard let header = ACPI.validateHeader(rawSDTPtr: rawSDTPtr) else {
-            print("Header for \(signature) failed to validate")
+            #kprint("Header for \(signature) failed to validate")
             return
         }
 
-//        print("Found: \(signature)")
+//        #kprintf("Found: \(signature)")
         switch signature {
         case "MCFG":
             mcfg = MCFG(rawSDTPtr, vendor: vendor, product: product)
             tables.append(.mcfg(mcfg!))
             for entry in mcfg!.allocations {
-                print("MCFG:", entry)
+                #kprint("MCFG:", entry)
             }
 
         case "FACP":
             facp = FACP(rawSDTPtr)
             if let _facp = facp {
-                print(_facp)
+                #kprint(_facp)
                 tables.append(.facp(_facp))
             }
 
@@ -317,7 +317,7 @@ final class ACPI {
             }
 
         default:
-            print("ACPI: Unknown table: \(header.signature)")
+            #kprint("ACPI: Unknown table: \(header.signature)")
         }
     }
 
@@ -338,11 +338,11 @@ final class ACPI {
         let totalLength = Int(header.length)
 
         guard totalLength > headerLength else {
-            print("ACPI: Entry @ 0x\(asHex(rawSDTPtr.address)) has total length of \(totalLength)")
+            #kprint("ACPI: Entry @ 0x\(asHex(rawSDTPtr.address)) has total length of \(totalLength)")
             return nil
         }
         guard checksum(rawSDTPtr, size: Int(header.length)) == 0 else {
-            print("ACPI: \(header.signature) has bad chksum")
+            #kprint("ACPI: \(header.signature) has bad chksum")
             return nil
         }
         return header
@@ -364,19 +364,19 @@ extension ACPI {
     func startup() {
 
         func runMethod(_ node: ACPIObjectNode) -> Bool {
-            print("ACPI: Running:", node.fullname())
+            #kprint("ACPI: Running:", node.fullname())
             guard let method = node.object.methodValue else {
-                print(node.fullname(), " is not an _INI method")
+                #kprint(node.fullname(), " is not an _INI method")
                 return false
             }
             do {
-                print("ACPI: calling \(node.fullname())")
+                #kprint("ACPI: calling", node.fullname())
                 var context = ACPI.AMLExecutionContext(scope: AMLNameString(node.fullname()))
                 try method.execute(context: &context)
                 return true
             } catch {
                 let str = error.description
-                print("ACPI: Error running \(node.name) for", node.fullname(), str)
+                #kprint("ACPI: Error running \(node.name) for", node.fullname(), str)
             }
             return true
         }
@@ -391,12 +391,12 @@ extension ACPI {
             }
         }
 
-        print("ACPI: Finding _INI")
+        #kprint("ACPI: Finding _INI")
         // Find _INI for ACPI devices and run if necessary
         ACPI.globalObjects.findNodes(name: AMLNameString("_INI")) { (fullname, node) in
             // Evaluate _STA if present
             guard let status = try? devStatus(node.parent) else {
-                print("ACPI: Can not get _STA status for \(node.fullname())")
+                #kprint("ACPI: Can not get _STA status for \(node.fullname())")
                 return false
             }
             if status.present {
@@ -412,7 +412,7 @@ extension ACPI {
             }
         }
 
-        print("ACPI: Finding devices")
+        #kprint("ACPI: Finding devices")
         // Keep track of the devices allocated to each node so that the parent device
         // can be determined
         var nameDeviceMap = [ "\\_SB" : system.deviceManager.masterBus.device]
@@ -420,12 +420,12 @@ extension ACPI {
             guard node.object.isDevice else { return true }
             guard node.device == nil else { fatalError("\(name) already has a .device set") }
             guard let status = try? devStatus(node) else {
-                print("ACPI: Can not get _STA status for \(name)")
+                #kprint("ACPI: Can not get _STA status for \(name)")
                 return false
             }
 
             if !status.present {
-                print("ACPI: Ignoring not present device \(name)")
+                #kprint("ACPI: Ignoring not present device \(name)")
                 return true
             }
 
@@ -449,6 +449,6 @@ extension ACPI {
             }
             return true
         }
-        print("ACPI: Found all devices")
+        #kprint("ACPI: Found all devices")
     }
 }

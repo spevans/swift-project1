@@ -808,8 +808,20 @@ final class VMCS {
 
     func printVMCS() {
 
-        func showValue<T: UnsignedInteger>(_ name: String, _ value: T?) {
-            print(name, value == nil ? "Unsupported" : String(value!, radix: 16))
+        func showValue(_ name: String, _ value: UInt16?) {
+            #kprint(name, value == nil ? "Unsupported" : value!.hex())
+        }
+
+        func showValue(_ name: String, _ value: UInt32?) {
+            #kprint(name, value == nil ? "Unsupported" : value!.hex())
+        }
+
+        func showValue(_ name: String, _ value: UInt64?) {
+            #kprint(name, value == nil ? "Unsupported" : value!.hex())
+        }
+
+        func showValue(_ name: String, _ value: UInt?) {
+            #kprint(name, value == nil ? "Unsupported" : value!.hex())
         }
 
         showValue("physicalAddress:", physicalAddress)
@@ -890,7 +902,7 @@ final class VMCS {
         showValue("vmEntryInstructionLength:", vmEntryInstructionLength)
         showValue("tprThreshold:", tprThreshold)
         showValue("secondaryProcVMExecControls:", secondaryProcVMExecControls)
-        print("supportsPLE:", supportsPLE)
+        #kprint("supportsPLE:", supportsPLE)
         showValue("pleGap:", pleGap)
         showValue("pleWindow:", pleWindow)
         showValue("vmInstructionError:", vmInstructionError)
@@ -1038,14 +1050,14 @@ final class VMCS {
 
 
     private func _readError(_ index: UInt32, _ vmxError: VMXError) {
-        print("VMXError: vmread(\(String(index, radix: 16))):", vmxError)
+        #kprint("VMXError: vmread(\(String(index, radix: 16))):", vmxError)
     }
 
 
     private func _vmread16(_ index: UInt32) -> UInt16? {
         switch vmread16(index) {
         case .failure(let vmxError):
-            print("VMXError: vmread16(\(String(index, radix: 16))):", vmxError)
+            #kprint("VMXError: vmread16(\(String(index, radix: 16))):", vmxError)
             return nil
         case .success(let result):
             return result
@@ -1055,7 +1067,7 @@ final class VMCS {
     private func _vmread32(_ index: UInt32) -> UInt32? {
         switch vmread32(index) {
         case .failure(let vmxError):
-            print("VMXError: vmread32(\(String(index, radix: 16))):", vmxError)
+            #kprint("VMXError: vmread32(\(String(index, radix: 16))):", vmxError)
             return nil
         case .success(let result):
             return result
@@ -1065,7 +1077,7 @@ final class VMCS {
     private func _vmread64(_ index: UInt32) -> UInt64? {
         switch vmread64(index) {
         case .failure(let vmxError):
-            print("VMXError: vmread64(\(String(index, radix: 16))):", vmxError)
+            #kprint("VMXError: vmread64(\(String(index, radix: 16))):", vmxError)
             return nil
         case .success(let result):
             return result
@@ -1075,7 +1087,7 @@ final class VMCS {
     private func _vmreadNatural(_ index: UInt32) -> UInt? {
         switch vmread64(index) {
         case .failure(let vmxError):
-            print("VMXError: vmread64(\(String(index, radix: 16))):", vmxError)
+            #kprint("VMXError: vmread64(\(String(index, radix: 16))):", vmxError)
             return nil
         case .success(let result):
             return UInt(result)
@@ -1084,25 +1096,25 @@ final class VMCS {
 
     private func _vmwrite16(_ index: UInt32, _ data: UInt16?) {
         if let data = data, let vmxError = vmwrite16(index, data) {
-            print("VMXError: vmread16(\(String(index, radix: 16)), \(String(index, radix: 16))):", vmxError)
+            #kprint("VMXError: vmread16(\(String(index, radix: 16)), \(String(index, radix: 16))):", vmxError)
         }
     }
 
     private func _vmwrite32(_ index: UInt32, _ data: UInt32?) {
         if let data = data, let vmxError = vmwrite32(index, data) {
-            print("VMXError: vmread32(\(String(index, radix: 16)), \(String(index, radix: 16))):", vmxError)
+            #kprint("VMXError: vmread32(\(String(index, radix: 16)), \(String(index, radix: 16))):", vmxError)
         }
     }
 
     private func _vmwrite64(_ index: UInt32, _ data: UInt64?) {
         if let data = data, let vmxError = vmwrite64(index, data) {
-            print("VMXError: vmread64(\(String(index, radix: 16)), \(String(index, radix: 16))):", vmxError)
+            #kprint("VMXError: vmread64(\(String(index, radix: 16)), \(String(index, radix: 16))):", vmxError)
         }
     }
 
     private func _vmwriteNatural(_ index: UInt32, _ data: UInt?) {
         if let data = data, let vmxError = vmwrite64(index, UInt64(data)) {
-            print("VMXError: vmread64(\(String(index, radix: 16)), \(String(index, radix: 16))):", vmxError)
+            #kprint("VMXError: vmread64(\(String(index, radix: 16)), \(String(index, radix: 16))):", vmxError)
         }
     }
 

@@ -84,18 +84,18 @@ extension ACPI.ACPIObjectNode {
     func initialiseIfPresent() throws(AMLError) -> Bool {
         let status = try self.status()
         if !status.present {
-            print("DEV: Ignoring", self.fullname(), "as status present:", status.present, "enabled:", status.enabled)
+            #kprint("DEV: Ignoring", self.fullname(), "as status present:", status.present, "enabled:", status.enabled)
             return false
         }
         do {
-            print("ACPI: calling \(self.fullname())._INI")
+            #kprintf("ACPI: calling %s._INI\n", self.fullname())
             try self.initialise()
         } catch {
             let str = error.description
-            print("ACPI: Error running _INI for", self.fullname(), str)
+            #kprint("ACPI: Error running _INI for", self.fullname(), str)
         }
         let newStatus = try self.status()
-        print("initialiseIfPresent:", newStatus.enabled)
+        #kprint("initialiseIfPresent:", newStatus.enabled)
         return newStatus.enabled
     }
 
@@ -183,7 +183,7 @@ extension ACPI.ACPIObjectNode {
 
     func addressResource() throws(AMLError) -> AMLInteger? {
         guard let adr = try childNode(named: "_ADR")?.amlObject().integerValue else {
-            print("Cant find _ADR in", self.fullname())
+            #kprint("Cant find _ADR in", self.fullname())
             // Override missing _ADR for Root PCIBus
             return self.fullname() == "\\_SB.PCI0" ? AMLInteger(0) : nil
         }
@@ -548,7 +548,8 @@ struct SystemMemorySpace: CustomStringConvertible {
             case .BufferAcc: fatalError("Buffer access used in a SystemRegion for writing")
         }
         let address = offset + UInt(newIndex)
-        print("SystemMemorySpace.write 0x\(String(address, radix: 16)) index: \(index) value: \(value) newIndex \(newIndex) len: \(length)")
+        #kprintf("ACPI: SystemMemorySpace.write: %#x index: %d value: %x newIndex: %d length: %d\n",
+                 address, index, value, newIndex, length)
     }
 }
 
@@ -740,7 +741,7 @@ final class AMLDefOpRegion {
                     let configSpace = PCIDeviceFunction(busId: bbn ?? 0,
                                                         device: UInt8(truncatingIfNeeded: address >> 16),
                                                         function: UInt8(truncatingIfNeeded: address))
-                    print("\(fullname): Using \(configSpace) for PCI_Region")
+                    #kprintf("ACPI: %s: Using %s for PCI_Region\n",  fullname, configSpace.description)
                     regionSpace = .pciConfig(PCIConfigRegionSpace(config: configSpace, offset: regionOffset, length: regionLength))
                 } else {
                     fatalError("ACPI: Cant determine PCI_Region for \(self)")

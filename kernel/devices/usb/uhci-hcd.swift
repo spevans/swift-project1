@@ -8,15 +8,17 @@
  *
  */
 
+@freestanding(expression)
+macro uhciDebug(_ item: CustomStringConvertible, _ items: CustomStringConvertible...) -> () = #externalMacro(module: "PrintfMacros", type: "DebugMacro")
+
 
 internal let UHCI_DEBUG = true
-internal func uhciDebug(_ msg: CustomStringConvertible...) {
+internal func _uhciDebug(_ items: String...) {
     if UHCI_DEBUG {
-        print("UHCI: ", terminator: "")
-        for m in msg {
-            print(m, terminator: " ")
+        #kprint("UHCI:")
+        for item in items {
+            #kprint(" ", item)
         }
-        print("")
     }
 }
 
@@ -34,27 +36,27 @@ final class HCD_UHCI: PCIDeviceDriver {
     override var description: String { "UHCI: driver @ IO 0x\(String(ioBasePort, radix: 16))" }
 
     override init?(pciDevice: PCIDevice) {
-        uhciDebug("init")
+        #uhciDebug("init")
 
         guard pciDevice.deviceFunction.deviceClass == PCIDeviceClass(classCode: .serialBusController,
                                                                      subClassCode: PCISerialBusControllerSubClass.usb.rawValue,
                                                                      progInterface: PCIUSBProgrammingInterface.uhci.rawValue) else {
-            uhciDebug("\(pciDevice) is not a UHCI Device")
+            #uhciDebug("\(pciDevice) is not a UHCI Device")
             return nil
         }
 
         guard let generalDevice = pciDevice.deviceFunction.generalDevice else {
-            uhciDebug("Not a PCI generalDevice")
+            #uhciDebug("Not a PCI generalDevice")
             return nil
         }
 
         guard let pciIOBar = PCIIOBar(bar: generalDevice.bar4) else {
-            print("PCI BAR4 \(String(generalDevice.bar4, radix: 16)) is not an IO port BAR")
+            #kprint("PCI BAR4 \(String(generalDevice.bar4, radix: 16)) is not an IO port BAR")
             return nil
         }
 
         ioBasePort = pciIOBar.ioPort
-        uhciDebug("IO 0x\(String(ioBasePort, radix: 16))")
+        #uhciDebug("IO 0x\(String(ioBasePort, radix: 16))")
         allocator = UHCIAllocator()
         super.init(pciDevice: pciDevice)
     }
@@ -64,7 +66,7 @@ final class HCD_UHCI: PCIDeviceDriver {
         guard let pciDevice = self.device.busDevice as? PCIDevice else { return false }
         let deviceFunction = pciDevice.deviceFunction
         let sbrn = deviceFunction.readConfigByte(atByteOffset: 0x60)
-        uhciDebug("bus release number 0x\(String(sbrn, radix: 16))")
+        #uhciDebug("bus release number 0x\(String(sbrn, radix: 16))")
 
         // Disable PCI interrupts, set IOSpace and busMaster active
         var pciCommand = deviceFunction.command
@@ -72,11 +74,11 @@ final class HCD_UHCI: PCIDeviceDriver {
         pciCommand.interruptDisable = true
         pciCommand.busMaster = true
         deviceFunction.command = pciCommand
-        uhciDebug("PCICommand:", deviceFunction.command)
+        #uhciDebug("PCICommand:", deviceFunction.command)
 
         // Disable Legacy Support (SMI/PS2 emulation) and PIRQ
-        uhciDebug("PCIStatus:", deviceFunction.status)
-        uhciDebug("PCICommand:", deviceFunction.command)
+        #uhciDebug("PCIStatus:", deviceFunction.status)
+        #uhciDebug("PCICommand:", deviceFunction.command)
         deviceFunction.writeConfigWord(atByteOffset: 0xC0, value: 0x8F00)
 
         // Save SOF to restore after reset
@@ -90,49 +92,49 @@ final class HCD_UHCI: PCIDeviceDriver {
 
         // Setup the framelist, with default QueueHeads
         let frameListPage = allocator.frameListPage
-        uhciDebug("frameListPage:", frameListPage, String(frameListPage.physicalAddress, radix: 16))
+        #uhciDebug("frameListPage:", frameListPage, String(frameListPage.physicalAddress, radix: 16))
         precondition(frameListPage.count == 1024)
 
         // Create a QueueHead which teminates both the QH and Element Links and store this in the every elemet of the frame list
         // This forms the last node in a list of Control QueueHeads. The QueueHeads points to a terminating TransferDescriptor.
         // This is to workaround a bug in PIIX chipsets which need to set the terminating TD.
         let terminatingTD = allocator.allocTransferDescriptor()
-        uhciDebug("Allocated terminatingTD")
+        #uhciDebug("Allocated terminatingTD")
         terminatingTD.setTD(TransferDescriptor(
             linkPointer: TransferDescriptor.LinkPointer.terminator(),
             controlStatus: TransferDescriptor.ControlStatus(),
             token: TransferDescriptor.Token(pid: .pidIn, deviceAddress: 0x7f, endpoint: 0, dataToggle: false, maximumLength: 0),
             bufferPointer: 0
         ))
-        uhciDebug("terminatingTD:", terminatingTD)
+        #uhciDebug("terminatingTD:", terminatingTD)
 
         // FIXME: Dealloc this
         let terminatingQH = allocator.allocQueueHead()
-        uhciDebug("Allocated terminatingQH with terminatingTD:", asHex(terminatingTD.physAddress))
+        #uhciDebug("Allocated terminatingQH with terminatingTD:", asHex(terminatingTD.physAddress))
         terminatingQH.setQH(QueueHead(
             headLinkPointer: QueueHead.QueueHeadLinkPointer.terminator(),
             elementLinkPointer: QueueHead.QueueElementLinkPointer(transferDescriptorAddress: terminatingTD.physAddress)
         ))
-        uhciDebug("terminatingQH:", terminatingQH)
+        #uhciDebug("terminatingQH:", terminatingQH)
 
         // Create the start node in the list which has a terminating element and points to the last node as the link pointer
         controlQH = allocator.allocQueueHead()
-        uhciDebug("allocated controlQH, with terminatingQH:", asHex(terminatingQH.physAddress))
+        #uhciDebug("allocated controlQH, with terminatingQH:", asHex(terminatingQH.physAddress))
         controlQH.setQH(QueueHead(
             headLinkPointer: QueueHead.QueueHeadLinkPointer(queueHeadAddress: terminatingQH.physAddress),
             elementLinkPointer: QueueHead.QueueElementLinkPointer.terminator()
         ))
-        uhciDebug("ControQH:", controlQH)
+        #uhciDebug("ControQH:", controlQH)
 
         let flp = FrameListPointer(queueHead: controlQH.physAddress)
-        uhciDebug("flp:", flp)
+        #uhciDebug("flp:", flp)
         startOfFrame = 64
         frameListPage.setAllPointers(to: flp)
         dumpAndCheckFrameList()
         writeMemoryBarrier()
 
         // Point to the frame list and set frame number to 0
-        uhciDebug("setting frameListBaseAddress to \(String(frameListPage.physicalAddress, radix: 16))")
+        #uhciDebug("setting frameListBaseAddress to \(String(frameListPage.physicalAddress, radix: 16))")
         frameListBaseAddress = frameListPage.physicalAddress
         frameNumberRegister = 0
 
@@ -142,7 +144,7 @@ final class HCD_UHCI: PCIDeviceDriver {
         cmd.configureFlag = true
         cmd.run = true
         cmdRegister = cmd
-        uhciDebug("Enabled USB")
+        #uhciDebug("Enabled USB")
         sleep(milliseconds: 10)
         registerDump()
         usbBus!.enumerate(hub: .uhci(self))
@@ -151,7 +153,7 @@ final class HCD_UHCI: PCIDeviceDriver {
 
 
     func addQueueHead(_ queueHead: PhysQueueHead, transferType: USB.EndpointDescriptor.TransferType, interval: UInt8) {
-        uhciDebug("addQueueHead:", queueHead, transferType)
+        #uhciDebug("addQueueHead:", queueHead.description, transferType.description)
         var queueHead = queueHead
         switch transferType {
             case .control:
@@ -164,7 +166,7 @@ final class HCD_UHCI: PCIDeviceDriver {
                 precondition(frameList.count == 1024)
                 // Determine the frequency of the interrupt to know which slots to add it to
                 let frequency = frameList.count / Int(interval)
-                uhciDebug("interval: \(interval)ms frequency: \(frequency)")
+                #uhciDebug("interval: \(interval)ms frequency: \(frequency)")
 
                 queueHead.headLinkPointer = QueueHead.QueueHeadLinkPointer(queueHeadAddress: controlQH.physAddress)
                 let flp = FrameListPointer(queueHead: queueHead.physAddress)
@@ -179,7 +181,7 @@ final class HCD_UHCI: PCIDeviceDriver {
 
 
     func removeQueueHead(_ queueHead: PhysQueueHead, transferType: USB.EndpointDescriptor.TransferType) {
-        uhciDebug("removeQueueHEad", queueHead)
+        #uhciDebug("removeQueueHEad", queueHead.description)
 
         switch transferType {
             case .control:
@@ -217,7 +219,7 @@ final class HCD_UHCI: PCIDeviceDriver {
                 fatalError("Pipes of type \(transferType) are not currently supported")
         }
 
-        uhciDebug("Removed QH")
+        #uhciDebug("Removed QH")
     }
 
 
@@ -230,12 +232,12 @@ final class HCD_UHCI: PCIDeviceDriver {
         previousFLEntries.reserveCapacity(16)
 
         let frameList = allocator.frameListPage
-        print("UHCI: Dumping frame list at:", frameList, terminator: "")
+        #kprint("UHCI: Dumping frame list at:", frameList)
 
         for idx in 0..<frameList.count {
             let entry = frameList[idx]
             if previousFLEntries.contains(entry.address) { continue }
-            print("\nUHCI:\(idx): \(entry): ", terminator: " ")
+            #kprintf("\nUHCI: %d: %s", idx, entry.description)
 
             var nextQHAddress = entry.physQueueHeadAddress
             var maxDepth = 32
@@ -244,12 +246,12 @@ final class HCD_UHCI: PCIDeviceDriver {
                 let region = allocator.fromPhysical(address: qhAddress)
                 let qhlp = PhysQueueHead(mmioSubRegion: region)
                 maxDepth -= 1
-                print("\nUHCI: ->", qhlp, terminator: "")
+                #kprintf("\nUHCI: -> %s", qhlp.description)
                 nextQHAddress = qhlp.headLinkPointer.nextQHAddress
             }
             previousFLEntries.append(entry.address)
         }
-        print("\n")
+        #kprint("\n")
     }
 
 
@@ -276,7 +278,7 @@ final class HCD_UHCI: PCIDeviceDriver {
             }
             sleep(milliseconds: 1)
         }
-        uhciDebug("HCD did not reset")
+        #uhciDebug("HCD did not reset")
     }
 
     func pollInterrupt() -> Bool {
@@ -292,7 +294,7 @@ extension HCD_UHCI {
 
     func reset(port: Int) -> Bool {
         precondition(port < portCount)
-        uhciDebug("Reseting port:", port)
+        #uhciDebug("Reseting port:", port)
         var status = portStatus(port: port)
 
         var mask = PortStatusControl(rawValue: 0)
@@ -307,7 +309,7 @@ extension HCD_UHCI {
         sleep(milliseconds: 100)
 
         status = portStatus(port: port)
-        uhciDebug("port status, ", status)
+        #uhciDebug("port status, ", status)
         status = PortStatusControl(rawValue: status.rawValue & mask.rawValue)
         status.portReset = false
         portControl(port: port, data: status)
@@ -323,7 +325,7 @@ extension HCD_UHCI {
         for i in 1...10 {
             sleep(milliseconds: 50)
             var status = portStatus(port: port)
-            uhciDebug("reset status \(i): \(status)")
+            #uhciDebug("reset status \(i): \(status)")
             if !status.currentConnectStatus {
                 resetOK = true
                 break
@@ -343,20 +345,20 @@ extension HCD_UHCI {
             }
         }
 
-        uhciDebug("Port \(port) reset", resetOK ? "OK" : "Failed")
+        #uhciDebug("Port \(port) reset", resetOK ? "OK" : "Failed")
         return resetOK
     }
 
 
     func detectConnected(port: Int) -> USB.Speed? {
         let status = portStatus(port: port)
-        uhciDebug("detectConnected, status: ", status)
+        #uhciDebug("detectConnected, status: ", status)
         guard status.currentConnectStatus else {
-            uhciDebug("no device detected")
+           #uhciDebug("no device detected")
             return nil
         }
         let speed = status.lowSpeedDeviceAttached ? USB.Speed.lowSpeed : USB.Speed.fullSpeed
-        uhciDebug("device connected at speed:", speed)
+        #uhciDebug("device connected at speed:", speed)
         return speed
     }
 
@@ -433,14 +435,14 @@ fileprivate extension HCD_UHCI {
 
 
     func registerDump() {
-        uhciDebug("registerDump")
-        uhciDebug("cmdRegister:", self.cmdRegister)
-        uhciDebug("statusRegister:", self.statusRegister)
-        uhciDebug("interruptEnableRegister:", self.interruptEnableRegister)
-        uhciDebug("FrameNumberRegister: 0x\(String(self.frameNumberRegister, radix: 16))")
-        uhciDebug("FrameListBaseAddress: 0x\(String(self.frameListBaseAddress, radix: 16))")
-        uhciDebug("startOfFrame:", self.startOfFrame)
-        uhciDebug("Port0:", portStatus(port: 0))
-        uhciDebug("Port1:", portStatus(port: 1))
+        #uhciDebug("registerDump")
+        #uhciDebug("cmdRegister:", self.cmdRegister)
+        #uhciDebug("statusRegister:", self.statusRegister)
+        #uhciDebug("interruptEnableRegister:", self.interruptEnableRegister)
+        #uhciDebug("FrameNumberRegister: 0x\(String(self.frameNumberRegister, radix: 16))")
+        #uhciDebug("FrameListBaseAddress: 0x\(String(self.frameListBaseAddress, radix: 16))")
+        #uhciDebug("startOfFrame:", self.startOfFrame)
+        #uhciDebug("Port0:", portStatus(port: 0))
+        #uhciDebug("Port1:", portStatus(port: 1))
     }
 }

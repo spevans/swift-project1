@@ -27,7 +27,7 @@ final class PCIBus: DeviceDriver {
         var p: ACPI.ACPIObjectNode? = pnpDevice.device.acpiDeviceConfig?.node
         while let _node = p {
             if let bbnValue = try? _node.baseBusNumber() {
-                print("Found _BBN node on parent:", _node.fullname())
+                #kprint("Found _BBN node on parent:", _node.fullname())
                 busId = bbnValue
                 break
             }
@@ -36,25 +36,25 @@ final class PCIBus: DeviceDriver {
         self.busId = busId
 
         guard let acpiConfig = pnpDevice.device.acpiDeviceConfig else {
-            print("PCI: PCIBus: busId: \(asHex(busId)) \(pnpDevice.device.fullName) has no ACPI config")
+            #kprint("PCI: PCIBus: busId: \(asHex(busId)) \(pnpDevice.device.fullName) has no ACPI config")
             return nil
         }
-        print("PCIBus.init \(pnpDevice.device.fullName): busId: \(busId)")
+        #kprint("PCIBus.init \(pnpDevice.device.fullName): busId: \(busId)")
         // FIXME: Determine if root bus
         if let prt = acpiConfig.prt {
-            print("PCIBus, have PRT")
+            #kprint("PCIBus, have PRT")
             interruptRoutingTable = prt
         } else {
             interruptRoutingTable = nil //PCIRoutingTable(acpi: acpiDevice)
         }
         super.init(device: pnpDevice.device)
-        print("PCIBus.init:", self.description)
+        #kprint("PCIBus.init:", self.description)
     }
 
     init?(pciDevice: PCIDevice) {
         // FIXME for PCI express root port
         guard let busClass = pciDevice.deviceFunction.deviceClass?.bridgeSubClass, busClass == .pci else {
-            print("PCIBus: \(pciDevice) is not a PCI-PCI Bridge")
+            #kprint("PCIBus: \(pciDevice) is not a PCI-PCI Bridge")
             return nil
         }
         self.busId = pciDevice.deviceFunction.bridgeDevice!.secondaryBusId
@@ -69,15 +69,15 @@ final class PCIBus: DeviceDriver {
     }
 
     override func initialise() -> Bool {
-        print("PCIBus.initialiseDevice:", self)
+        #kprint("PCIBus.initialiseDevice:", self)
         // Scan PCI bus for any remaining devices
         for deviceFunction in scanBus() {
-            print("Adding \(deviceFunction)")
+            #kprint("Adding \(deviceFunction)")
             // FIXME: Try and find matching ACPI device node
             if let device = self.device(deviceFunction: deviceFunction) {
                 addDevice(device)
             } else {
-                print("PCIBus: Could not add \(deviceFunction)")
+                #kprint("PCIBus: Could not add \(deviceFunction)")
             }
 
         }
@@ -125,7 +125,7 @@ final class PCIBus: DeviceDriver {
     func device(deviceFunction: PCIDeviceFunction) -> Device? {
         let device = Device(parent: self.device, fullName: deviceFunction.description)
         guard let pciDevice = PCIDevice(device: device, deviceFunction: deviceFunction) else {
-            print("PCI: Cant create PCI device for:", deviceFunction)
+            #kprint("PCI: Cant create PCI device for:", deviceFunction)
             return nil
         }
         device.setBusDevice(pciDevice)
@@ -134,7 +134,7 @@ final class PCIBus: DeviceDriver {
             switch busClass {
                 case .isa:
                     guard let driver = ISABus(pciDevice: pciDevice) else {
-                        print("PCI: Cant create ISA BUS")
+                        #kprint("PCI: Cant create ISA BUS")
                         return nil
                     }
                     _ = driver.initialise()
@@ -142,19 +142,19 @@ final class PCIBus: DeviceDriver {
 
                 case .host:
                     // FIXME - this could be a PCIExpress Root bus
-                    print("PCI: Error: Found a PCI Host bus \(pciDevice) on a PCI bus \(self), bridgeDevice:", deviceFunction.bridgeDevice != nil)
+                    #kprint("PCI: Error: Found a PCI Host bus \(pciDevice) on a PCI bus \(self), bridgeDevice:", deviceFunction.bridgeDevice != nil)
                     return nil
 
                 case .pci:
                     guard let driver = PCIBus(pciDevice: pciDevice) else {
-                        print("PCI: Cant Create PCBus from:", pciDevice)
+                        #kprint("PCI: Cant Create PCBus from:", pciDevice)
                         return nil
                     }
                     _ = driver.initialise()
                     return device
 
                 default:
-                    print("PCI Ignoring bus of type \(deviceFunction)")
+                    #kprint("PCI Ignoring bus of type \(deviceFunction)")
             }
         }
 

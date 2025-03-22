@@ -40,15 +40,15 @@ final class PIC8259: InterruptController {
         // Disable all IRQs
         disableAllIRQs()
         rebaseIRQs()
-        print("PIC8259: initialised")
+        #kprint("PIC8259: initialised")
     }
 
 
     func enableIRQ(_ irqSetting: IRQSetting) {
         let irq = irqSetting.irq
-        printf("PIC8259: Enabling IRQ: %d\n", irq)
+        #kprintf("PIC8259: Enabling IRQ: %d\n", irq)
         guard irq < 16 else {
-            printf("PIC8259: Enabling invalid IRQ: %2.2x\n", irq)
+            #kprintf("PIC8259: Enabling invalid IRQ: %2.2x\n", irq)
             return
         }
         if (irq <= 7) {
@@ -65,9 +65,9 @@ final class PIC8259: InterruptController {
 
     func disableIRQ(_ irqSetting: IRQSetting) {
         let irq = irqSetting.irq
-        printf("PIC8259: Disabling IRQ: %d\n", irq)
+        #kprintf("PIC8259: Disabling IRQ: %d\n", irq)
         guard irq < 16 else {
-            printf("PIC8259: Enabling invalid IRQ: %2.2x\n", irq)
+            #kprintf("PIC8259: Enabling invalid IRQ: %2.2x\n", irq)
             return
         }
         if (irq <= 7) {
@@ -90,14 +90,14 @@ final class PIC8259: InterruptController {
 
     func ackIRQ(_ irq: Int) {
         guard irq < 16 else {
-            printf("PIC8259: EOI invalid IRQ: %d\n", irq)
+            #kprintf("PIC8259: EOI invalid IRQ: %d\n", irq)
             return
         }
 
         // Check real IRQ occurred
         let active = readISR().bit(irq)
         if !active {
-            printf("PIC8259: Spurious IRQ: %d\n", irq)
+            #kprintf("PIC8259: Spurious IRQ: %d\n", irq)
         }
 
         if (irq > 7) {
@@ -112,7 +112,7 @@ final class PIC8259: InterruptController {
     // This isnt a var returning a String to avoid a malloc() as its called
     // inside an interrupt handler
     func printStatus() {
-        printf("PIC8259: IRR: %04x ISR: %04x\n", readIRR(), readISR())
+        #kprintf("PIC8259: IRR: %04x ISR: %04x\n", readIRR(), readISR())
     }
 
 

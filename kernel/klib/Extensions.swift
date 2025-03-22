@@ -142,17 +142,17 @@ func hexDump<C: RandomAccessCollection>(buffer: C, offset: UInt = 0) where C.Ele
     for idx in 0..<buffer.count {
         if idx % 16 == 0 {
             if idx > 0 {
-                print(chars)
+                #kprint(chars)
                 chars = ""
             }
-            printf("%8.8X: ", UInt(idx) + offset)
+         //   #kprintf("%8.8X: ", UInt(idx) + offset)
         }
-        printf("%2.2x ", buffer[idx])
+       // #kprintf("%2.2x ", buffer[idx])
         chars.append(byteAsChar(value: buffer[idx]))
     }
     let padding = 3 * (16 - chars.count)
     if padding > 0 {
-        print(String(repeating: " ", count: padding), terminator: "")
+        chars = String(repeating: " ", count: padding) + chars
     }
-    print(chars)
+    #kprint(chars)
 }

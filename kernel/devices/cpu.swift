@@ -106,7 +106,7 @@ struct CPUID: CustomStringConvertible {
     var pageSizes: [UInt]
 
     var description: String {
-        var str = String.sprintf("CPU: maxBI: %#x maxEI: %#x\n", maxBasicInput,
+        var str = #sprintf("CPU: maxBI: %#x maxEI: %#x\n", maxBasicInput,
             maxExtendedInput)
         str += "CPU: [\(vendorName)] [\(processorBrandString)]\nCPU: "
         if pages1G     { str += "1GPages "     }
@@ -287,7 +287,7 @@ struct CPU {
 
 
     static func getInfo() {
-        print(cpuId)
+        #kprint(cpuId)
     }
 
 
@@ -308,10 +308,10 @@ struct CPU {
             var (eax, edx) = readMSR(0xC0000080)
             eax |= 1 << 11
             writeMSR(0xC0000080, eax, edx)
-            print("CPU: NXE enabled")
+            #kprint("CPU: NXE enabled")
             return true
         }
-        print("CPU: NXE cant be enabled")
+        #kprint("CPU: NXE cant be enabled")
         return false
     }
 
@@ -333,7 +333,7 @@ struct CPU {
         // 6: Weak Uncacheable (UC-)
         // 7: WriteThrough     (WT)
 
-        print("Setting up new PAT Array")
+        #kprint("Setting up new PAT Array")
         var pats = ByteArray8(readMSR(0x277)).map { PATEntry(rawValue: $0)! }
         pats[CacheType.writeBack.patEntry] = PATEntry.writeBack
         pats[CacheType.writeCombining.patEntry] = PATEntry.writeCombining
@@ -346,12 +346,12 @@ struct CPU {
 
         writeMSR(0x277, UInt64(withBytes: pats.map { $0.rawValue }))
         let newPat = ByteArray8(readMSR(0x277)).map { PATEntry(rawValue: $0)! }
-        print("CPU: Page Attribute Table:")
+        #kprint("CPU: Page Attribute Table:")
         for (idx, entry) in newPat.enumerated() {
-            print("CPU: \(idx): \(entry)")
+            #kprint("CPU: \(idx): \(entry)")
         }
         let msr: UInt64 = readMSR(0x277)
-        printf("PAT MSR: %16.16lx\n", msr)
+        #kprintf("PAT MSR: %16.16lx\n", msr)
         // Disable PCIDE in CR4
         var cr4 = CPU.cr4
         cr4.pcide = false

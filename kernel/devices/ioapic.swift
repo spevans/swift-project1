@@ -22,22 +22,22 @@ final class IOAPIC {
     init(ioApicId: UInt8, baseAddress: PhysAddress, gsiBase: UInt32) {
         self.globalSystemInterruptBase = gsiBase
 
-        print("IOAPIC: ID: \(ioApicId) Address: \(baseAddress) interrupt base: \(gsiBase)")
+        #kprint("IOAPIC: ID: \(ioApicId) Address: \(baseAddress) interrupt base: \(gsiBase)")
 
         // FIXME: Use MMIO
         let region = PhysRegion(start: baseAddress, size: IOAPIC.regionSize)
         registerBase = mapIORegion(region: region, cacheType: .uncacheable)
         let mre = Int(versionRegister.maximumRedirectionEntry)
-        printf("IO-APIC: maximumRedirectionEntry: %d\n", mre)
+        #kprintf("IO-APIC: maximumRedirectionEntry: %d\n", mre)
         guard mre > 0 else { fatalError("MRE is zero!") }
     }
 
 
     func enableIRQ(_ irqSetting: IRQSetting, vector: UInt8) {
         let irq = irqSetting.irq
-        print("IO-APIC: Enabling:", irq)
+        #kprintf("IO-APIC: Enabling: %d\n", irq)
         let register = redirectionRegisterFor(irq: irq)
-        print("IO-APIC: vector: \(vector) redirectionRegister: \(register)")
+        #kprintf("IO-APIC: vector: %2.2x redirectionRegister: %2.2x\n", vector, register)
 
         var data = IORedirectionRegister()
         data.idtVector = vector
@@ -55,7 +55,7 @@ final class IOAPIC {
         let irq = irqSetting.irq
         let register = redirectionRegisterFor(irq: irq)
 
-        print("IO-APIC: disabling IRQ:", irq, "register:", register)
+        #kprintf("IO-APIC: disabling IRQ: %d register: %2.2x\n", irq, register)
         var data = readWideRegister(register)
         data.maskInterrupt = true
         writeWideRegister(register, data: data)
@@ -64,10 +64,10 @@ final class IOAPIC {
 
     func canHandleIrq(_ irqSetting: IRQSetting) -> Bool {
         let irq = irqSetting.irq
-        print("IO-APIC: CanHandleIrq:", irq, "gsiBase:", globalSystemInterruptBase)
+        #kprint("IO-APIC: CanHandleIrq:", irq, "gsiBase:", globalSystemInterruptBase)
         if irq >= globalSystemInterruptBase {
             let mre = Int(versionRegister.maximumRedirectionEntry)
-            print("IO-APIC: maximumRedirectionEntry:", mre)
+            #kprint("IO-APIC: maximumRedirectionEntry:", mre)
             if Int(irq) < Int(globalSystemInterruptBase) + mre {
                 return true
             }
@@ -87,9 +87,9 @@ final class IOAPIC {
             let register = redirectionRegisterFor(irq: irq)
             let irr = readWideRegister(register)
             let remoteIRR = (irr.remoteIRR == .levelInterruptAccepted) ? 1 : 0
-            print("\(irq): \(remoteIRR) ", terminator: "")
+            #kprintf("%d: %d", irq, remoteIRR)
         }
-        print("")
+        #kprint("")
     }
 }
 

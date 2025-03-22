@@ -66,7 +66,7 @@ enum AMLType1Opcode {
                 let _value = try operandAsInteger(operand: value, context: &context)
                 let string = "TODO" //object.description
                 let v = String(describing: _value)
-                print("NOTIFY:", string, v)
+                #kprint("NOTIFY:", string, v)
                 throw AMLError.unimplemented("Notify \(object) \(_value)")
 
             case .amlDefRelease(let mutex):

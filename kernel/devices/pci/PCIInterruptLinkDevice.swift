@@ -15,41 +15,42 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
 
     override init?(pnpDevice: PNPDevice) {
         guard let uid = pnpDevice.device.acpiDeviceConfig?.uid else {
-            print("PCIInterruptLinkDevice: cant get _UID")
+            #kprint("PCIInterruptLinkDevice: cant get _UID")
             return nil
         }
 
         guard let uidValue = uid.integerValue, uidValue <= UInt8.max else {
-            print("PCI LNK: uid is not an integer: \(uid)")
+            #kprint("PCI LNK: uid is not an integer: \(uid)")
             return nil
         }
 
         guard let acpiConfig = pnpDevice.device.acpiDeviceConfig else {
-            print("\(pnpDevice.pnpName) has no ACPIDeviceConfig")
+            #kprint("\(pnpDevice.pnpName) has no ACPIDeviceConfig")
             return nil
         }
         guard let crs = acpiConfig.crs else {
-            print("PCIInterruptLinkDevice: Cant get resources")
+            #kprint("PCIInterruptLinkDevice: Cant get resources")
             return nil
         }
 
         let resources = ISABus.Resources(crs)
         let f = acpiConfig.node.fullname()
-        print("PCIInterruptLinkDevice: \(f) \(resources)")
+        #kprint("PCIInterruptLinkDevice: \(f) \(resources)")
 
         if let prs = acpiConfig.prs {
-            print("PCI LNK \(f): _PRS: \(prs)")
+            let s: String = prs.map { $0.description }.joined(separator: ", ")
+            #kprint("PCI LNK ", f, ": _PRS:", s)
         }
 
         if let cirq = resources.interrupts.first {
             irq = cirq
-            print("Using IRQ \(cirq)")
+            #kprint("Using IRQ \(cirq)")
         } else {
-            print(f, "has no configured irq")
+            #kprint(f, "has no configured irq")
             return nil
         }
         super.init(pnpDevice: pnpDevice)
-        print("PCI INT Link \(f) [_UID=\(uidValue)]: resources:", resources)
+        #kprint("PCI INT Link \(f) [_UID=\(uidValue)]: resources:", resources)
     }
 
     // FIXME: Maybe select a better IRQ to use to balance them out better or make

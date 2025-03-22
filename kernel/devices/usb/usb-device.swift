@@ -62,8 +62,7 @@ final class USBDevice {
     }
 
     func sendControlRequest(request: USB.ControlRequest) -> Bool {
-        print("USBDEV: sendControlRequest:", terminator: " ")
-        print(request)
+        #kprint("USBDEV: sendControlRequest:", request.description)
         let pipe = controlPipe()
 
         return pipe.send(request: request, withBuffer: nil)
@@ -71,7 +70,7 @@ final class USBDevice {
 
 
     func sendControlRequestReadData(request: USB.ControlRequest) -> [UInt8]? {
-//        print("USBDEV: sendControlRequestReadData:", request, "reading \(request.wLength) bytes")
+//        #kprint("USBDEV: sendControlRequestReadData:", request, "reading \(request.wLength) bytes")
         let pipe = controlPipe()
 
         guard request.wLength > 0 else {
@@ -83,7 +82,7 @@ final class USBDevice {
         guard pipe.send(request: request, withBuffer: infoBuffer) else { return nil }
         var result: [UInt8] = []
         result.reserveCapacity(Int(request.wLength))
-//        print("USBDEV: reasing \(infoBuffer.count) bytes from response")
+//        #kprint("USBDEV: reasing \(infoBuffer.count) bytes from response")
         for byte in infoBuffer {
             result.append(byte)
         }
@@ -93,7 +92,7 @@ final class USBDevice {
 
 
     func setAddress(_ newAddress: UInt8) -> Bool {
-        print("USBDEV: Setting address to:", newAddress)
+        #kprint("USBDEV: Setting address to:", newAddress)
         let request = USB.ControlRequest.setAddress(address: newAddress)
         for _ in 1...2 {
             if controlPipe().send(request: request, withBuffer: nil) {
@@ -103,7 +102,7 @@ final class USBDevice {
             }
             sleep(milliseconds: 5)
         }
-        print("USBDEV: Failed to setAddress(\(newAddress))")
+        #kprint("USBDEV: Failed to setAddress(\(newAddress))")
         return false
     }
 
@@ -117,7 +116,7 @@ final class USBDevice {
         defer { pipe.freeBuffer(infoBuffer) }
 
         guard pipe.send(request: descriptorRequest, withBuffer: infoBuffer) else {
-            print("USBDEV: getDeviceConfig: Cant get descriptor length:", length)
+            #kprint("USBDEV: getDeviceConfig: Cant get descriptor length:", length)
             return nil
         }
 
@@ -138,10 +137,10 @@ final class USBDevice {
         }
 
         guard let configDescriptor1 = try? USB.ConfigDescriptor(from: descriptorBuffer) else {
-            print("USBDEV: Cant decode CONFIGURATION descriptor packet")
+            #kprint("USBDEV: Cant decode CONFIGURATION descriptor packet")
                 return nil
         }
-        print("USBDEV:", configDescriptor1)
+        #kprint("USBDEV:", configDescriptor1)
         let infoBuffer = pipe.allocateBuffer(length: Int(configDescriptor1.wTotalLength))
         defer { pipe.freeBuffer(infoBuffer) }
 
@@ -155,24 +154,18 @@ final class USBDevice {
             let configDescriptor2 = try USB.ConfigDescriptor(from: infoBuffer)
             return configDescriptor2
         } catch {
-            let str: String
-            if let error = error as? USB.ParsingError {
-                str = error.description
-            } else {
-                str = "unknown error"
-            }
-            print("USBDEV: Cant decode CONFIGURATION descriptor packet: ", str)
+            #kprint("USBDEV: Cant decode CONFIGURATION descriptor packet: ", error)
             return nil
         }
     }
 
     func setConfiguration(to configuration: UInt8) -> Bool {
-        print("USBDEV: Setting configuration to:", configuration)
+        #kprint("USBDEV: Setting configuration to:", configuration)
         let pipe = controlPipe()
 
         let request = USB.ControlRequest.setConfiguration(configuration: configuration)
         guard pipe.send(request: request, withBuffer: nil) else {
-            print("USBDEV: Failed to set configuration")
+            #kprint("USBDEV: Failed to set configuration")
             return false
         }
         return true

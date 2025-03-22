@@ -177,10 +177,10 @@ extension PCIDeviceFunction {
 
             let nextPtr = readConfigByte(atByteOffset: ptr + 1)
             if nextPtr <= ptr {
-                print("PCI: capabilities, nextPtr \(nextPtr) <= currentPtr \(ptr)")
+                #kprint("PCI: capabilities, nextPtr \(nextPtr) <= currentPtr \(ptr)")
                 break
             }
-            print("ID: \(asHex(id)), ptr: \(ptr) nextPTR: \(nextPtr)")
+            #kprint("ID: \(asHex(id)), ptr: \(ptr) nextPTR: \(nextPtr)")
             ptr = UInt(nextPtr)
         }
         return nil

@@ -41,7 +41,7 @@ final class DeviceManager {
     // implement sleep() etc, used by more complex devices eg USB Host Controllers when initialising.
     // Currently this setups all of the pnp ISA devices but this should be restricted to timers.
     func initialiseEarlyDevices() {
-        print("initialiseEarlyDevices start, device manager has \(masterBus.device.devices.count) devices")
+        #kprint("initialiseEarlyDevices start, device manager has \(masterBus.device.devices.count) devices")
 
         interruptManager.enableGpicMode()
         initPNPDevice(withName: "PNP0C0F")  // PCI Interrupt Link Devices
@@ -70,7 +70,7 @@ final class DeviceManager {
     private func pnpDevices(pnpName: String, body: (Device) -> ()) {
         walkDeviceTree() { device in
             if let config = device.acpiDeviceConfig, config.matches(hidOrCid: pnpName) {
-                print("** found pnp device", config)
+                #kprint("** found pnp device", config)
                 body(device)
             }
             return true
@@ -92,22 +92,22 @@ final class DeviceManager {
         guard let driver = PNPDevice.initPnpDevice(pnpDevice) else { return false }
         device.setDriver(driver)
         guard driver.initialise() else {
-            print("\(driver) initialisation failed")
+            #kprint("\(driver) initialisation failed")
             return false
         }
         return true
     }
 
     private func initPnpDevices() {
-        print("Initing other PNP devices")
+        #kprint("Initing other PNP devices")
         walkDeviceTree() { device in
             _ = _initPnpDevice(device: device, isPCIHost: false)
             return true
         }
-        print("Initialising PCI hosts")
+        #kprint("Initialising PCI hosts")
         walkDeviceTree() { device in
             if _initPnpDevice(device: device, isPCIHost: true) {
-                print("Found PCI Host:", device)
+                #kprint("Found PCI Host:", device)
                 return false
             }
             return true
@@ -117,21 +117,21 @@ final class DeviceManager {
 
     // Setup the rest of the devices.
     func initialiseDevices() {
-        print("MasterBus.initialiseDevices")
+        #kprint("MasterBus.initialiseDevices")
         // Now load device drivers for any known devices, ISA/PNP first
         initPnpDevices()
 
-        print("Initialising USB")
+        #kprint("Initialising USB")
         usbBus = USB()
         usbBus.initialiseDevices()
-        print("USB initialised, looking at rest of devices")
+        #kprint("USB initialised, looking at rest of devices")
 
         if let rootPCIBus = masterBus.rootPCIBus() {
             rootPCIBus.devicesMatching() { (device: PCIDevice, deviceClass: PCIDeviceClass) in
                 guard !device.device.initialised else { return }
             }
         } else {
-            print("Error: Cant Find ROOT PCI Bus")
+            #kprint("Error: Cant Find ROOT PCI Bus")
         }
 
         tty.scrollTimingTest()
@@ -153,7 +153,7 @@ final class DeviceManager {
         for device in bus.devices {
             var driverName = ""
             if let driver = device.deviceDriver { driverName = ": [\(driver.description)]" }
-            print("\(spaces)+--- \(device)\(driverName) [init: \(device.initialised) enab: \(device.enabled)]")
+            #kprint("\(spaces)+--- \(device)\(driverName) [init: \(device.initialised) enab: \(device.enabled)]")
             if device.isBus {
                 dumpBus(device, depth: depth + 1)
             }
@@ -162,7 +162,7 @@ final class DeviceManager {
 
 
     func dumpDeviceTree() {
-        print(masterBus)
+        #kprint(masterBus)
         dumpBus(masterBus.device, depth: 0)
     }
 
@@ -181,7 +181,7 @@ final class DeviceManager {
     func dumpPCIDevices(bus: Device? = nil) {
         walkDeviceTree(bus: bus) { device in
             if let d = device.busDevice as? PCIDevice {
-                print(d)
+                #kprint(d)
             }
             return true
         }
@@ -190,7 +190,7 @@ final class DeviceManager {
     func dumpPNPDevices(bus: Device? = nil) {
         walkDeviceTree(bus: bus) { device in
             if let d =  device.busDevice as? PNPDevice {
-                print(d)
+                #kprint(d)
             }
             return true
         }

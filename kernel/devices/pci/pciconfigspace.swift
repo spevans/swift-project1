@@ -25,7 +25,7 @@ enum PCIConfigSpace: CustomStringConvertible {
         if let mmioBaseAddress = mcfgTable?.baseAddressFor(bus: busId) {
             let regionAddress = mmioBaseAddress + (UInt(device) << 15 | UInt(function) << 12)
             let pageRange = PhysRegion(start: regionAddress, size: 4096)
-            print("PCIConfigSpace, mapping regions @ \(pageRange) for base address \(mmioBaseAddress), bus: \(busId), \(device)/\(function) => \(regionAddress)")
+            #kprint("PCIConfigSpace, mapping regions @ \(pageRange) for base address \(mmioBaseAddress), bus: \(busId), \(device)/\(function) => \(regionAddress)")
             self = .mmio(mmioRegion: mapIORegion(region: pageRange))
         } else {
             self = .pio(baseAddress: UInt32(busId) << 16 | 0x80000000)
@@ -40,7 +40,7 @@ enum PCIConfigSpace: CustomStringConvertible {
 
     var description: String {
         switch self {
-            case .pio(let baseAddress): return String.sprintf("PCIBusPIO @ %8.8X", baseAddress)
+            case .pio(let baseAddress): return #sprintf("PCIBusPIO @ %8.8X", baseAddress)
             case .mmio(let mmioRegion): return "PCIBusMMIO @ \(mmioRegion.physicalRegion.baseAddress)"
             case .bytes(let data): return "TestData \(data.count) bytes"
         }

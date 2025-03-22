@@ -487,6 +487,6 @@ func decodeResourceData(_ buffer: AMLBuffer) -> [AMLResourceSetting] {
         settings.append(setting)
         idx += length
     }
-    print("Warning: no EndTagDescriptor")
+    #kprint("ACPI: Warning: no EndTagDescriptor")
     return settings
 }

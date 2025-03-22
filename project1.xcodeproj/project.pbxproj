@@ -55,6 +55,7 @@
 		B98A0E8226679D96006898DF /* ISABus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF261FD818D000E6EFEB /* ISABus.swift */; };
 		B98DE1B1264D02280003775C /* IRQSetting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96D9CAA26411FB30079E5AD /* IRQSetting.swift */; };
 		B98DE1BA264D052F0003775C /* ACPIGenericAddressStructure.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96BBE4F262B5502009756A8 /* ACPIGenericAddressStructure.swift */; };
+		B9A41D5F2DBC1C630015175D /* kprint.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9A41D5E2DBC1C5F0015175D /* kprint.swift */; };
 		B9AF69D61FBDEB8B0049CB98 /* ACPIReadWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9AF69D51FBDEB8B0049CB98 /* ACPIReadWriteTests.swift */; };
 		B9BDA42126542DBA00A2BCB4 /* PCITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9BDA42026542DBA00A2BCB4 /* PCITests.swift */; };
 		B9C2AF2B1FD84CB300E6EFEB /* KlibTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF2A1FD84CB300E6EFEB /* KlibTests.swift */; };
@@ -70,6 +71,7 @@
 		B9D2AC14266E52B8002DA8DD /* PNPDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = B981795B266E329D0043D38C /* PNPDevice.swift */; };
 		B9D9E7492DBF7C4400CC1E2C /* AMLObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D9E7482DBF7C4400CC1E2C /* AMLObject.swift */; };
 		B9D9E74B2DBF7C5B00CC1E2C /* AMLFieldSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D9E74A2DBF7C5B00CC1E2C /* AMLFieldSettings.swift */; };
+		B9D826172D7A657500180046 /* PrintfInternal.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D826162D7A657500180046 /* PrintfInternal.swift */; };
 		B9DEE4F42323BA960010F7A0 /* lldb-cmds in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F32323BA960010F7A0 /* lldb-cmds */; };
 		B9DEE4F92323BBC40010F7A0 /* bochsrc in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F52323BBC30010F7A0 /* bochsrc */; };
 		B9DEE4FA2323BBC40010F7A0 /* gdb-cmds in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F62323BBC30010F7A0 /* gdb-cmds */; };
@@ -208,7 +210,6 @@
 		B933A7481F2F4ABC00FE6846 /* address.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = address.swift; sourceTree = "<group>"; };
 		B933A74A1F2F4ABC00FE6846 /* alloc.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = alloc.swift; sourceTree = "<group>"; };
 		B933A7501F2F511100FE6846 /* test.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = test.h; sourceTree = "<group>"; };
-		B933A7741F2F8D6A00FE6846 /* tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B933A7761F2F8D6A00FE6846 /* ACPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPITests.swift; sourceTree = "<group>"; };
 		B933A7781F2F8D6A00FE6846 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B93620752326A4A0009A2215 /* Docker */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Docker; sourceTree = "<group>"; };
@@ -236,7 +237,6 @@
 		B9568CA2254EFEAA00C3F49B /* uhci-queuehead.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "uhci-queuehead.swift"; sourceTree = "<group>"; };
 		B9568CAA254F037400C3F49B /* uhci-buffers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "uhci-buffers.swift"; sourceTree = "<group>"; };
 		B9568CB02551819E00C3F49B /* BitmapAllocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BitmapAllocator.swift; sourceTree = "<group>"; };
-		B95867E722E5D082005FA3BF /* kernel */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = kernel; sourceTree = BUILT_PRODUCTS_DIR; };
 		B95867F322E5D4BC005FA3BF /* vmx.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = vmx.swift; path = vm/vmx.swift; sourceTree = "<group>"; };
 		B95867F522E635EA005FA3BF /* vmcs.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = vmcs.swift; path = vm/vmcs.swift; sourceTree = "<group>"; };
 		B95867F622E635EA005FA3BF /* vmentry.asm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.asm.asm; name = vmentry.asm; path = vm/vmentry.asm; sourceTree = "<group>"; };
@@ -251,6 +251,12 @@
 		B9793D4E200A571B0013E03B /* symbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = symbols.swift; sourceTree = "<group>"; };
 		B97C3A8024D0D10F00E3602C /* shell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = shell.swift; sourceTree = "<group>"; };
 		B981795B266E329D0043D38C /* PNPDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PNPDevice.swift; sourceTree = "<group>"; };
+		B9824CA82D8EE3AA00902DA9 /* tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = tests.swift; sourceTree = "<group>"; };
+		B98253C52D901F2900902DA9 /* Printf */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = Printf; sourceTree = "<group>"; };
+		B98253C72D90229000902DA9 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
+		B98253C82D9025D000902DA9 /* build.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build.sh; sourceTree = "<group>"; };
+		B98253C92D902FCF00902DA9 /* Printf.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Printf.xctestplan; sourceTree = "<group>"; };
+		B982B6D72D84968D00902DA9 /* mtrr.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = mtrr.swift; sourceTree = "<group>"; };
 		B9A2C1B01F30ECF9003D4D92 /* TODO */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = TODO; sourceTree = "<group>"; };
 		B9A2C1B11F30ECF9003D4D92 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		B9A2C1B31F30EEC7003D4D92 /* boot */ = {isa = PBXFileReference; lastKnownFileType = folder; path = boot; sourceTree = "<group>"; };
@@ -261,6 +267,9 @@
 		B9A2C1B91F30EF94003D4D92 /* linker.script */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = linker.script; sourceTree = "<group>"; };
 		B9A2C1BA1F30EF94003D4D92 /* Makefile */ = {isa = PBXFileReference; explicitFileType = sourcecode.make; fileEncoding = 4; path = Makefile; sourceTree = "<group>"; };
 		B9A2C1BB1F30EF94003D4D92 /* Makedefs */ = {isa = PBXFileReference; explicitFileType = sourcecode.make; fileEncoding = 4; path = Makedefs; sourceTree = "<group>"; };
+		B9A41C582DBC1C200015175D /* tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B9A41C592DBC1C200015175D /* kernel */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = kernel; sourceTree = BUILT_PRODUCTS_DIR; };
+		B9A41D5E2DBC1C5F0015175D /* kprint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = kprint.swift; sourceTree = "<group>"; };
 		B9AF69D51FBDEB8B0049CB98 /* ACPIReadWriteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPIReadWriteTests.swift; sourceTree = "<group>"; };
 		B9BDA42026542DBA00A2BCB4 /* PCITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PCITests.swift; sourceTree = "<group>"; };
 		B9C2AF261FD818D000E6EFEB /* ISABus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ISABus.swift; sourceTree = "<group>"; };
@@ -281,6 +290,7 @@
 		B9CB729C255F5A6700A6C3C8 /* uhci-transferdescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "uhci-transferdescriptor.swift"; sourceTree = "<group>"; };
 		B9D9E7482DBF7C4400CC1E2C /* AMLObject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AMLObject.swift; sourceTree = "<group>"; };
 		B9D9E74A2DBF7C5B00CC1E2C /* AMLFieldSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AMLFieldSettings.swift; sourceTree = "<group>"; };
+		B9D826162D7A657500180046 /* PrintfInternal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintfInternal.swift; sourceTree = "<group>"; };
 		B9DEE4F32323BA960010F7A0 /* lldb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "lldb-cmds"; sourceTree = "<group>"; };
 		B9DEE4F52323BBC30010F7A0 /* bochsrc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = bochsrc; sourceTree = "<group>"; };
 		B9DEE4F62323BBC30010F7A0 /* gdb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "gdb-cmds"; sourceTree = "<group>"; };
@@ -459,12 +469,14 @@
 		B933A6BB1F2F46C600FE6846 /* klib */ = {
 			isa = PBXGroup;
 			children = (
+				B9A41D5E2DBC1C5F0015175D /* kprint.swift */,
 				B951B5A82CE68FAE009A3ED1 /* misc.swift */,
 				B933A73B1F2F49F300FE6846 /* extensions */,
 				B933A7301F2F49C700FE6846 /* CircularBuffer.swift */,
 				B933A7311F2F49C700FE6846 /* Extensions.swift */,
 				B933A7321F2F49C700FE6846 /* MemoryBufferReader.swift */,
 				B933A7331F2F49C700FE6846 /* printf.swift */,
+				B9D826162D7A657500180046 /* PrintfInternal.swift */,
 				B9C2AF281FD81E5A00E6EFEB /* ReservationManager.swift */,
 				B9568CB02551819E00C3F49B /* BitmapAllocator.swift */,
 			);
@@ -492,6 +504,7 @@
 		B933A6BD1F2F46D000FE6846 /* tasks */ = {
 			isa = PBXGroup;
 			children = (
+				B9824CA82D8EE3AA00902DA9 /* tests.swift */,
 				B933A7441F2F4A2E00FE6846 /* tasks.swift */,
 				B97C3A8024D0D10F00E3602C /* shell.swift */,
 			);
@@ -591,6 +604,14 @@
 			name = vm;
 			sourceTree = "<group>";
 		};
+		B98253C62D901F2900902DA9 /* macros */ = {
+			isa = PBXGroup;
+			children = (
+				B98253C52D901F2900902DA9 /* Printf */,
+			);
+			path = macros;
+			sourceTree = "<group>";
+		};
 		B9C9A88027C288E6003746EF /* pci */ = {
 			isa = PBXGroup;
 			children = (
@@ -618,6 +639,9 @@
 		B9EE70401D3D536B006B6AB7 = {
 			isa = PBXGroup;
 			children = (
+				B98253C92D902FCF00902DA9 /* Printf.xctestplan */,
+				B98253C82D9025D000902DA9 /* build.sh */,
+				B98253C72D90229000902DA9 /* .gitignore */,
 				B9F22F872325009300A6C92B /* NOTES */,
 				B9A2C1B11F30ECF9003D4D92 /* README.md */,
 				B9A2C1B01F30ECF9003D4D92 /* TODO */,
@@ -637,17 +661,10 @@
 				B93620752326A4A0009A2215 /* Docker */,
 				B9A2C1B41F30EEDE003D4D92 /* doc */,
 				B9A2C1B81F30EF79003D4D92 /* utils */,
-				B9EE704A1D3D536B006B6AB7 /* Products */,
+				B98253C62D901F2900902DA9 /* macros */,
+				B9A41C582DBC1C200015175D /* tests.xctest */,
+				B9A41C592DBC1C200015175D /* kernel */,
 			);
-			sourceTree = "<group>";
-		};
-		B9EE704A1D3D536B006B6AB7 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				B933A7741F2F8D6A00FE6846 /* tests.xctest */,
-				B95867E722E5D082005FA3BF /* kernel */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 		B9EE704B1D3D536B006B6AB7 /* Tests */ = {
@@ -807,7 +824,7 @@
 			);
 			name = tests;
 			productName = "acpi tests";
-			productReference = B933A7741F2F8D6A00FE6846 /* tests.xctest */;
+			productReference = B9A41C582DBC1C200015175D /* tests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		B95867E622E5D082005FA3BF /* kernel */ = {
@@ -824,7 +841,7 @@
 			);
 			name = kernel;
 			productName = kernel;
-			productReference = B95867E722E5D082005FA3BF /* kernel */;
+			productReference = B9A41C592DBC1C200015175D /* kernel */;
 			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
@@ -843,7 +860,7 @@
 					B95867E622E5D082005FA3BF = {
 						CreatedOnToolsVersion = 11.0;
 						DevelopmentTeam = U2L29966XS;
-						LastSwiftMigration = 1520;
+						LastSwiftMigration = 1620;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -857,7 +874,8 @@
 				en,
 			);
 			mainGroup = B9EE70401D3D536B006B6AB7;
-			productRefGroup = B9EE704A1D3D536B006B6AB7 /* Products */;
+			preferredProjectObjectVersion = 46;
+			productRefGroup = B9EE70401D3D536B006B6AB7;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -936,8 +954,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		B95867EE22E5D094005FA3BF /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 8;
+			buildActionMask = 12;
 			files = (
 			);
 			inputFileListPaths = (
@@ -948,7 +965,7 @@
 			);
 			outputPaths = (
 			);
-			runOnlyForDeploymentPostprocessing = 1;
+			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\ndocker run --rm -v $SRCROOT:$SRCROOT -w $SRCROOT -t -e TERM= swift-kstdlib make output/kernel.elf\n";
 		};
@@ -1004,6 +1021,7 @@
 				B933A77E1F2F8F1100FE6846 /* acpiglobalobjects.swift in Sources */,
 				B933A77F1F2F8F1100FE6846 /* amlmethod.swift in Sources */,
 				B933A7801F2F8F1100FE6846 /* amlparser.swift in Sources */,
+				B9D826172D7A657500180046 /* PrintfInternal.swift in Sources */,
 				B933A7811F2F8F1100FE6846 /* amltypes.swift in Sources */,
 				B93092BF1F31B06900870D1F /* StringTests.swift in Sources */,
 				B9AF69D61FBDEB8B0049CB98 /* ACPIReadWriteTests.swift in Sources */,
@@ -1027,6 +1045,8 @@
 				B933A7921F2F8F2100FE6846 /* MemoryBufferReader.swift in Sources */,
 				B9E8F41127935B7A008F3C33 /* MemoryRangeTests.swift in Sources */,
 				B93092C01F31B0FF00870D1F /* printf.swift in Sources */,
+				B9A41D5F2DBC1C630015175D /* kprint.swift in Sources */,
+				B9035F552D46B5A1006C8B00 /* AMLFieldSettings.swift in Sources */,
 				B9C2AF2B1FD84CB300E6EFEB /* KlibTests.swift in Sources */,
 				B933A78D1F2F8F2100FE6846 /* bitarray.swift in Sources */,
 				B933A78E1F2F8F2100FE6846 /* bytearray.swift in Sources */,

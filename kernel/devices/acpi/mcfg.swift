@@ -75,8 +75,7 @@ struct MCFG {
                 startBus: items[0].startBus,
                 endBus: 0x3f)
 
-            print("ACPI: MCFG: Overrode endBus from 0xff to 0x3f for",
-                  vendor, product)
+            #kprint("ACPI: MCFG: Overrode endBus from 0xff to 0x3f for", vendor, product)
         }
 
         allocations = items

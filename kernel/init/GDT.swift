@@ -73,8 +73,7 @@ private func mkTSS(base: UnsafeRawPointer, limit: UInt32, privLevel: UInt)
 
 func setupGDT() {
     func printGDT(_ msg: String, _ gdt: dt_info) {
-        print("GDT:", msg, terminator: "")
-        printf(": Info: %#x/%u\n", UInt(bitPattern: gdt.base), gdt.limit)
+        #kprintf("GDT: %s Info: %p/%u\n", msg, gdt.base, gdt.limit)
     }
 
     func asRawPointer(_ x: UnsafeRawPointer) -> UnsafeRawPointer {
@@ -96,9 +95,9 @@ func setupGDT() {
     tssSeg.pointee = mkTSS(base: &task_state_segment,    // defined in main.asm
         limit: UInt32(MemoryLayout<task_state_segment>.size - 1), privLevel: 0)
 
-    print("Loading task register")
+    #kprint("Loading task register")
     ltr(UInt16(TSS_SELECTOR))
-    print("TSS loaded")
+    #kprint("TSS loaded")
 }
 
 func currentGDT() -> dt_info {

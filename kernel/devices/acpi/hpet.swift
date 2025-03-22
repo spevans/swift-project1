@@ -70,7 +70,7 @@ struct HPETTable: CustomStringConvertible {
             case 1: return 4096
             case 2: return 65536
             default:
-                print("HPET: unknown page protection: \(protection)")
+                #kprint("HPET: unknown page protection: \(protection)")
                 return 0
         }
     }
@@ -105,7 +105,7 @@ final class HPETTimer: Timer {
 
     override func enablePeriodicInterrupt(hz: Int) -> Bool {
         guard hpet.emulateLegacyPIT(ticksPerSecond: hz) else {
-            print("timer: HPET doesnt support PIT mode")
+            #kprint("timer: HPET doesnt support PIT mode")
             return false
         }
         return true
@@ -121,7 +121,7 @@ final class HPET: PNPDeviceDriver {
 
     override init?(pnpDevice: PNPDevice) {
         guard let _hpet = system.systemTables.acpiTables.hpet else {
-            print("HPET: No HPET ACPI table found")
+            #kprint("HPET: No HPET ACPI table found")
             return nil
         }
         self.hpet = _hpet
@@ -234,25 +234,25 @@ final class HPET: PNPDeviceDriver {
 
 
     func showConfiguration() {
-        print("HPET", hpet)
-        print("HPET: mainCounterRegister:", mainCounterRegister)
+        #kprint("HPET", hpet)
+        #kprint("HPET: mainCounterRegister:", mainCounterRegister)
 
         guard hpet.comparatorCount > 0 else {
-            print("HPET: No timers found")
+            #kprint("HPET: No timers found")
             return
         }
         for timer in 0...hpet.maxComparatorIndex {
             let config = configFor(timer: timer)
-            print("HPET: Timer\(timer) config:", config, "comparatorValue:", comparatorValueFor(timer: timer))
+            #kprint("HPET: Timer\(timer) config:", config, "comparatorValue:", comparatorValueFor(timer: timer))
         }
     }
 
     fileprivate func emulateLegacyPIT(ticksPerSecond: Int) -> Bool {
-        print("HPET: Emulating Legacy PIT with period \(ticksPerSecond)Hz")
+        #kprint("HPET: Emulating Legacy PIT with period \(ticksPerSecond)Hz")
         showConfiguration()
         var timer0 = configFor(timer: 0)
         guard timer0.periodicInterruptCapable else {
-            print("HPET: timer0 is not capable of periodic interrupts")
+            #kprint("HPET: timer0 is not capable of periodic interrupts")
             return false
         }
 

@@ -18,57 +18,80 @@ private func stackTrace(_ registers: ExceptionRegisters) {
     stack_trace(rsp, rbp)
 }
 
+private func dumpRegisters(_ registers: ExceptionRegisters) {
+    #kprintf("RAX: %16.16lx ", registers.pointee.rax)
+    #kprintf("RBX: %16.16lx ", registers.pointee.rbx)
+    #kprintf("RCX: %16.16lx\n", registers.pointee.rcx)
+    #kprintf("RDX: %16.16lx ", registers.pointee.rdx)
+    #kprintf("RSI: %16.16lx ", registers.pointee.rsi)
+    #kprintf("RDI: %16.16lx\n", registers.pointee.rdi)
+    #kprintf("RBP: %16.16lx ", registers.pointee.rbp)
+    #kprintf("RSP: %16.16lx ", registers.pointee.rsp)
+    #kprintf("RIP: %16.16lx\n", registers.pointee.rip)
+    #kprintf("R8 : %16.16lx ", registers.pointee.r8)
+    #kprintf("R9 : %16.16lx ", registers.pointee.r9)
+    #kprintf("R10: %16.16lx\n", registers.pointee.r10)
+    #kprintf("R11: %16.16lx ", registers.pointee.r11)
+    #kprintf("R12: %16.16lx ", registers.pointee.r12)
+    #kprintf("R13: %16.16lx\n", registers.pointee.r13)
+    #kprintf("R14: %16.16lx ", registers.pointee.r14)
+    #kprintf("R15: %16.16lx ", registers.pointee.r15)
+    #kprintf("CR2: %16.16lx\n", getCR2());
+    #kprintf("CS: %lx DS: %lx ES: %lx FS: %lx GS:%lx SS: %lx\n",
+             registers.pointee.cs, registers.pointee.ds, registers.pointee.es,
+             registers.pointee.fs, registers.pointee.gs, registers.pointee.ss)
+}
 
 func divideByZeroException(registers: ExceptionRegisters) {
-    kprint("divideByZero\n")
-    dump_registers(registers)
+    #kprint("divideByZero\n")
+    dumpRegisters(registers)
     stackTrace(registers)
     abort()
 }
 
 
 func debugException(registers: ExceptionRegisters) {
-    kprint("debugException\n")
-    dump_registers(registers)
+    #kprint("debugException\n")
+    dumpRegisters(registers)
     stackTrace(registers)
     abort()
 }
 
 
 func nonMaskableInterrupt(registers: ExceptionRegisters) {
-    kprint("NMI\n")
-    dump_registers(registers)
+    #kprint("NMI\n")
+    dumpRegisters(registers)
     stackTrace(registers)
     abort()
 }
 
 
 func singleStepBreakpoint(registers: ExceptionRegisters) {
-    kprint("Breakpoint\n")
-    dump_registers(registers)
+    #kprint("Breakpoint\n")
+    dumpRegisters(registers)
     stackTrace(registers)
 }
 
 
 func overflowException(registers: ExceptionRegisters) {
-    kprint("Overflow Exception\n")
-    dump_registers(registers)
+    #kprint("Overflow Exception\n")
+    dumpRegisters(registers)
     stackTrace(registers)
     abort()
 }
 
 
 func boundsException(registers: ExceptionRegisters) {
-    kprint("Bounds Exception\n")
-    dump_registers(registers)
+    #kprint("Bounds Exception\n")
+    dumpRegisters(registers)
     stackTrace(registers)
     abort()
 }
 
 
 func invalidOpcodeException(registers: ExceptionRegisters) {
-    kprint("Invalid Opcode Exception\n")
-    dump_registers(registers)
+    #kprint("Invalid Opcode Exception\n")
+    dumpRegisters(registers)
     stackTrace(registers)
     abort()
 }
@@ -76,14 +99,14 @@ func invalidOpcodeException(registers: ExceptionRegisters) {
 
 func doubleFault(registers: ExceptionRegisters) {
     //let errorCode = registers.pointee.error_code
-    kprint("Double Fault\n")
-    dump_registers(registers);
+    #kprint("Double Fault\n")
+    dumpRegisters(registers);
     let rsp = UInt(registers.pointee.rsp)
     let rbp = UInt(registers.pointee.rbp)
     let _stack_start_addr = VirtualAddress(bitPattern: &_stack_start)
 
     if rsp <= _stack_start_addr || rbp <= _stack_start_addr {
-        printf("Possible kernel stack overflow RSP: %016x RBP: %016x stack lowest address: %016x\n",
+        #kprintf("Possible kernel stack overflow RSP: %016x RBP: %016x stack lowest address: %016x\n",
             registers.pointee.rsp, registers.pointee.rbp, UInt64(_stack_start_addr))
     } else {
         stackTrace(registers)
@@ -94,8 +117,8 @@ func doubleFault(registers: ExceptionRegisters) {
 
 func invalidTSSException(registers: ExceptionRegisters) {
     //let errorCode = registers.pointee.error_code
-    kprint("Invalid Task State Segment\n");
-    dump_registers(registers)
+    #kprint("Invalid Task State Segment\n");
+    dumpRegisters(registers)
     stackTrace(registers)
     abort()
 }
@@ -103,8 +126,8 @@ func invalidTSSException(registers: ExceptionRegisters) {
 
 func segmentNotPresentException(registers: ExceptionRegisters) {
     //let errorCode = registers.pointee.error_code
-    kprint("Segment Not Present Exception\n")
-    dump_registers(registers)
+    #kprint("Segment Not Present Exception\n")
+    dumpRegisters(registers)
     stackTrace(registers)
     abort()
 }
@@ -112,8 +135,8 @@ func segmentNotPresentException(registers: ExceptionRegisters) {
 
 func stackFault(registers: ExceptionRegisters) {
     //let errorCode = registers.pointee.error_code
-    kprint("Stack Fault\n")
-    dump_registers(registers)
+    #kprint("Stack Fault\n")
+    dumpRegisters(registers)
     stackTrace(registers)
     abort()
 }
@@ -121,8 +144,8 @@ func stackFault(registers: ExceptionRegisters) {
 
 func generalProtectionFault(registers: ExceptionRegisters) {
     let errorCode = UInt32(registers.pointee.error_code)
-    printf("GP Fault code: %#x\n", errorCode)
-    dump_registers(registers)
+    #kprintf("GP Fault code: %#x\n", errorCode)
+    dumpRegisters(registers)
     stackTrace(registers)
     abort()
 }
@@ -130,17 +153,16 @@ func generalProtectionFault(registers: ExceptionRegisters) {
 
 func pageFault(registers: ExceptionRegisters) {
     let errorCode = UInt32(registers.pointee.error_code)
-    printf("Page Fault: %#x\n", errorCode)
-    dump_registers(registers)
+    #kprintf("Page Fault: %#x\n", errorCode)
+    dumpRegisters(registers)
     stackTrace(registers)
-    kprint("\nSTOP\n")
     abort()
 }
 
 
 func fpuFault(registers: ExceptionRegisters) {
-    kprint("FPU Fault")
-    dump_registers(registers)
+    #kprint("FPU Fault")
+    dumpRegisters(registers)
     stackTrace(registers)
     abort()
 }
@@ -148,49 +170,38 @@ func fpuFault(registers: ExceptionRegisters) {
 
 func alignmentCheckException(registers: ExceptionRegisters) {
     //let errorCode = registers.pointee.error_code
-    kprint("Alignment Check Exception\n")
-    dump_registers(registers)
+    #kprint("Alignment Check Exception")
+    dumpRegisters(registers)
     stackTrace(registers)
     abort()
 }
 
 
 func machineCheckException(registers: ExceptionRegisters) {
-    kprint("Machine Check Exception")
-    dump_registers(registers)
+    #kprint("Machine Check Exception")
+    dumpRegisters(registers)
     stackTrace(registers)
     abort()
 }
 
 
 func simdException(registers: ExceptionRegisters) {
-    kprint("SIMD Exception")
-    dump_registers(registers)
+    #kprint("SIMD Exception")
+    dumpRegisters(registers)
     stackTrace(registers)
     abort()
 }
 
 
 func unhandledException(registers: ExceptionRegisters) {
-    //let errorCode = registers.pointee.error_code
-    kprint("Unhandled Exception\n")
-    dump_registers(registers)
+    let errorCode = registers.pointee.error_code
+    #kprintf("Unhandled Exception: %x\n", errorCode)
+    dumpRegisters(registers)
     stackTrace(registers)
     abort()
 }
 
-
-func koops(_ format: StaticString, _ arguments: CVarArg...) -> Never {
-    precondition(format.hasPointerRepresentation)
-    precondition(format.isASCII)
-    kprint("oops: ")
-    withVaList(arguments) {
-        let args = $0
-         _ = format.utf8Start.withMemoryRebound(to: CChar.self,
-            capacity: format.utf8CodeUnitCount) {
-            kvlprintf($0, format.utf8CodeUnitCount, args)
-        }
-    }
-    kprint("\n")
+func koops(_ string: StaticString) -> Never {
+    #kprint(string)
     stop()
 }

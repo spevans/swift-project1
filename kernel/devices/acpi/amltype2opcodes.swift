@@ -115,7 +115,7 @@ enum AMLType2Opcode {
         switch self {
             case .amlDefAcquire(_, _):
                 // FIXME - implement
-                print("Acquiring Mutex")
+                #kprint("Acquiring Mutex")
                 return AMLBoolean(false)   // NOT acquired
                 
             case .amlDefAdd(let operand1, let operand2, let target):
@@ -296,7 +296,7 @@ enum AMLType2Opcode {
                 // Operand1 => Buffer | String, Operand2 => Integer, Operand3 => Integer
                 let object = try operand1.evaluate(context: &context)
                 let index = try operandAsInteger(operand: operand2, context: &context)
-                print("defmid: object: \(object) index: \(index)")
+                #kprint("defmid: object: \(object) index: \(index)")
                 // dummy for now
                 throw AMLError.unimplemented("AMLDefMid")
                 

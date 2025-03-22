@@ -2,14 +2,8 @@ public func fatalError(
   _ message: @autoclosure () -> String,
   file: StaticString = #file, line: UInt = #line
 ) -> Never {
-    print(file, terminator: ":")
-    print(line, terminator: ": ")
-//    print(prefix, terminator: "")
     let messageStr = message()
-    if messageStr.count > 0 {
-        print(": ", terminator: "")
-    }
-    print(messageStr)
+    #kprintf("%s:%u:%s\n", file, line, messageStr)
     stop()
 }
 

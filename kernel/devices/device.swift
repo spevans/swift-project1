@@ -32,8 +32,6 @@ final class Device: CustomStringConvertible {
         self.parent = parent
         self.fullName = fullName
         self.acpiDeviceConfig = acpiDeviceConfig
-//        let d: String = acpiDeviceConfig?.description ?? "nil"
-//        print("Device:", self, "acpiDeviceConfig: \(d)")
         parent?.devices.append(self)
     }
 

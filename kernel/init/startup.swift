@@ -52,7 +52,7 @@ final class System {
 
         // gitBuildVersion defined in kernel/init/version.swift, created
         // by kernel/Makefile
-        print("Version: \(gitBuildVersion)\n")
+        #kprint("Version: \(gitBuildVersion)\n")
     }
 
 
@@ -72,7 +72,7 @@ func benchmark(_ function: () -> ()) -> UInt64 {
 
 
 fileprivate func mainLoop() {
-    print("Runing mainLoop, enabling IRQs")
+    #kprint("Runing mainLoop, enabling IRQs")
     system.deviceManager.enableIRQs()
     system.deviceManager.initialiseDevices()
 
@@ -89,13 +89,13 @@ fileprivate func keyboardInput() {
     // (used for testing on macbook where there is no PS/2 keyboard)
 
     commandShell()
-    print("commandShell exited")
+    #kprint("commandShell exited")
     if system.deviceManager.keyboard == nil {
-        print("Devices:")
+        #kprint("Devices:")
         system.deviceManager.dumpDeviceTree()
     }
 
-    print("HLTing")
+    #kprint("HLTing")
     while true {
         hlt()
     }

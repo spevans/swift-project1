@@ -50,7 +50,7 @@ final class PCIDevice: BusDevice {
 
     // Look for MSI-X, then MSI, then the INTA-D IRQs
     func findInterrupt() -> IRQSetting? {
-        print("PCI: Looking for interrupt for device: \(self)")
+        #kprint("PCI: Looking for interrupt for device: \(self)")
 
         if let msixCapability = self.msixCapability() {
             fatalError("TODO - implement MSI-X interrupts: \(msixCapability)")
@@ -66,56 +66,56 @@ final class PCIDevice: BusDevice {
         // 'System Interrupt Mapping' in PCI Express spec section 2.2.8.1.
 
         guard var pin = self.deviceFunction.interruptPin else {
-            print("PCI: \(self) has no valid interruptPin")
+            #kprint("PCI: \(self) has no valid interruptPin")
             return nil
         }
         var slot = self.deviceFunction.slot
         guard var bus = self.device.parent else {
             fatalError("PCIDevice \(self) has no parent so cant find interrupr")
         }
-        print("PCI: slot: \(slot) device: \(self.deviceFunction.device) df: \(self.deviceFunction), pin: \(pin)")
+        #kprint("PCI: slot: \(slot) device: \(self.deviceFunction.device) df: \(self.deviceFunction), pin: \(pin)")
 
         while let parent = self.parentPCIDevice(device: bus), let bridge = parent.deviceFunction.deviceClass?.bridgeSubClass,
               bridge == .isa {   // FIXME, add , !bus.isRootBridge test
             pin = pin.swizzle(slot: slot)
             slot = parent.deviceFunction.slot
-            print("PCI: bus: \(bus), interruptPin: \(pin)")
+            #kprint("PCI: bus: \(bus), interruptPin: \(pin)")
             bus = parent.device
         }
 
-        print("PCI: final slot: \(slot), pin: \(pin)")
+        #kprint("PCI: final slot: \(slot), pin: \(pin)")
 
         guard let itr = bus.acpiDeviceConfig?.prt else {
             fatalError("PCI: \(bus) cant find an Interrupt Routing Table")
         }
 
         guard let entry = itr.findEntryByDevice(slot: slot, pin: pin) else {
-            print("PCI: \(self): Cant find interrupt routing table entry.")
+            #kprint("PCI: \(self): Cant find interrupt routing table entry.")
             return nil
         }
 
-        print("PCI: Found routing entry: \(entry)")
+        #kprint("PCI: Found routing entry: \(entry)")
 
         switch entry.source {
             case .namePath(let namePath, let sourceIndex):
-                print("PCI: NamePath: \(namePath)")
+                #kprint("PCI: NamePath: \(namePath)")
                 // FIXME, should have better way of walking up the tree
                 guard let (node, fullname) = itr.prtAcpiNode.topParent().getGlobalObject(currentScope: AMLNameString(itr.prtAcpiNode.fullname()), name: namePath) else {
-                    print("PCI: Cant find object for \(namePath) under \(itr.prtAcpiNode.fullname())")
+                    #kprint("PCI: Cant find object for \(namePath) under \(itr.prtAcpiNode.fullname())")
                     return nil
                 }
 
-                print("PCI: Link device: \(fullname), sourceIndex: \(sourceIndex), \(node)")
+                #kprint("PCI: Link device: \(fullname), sourceIndex: \(sourceIndex), \(node)")
                 guard let lnkDevice = node.device else {
-                    print("\(fullname) is not an AMLDefDevice")
+                    #kprint("\(fullname) is not an AMLDefDevice")
                     return nil
                 }
 
                 guard let deviceDriver = lnkDevice.deviceDriver as? PCIInterruptLinkDevice else {
-                    print("\(fullname) has no attached PCI InterruptLink device")
+                    #kprint("\(fullname) has no attached PCI InterruptLink device")
                     return nil
                 }
-                print("PCI: devNode: \(fullname) device: \(node.device as Any), LNK Device: \(device), irq:", deviceDriver.irq)
+                #kprint("PCI: devNode: \(fullname) device: \(node.device as Any), LNK Device: \(device), irq:", deviceDriver.irq)
                 return deviceDriver.irq
 
             case .globalSystemInterrupt(let gsi):
