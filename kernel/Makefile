@@ -7,12 +7,12 @@ SWIFT_MODULE := SwiftKernel
 SWIFT_OBJS := SwiftKernel.o
 SWIFT_SRCS := $(shell find `pwd` -name '*.swift' | grep -v version.swift) init/version.swift
 
-KSWIFTC_FLAGS := -gnone -O -Xcc -mno-red-zone -Xcc -mcmodel=kernel	\
+KSWIFTC_FLAGS := -gnone -O -Xcc -mno-red-zone -Xcc -mcmodel=kernel				\
+	-Xcc -Wall -Xcc -Wextra -Xcc -std=gnu11	-Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2	\
 	-parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -warnings-as-errors	\
-	-Xcc -Wall -Xcc -Wextra -Xcc -std=gnu11							\
 	-Xfrontend -warn-long-function-bodies=60000 -DKERNEL					\
 	-target x86_64-unknown-none-elf -Xcc -ffreestanding -Xfrontend -disable-stack-protector	\
-	-enable-experimental-feature Embedded -Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2 \
+	-enable-experimental-feature Embedded -Xfrontend -embedded-runtime-variant=kernel 	\
 
 all: kernel.o
 

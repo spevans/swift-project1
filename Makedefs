@@ -8,42 +8,34 @@ CWD=$(shell pwd)
 # The normal swift compiler
 SWIFT := swift
 
-# The path to the kernel-lib swift compiler
-KSWIFTDIR := /Users/spse/src/swift-project/build/Ninja-DebugAssert/swift-macosx-arm64
-#KSWIFTDIR := /Users/spse/Library/Developer/Toolchains/swift-DEVELOPMENT-SNAPSHOT-2024-11-09-a.xctoolchain/usr
-KSWIFT := $(KSWIFTDIR)/bin/swift
-KSWIFTC := $(KSWIFTDIR)/bin/swiftc
-KSWIFTLIBDIR := $(KSWIFTDIR)/lib/swift/embedded/x86_64-unknown-none-elf/
-KSWIFTLIBS := 
-
-CC := clang
-CFLAGS := -ggdb -Wall -std=gnu11 -Wextra -Werror -target x86_64-unknown-none-elf -ffreestanding -fno-stack-protector -fno-omit-frame-pointer -fno-common -mno-red-zone -mcmodel=kernel  -mno-mmx -mno-sse -mno-sse2 -I$(TOPDIR)/include
-
 ifeq ($(UNAME_S), Linux)
+    KSWIFTDIR := /usr
 	RUNNER=
 	CC=clang
-	LD=ld
-	OBJCOPY=objcopy
+	LD=x86_64-linux-gnu-ld
+	OBJCOPY=x86_64-linux-gnu-objcopy
+    PRINTF_MACROS := $(TOPDIR)/macros/Printf/.build/$(BUILD_ARCH)-unknown-linux-gnu/release/PrintfMacros-tool
  else
+    KSWIFTDIR := /Users/spse/src/swift-project/build/Ninja-Release/swift-macosx-arm64
 	RUNNER= #docker run --platform linux/amd64  --rm -v $(CWD):$(CWD) -w $(CWD) -t  swift-kstdlib
 	CC=clang
 	LD=x86_64-elf-ld
 	OBJCOPY=x86_64-elf-objcopy
+    PRINTF_MACROS := $(TOPDIR)/macros/Printf/.build/$(BUILD_ARCH)-apple-macosx/release/PrintfMacros-tool
 endif
 
-#ifndef USE_FP
-#	CFLAGS := $(CFLAGS) -mno-mmx -mno-sse -mno-sse2 -ffreestanding
-#	KSWIFTC_FLAGS := $(KSWIFTC_FLAGS) -Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2 -Xcc -ffreestanding -Xcc -mcmodel=kernel
-#endif
+# The path to the kernel-lib swift compiler
+KSWIFT := $(KSWIFTDIR)/bin/swift
+KSWIFTC := $(KSWIFTDIR)/bin/swiftc
+KSWIFTLIBDIR := $(KSWIFTDIR)/lib/swift/embedded/x86_64-unknown-none-elf-kernel/
+# See https://github.com/swiftlang/swift/issues/75678 for propper fix (when it is fixed!) for the Unicode Data Tables
+KSWIFTLIBS := $(KSWIFTDIR)/lib/swift/embedded/x86_64-unknown-none-elf-kernel/libswiftUnicodeDataTables.a
 
 
-ifdef BUILD_ONONE
-	KSWIFTC_FLAGS += -Onone
-	KSWIFTLIBS += $(KSWIFTLIBDIR)/libswiftSwiftOnoneSupport.a
-else
-	KSWIFTC_FLAGS +=-Osize -Xcc -O3
-	CFLAGS += -O3
-endif
+CC := clang
+CFLAGS := -ggdb -O3 -Wall -std=gnu11 -Wextra -Werror -target x86_64-unknown-none-elf -ffreestanding -fno-stack-protector -fno-omit-frame-pointer -fno-common -mno-red-zone -mcmodel=kernel  -mno-mmx -mno-sse -mno-sse2 -I$(TOPDIR)/include
+
+
 
 NASM_OBJ_FLAGS := -felf64
 

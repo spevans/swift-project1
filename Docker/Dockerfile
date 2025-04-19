@@ -1,5 +1,5 @@
 # Run using: docker build --tag=swift-kstdlib  .
-FROM --platform=linux/amd64 swift:5.10-focal
+FROM debian:12
 
 ARG KSTDLIB_VERSION=20190906
 ENV KSTDLIB_VERSION=$KSTDLIB_VERSION
@@ -8,15 +8,22 @@ ENV KSTDLIB_URL=https://github.com/spevans/swift-kstdlib/releases/download/v${KS
 RUN echo Building with kstdlib version ${KSTDLIB_VERSION}
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && apt-get -q update && \
     apt-get -q install -y \
-    nasm \
-    xorriso \
-    mtools \
-    dosfstools \
-    make \
-    curl \
-    libtinfo5 \
-    less \
-    git \
+    binutils              \
+    binutils-x86-64-linux-gnu \
+    libgcc-12-dev         \
+    libncurses-dev        \
+    libsqlite3-dev        \
+    libxml2-dev           \
+    file                  \
+    nasm                  \
+    xorriso               \
+    mtools                \
+    dosfstools            \
+    make                  \
+    curl                  \
+    libtinfo5             \
+    less                  \
+    git                   \
     && rm -r /var/lib/apt/lists/*
 
 
@@ -28,19 +35,10 @@ COPY * /tmp/
 
 WORKDIR /
 
-RUN echo Downloading ${KSTDLIB_URL} \
-    && curl -fSL ${KSTDLIB_URL} -o /tmp/kstdlib-${KSTDLIB_VERSION}.tgz \
-    && apt-get purge -y curl \
-    && apt-get -y autoremove
+#RUN echo Downloading ${KSTDLIB_URL} \
+#    && curl -fSL ${KSTDLIB_URL} -o /tmp/kstdlib-${KSTDLIB_VERSION}.tgz \
+#    && apt-get purge -y curl \
+#    && apt-get -y autoremove
 
+RUN tar zxvf /tmp/swift-*-linux.tar.gz --directory=/
 
-# Install any kstdlib.tgzs in /tmp
-
-RUN for tgz in `ls /tmp/*.tgz`;          \
-    do echo tgz: $tgz ;                  \
-       if [ -f $tgz ];                   \
-           then echo Installing $tgz ;   \
-           tar zxf $tgz --directory ~ ; \
-           rm -f $tgz                  ; \
-       fi;                               \
-    done

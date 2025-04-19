@@ -4,9 +4,7 @@ include $(TOPDIR)/Makedefs
 ALL_SOURCES := $(shell find boot klibc kernel include -name '*.swift' -o -name '*.asm' -o -name '*.[ch]')
 KERNEL_OBJS := kernel/kernel.o klibc/klibc.o
 SUBDIRS := boot kernel klibc
-# See https://github.com/swiftlang/swift/issues/75678 for propper fix (when it is fixed!) for the Unicode Data Tables
-#EXTRA_LIBS := $(KSWIFTLIBDIR)/libswiftUnicodeDataTables.a
-EXTRA_LIBS :=  /Users/spse/src/swift-project/build/Ninja-DebugAssert/swift-macosx-arm64/stdlib/public/stubs/Unicode/CMakeFiles/embedded-unicode-x86_64-unknown-none-elf.dir/*.o
+EXTRA_LIBS :=
 
 
 .PHONY: all iso clean kernel
