@@ -11,7 +11,6 @@
 #include "klibc.h"
 
 #define _UNISTD_H   // Avoid including all of unistd.h
-//#include <bits/confname.h>
 #include <elf.h>
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -110,83 +109,3 @@ abort()
         koops("abort() called");
 }
 
-#if false
-char *
-strerror(int errno)
-{
-        return "fatal error";
-}
-
-
-// Used when libswiftCore is compiled with debugging
-int
-isdigit(int c)
-{
-        return (c >= '0' && c <='9');
-}
-
-// The environment is used by the Swift Runtime to enable certain
-// debug features. Make it available for now.
-char *environ[] = { NULL };
-
-char *
-getenv(const char *name)
-{
-        return NULL;
-}
-
-
-// Unicode (libicu)
-UNIMPLEMENTED(u_strToLower_55)
-UNIMPLEMENTED(u_strToUpper_55)
-UNIMPLEMENTED(ucol_closeElements_55)
-UNIMPLEMENTED(ucol_next_55)
-UNIMPLEMENTED(ucol_openElements_55)
-UNIMPLEMENTED(ucol_open_55)
-UNIMPLEMENTED(ucol_setAttribute_55)
-UNIMPLEMENTED(ucol_strcollIter_55)
-UNIMPLEMENTED(ucol_strcoll_55)
-UNIMPLEMENTED(uiter_setString_55)
-UNIMPLEMENTED(uiter_setUTF8_55)
-UNIMPLEMENTED(ubrk_close_55)
-UNIMPLEMENTED(ubrk_open_55)
-UNIMPLEMENTED(ubrk_preceding_55)
-UNIMPLEMENTED(ubrk_following_55)
-UNIMPLEMENTED(ubrk_setText_55)
-UNIMPLEMENTED(unorm2_getNFCInstance_55)
-UNIMPLEMENTED(unorm2_spanQuickCheckYes_55)
-UNIMPLEMENTED(u_isdefined_55)
-UNIMPLEMENTED(unorm2_hasBoundaryBefore_55)
-UNIMPLEMENTED(unorm2_normalize_55)
-UNIMPLEMENTED(u_hasBinaryProperty_55)
-
-UNIMPLEMENTED(u_charAge_60)
-UNIMPLEMENTED(u_charName_60)
-UNIMPLEMENTED(u_hasBinaryProperty_60)
-UNIMPLEMENTED(u_isdefined_60)
-UNIMPLEMENTED(u_getIntPropertyValue_60)
-UNIMPLEMENTED(u_strToLower_60)
-UNIMPLEMENTED(u_strToTitle_60)
-UNIMPLEMENTED(u_strToUpper_60)
-UNIMPLEMENTED(ubrk_close_60)
-UNIMPLEMENTED(ubrk_following_60)
-UNIMPLEMENTED(ubrk_open_60)
-UNIMPLEMENTED(ubrk_preceding_60)
-UNIMPLEMENTED(ubrk_setText_60)
-UNIMPLEMENTED(ubrk_setUText_60)
-UNIMPLEMENTED(ucol_closeElements_60)
-UNIMPLEMENTED(ucol_next_60)
-UNIMPLEMENTED(ucol_openElements_60)
-UNIMPLEMENTED(ucol_open_60)
-UNIMPLEMENTED(ucol_setAttribute_60)
-UNIMPLEMENTED(ucol_strcollIter_60)
-UNIMPLEMENTED(ucol_strcoll_60)
-UNIMPLEMENTED(uiter_setString_60)
-UNIMPLEMENTED(uiter_setUTF8_60)
-UNIMPLEMENTED(unorm2_getNFCInstance_60)
-UNIMPLEMENTED(unorm2_hasBoundaryBefore_60)
-UNIMPLEMENTED(unorm2_normalize_60)
-UNIMPLEMENTED(unorm2_spanQuickCheckYes_60)
-UNIMPLEMENTED(utext_openUChars_60)
-UNIMPLEMENTED(utext_openUTF8_60)
-#endif
