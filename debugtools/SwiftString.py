@@ -68,7 +68,7 @@ class SwiftString:
 
     def objectaddress(self):
         if self.is_large():
-            return self.hi_word & 0x00ffffffffffffffff
+            return self.hi_word | 0xff00_0000_0000_0000
         else:
             return None
 
@@ -88,7 +88,6 @@ class SwiftString:
         else:
             return None
 
-
     def dump(self):
         print("HI: 0x%016x LO: 0x%016x" % (self.hi_word, self.lo_word))
         if self.is_small():
@@ -103,8 +102,9 @@ class SwiftString:
         if self.is_small():
             buffer = self.byte_buffer()
             print("Bytes:    [%s]" % ', '.join(map(str, buffer)))
-            print("String:   '%s'" % ''.join(map(chr, buffer)))
+            string = filter(lambda x: x != 0, buffer)
+            print("String:   '%s'" % ''.join(map(chr, string)))
         else:
             print("NFC:      %s" % self.is_nfc())
             print("Foreign:  %s" % self.is_foreign())
-            print("Address:  %016x" % self.objectaddress())
+            print("Address:  0x%016x" % self.objectaddress())
