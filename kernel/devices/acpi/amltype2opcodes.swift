@@ -14,10 +14,7 @@ private func AMLBoolean(_ bool: Bool) -> AMLObject {
 func operandAsInteger(operand: AMLTermArg,
                       context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLInteger {
     let o = try operand.evaluate(context: &context)
-    guard let result = o.integerValue else {
-        throw AMLError.invalidOperand(reason: "\(operand) does not evaluate to an integer")
-    }
-    return result
+    return try o.asInteger()
 }
 
 func operandAsString(operand: AMLTermArg,
@@ -35,9 +32,17 @@ func operandAsBuffer(operand: AMLTermArg,
     guard let result = o.bufferValue else {
         throw AMLError.invalidOperand(reason: "\(operand) does not evaluate to a buffer")
     }
-    return result
+    return result.asAMLBuffer()
 }
 
+func operandAsSharedBuffer(operand: AMLTermArg,
+                      context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLSharedBuffer {
+    let o = try operand.evaluate(context: &context)
+    guard let result = o.bufferValue else {
+        throw AMLError.invalidOperand(reason: "\(operand) does not evaluate to a buffer")
+    }
+    return result
+}
 
 enum AMLType2Opcode {
     // AcquireOp MutexObject Timeout
@@ -537,19 +542,19 @@ enum AMLType2Opcode {
             result = AMLObject(source1Data)
         }
         // Buffer
-        else if var source1Data = source1.bufferValue {
+        else if let source1Data = source1.bufferValue {
             if let source2Data = source2.bufferValue {
-                source1Data.append(contentsOf: source2Data)
+                source1Data.append(source2Data)
             }
             else if let source2Data = source2.integerValue {
-                source1Data.append(contentsOf: AMLBuffer(integer: source2Data))
+                source1Data.append(AMLBuffer(integer: source2Data))
             }
             else if let source2Data = source2.stringValue {
-                source1Data.append(contentsOf: source2Data.asAMLBuffer())
+                source1Data.append(source2Data.asAMLBuffer())
             }
             else {
                 let source2Data = asString(source2).asAMLBuffer()
-                source1Data.append(contentsOf: source2Data)
+                source1Data.append(source2Data)
             }
             result = AMLObject(source1Data)
         }
@@ -696,7 +701,7 @@ enum AMLType2Opcode {
             return try compareBuffers(buffer1: string.data, buffer2: data2.asString().data)
         }
         else if let buffer = data1.bufferValue {
-            return try compareBuffers(buffer1: buffer, buffer2: data2.asBuffer())
+            return try compareBuffers(buffer1: buffer.asAMLBuffer(), buffer2: data2.asBuffer())
         }
         throw AMLError.invalidData(reason: "\(data1.description)/\(data2.description) are not logical operands")
     }
@@ -884,7 +889,7 @@ private func loadDefinitionBlock(from block: AMLObject, context: inout ACPI.AMLE
 
     func getBuffer() throws(AMLError) -> AMLBuffer? {
         if let buffer = block.bufferValue {
-            return buffer
+            return buffer.asAMLBuffer()
         }
         if let opRegion = block.operationRegionValue {
             let regionSpace = try opRegion.getRegionSpace(context: &context)

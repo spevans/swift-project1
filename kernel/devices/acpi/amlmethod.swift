@@ -242,7 +242,7 @@ extension ACPI {
         guard let arg = context.args[0].stringValue else {
             throw AMLError.invalidData(reason: "_OSI: is not a string")
         }
-        if arg.asString() == "Darwin" {
+        if arg.asString() == "Linux" {
             return AMLObject(0xffffffff)
         } else {
             return AMLObject(0)

@@ -837,10 +837,10 @@ final class AMLParser {
         let name = try parseNameString()
 
         let closure = { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
-            let buffer = try operandAsBuffer(operand: sourceBuff, context: &context)
+            let sharedBuffer = try operandAsSharedBuffer(operand: sourceBuff, context: &context)
             let index = try operandAsInteger(operand: bitIndex, context: &context)
             let fullname = resolveNameTo(scope: context.scope, path: name)
-            let object = try AMLBufferField(buffer: AMLSharedBuffer(buffer), bitIndex: index, bitLength: 1)
+            let object = try AMLBufferField(buffer: sharedBuffer, bitIndex: index, bitLength: 1)
             let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(object))
             return [(fullname, node, nil)]
         }
@@ -854,10 +854,10 @@ final class AMLParser {
         let name = try parseNameString()
 
         let closure = { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
-            let buffer = try operandAsBuffer(operand: sourceBuff, context: &context)
+            let sharedBuffer = try operandAsSharedBuffer(operand: sourceBuff, context: &context)
             let index = try operandAsInteger(operand: byteIndex, context: &context)
             let fullname = resolveNameTo(scope: context.scope, path: name)
-            let object = try AMLBufferField(buffer: AMLSharedBuffer(buffer), byteIndex: index, bitLength: 8)
+            let object = try AMLBufferField(buffer: sharedBuffer, byteIndex: index, bitLength: 8)
             let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(object))
             return [(fullname, node, nil)]
         }
@@ -872,10 +872,10 @@ final class AMLParser {
         let name = try parseNameString()
 
         let closure = { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
-            let buffer = try operandAsBuffer(operand: sourceBuff, context: &context)
+            let sharedBuffer = try operandAsSharedBuffer(operand: sourceBuff, context: &context)
             let index = try operandAsInteger(operand: byteIndex, context: &context)
             let fullname = resolveNameTo(scope: context.scope, path: name)
-            let object = try AMLBufferField(buffer: AMLSharedBuffer(buffer), byteIndex: index, bitLength: 16)
+            let object = try AMLBufferField(buffer: sharedBuffer, byteIndex: index, bitLength: 16)
             let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(object))
             return [(fullname, node, nil)]
         }
@@ -890,10 +890,10 @@ final class AMLParser {
         let name = try parseNameString()
 
         let closure = { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
-            let buffer = try operandAsBuffer(operand: sourceBuff, context: &context)
+            let sharedBuffer = try operandAsSharedBuffer(operand: sourceBuff, context: &context)
             let index = try operandAsInteger(operand: byteIndex, context: &context)
             let fullname = resolveNameTo(scope: context.scope, path: name)
-            let object = try AMLBufferField(buffer: AMLSharedBuffer(buffer), byteIndex: index, bitLength: 32)
+            let object = try AMLBufferField(buffer: sharedBuffer, byteIndex: index, bitLength: 32)
             let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(object))
             return [(fullname, node, nil)]
         }
@@ -908,10 +908,10 @@ final class AMLParser {
         let name = try parseNameString()
 
         let closure = {  (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
-            let buffer = try operandAsBuffer(operand: sourceBuff, context: &context)
+            let sharedBuffer = try operandAsSharedBuffer(operand: sourceBuff, context: &context)
             let index = try operandAsInteger(operand: byteIndex, context: &context)
             let fullname = resolveNameTo(scope: context.scope, path: name)
-            let object = try AMLBufferField(buffer: AMLSharedBuffer(buffer), byteIndex: index, bitLength: 64)
+            let object = try AMLBufferField(buffer: sharedBuffer, byteIndex: index, bitLength: 64)
             let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(object))
             return [(fullname, node, nil)]
         }
@@ -927,11 +927,11 @@ final class AMLParser {
         let name       = try parseNameString()
 
         let closure = {  (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
-            let buffer = try operandAsBuffer(operand: sourceBuff, context: &context)
+            let sharedBuffer = try operandAsSharedBuffer(operand: sourceBuff, context: &context)
             let index = try operandAsInteger(operand: bitIndex, context: &context)
             let bitLength = try operandAsInteger(operand: numBits, context: &context)
             let fullname = resolveNameTo(scope: context.scope, path: name)
-            let object = try AMLBufferField(buffer: AMLSharedBuffer(buffer), bitIndex: index, bitLength: bitLength)
+            let object = try AMLBufferField(buffer: sharedBuffer, bitIndex: index, bitLength: bitLength)
             let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(object))
             return [(fullname, node, nil)]
         }

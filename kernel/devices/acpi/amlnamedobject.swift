@@ -115,7 +115,7 @@ extension ACPI.ACPIObjectNode {
         guard let buffer = crsValue.bufferValue else {
             fatalError("crsObject namedValue \(crsValue) is not a buffer")
         }
-        return decodeResourceData(buffer)
+        return decodeResourceData(buffer.asAMLBuffer())
     }
 
     func hardwareId() throws(AMLError) -> String? {
@@ -329,6 +329,7 @@ enum OpRegionSpace: CustomStringConvertible {
 
 
     func write(atIndex index: Int, value: AMLInteger, flags: AMLFieldFlags) {
+        #kprintf("OpRegionSpace.write(index: %d value: %X type: %s)\n", index, value, self.description)
         switch self {
         case let .systemMemory(region): return region.write(atIndex: index, value: value, flags: flags)
         case let .systemIO(region): return region.write(atIndex: index, value: value, flags: flags)
@@ -656,7 +657,7 @@ struct PCIConfigRegionSpace: CustomStringConvertible {
 
 
     func write(atIndex index: Int, value: AMLInteger, flags: AMLFieldFlags) {
-        //print("PCIConfigRegionSpace.write offset: \(offset) index: 0x\(String(index, radix: 16)) value: 0x\(String(value, radix: 16)) accesstype: \(flags.fieldAccessType)")
+        #kprint("PCIConfigRegionSpace.write offset: \(offset) index: 0x\(String(index, radix: 16)) value: 0x\(String(value, radix: 16)) accesstype: \(flags.fieldAccessType)")
         switch flags.fieldAccessType {
             case .AnyAcc, .ByteAcc:
                 config.writeConfigByte(atByteOffset: offset + UInt(index), value: UInt8(truncatingIfNeeded: value))

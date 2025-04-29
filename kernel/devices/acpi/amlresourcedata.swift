@@ -67,7 +67,7 @@ private enum AMLLargeItemName: UInt8 {
 }
 
 
-struct AMLIrqSetting: CustomStringConvertible {
+struct AMLIrqSetting: CustomStringConvertible, Equatable {
     let irqMask: BitArray16
     let levelTriggered: Bool
     let activeHigh: Bool

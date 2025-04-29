@@ -267,6 +267,31 @@ class ACPITests: XCTestCase {
         }
     }
 
+    func testMethod_resourceSetting() {
+        ACPITests.macbookACPI()
+        FakePhysMemory.addPhysicalMemory(start: PhysAddress(0xf00f8000), size: 0x1000)
+        do {
+            guard let lnka = ACPI.globalObjects.getObject("\\_SB.PCI0.LPCB.LNKA") else {
+                XCTFail("Cant find object LNKA")
+                return
+            }
+            guard let crs = try lnka.currentResourceSettings() else {
+                XCTFail("Cant read LNKA._CRS")
+                return
+            }
+            XCTAssertEqual(crs.count, 1)
+            if case let AMLResourceSetting.irqSetting(irq) = crs[0] {
+                let expected = AMLIrqSetting([0x01, 0x00, 0x18]) // 3 Byte, Level Triggered, IRQ0,
+                XCTAssertEqual(irq, expected)
+            } else {
+                XCTFail("\(crs[0]) is not an IRQ")
+            }
+        } catch {
+            XCTFail(String(describing: error))
+            return
+        }
+    }
+
     func testQEMU910Devices() {
         // Add some dummy external values
         let (_, allData) = createACPI(files: ["QEMU-9.1.0-DSDT.aml"])

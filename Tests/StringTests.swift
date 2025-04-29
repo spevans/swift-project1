@@ -21,20 +21,20 @@ class StringTests: XCTestCase {
     }
 
     func testSprintf() {
-        let output1 = String.sprintf("Test: %lx", 0x0123456789abcdef)
+        let output1 = #sprintf("Test: %lx", 0x0123456789abcdef)
         XCTAssertEqual("Test: 123456789abcdef", output1, "`lx' format specifier")
 
-        let output2 = String.sprintf("Test: %p", 0x1234567890abcdef)
+        let output2 = #sprintf("Test: %p", 0x1234567890abcdef)
         XCTAssertEqual("Test: 0x1234567890abcdef", output2, "`p' format specifier")
 
-        let output3 = String.sprintf("R8: %16lx", 0x0808080808080808)
+        let output3 = #sprintf("R8: %16lx", 0x0808080808080808)
         XCTAssertEqual("R8:  808080808080808", output3, "`16.16lx' 64bit number")
 
-        let output4 = String.sprintf("R8: %016lx", 0x0808080808080808)
+        let output4 = #sprintf("R8: %016lx", 0x0808080808080808)
         print(output4)
         XCTAssertEqual("R8: 0808080808080808", output4, "`016.16lx' 64bit number")
 
-        let output5 = String.sprintf("RAX: %#16.16lX", 0xaaaaaaaaaaaaaaaa as UInt64)
+        let output5 = #sprintf("RAX: %#16.16lX", 0xaaaaaaaaaaaaaaaa as UInt64)
         XCTAssertEqual("RAX: 0XAAAAAAAAAAAAAAAA", output5, "`#16.16lx' 64bit number hight bit set")
     }
 

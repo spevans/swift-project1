@@ -37,6 +37,7 @@
 		B933A7951F2FBA8700FE6846 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B933A7311F2F49C700FE6846 /* Extensions.swift */; };
 		B93620762326A4A0009A2215 /* Docker in Resources */ = {isa = PBXBuildFile; fileRef = B93620752326A4A0009A2215 /* Docker */; };
 		B9362EF024DD681000856B47 /* amlnamespacemodifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9362EEF24DD681000856B47 /* amlnamespacemodifier.swift */; };
+		B94D16112C270D0E0033B268 /* MMIOResourceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B94D16102C270D0E0033B268 /* MMIOResourceManager.swift */; };
 		B951B5A92CE68FAE009A3ED1 /* misc.swift in Sources */ = {isa = PBXBuildFile; fileRef = B951B5A82CE68FAE009A3ED1 /* misc.swift */; };
 		B9568C692548BA9B00C3F49B /* USBTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568C682548BA9B00C3F49B /* USBTests.swift */; };
 		B9568C7D2548C0A400C3F49B /* usb-configdescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9568C7A2548BDBC00C3F49B /* usb-configdescriptor.swift */; };
@@ -55,7 +56,7 @@
 		B98A0E8226679D96006898DF /* ISABus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF261FD818D000E6EFEB /* ISABus.swift */; };
 		B98DE1B1264D02280003775C /* IRQSetting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96D9CAA26411FB30079E5AD /* IRQSetting.swift */; };
 		B98DE1BA264D052F0003775C /* ACPIGenericAddressStructure.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96BBE4F262B5502009756A8 /* ACPIGenericAddressStructure.swift */; };
-		B9A41D5F2DBC1C630015175D /* kprint.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9A41D5E2DBC1C5F0015175D /* kprint.swift */; };
+		B99529142DC0D41E0072E280 /* TestKPrint.swift in Sources */ = {isa = PBXBuildFile; fileRef = B99529132DC0D41E0072E280 /* TestKPrint.swift */; };
 		B9AF69D61FBDEB8B0049CB98 /* ACPIReadWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9AF69D51FBDEB8B0049CB98 /* ACPIReadWriteTests.swift */; };
 		B9BDA42126542DBA00A2BCB4 /* PCITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9BDA42026542DBA00A2BCB4 /* PCITests.swift */; };
 		B9C2AF2B1FD84CB300E6EFEB /* KlibTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C2AF2A1FD84CB300E6EFEB /* KlibTests.swift */; };
@@ -69,9 +70,9 @@
 		B9C9A89127C289BA003746EF /* PCIInterruptLinkDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C9A88427C2893E003746EF /* PCIInterruptLinkDevice.swift */; };
 		B9C9A89227C289BA003746EF /* PCIRoutingTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C9A88527C2893E003746EF /* PCIRoutingTable.swift */; };
 		B9D2AC14266E52B8002DA8DD /* PNPDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = B981795B266E329D0043D38C /* PNPDevice.swift */; };
+		B9D826172D7A657500180046 /* PrintfInternal.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D826162D7A657500180046 /* PrintfInternal.swift */; };
 		B9D9E7492DBF7C4400CC1E2C /* AMLObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D9E7482DBF7C4400CC1E2C /* AMLObject.swift */; };
 		B9D9E74B2DBF7C5B00CC1E2C /* AMLFieldSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D9E74A2DBF7C5B00CC1E2C /* AMLFieldSettings.swift */; };
-		B9D826172D7A657500180046 /* PrintfInternal.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9D826162D7A657500180046 /* PrintfInternal.swift */; };
 		B9DEE4F42323BA960010F7A0 /* lldb-cmds in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F32323BA960010F7A0 /* lldb-cmds */; };
 		B9DEE4F92323BBC40010F7A0 /* bochsrc in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F52323BBC30010F7A0 /* bochsrc */; };
 		B9DEE4FA2323BBC40010F7A0 /* gdb-cmds in Resources */ = {isa = PBXBuildFile; fileRef = B9DEE4F62323BBC30010F7A0 /* gdb-cmds */; };
@@ -91,55 +92,6 @@
 		B9EF91261FC9D6EA00D14A2F /* amlnamedobject.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */; };
 		B9F22F892325009300A6C92B /* NOTES in Resources */ = {isa = PBXBuildFile; fileRef = B9F22F872325009300A6C92B /* NOTES */; };
 		B9F3DADC262188A900971474 /* MemoryRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9F3DAD72621887100971474 /* MemoryRegion.swift */; };
-		B9F5D2CE24C1F58D00A6114C /* vmware11-wsmt.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BA24C1F58C00A6114C /* vmware11-wsmt.aml */; };
-		B9F5D2CF24C1F58D00A6114C /* vmware11-hpet.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BB24C1F58C00A6114C /* vmware11-hpet.dsl */; };
-		B9F5D2D024C1F58D00A6114C /* vmware11-mcfg.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BC24C1F58D00A6114C /* vmware11-mcfg.aml */; };
-		B9F5D2D124C1F58D00A6114C /* vmware11-srat.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BD24C1F58D00A6114C /* vmware11-srat.dsl */; };
-		B9F5D2D224C1F58D00A6114C /* vmware11-hpet.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BE24C1F58D00A6114C /* vmware11-hpet.aml */; };
-		B9F5D2D324C1F58D00A6114C /* vmware11-wsmt.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2BF24C1F58D00A6114C /* vmware11-wsmt.dsl */; };
-		B9F5D2D424C1F58D00A6114C /* vmware11-waet.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C024C1F58D00A6114C /* vmware11-waet.aml */; };
-		B9F5D2D524C1F58D00A6114C /* vmware11-mcfg.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C124C1F58D00A6114C /* vmware11-mcfg.dsl */; };
-		B9F5D2D624C1F58D00A6114C /* vmware11-srat.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C224C1F58D00A6114C /* vmware11-srat.aml */; };
-		B9F5D2D724C1F58D00A6114C /* vmware11-dmar.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C324C1F58D00A6114C /* vmware11-dmar.dsl */; };
-		B9F5D2D824C1F58D00A6114C /* vmware11-apic.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C424C1F58D00A6114C /* vmware11-apic.aml */; };
-		B9F5D2D924C1F58D00A6114C /* vmware11-dmar.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C524C1F58D00A6114C /* vmware11-dmar.aml */; };
-		B9F5D2DA24C1F58D00A6114C /* vmware11-facs.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C624C1F58D00A6114C /* vmware11-facs.aml */; };
-		B9F5D2DB24C1F58D00A6114C /* vmware11-waet.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C724C1F58D00A6114C /* vmware11-waet.dsl */; };
-		B9F5D2DC24C1F58D00A6114C /* vmware11-dsdt.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C824C1F58D00A6114C /* vmware11-dsdt.aml */; };
-		B9F5D2DD24C1F58D00A6114C /* vmware11-facp.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2C924C1F58D00A6114C /* vmware11-facp.dsl */; };
-		B9F5D2DE24C1F58D00A6114C /* vmware11-apic.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2CA24C1F58D00A6114C /* vmware11-apic.dsl */; };
-		B9F5D2DF24C1F58D00A6114C /* vmware11-facp.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2CB24C1F58D00A6114C /* vmware11-facp.aml */; };
-		B9F5D2E024C1F58D00A6114C /* vmware11-facs.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2CC24C1F58D00A6114C /* vmware11-facs.dsl */; };
-		B9F5D2E124C1F58D00A6114C /* vmware11-dsdt.dsl in Resources */ = {isa = PBXBuildFile; fileRef = B9F5D2CD24C1F58D00A6114C /* vmware11-dsdt.dsl */; };
-		B9F831F71F38BD20009F24AE /* vmware-APIC.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831951F38BC34009F24AE /* vmware-APIC.aml */; };
-		B9F831F91F38BD20009F24AE /* vmware-BOOT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831911F38BC34009F24AE /* vmware-BOOT.aml */; };
-		B9F831FB1F38BD20009F24AE /* vmware-DSDT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831851F38BC33009F24AE /* vmware-DSDT.aml */; };
-		B9F831FD1F38BD20009F24AE /* vmware-FACP.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F8318F1F38BC34009F24AE /* vmware-FACP.aml */; };
-		B9F831FF1F38BD20009F24AE /* vmware-FACS1.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F8318D1F38BC34009F24AE /* vmware-FACS1.aml */; };
-		B9F832011F38BD20009F24AE /* vmware-FACS2.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831861F38BC33009F24AE /* vmware-FACS2.aml */; };
-		B9F832031F38BD20009F24AE /* vmware-HPET.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831831F38BC33009F24AE /* vmware-HPET.aml */; };
-		B9F832051F38BD20009F24AE /* vmware-MCFG.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831901F38BC34009F24AE /* vmware-MCFG.aml */; };
-		B9F832071F38BD20009F24AE /* vmware-SRAT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831891F38BC34009F24AE /* vmware-SRAT.aml */; };
-		B9F832091F38BD20009F24AE /* vmware-WAET.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831881F38BC34009F24AE /* vmware-WAET.aml */; };
-		B9F8320B1F38BD20009F24AE /* macbook31-APIC.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831C31F38BC43009F24AE /* macbook31-APIC.aml */; };
-		B9F8320D1F38BD20009F24AE /* macbook31-ASF!.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831C51F38BC43009F24AE /* macbook31-ASF!.aml */; };
-		B9F8320F1F38BD20009F24AE /* macbook31-DSDT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831C01F38BC43009F24AE /* macbook31-DSDT.aml */; };
-		B9F832111F38BD20009F24AE /* macbook31-ECDT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831AF1F38BC43009F24AE /* macbook31-ECDT.aml */; };
-		B9F832131F38BD20009F24AE /* macbook31-FACP.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831B21F38BC43009F24AE /* macbook31-FACP.aml */; };
-		B9F832151F38BD20009F24AE /* macbook31-FACS1.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831B11F38BC43009F24AE /* macbook31-FACS1.aml */; };
-		B9F832171F38BD20009F24AE /* macbook31-FACS2.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831BD1F38BC43009F24AE /* macbook31-FACS2.aml */; };
-		B9F832191F38BD20009F24AE /* macbook31-HPET.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831B51F38BC43009F24AE /* macbook31-HPET.aml */; };
-		B9F8321B1F38BD20009F24AE /* macbook31-MCFG.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831BB1F38BC43009F24AE /* macbook31-MCFG.aml */; };
-		B9F8321D1F38BD20009F24AE /* macbook31-SBST.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831B01F38BC43009F24AE /* macbook31-SBST.aml */; };
-		B9F8321F1F38BD20009F24AE /* macbook31-SSDT1.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831B31F38BC43009F24AE /* macbook31-SSDT1.aml */; };
-		B9F832211F38BD20009F24AE /* macbook31-SSDT2.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831BC1F38BC43009F24AE /* macbook31-SSDT2.aml */; };
-		B9F832231F38BD20009F24AE /* macbook31-SSDT3.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831CD1F38BC43009F24AE /* macbook31-SSDT3.aml */; };
-		B9F832251F38BD20009F24AE /* macbook31-SSDT4.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831C21F38BC43009F24AE /* macbook31-SSDT4.aml */; };
-		B9F832271F38BD20009F24AE /* macbook31-SSDT5.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831AC1F38BC43009F24AE /* macbook31-SSDT5.aml */; };
-		B9F832291F38BD20009F24AE /* macbook31-SSDT6.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831AA1F38BC43009F24AE /* macbook31-SSDT6.aml */; };
-		B9F8322B1F38BD20009F24AE /* macbook31-SSDT7.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831C61F38BC43009F24AE /* macbook31-SSDT7.aml */; };
-		B9F8322D1F38BD20009F24AE /* macbook31-SSDT8.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831B81F38BC43009F24AE /* macbook31-SSDT8.aml */; };
-		B9F8322F1F38BD20009F24AE /* QEMU-DSDT.aml in Resources */ = {isa = PBXBuildFile; fileRef = B9F831F31F38BC4B009F24AE /* QEMU-DSDT.aml */; };
 		B9FB56EF2778C7E30012198D /* PageSize.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9FB56EE2778C7E30012198D /* PageSize.swift */; };
 /* End PBXBuildFile section */
 
@@ -214,6 +166,8 @@
 		B933A7781F2F8D6A00FE6846 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B93620752326A4A0009A2215 /* Docker */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Docker; sourceTree = "<group>"; };
 		B9362EEF24DD681000856B47 /* amlnamespacemodifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amlnamespacemodifier.swift; sourceTree = "<group>"; };
+		B94D160F2C1F98310033B268 /* mapping.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = mapping.swift; sourceTree = "<group>"; };
+		B94D16102C270D0E0033B268 /* MMIOResourceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MMIOResourceManager.swift; sourceTree = "<group>"; };
 		B951B5A82CE68FAE009A3ED1 /* misc.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = misc.swift; sourceTree = "<group>"; };
 		B9568C682548BA9B00C3F49B /* USBTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBTests.swift; sourceTree = "<group>"; };
 		B9568C6F2548BDA500C3F49B /* hcd-ehci.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "hcd-ehci.swift"; sourceTree = "<group>"; };
@@ -257,6 +211,7 @@
 		B98253C82D9025D000902DA9 /* build.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build.sh; sourceTree = "<group>"; };
 		B98253C92D902FCF00902DA9 /* Printf.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Printf.xctestplan; sourceTree = "<group>"; };
 		B982B6D72D84968D00902DA9 /* mtrr.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = mtrr.swift; sourceTree = "<group>"; };
+		B99529132DC0D41E0072E280 /* TestKPrint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestKPrint.swift; sourceTree = "<group>"; };
 		B9A2C1B01F30ECF9003D4D92 /* TODO */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = TODO; sourceTree = "<group>"; };
 		B9A2C1B11F30ECF9003D4D92 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		B9A2C1B31F30EEC7003D4D92 /* boot */ = {isa = PBXFileReference; lastKnownFileType = folder; path = boot; sourceTree = "<group>"; };
@@ -288,9 +243,9 @@
 		B9C9A88827C2893E003746EF /* PCIDeviceFunction.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PCIDeviceFunction.swift; sourceTree = "<group>"; };
 		B9CB7297255901A000A6C3C8 /* usb-hid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "usb-hid.swift"; sourceTree = "<group>"; };
 		B9CB729C255F5A6700A6C3C8 /* uhci-transferdescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "uhci-transferdescriptor.swift"; sourceTree = "<group>"; };
+		B9D826162D7A657500180046 /* PrintfInternal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintfInternal.swift; sourceTree = "<group>"; };
 		B9D9E7482DBF7C4400CC1E2C /* AMLObject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AMLObject.swift; sourceTree = "<group>"; };
 		B9D9E74A2DBF7C5B00CC1E2C /* AMLFieldSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AMLFieldSettings.swift; sourceTree = "<group>"; };
-		B9D826162D7A657500180046 /* PrintfInternal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintfInternal.swift; sourceTree = "<group>"; };
 		B9DEE4F32323BA960010F7A0 /* lldb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "lldb-cmds"; sourceTree = "<group>"; };
 		B9DEE4F52323BBC30010F7A0 /* bochsrc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = bochsrc; sourceTree = "<group>"; };
 		B9DEE4F62323BBC30010F7A0 /* gdb-cmds */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "gdb-cmds"; sourceTree = "<group>"; };
@@ -310,86 +265,84 @@
 		B9EF91241FC9D6EA00D14A2F /* amlnamedobject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = amlnamedobject.swift; sourceTree = "<group>"; };
 		B9F22F872325009300A6C92B /* NOTES */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = NOTES; sourceTree = "<group>"; };
 		B9F3DAD72621887100971474 /* MemoryRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryRegion.swift; sourceTree = "<group>"; };
-		B9F5D2BA24C1F58C00A6114C /* vmware11-wsmt.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-wsmt.aml"; sourceTree = "<group>"; };
-		B9F5D2BB24C1F58C00A6114C /* vmware11-hpet.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-hpet.dsl"; sourceTree = "<group>"; };
-		B9F5D2BC24C1F58D00A6114C /* vmware11-mcfg.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-mcfg.aml"; sourceTree = "<group>"; };
-		B9F5D2BD24C1F58D00A6114C /* vmware11-srat.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-srat.dsl"; sourceTree = "<group>"; };
-		B9F5D2BE24C1F58D00A6114C /* vmware11-hpet.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-hpet.aml"; sourceTree = "<group>"; };
-		B9F5D2BF24C1F58D00A6114C /* vmware11-wsmt.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-wsmt.dsl"; sourceTree = "<group>"; };
-		B9F5D2C024C1F58D00A6114C /* vmware11-waet.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-waet.aml"; sourceTree = "<group>"; };
-		B9F5D2C124C1F58D00A6114C /* vmware11-mcfg.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-mcfg.dsl"; sourceTree = "<group>"; };
-		B9F5D2C224C1F58D00A6114C /* vmware11-srat.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-srat.aml"; sourceTree = "<group>"; };
-		B9F5D2C324C1F58D00A6114C /* vmware11-dmar.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-dmar.dsl"; sourceTree = "<group>"; };
-		B9F5D2C424C1F58D00A6114C /* vmware11-apic.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-apic.aml"; sourceTree = "<group>"; };
-		B9F5D2C524C1F58D00A6114C /* vmware11-dmar.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-dmar.aml"; sourceTree = "<group>"; };
-		B9F5D2C624C1F58D00A6114C /* vmware11-facs.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-facs.aml"; sourceTree = "<group>"; };
-		B9F5D2C724C1F58D00A6114C /* vmware11-waet.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-waet.dsl"; sourceTree = "<group>"; };
-		B9F5D2C824C1F58D00A6114C /* vmware11-dsdt.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-dsdt.aml"; sourceTree = "<group>"; };
-		B9F5D2C924C1F58D00A6114C /* vmware11-facp.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-facp.dsl"; sourceTree = "<group>"; };
-		B9F5D2CA24C1F58D00A6114C /* vmware11-apic.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-apic.dsl"; sourceTree = "<group>"; };
-		B9F5D2CB24C1F58D00A6114C /* vmware11-facp.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware11-facp.aml"; sourceTree = "<group>"; };
-		B9F5D2CC24C1F58D00A6114C /* vmware11-facs.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-facs.dsl"; sourceTree = "<group>"; };
-		B9F5D2CD24C1F58D00A6114C /* vmware11-dsdt.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware11-dsdt.dsl"; sourceTree = "<group>"; };
-		B9F831821F38BC33009F24AE /* vmware-SRAT.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware-SRAT.dsl"; sourceTree = "<group>"; };
-		B9F831831F38BC33009F24AE /* vmware-HPET.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware-HPET.aml"; sourceTree = "<group>"; };
-		B9F831841F38BC33009F24AE /* vmware-WAET.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware-WAET.dsl"; sourceTree = "<group>"; };
-		B9F831851F38BC33009F24AE /* vmware-DSDT.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware-DSDT.aml"; sourceTree = "<group>"; };
-		B9F831861F38BC33009F24AE /* vmware-FACS2.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware-FACS2.aml"; sourceTree = "<group>"; };
-		B9F831871F38BC34009F24AE /* vmware-DSDT.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware-DSDT.dsl"; sourceTree = "<group>"; };
-		B9F831881F38BC34009F24AE /* vmware-WAET.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware-WAET.aml"; sourceTree = "<group>"; };
-		B9F831891F38BC34009F24AE /* vmware-SRAT.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware-SRAT.aml"; sourceTree = "<group>"; };
-		B9F8318A1F38BC34009F24AE /* vmware-FACS2.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware-FACS2.dsl"; sourceTree = "<group>"; };
-		B9F8318B1F38BC34009F24AE /* vmware-MCFG.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware-MCFG.dsl"; sourceTree = "<group>"; };
-		B9F8318C1F38BC34009F24AE /* vmware-FACS1.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware-FACS1.dsl"; sourceTree = "<group>"; };
-		B9F8318D1F38BC34009F24AE /* vmware-FACS1.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware-FACS1.aml"; sourceTree = "<group>"; };
-		B9F8318E1F38BC34009F24AE /* vmware-FACP.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware-FACP.dsl"; sourceTree = "<group>"; };
-		B9F8318F1F38BC34009F24AE /* vmware-FACP.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware-FACP.aml"; sourceTree = "<group>"; };
-		B9F831901F38BC34009F24AE /* vmware-MCFG.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware-MCFG.aml"; sourceTree = "<group>"; };
-		B9F831911F38BC34009F24AE /* vmware-BOOT.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware-BOOT.aml"; sourceTree = "<group>"; };
-		B9F831921F38BC34009F24AE /* vmware-BOOT.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware-BOOT.dsl"; sourceTree = "<group>"; };
-		B9F831931F38BC34009F24AE /* vmware-HPET.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware-HPET.dsl"; sourceTree = "<group>"; };
-		B9F831941F38BC34009F24AE /* vmware-APIC.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "vmware-APIC.dsl"; sourceTree = "<group>"; };
-		B9F831951F38BC34009F24AE /* vmware-APIC.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "vmware-APIC.aml"; sourceTree = "<group>"; };
-		B9F831AA1F38BC43009F24AE /* macbook31-SSDT6.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-SSDT6.aml"; sourceTree = "<group>"; };
-		B9F831AB1F38BC43009F24AE /* macbook31-APIC.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-APIC.dsl"; sourceTree = "<group>"; };
-		B9F831AC1F38BC43009F24AE /* macbook31-SSDT5.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-SSDT5.aml"; sourceTree = "<group>"; };
-		B9F831AD1F38BC43009F24AE /* macbook31-SSDT8.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-SSDT8.dsl"; sourceTree = "<group>"; };
-		B9F831AE1F38BC43009F24AE /* macbook31-FACS2.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-FACS2.dsl"; sourceTree = "<group>"; };
-		B9F831AF1F38BC43009F24AE /* macbook31-ECDT.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-ECDT.aml"; sourceTree = "<group>"; };
-		B9F831B01F38BC43009F24AE /* macbook31-SBST.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-SBST.aml"; sourceTree = "<group>"; };
-		B9F831B11F38BC43009F24AE /* macbook31-FACS1.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-FACS1.aml"; sourceTree = "<group>"; };
-		B9F831B21F38BC43009F24AE /* macbook31-FACP.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-FACP.aml"; sourceTree = "<group>"; };
-		B9F831B31F38BC43009F24AE /* macbook31-SSDT1.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-SSDT1.aml"; sourceTree = "<group>"; };
-		B9F831B41F38BC43009F24AE /* macbook31-FACS1.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-FACS1.dsl"; sourceTree = "<group>"; };
-		B9F831B51F38BC43009F24AE /* macbook31-HPET.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-HPET.aml"; sourceTree = "<group>"; };
-		B9F831B61F38BC43009F24AE /* macbook31-SSDT3.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-SSDT3.dsl"; sourceTree = "<group>"; };
-		B9F831B71F38BC43009F24AE /* macbook31-SSDT5.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-SSDT5.dsl"; sourceTree = "<group>"; };
-		B9F831B81F38BC43009F24AE /* macbook31-SSDT8.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-SSDT8.aml"; sourceTree = "<group>"; };
-		B9F831B91F38BC43009F24AE /* macbook31-SSDT4.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-SSDT4.dsl"; sourceTree = "<group>"; };
-		B9F831BA1F38BC43009F24AE /* macbook31-SSDT6.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-SSDT6.dsl"; sourceTree = "<group>"; };
-		B9F831BB1F38BC43009F24AE /* macbook31-MCFG.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-MCFG.aml"; sourceTree = "<group>"; };
-		B9F831BC1F38BC43009F24AE /* macbook31-SSDT2.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-SSDT2.aml"; sourceTree = "<group>"; };
-		B9F831BD1F38BC43009F24AE /* macbook31-FACS2.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-FACS2.aml"; sourceTree = "<group>"; };
-		B9F831BE1F38BC43009F24AE /* macbook31-SBST.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-SBST.dsl"; sourceTree = "<group>"; };
-		B9F831BF1F38BC43009F24AE /* macbook31-ASF!.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-ASF!.dsl"; sourceTree = "<group>"; };
-		B9F831C01F38BC43009F24AE /* macbook31-DSDT.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-DSDT.aml"; sourceTree = "<group>"; };
-		B9F831C11F38BC43009F24AE /* macbook31-SSDT1.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-SSDT1.dsl"; sourceTree = "<group>"; };
-		B9F831C21F38BC43009F24AE /* macbook31-SSDT4.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-SSDT4.aml"; sourceTree = "<group>"; };
-		B9F831C31F38BC43009F24AE /* macbook31-APIC.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-APIC.aml"; sourceTree = "<group>"; };
-		B9F831C41F38BC43009F24AE /* macbook31-ECDT.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-ECDT.dsl"; sourceTree = "<group>"; };
-		B9F831C51F38BC43009F24AE /* macbook31-ASF!.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-ASF!.aml"; sourceTree = "<group>"; };
-		B9F831C61F38BC43009F24AE /* macbook31-SSDT7.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-SSDT7.aml"; sourceTree = "<group>"; };
-		B9F831C71F38BC43009F24AE /* macbook31-SSDT2.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-SSDT2.dsl"; sourceTree = "<group>"; };
-		B9F831C81F38BC43009F24AE /* macbook31-HPET.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-HPET.dsl"; sourceTree = "<group>"; };
-		B9F831C91F38BC43009F24AE /* macbook31-DSDT.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-DSDT.dsl"; sourceTree = "<group>"; };
-		B9F831CA1F38BC43009F24AE /* macbook31-MCFG.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-MCFG.dsl"; sourceTree = "<group>"; };
-		B9F831CB1F38BC43009F24AE /* macbook31-SSDT7.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-SSDT7.dsl"; sourceTree = "<group>"; };
-		B9F831CC1F38BC43009F24AE /* macbook31-FACP.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "macbook31-FACP.dsl"; sourceTree = "<group>"; };
-		B9F831CD1F38BC43009F24AE /* macbook31-SSDT3.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "macbook31-SSDT3.aml"; sourceTree = "<group>"; };
-		B9F831F21F38BC4B009F24AE /* QEMU-DSDT.dsl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "QEMU-DSDT.dsl"; sourceTree = "<group>"; };
-		B9F831F31F38BC4B009F24AE /* QEMU-DSDT.aml */ = {isa = PBXFileReference; lastKnownFileType = file; path = "QEMU-DSDT.aml"; sourceTree = "<group>"; };
 		B9FB56EE2778C7E30012198D /* PageSize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageSize.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		B99529122DC0C3870072E280 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"QEMU-9.1.0-DSDT.dsl",
+			);
+			target = B933A7731F2F8D6A00FE6846 /* tests */;
+		};
+		B9F691782D0E3A4F00AFFABF /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"QEMU-DSDT.aml",
+			);
+			target = B933A7731F2F8D6A00FE6846 /* tests */;
+		};
+		B9F691B02D0E3A5200AFFABF /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"macbook31-APIC.aml",
+				"macbook31-ASF!.aml",
+				"macbook31-DSDT.aml",
+				"macbook31-ECDT.aml",
+				"macbook31-FACP.aml",
+				"macbook31-FACS1.aml",
+				"macbook31-FACS2.aml",
+				"macbook31-HPET.aml",
+				"macbook31-MCFG.aml",
+				"macbook31-SBST.aml",
+				"macbook31-SSDT1.aml",
+				"macbook31-SSDT2.aml",
+				"macbook31-SSDT3.aml",
+				"macbook31-SSDT4.aml",
+				"macbook31-SSDT5.aml",
+				"macbook31-SSDT6.aml",
+				"macbook31-SSDT7.aml",
+				"macbook31-SSDT8.aml",
+			);
+			target = B933A7731F2F8D6A00FE6846 /* tests */;
+		};
+		B9F691D02D0E3A5500AFFABF /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"vmware-APIC.aml",
+				"vmware-BOOT.aml",
+				"vmware-DSDT.aml",
+				"vmware-FACP.aml",
+				"vmware-FACS1.aml",
+				"vmware-FACS2.aml",
+				"vmware-HPET.aml",
+				"vmware-MCFG.aml",
+				"vmware-SRAT.aml",
+				"vmware-WAET.aml",
+			);
+			target = B933A7731F2F8D6A00FE6846 /* tests */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		B9F6923B2D0F893800AFFABF /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = B933A7721F2F8D6A00FE6846 /* Resources */;
+			membershipExceptions = (
+				Makefile,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		B995290F2DC0C37D0072E280 /* qemu-9.1.0 */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (B99529122DC0C3870072E280 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = "qemu-9.1.0"; sourceTree = "<group>"; };
+		B9F6916E2D0E3A3B00AFFABF /* uacpi_tests */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (B9F6923B2D0F893800AFFABF /* PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = uacpi_tests; sourceTree = "<group>"; };
+		B9F691762D0E3A4F00AFFABF /* qemu */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (B9F691782D0E3A4F00AFFABF /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = qemu; sourceTree = "<group>"; };
+		B9F6919D2D0E3A5200AFFABF /* macbook31 */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (B9F691B02D0E3A5200AFFABF /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = macbook31; sourceTree = "<group>"; };
+		B9F691C52D0E3A5500AFFABF /* vmware */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (B9F691D02D0E3A5500AFFABF /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = vmware; sourceTree = "<group>"; };
+		B9F691E52D0E3A5700AFFABF /* vmware11 */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = vmware11; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		B933A7711F2F8D6A00FE6846 /* Frameworks */ = {
@@ -628,15 +581,6 @@
 			path = pci;
 			sourceTree = "<group>";
 		};
-		B9E88C322CEB5D8800F3F251 /* qemu-9.1.0 */ = {
-			isa = PBXGroup;
-			children = (
-				B9E88C342CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.aml */,
-				B9E88C332CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.dsl */,
-			);
-			name = "qemu-9.1.0";
-			sourceTree = "<group>";
-		};
 		B9EE70401D3D536B006B6AB7 = {
 			isa = PBXGroup;
 			children = (
@@ -671,6 +615,7 @@
 		B9EE704B1D3D536B006B6AB7 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				B99529132DC0D41E0072E280 /* TestKPrint.swift */,
 				B9E8F41827940FF3008F3C33 /* PageSizeTests.swift */,
 				B9E8F41427935C47008F3C33 /* PhysPageRangeTests.swift */,
 				B9E8F41027935B7A008F3C33 /* MemoryRangeTests.swift */,
@@ -925,28 +870,6 @@
 				B9F8321D1F38BD20009F24AE /* macbook31-SBST.aml in Resources */,
 				B9F5D2D724C1F58D00A6114C /* vmware11-dmar.dsl in Resources */,
 				B9DEE4F92323BBC40010F7A0 /* bochsrc in Resources */,
-				B9F5D2D124C1F58D00A6114C /* vmware11-srat.dsl in Resources */,
-				B9F5D2DE24C1F58D00A6114C /* vmware11-apic.dsl in Resources */,
-				B9F8321F1F38BD20009F24AE /* macbook31-SSDT1.aml in Resources */,
-				B9E88C352CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.dsl in Resources */,
-				B9F5D2D424C1F58D00A6114C /* vmware11-waet.aml in Resources */,
-				B9F5D2E124C1F58D00A6114C /* vmware11-dsdt.dsl in Resources */,
-				B9F832211F38BD20009F24AE /* macbook31-SSDT2.aml in Resources */,
-				B9F5D2D024C1F58D00A6114C /* vmware11-mcfg.aml in Resources */,
-				B9F5D2D924C1F58D00A6114C /* vmware11-dmar.aml in Resources */,
-				B9F832231F38BD20009F24AE /* macbook31-SSDT3.aml in Resources */,
-				B9F832251F38BD20009F24AE /* macbook31-SSDT4.aml in Resources */,
-				B9F5D2D524C1F58D00A6114C /* vmware11-mcfg.dsl in Resources */,
-				B9F832271F38BD20009F24AE /* macbook31-SSDT5.aml in Resources */,
-				B9F832291F38BD20009F24AE /* macbook31-SSDT6.aml in Resources */,
-				B9F5D2D824C1F58D00A6114C /* vmware11-apic.aml in Resources */,
-				B9F8322B1F38BD20009F24AE /* macbook31-SSDT7.aml in Resources */,
-				B9F5D2D224C1F58D00A6114C /* vmware11-hpet.aml in Resources */,
-				B9F8322D1F38BD20009F24AE /* macbook31-SSDT8.aml in Resources */,
-				B9F5D2DA24C1F58D00A6114C /* vmware11-facs.aml in Resources */,
-				B9F5D2D324C1F58D00A6114C /* vmware11-wsmt.dsl in Resources */,
-				B9F8322F1F38BD20009F24AE /* QEMU-DSDT.aml in Resources */,
-				B9E88C362CEB5DA000F3F251 /* QEMU-9.1.0-DSDT.aml in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1025,6 +948,7 @@
 				B9D826172D7A657500180046 /* PrintfInternal.swift in Sources */,
 				B933A7811F2F8F1100FE6846 /* amltypes.swift in Sources */,
 				B93092BF1F31B06900870D1F /* StringTests.swift in Sources */,
+				B99529142DC0D41E0072E280 /* TestKPrint.swift in Sources */,
 				B9AF69D61FBDEB8B0049CB98 /* ACPIReadWriteTests.swift in Sources */,
 				B933A7821F2F8F1100FE6846 /* amlutils.swift in Sources */,
 				B933A7831F2F8F1100FE6846 /* boot.swift in Sources */,
@@ -1046,7 +970,6 @@
 				B933A7921F2F8F2100FE6846 /* MemoryBufferReader.swift in Sources */,
 				B9E8F41127935B7A008F3C33 /* MemoryRangeTests.swift in Sources */,
 				B93092C01F31B0FF00870D1F /* printf.swift in Sources */,
-				B9A41D5F2DBC1C630015175D /* kprint.swift in Sources */,
 				B9035F552D46B5A1006C8B00 /* AMLFieldSettings.swift in Sources */,
 				B9C2AF2B1FD84CB300E6EFEB /* KlibTests.swift in Sources */,
 				B933A78D1F2F8F2100FE6846 /* bitarray.swift in Sources */,

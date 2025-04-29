@@ -1,3 +1,4 @@
+#if !TEST
 public func fatalError(
   _ message: @autoclosure () -> String,
   file: StaticString = #file, line: UInt = #line
@@ -6,6 +7,7 @@ public func fatalError(
     #kprintf("%s:%u:%s\n", file, line, messageStr)
     stop()
 }
+#endif
 
 extension String {
     @inlinable

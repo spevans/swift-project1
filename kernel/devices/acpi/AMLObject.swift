@@ -11,7 +11,7 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
         case uninitialised
         case integer(AMLInteger)
         case string(AMLString)
-        case buffer(AMLBuffer)
+        case buffer(AMLSharedBuffer)
         case package(AMLPackage)
         case fieldUnit(AMLNamedField)
         case device(AMLDefDevice)
@@ -58,7 +58,11 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
     }
 
     init(_ buffer: AMLBuffer) {
-        self.object = .buffer(buffer)
+        self.object = .buffer(AMLSharedBuffer(buffer))
+    }
+
+    init(_ sharedBuffer: AMLSharedBuffer) {
+        self.object = .buffer(sharedBuffer)
     }
 
     init(_ package: AMLPackage) {
@@ -198,7 +202,7 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
         }
     }
 
-    var bufferValue: AMLBuffer? {
+    var bufferValue: AMLSharedBuffer? {
         // FIXME, do any conversions
         // FIXME, should this return a AMLSharedBuffer or an AMLBuffer?
         switch self.object {
@@ -242,7 +246,7 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
         switch self.object {
             case .integer(let integer): return AMLBuffer(integer: integer)
             case .string(let string): return string.asAMLBuffer()
-            case .buffer(let buffer): return buffer
+            case .buffer(let buffer): return buffer.asAMLBuffer()
             default: throw AMLError.invalidData(reason: "Invalid type \(self.description)")
         }
     }
@@ -259,9 +263,8 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
             case .string(var string):
                 string.data[Int(index)] = newValue.byteValue!
                 self.object = .string(string)
-            case .buffer(var buffer):
+            case .buffer(let buffer):
                 buffer[Int(index)] = newValue.byteValue!
-                self.object = .buffer(buffer)
             default: throw AMLError.invalidData(reason: "\(object) is not indexable")
         }
     }

@@ -166,7 +166,8 @@ struct AMLBufferField {
     }
 
     func updateValue(to newValue: AMLObject, context: inout ACPI.AMLExecutionContext) throws(AMLError) {
-        throw AMLError.unimplemented("AMLBufferField.updateValue()")
+        let valueBuffer = try newValue.asBuffer()
+        buffer.writeBits(atBitIndex: Int(bitIndex), numBits: Int(bitLength), value: valueBuffer)
         // TODO: Handle the input being a string, buffer or integer
 /*
         switch
@@ -376,7 +377,7 @@ final class AMLTermArg: CustomStringConvertible {
         return self.amlObject?.integerValue
     }
 
-    var bufferValue: AMLBuffer? {
+    var bufferValue: AMLSharedBuffer? {
         return self.amlObject?.bufferValue
     }
 
@@ -455,13 +456,12 @@ extension AMLBuffer {
         let byteCount = MemoryLayout<AMLInteger>.size
         self = Array<UInt8>(unsafeUninitializedCapacity: byteCount) {
             (data: inout UnsafeMutableBufferPointer<UInt8>, initializedCount: inout Int) in
-            initializedCount = 0
+            initializedCount = byteCount
             var integer = integer
-            repeat {
-                data[initializedCount] = UInt8(truncatingIfNeeded: integer)
-                initializedCount += 1
+            for idx in 0..<byteCount {
+                data[idx] = UInt8(truncatingIfNeeded: integer)
                 integer >>= 8
-            } while integer > 0
+            }
         }
     }
 
@@ -573,6 +573,10 @@ final class AMLSharedBuffer: RandomAccessCollection {
         buffer.append(contentsOf: other.buffer)
     }
 
+    func append(_ otherBuffer: AMLBuffer) {
+        buffer.append(contentsOf: otherBuffer)
+    }
+
     func update(to newValue: AMLSharedBuffer) {
         update(to: newValue.buffer)
     }
@@ -581,13 +585,12 @@ final class AMLSharedBuffer: RandomAccessCollection {
         return buffer
     }
 
-//    func copy() -> Self {
-//        return Self(buffer)
-//    }
+    func asAMLInteger() throws(AMLError) -> AMLInteger {
+        return try buffer.asAMLInteger()
+    }
 
-    func copyBuffer() -> AMLBuffer {
-        let copy = buffer
-        return copy
+    func asAMLString(maxLength: AMLInteger = AMLInteger.max) -> AMLString {
+        return AMLString(buffer: self.buffer, maxLength: maxLength)
     }
 
     func index(after i: Index) -> Index {
@@ -632,7 +635,7 @@ final class AMLSharedBuffer: RandomAccessCollection {
     }
 
     // Bits
-    func readBits(atBitIndex bitIndex: Int, numBits: Int) -> AMLSharedBuffer {
+    func readBits(atBitIndex bitIndex: Int, numBits: Int) -> AMLBuffer {
         var result: AMLBuffer = []
         result.reserveCapacity((numBits + 7) / 8)
 
@@ -642,14 +645,14 @@ final class AMLSharedBuffer: RandomAccessCollection {
             for i in 0..<count {
                 result[i] = buffer[start + i]
             }
-            return AMLSharedBuffer(result)
+            return result
         } else {
             fatalError("AMLSharedBuffer.readBits() need to implement for index: \(bitIndex) numBits: \(numBits)")
         }
     }
 
     func writeBits<C: RandomAccessCollection>(atBitIndex bitIndex: Int, numBits: Int, value: C) where C.Element == UInt8, C.Index == Int {
-        #kprint("WriteBits bitIndex: %d numBits: %d buffer.count: %d value.count: %d\n", bitIndex, numBits, buffer.count, value.count)
+        #kprintf("WriteBits bitIndex: %d numBits: %d buffer.count: %d value.count: %d\n", bitIndex, numBits, buffer.count, value.count)
         if bitIndex.isMultiple(of: 8) && numBits.isMultiple(of: 8) {
             let start = bitIndex / 8
             let count = numBits / 8

@@ -116,6 +116,14 @@ func koops(_ message: String) -> Never {
 }
 
 internal struct _tty : UnicodeOutputStream {
+    mutating func write(_ string: StaticString) {
+        print(string, terminator: "")
+    }
+
+    mutating func write(_ character: Character) {
+        print(character, terminator: "")
+    }
+
     mutating func write(_ string: String) {
         // FIXME: Get precondition to work
         //precondition(string._guts.isASCII, "String must be ASCII")
@@ -132,14 +140,21 @@ internal struct _tty : UnicodeOutputStream {
 
 
 internal struct _serial: UnicodeOutputStream {
+    mutating func write(_ string: StaticString) {
+        print(string, terminator: "")
+    }
+
+    mutating func write(_ character: Character) {
+        print(character, terminator: "")
+    }
+
     mutating func write(_ string: String) {
-        if string.isEmpty { return }
-        print("serial:", string)
+        print(string, terminator: "")
     }
 
     mutating func write(_ unicodeScalar: UnicodeScalar) {
         if unicodeScalar.isASCII, let ch = Int32(exactly: unicodeScalar.value) {
-            print(String(CChar(ch)))
+            print(String(CChar(ch)), terminator: "")
         }
     }
 }
