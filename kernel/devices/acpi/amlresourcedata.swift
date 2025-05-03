@@ -6,7 +6,7 @@
 //
 //  Current Resource Settings (_CRS) decoding.
 
-enum AMLResourceSetting: CustomStringConvertible {
+enum AMLResourceSetting: CustomStringConvertible, Equatable {
     case irqSetting(AMLIrqSetting)
     case extendedIrqSetting(AMLIrqExtendedDescriptor)
     case dmaSetting(AMLDmaSetting)
@@ -28,6 +28,22 @@ enum AMLResourceSetting: CustomStringConvertible {
         case let .wordAddressSpaceDescriptor(descriptor): return descriptor.description
         case let .dwordAddressSpaceDescriptor(descriptor): return descriptor.description
         case let .qwordAddressSpaceDescriptor(descriptor): return descriptor.description
+        }
+    }
+
+    static func == (lhs: AMLResourceSetting, rhs: AMLResourceSetting) -> Bool {
+        switch (lhs, rhs) {
+            case (.irqSetting(let irq1), .irqSetting(let irq2)): return irq1 == irq2
+            case (.extendedIrqSetting(let irq1), .extendedIrqSetting(let irq2)): return irq1 == irq2
+            case (.dmaSetting(let dma1), .dmaSetting(let dma2)): return dma1 == dma2
+            case (.ioPortSetting(let ioPort1), .ioPortSetting(let ioPort2)): return ioPort1 == ioPort2
+            case (.memoryRangeDescriptor(let mem1), .memoryRangeDescriptor(let mem2)): return mem1 == mem2
+            case (.fixedMemoryRangeDescriptor(let mem1), .fixedMemoryRangeDescriptor(let mem2)): return mem1 == mem2
+            case (.wordAddressSpaceDescriptor(let desc1), .wordAddressSpaceDescriptor(let desc2)): return desc1 == desc2
+            case (.dwordAddressSpaceDescriptor(let desc1), .dwordAddressSpaceDescriptor(let desc2)): return desc1 == desc2
+            case (.qwordAddressSpaceDescriptor(let desc1), .qwordAddressSpaceDescriptor(let desc2)): return desc1 == desc2
+            default: return false
+
         }
     }
 }
@@ -73,6 +89,7 @@ struct AMLIrqSetting: CustomStringConvertible, Equatable {
     let activeHigh: Bool
     let interruptSharing: Bool
     let wakeCapable: Bool
+    let longBuffer: Bool
     var description: String {
         "IRQ: mask: \(irqMask.rawValue.binary(separators: true))"
     }
@@ -86,14 +103,57 @@ struct AMLIrqSetting: CustomStringConvertible, Equatable {
             activeHigh = (info[3] == 0)
             interruptSharing = (info[4] != 0)
             wakeCapable = (info[5] != 0)
+            longBuffer = true
         } else {
             levelTriggered = false // edge triggered
             activeHigh = true
             interruptSharing = false
             wakeCapable = false
+            longBuffer = false
         }
     }
 
+    init(irqMask: UInt16) {
+        self.irqMask = BitArray16(irqMask)
+        self.levelTriggered = false
+        self.activeHigh = true
+        self.interruptSharing = false
+        self.wakeCapable = false
+        self.longBuffer = false
+    }
+
+    init(irqMask: UInt16, levelTriggered: Bool, activeHigh: Bool, interruptSharing: Bool, wakeCapable: Bool) {
+        self.irqMask = BitArray16(irqMask)
+        self.levelTriggered = levelTriggered
+        self.activeHigh = activeHigh
+        self.interruptSharing = interruptSharing
+        self.wakeCapable = wakeCapable
+        self.longBuffer = true
+    }
+
+    func encode() -> AMLBuffer {
+        var buffer: AMLBuffer = []
+        buffer.append(UInt8(truncatingIfNeeded: irqMask.rawValue))
+        buffer.append(UInt8(truncatingIfNeeded: irqMask.rawValue >> 8))
+        if longBuffer {
+            var bits = BitArray8(0)
+            bits[0] = levelTriggered ? 0 : 1
+            bits[3] = activeHigh ? 0 : 1
+            bits[4] = Int(interruptSharing)
+            bits[5] = Int(wakeCapable)
+            buffer.append(bits.rawValue)
+        }
+        return buffer
+    }
+
+    func with(newIrq irq: Int) -> Self {
+        let irqMask = UInt16(1 << irq)
+        if longBuffer {
+            return Self(irqMask: irqMask, levelTriggered: levelTriggered, activeHigh: activeHigh, interruptSharing: interruptSharing, wakeCapable: wakeCapable)
+        } else {
+            return Self(irqMask: irqMask)
+        }
+    }
 
     func interrupts() -> [IRQSetting] {
         var ints: [IRQSetting] = []
@@ -107,7 +167,7 @@ struct AMLIrqSetting: CustomStringConvertible, Equatable {
     }
 }
 
-struct AMLDmaSetting: CustomStringConvertible {
+struct AMLDmaSetting: CustomStringConvertible, Equatable {
     let channelMask: BitArray8
     let flags: BitArray8
     var description: String {
@@ -118,6 +178,18 @@ struct AMLDmaSetting: CustomStringConvertible {
         precondition(buffer.count == 2)
         channelMask = BitArray8(buffer[0])
         flags = BitArray8(buffer[1])
+    }
+
+    init(channelMask: UInt8, flags: UInt8) {
+        self.channelMask = BitArray8(channelMask)
+        self.flags = BitArray8(flags)
+    }
+
+    func encode() -> AMLBuffer {
+        var buffer: AMLBuffer = []
+        buffer.append(channelMask.rawValue)
+        buffer.append(flags.rawValue)
+        return buffer
     }
 
     func channels() -> [UInt8] {
@@ -132,7 +204,7 @@ struct AMLDmaSetting: CustomStringConvertible {
 }
 
 
-struct AMLIOPortSetting: CustomStringConvertible {
+struct AMLIOPortSetting: CustomStringConvertible, Equatable {
     let decodes16Bit: Bool
     let minimumBaseAddress: UInt16
     let maximumBaseAddress: UInt16
@@ -158,6 +230,18 @@ struct AMLIOPortSetting: CustomStringConvertible {
         rangeLength = buffer[6]
     }
 
+    func encode() -> AMLBuffer {
+        var buffer: AMLBuffer = []
+        buffer.append(decodes16Bit ? 1 : 0)
+        buffer.append(UInt8(truncatingIfNeeded: minimumBaseAddress))
+        buffer.append(UInt8(truncatingIfNeeded: minimumBaseAddress >> 8))
+        buffer.append(UInt8(truncatingIfNeeded: maximumBaseAddress))
+        buffer.append(UInt8(truncatingIfNeeded: maximumBaseAddress >> 8))
+        buffer.append(baseAlignment)
+        buffer.append(rangeLength)
+        return buffer
+    }
+
     func ioPorts() -> ClosedRange<UInt16> {
         let mask: UInt16 = decodes16Bit ? 0xffff : 0x03ff
         let start = minimumBaseAddress & mask
@@ -167,7 +251,7 @@ struct AMLIOPortSetting: CustomStringConvertible {
 }
 
 
-struct AMLMemoryRangeDescriptor: CustomStringConvertible {
+struct AMLMemoryRangeDescriptor: CustomStringConvertible, Equatable {
     let writeable: Bool
     let minimumBaseAddress: UInt32
     let maximumBaseAddress: UInt32
@@ -187,10 +271,41 @@ struct AMLMemoryRangeDescriptor: CustomStringConvertible {
         baseAlignment = UInt32(withBytes: buffer[9], buffer[10], buffer[11], buffer[12])
         rangeLength = UInt32(withBytes: buffer[13], buffer[14], buffer[15], buffer[16])
     }
+
+    func encode() -> AMLBuffer {
+        var buffer: AMLBuffer = []
+        buffer.reserveCapacity(17)
+        buffer.append(writeable ? 1 : 0)
+        let minAddress = ByteArray4(minimumBaseAddress)
+        buffer.append(minAddress[0])
+        buffer.append(minAddress[1])
+        buffer.append(minAddress[2])
+        buffer.append(minAddress[3])
+
+        let maxAddress = ByteArray4(maximumBaseAddress)
+        buffer.append(maxAddress[0])
+        buffer.append(maxAddress[1])
+        buffer.append(maxAddress[2])
+        buffer.append(maxAddress[3])
+
+        let alignment = ByteArray4(baseAlignment)
+        buffer.append(alignment[0])
+        buffer.append(alignment[1])
+        buffer.append(alignment[2])
+        buffer.append(alignment[3])
+
+        let rLength = ByteArray4(rangeLength)
+        buffer.append(rLength[0])
+        buffer.append(rLength[1])
+        buffer.append(rLength[2])
+        buffer.append(rLength[3])
+        return buffer
+    }
+
 }
 
 
-struct AMLFixedMemoryRangeDescriptor: CustomStringConvertible {
+struct AMLFixedMemoryRangeDescriptor: CustomStringConvertible, Equatable {
     let writeable: Bool
     let baseAddress: UInt32
     let rangeLength: UInt32
@@ -206,9 +321,27 @@ struct AMLFixedMemoryRangeDescriptor: CustomStringConvertible {
         baseAddress = UInt32(withBytes: buffer[1], buffer[2], buffer[3], buffer[4])
         rangeLength = UInt32(withBytes: buffer[5], buffer[6], buffer[7], buffer[8])
     }
+
+    func encode() -> AMLBuffer {
+        var buffer: AMLBuffer = []
+        buffer.reserveCapacity(9)
+        buffer.append(writeable ? 1 : 0)
+        let base = ByteArray4(baseAddress)
+        buffer.append(base[0])
+        buffer.append(base[1])
+        buffer.append(base[2])
+        buffer.append(base[3])
+
+        let rLength = ByteArray4(rangeLength)
+        buffer.append(rLength[0])
+        buffer.append(rLength[1])
+        buffer.append(rLength[2])
+        buffer.append(rLength[3])
+        return buffer
+    }
 }
 
-struct AMLIrqExtendedDescriptor: CustomStringConvertible {
+struct AMLIrqExtendedDescriptor: CustomStringConvertible, Equatable {
     private let flags: BitArray8
     private let intNumbers: [UInt8]
     var description: String {
@@ -240,6 +373,19 @@ struct AMLIrqExtendedDescriptor: CustomStringConvertible {
         intNumbers = _intNumbers
     }
 
+    func encode() -> AMLBuffer {
+        var buffer: AMLBuffer = []
+        buffer.append(flags.rawValue)
+        buffer.append(UInt8(intNumbers.count))
+        for interrupt in intNumbers {
+            buffer.append(interrupt)
+            buffer.append(0)
+            buffer.append(0)
+            buffer.append(0)
+        }
+        return buffer
+    }
+
     func interrupts() -> [IRQSetting] {
         var ints: [IRQSetting] = []
         for int in intNumbers {
@@ -251,7 +397,7 @@ struct AMLIrqExtendedDescriptor: CustomStringConvertible {
 }
 
 
-struct AMLWordAddressSpaceDescriptor: CustomStringConvertible {
+struct AMLWordAddressSpaceDescriptor: CustomStringConvertible, Equatable {
     enum ResourceType: UInt8 {
         case memoryRange    = 0
         case ioRange        = 1
@@ -277,7 +423,7 @@ struct AMLWordAddressSpaceDescriptor: CustomStringConvertible {
     let addressSpaceGranularity: UInt16     // _GRA
     let addressRangeMinimum: UInt16         // _MIN
     let addressRangeMaximum: UInt16         // _MAX
-    let addressTranslationOffet: UInt16     // _TRA
+    let addressTranslationOffset: UInt16    // _TRA
     let addressLength: UInt16               // _LEN
     let resourceSourceIndex: UInt8?
     let resourceSource: AMLNameString?
@@ -295,7 +441,7 @@ struct AMLWordAddressSpaceDescriptor: CustomStringConvertible {
         addressSpaceGranularity = UInt16(withBytes: buffer[3], buffer[4])
         addressRangeMinimum = UInt16(withBytes: buffer[5], buffer[6])
         addressRangeMaximum = UInt16(withBytes: buffer[7], buffer[8])
-        addressTranslationOffet = UInt16(withBytes: buffer[9], buffer[10])
+        addressTranslationOffset = UInt16(withBytes: buffer[9], buffer[10])
         addressLength = UInt16(withBytes: buffer[11], buffer[12])
         if buffer.count > 17 { // buffer may have extra data or be incomplete so check there is enough
             resourceSourceIndex = buffer[13]
@@ -305,9 +451,35 @@ struct AMLWordAddressSpaceDescriptor: CustomStringConvertible {
             resourceSource = nil
         }
     }
+
+    func encode() -> AMLBuffer {
+        var buffer: AMLBuffer = []
+        buffer.reserveCapacity(18)
+        buffer.append(resourceType.rawValue)
+        buffer.append(generalFlags.rawValue)
+        buffer.append(typeSpecificFlags.rawValue)
+        buffer.append(UInt8(truncatingIfNeeded: addressSpaceGranularity))
+        buffer.append(UInt8(truncatingIfNeeded: addressSpaceGranularity >> 8))
+        buffer.append(UInt8(truncatingIfNeeded: addressRangeMinimum))
+        buffer.append(UInt8(truncatingIfNeeded: addressRangeMinimum >> 8))
+        buffer.append(UInt8(truncatingIfNeeded: addressRangeMaximum))
+        buffer.append(UInt8(truncatingIfNeeded: addressRangeMaximum >> 8))
+        buffer.append(UInt8(truncatingIfNeeded: addressTranslationOffset))
+        buffer.append(UInt8(truncatingIfNeeded: addressTranslationOffset >> 8))
+        buffer.append(UInt8(truncatingIfNeeded: addressLength))
+        buffer.append(UInt8(truncatingIfNeeded: addressLength >> 8))
+        if let resourceSourceIndex, let resourceSource {
+            buffer.append(resourceSourceIndex)
+            guard let string = resourceSource.stringValue?.asAMLBuffer(), string.count == 4 else {
+                fatalError("resourceSource is not a string of 4 characters")
+            }
+            buffer.append(contentsOf: string)
+        }
+        return buffer
+    }
 }
 
-struct AMLDWordAddressSpaceDescriptor: CustomStringConvertible {
+struct AMLDWordAddressSpaceDescriptor: CustomStringConvertible, Equatable {
     enum ResourceType: UInt8 {
         case memoryRange    = 0
         case ioRange        = 1
@@ -333,7 +505,7 @@ struct AMLDWordAddressSpaceDescriptor: CustomStringConvertible {
     let addressSpaceGranularity: UInt32     // _GRA
     let addressRangeMinimum: UInt32         // _MIN
     let addressRangeMaximum: UInt32         // _MAX
-    let addressTranslationOffet: UInt32     // _TRA
+    let addressTranslationOffset: UInt32    // _TRA
     let addressLength: UInt32               // _LEN
     let resourceSourceIndex: UInt8?
     let resourceSource: AMLNameString?
@@ -351,7 +523,7 @@ struct AMLDWordAddressSpaceDescriptor: CustomStringConvertible {
         addressSpaceGranularity = UInt32(withBytes: buffer[3], buffer[4], buffer[5], buffer[6])
         addressRangeMinimum = UInt32(withBytes: buffer[7], buffer[8], buffer[9], buffer[10])
         addressRangeMaximum = UInt32(withBytes: buffer[11], buffer[12], buffer[13], buffer[14])
-        addressTranslationOffet = UInt32(withBytes: buffer[15], buffer[16], buffer[17], buffer[18])
+        addressTranslationOffset = UInt32(withBytes: buffer[15], buffer[16], buffer[17], buffer[18])
         addressLength = UInt32(withBytes: buffer[19], buffer[20], buffer[21], buffer[22])
         if buffer.count > 27 {
             resourceSourceIndex = buffer[23]
@@ -361,10 +533,57 @@ struct AMLDWordAddressSpaceDescriptor: CustomStringConvertible {
             resourceSource = nil
         }
     }
+
+    func encode() -> AMLBuffer {
+        var buffer: AMLBuffer = []
+        buffer.reserveCapacity(28)
+        buffer.append(resourceType.rawValue)
+        buffer.append(generalFlags.rawValue)
+        buffer.append(typeSpecificFlags.rawValue)
+
+        let asg = ByteArray4(addressSpaceGranularity)
+        buffer.append(asg[0])
+        buffer.append(asg[1])
+        buffer.append(asg[2])
+        buffer.append(asg[3])
+
+        let armin = ByteArray4(addressRangeMinimum)
+        buffer.append(armin[0])
+        buffer.append(armin[1])
+        buffer.append(armin[2])
+        buffer.append(armin[3])
+
+        let armax = ByteArray4(addressRangeMaximum)
+        buffer.append(armax[0])
+        buffer.append(armax[1])
+        buffer.append(armax[2])
+        buffer.append(armax[3])
+
+        let ato = ByteArray4(addressTranslationOffset)
+        buffer.append(ato[0])
+        buffer.append(ato[1])
+        buffer.append(ato[2])
+        buffer.append(ato[3])
+
+        let al = ByteArray4(addressLength)
+        buffer.append(al[0])
+        buffer.append(al[1])
+        buffer.append(al[2])
+        buffer.append(al[3])
+
+        if let resourceSourceIndex, let resourceSource {
+            buffer.append(resourceSourceIndex)
+            guard let string = resourceSource.stringValue?.asAMLBuffer(), string.count == 4 else {
+                fatalError("resourceSource is not a string of 4 characters")
+            }
+            buffer.append(contentsOf: string)
+        }
+        return buffer
+    }
 }
 
 
-struct AMLQWordAddressSpaceDescriptor: CustomStringConvertible {
+struct AMLQWordAddressSpaceDescriptor: CustomStringConvertible, Equatable {
     enum ResourceType: UInt8 {
         case memoryRange    = 0
         case ioRange        = 1
@@ -390,7 +609,7 @@ struct AMLQWordAddressSpaceDescriptor: CustomStringConvertible {
     let addressSpaceGranularity: UInt64     // _GRA
     let addressRangeMinimum: UInt64         // _MIN
     let addressRangeMaximum: UInt64         // _MAX
-    let addressTranslationOffet: UInt64     // _TRA
+    let addressTranslationOffset: UInt64    // _TRA
     let addressLength: UInt64               // _LEN
     let resourceSourceIndex: UInt8?
     let resourceSource: AMLNameString?
@@ -408,7 +627,7 @@ struct AMLQWordAddressSpaceDescriptor: CustomStringConvertible {
         addressSpaceGranularity = UInt64(withBytes: Array(buffer[3...10]))
         addressRangeMinimum = UInt64(withBytes: Array(buffer[11...18]))
         addressRangeMaximum = UInt64(withBytes: Array(buffer[19...26]))
-        addressTranslationOffet = UInt64(withBytes: Array(buffer[27...34]))
+        addressTranslationOffset = UInt64(withBytes: Array(buffer[27...34]))
         addressLength = UInt64(withBytes: Array(buffer[35...42]))
         if buffer.count > 47 {
             resourceSourceIndex = buffer[43]
@@ -417,6 +636,43 @@ struct AMLQWordAddressSpaceDescriptor: CustomStringConvertible {
             resourceSourceIndex = nil
             resourceSource = nil
         }
+    }
+
+    func encode() -> AMLBuffer {
+        var buffer: AMLBuffer = []
+        buffer.reserveCapacity(48)
+        buffer.append(resourceType.rawValue)
+        buffer.append(generalFlags.rawValue)
+        buffer.append(typeSpecificFlags.rawValue)
+
+        for data in ByteArray8(addressSpaceGranularity) {
+            buffer.append(data)
+        }
+
+        for data in ByteArray8(addressRangeMinimum) {
+            buffer.append(data)
+        }
+
+        for data in ByteArray8(addressRangeMaximum) {
+            buffer.append(data)
+        }
+
+        for data in ByteArray8(addressTranslationOffset) {
+            buffer.append(data)
+        }
+
+        for data in ByteArray8(addressLength) {
+            buffer.append(data)
+        }
+
+        if let resourceSourceIndex, let resourceSource {
+            buffer.append(resourceSourceIndex)
+            guard let string = resourceSource.stringValue?.asAMLBuffer(), string.count == 4 else {
+                fatalError("resourceSource is not a string of 4 characters")
+            }
+            buffer.append(contentsOf: string)
+        }
+        return buffer
     }
 }
 
@@ -446,25 +702,25 @@ func decodeResourceData(_ buffer: AMLBuffer) -> [AMLResourceSetting] {
             let buf = AMLBuffer(buffer[idx..<idx + length])
 
             switch type {
-            case .memoryRangeDescriptor32Bit:
-                setting = .memoryRangeDescriptor(AMLMemoryRangeDescriptor(buf))
+                case .memoryRangeDescriptor32Bit:
+                    setting = .memoryRangeDescriptor(AMLMemoryRangeDescriptor(buf))
 
-            case .fixedLocationMemoryRangeDescriptor32Bit:
-                setting = .fixedMemoryRangeDescriptor(AMLFixedMemoryRangeDescriptor(buf))
+                case .fixedLocationMemoryRangeDescriptor32Bit:
+                    setting = .fixedMemoryRangeDescriptor(AMLFixedMemoryRangeDescriptor(buf))
 
-            case .extendedIRQDescriptor:
-                setting = .extendedIrqSetting(AMLIrqExtendedDescriptor(buf))
+                case .extendedIRQDescriptor:
+                    setting = .extendedIrqSetting(AMLIrqExtendedDescriptor(buf))
 
-            case .wordAddressSpaceDescriptor:
-                setting = .wordAddressSpaceDescriptor(AMLWordAddressSpaceDescriptor(buf))
+                case .wordAddressSpaceDescriptor:
+                    setting = .wordAddressSpaceDescriptor(AMLWordAddressSpaceDescriptor(buf))
 
-            case .dwordAddressSpaceDescriptor:
-                setting = .dwordAddressSpaceDescriptor(AMLDWordAddressSpaceDescriptor(buf))
+                case .dwordAddressSpaceDescriptor:
+                    setting = .dwordAddressSpaceDescriptor(AMLDWordAddressSpaceDescriptor(buf))
 
-            case .qwordAddressSpaceDescriptor:
-                setting = .qwordAddressSpaceDescriptor(AMLQWordAddressSpaceDescriptor(buf))
+                case .qwordAddressSpaceDescriptor:
+                    setting = .qwordAddressSpaceDescriptor(AMLQWordAddressSpaceDescriptor(buf))
 
-            default: fatalError("Cant decode type: \(type)")
+                default: fatalError("Cant decode type: \(type)")
             }
         } else {
             // Small Type
@@ -476,12 +732,26 @@ func decodeResourceData(_ buffer: AMLBuffer) -> [AMLResourceSetting] {
             let buf = AMLBuffer(buffer[idx..<idx + length])
 
             switch type {
-            case .irqFormatDescriptor:  setting = .irqSetting(AMLIrqSetting(buf))
-            case .dmaFormatDescriptor:  setting = .dmaSetting(AMLDmaSetting(buf))
-            case .ioPortDescriptor:     setting = .ioPortSetting(AMLIOPortSetting(buf))
-            case .endTagDescriptor:     return settings     // FIXME: Process the checksum
+                case .irqFormatDescriptor:  setting = .irqSetting(AMLIrqSetting(buf))
+                case .dmaFormatDescriptor:  setting = .dmaSetting(AMLDmaSetting(buf))
+                case .ioPortDescriptor:     setting = .ioPortSetting(AMLIOPortSetting(buf))
+                case .endTagDescriptor:
+                    let checksum = buffer[idx]
+                    if checksum != 0 {
+                        // checksum of 0 == ignore and assume its ok otherwise check it
+                        let computedCSum = buffer[0..<idx].reduce(0, &+)
+                        if checksum &+ computedCSum != 0 {
+                            fatalError("Checksum does not compute")
+                        }
+                    }
+                    let encodedSettings = encodeResourceData(settings)
+                    //TODO: Remove, this is just for checking the encoding
+                    if buffer[0..<buffer.count - 2] != encodedSettings[0..<encodedSettings.count - 2] {
+                        fatalError("Encoded Settings do not match")
+                    }
+                    return settings
 
-            default: fatalError("Cant decode type: \(type)")
+                default: fatalError("Cant decode type: \(type)")
             }
         }
         settings.append(setting)
@@ -489,4 +759,79 @@ func decodeResourceData(_ buffer: AMLBuffer) -> [AMLResourceSetting] {
     }
     #kprint("ACPI: Warning: no EndTagDescriptor")
     return settings
+}
+
+func encodeResourceData(_ resources: [AMLResourceSetting]) -> AMLBuffer {
+
+    var buffer: AMLBuffer = []
+
+    for resource in resources {
+        var largeItem: AMLLargeItemName?
+        var smallItem: AMLSmallItemName?
+        let encoding: AMLBuffer
+        switch resource {
+            case .irqSetting(let irqSetting):
+                smallItem = .irqFormatDescriptor
+                encoding = irqSetting.encode()
+
+            case .extendedIrqSetting(let irqExtendedDescriptor):
+                largeItem = .extendedIRQDescriptor
+                encoding = irqExtendedDescriptor.encode()
+
+            case .dmaSetting(let dmaSetting):
+                smallItem = .dmaFormatDescriptor
+                encoding = dmaSetting.encode()
+
+            case .ioPortSetting(let ioPortSetting):
+                smallItem = .ioPortDescriptor
+                encoding = ioPortSetting.encode()
+
+            case .memoryRangeDescriptor(let memoryRangeDescriptor):
+                largeItem = .memoryRangeDescriptor32Bit
+                encoding = memoryRangeDescriptor.encode()
+
+            case .fixedMemoryRangeDescriptor(let fixedMemoryRangeDescriptor):
+                largeItem = .fixedLocationMemoryRangeDescriptor32Bit
+                encoding = fixedMemoryRangeDescriptor.encode()
+
+            case .wordAddressSpaceDescriptor(let wordAddressSpaceDescriptor):
+                largeItem = .wordAddressSpaceDescriptor
+                encoding = wordAddressSpaceDescriptor.encode()
+
+            case .dwordAddressSpaceDescriptor(let dwordAddressSpaceDescriptor):
+                largeItem = .dwordAddressSpaceDescriptor
+                encoding = dwordAddressSpaceDescriptor.encode()
+
+            case .qwordAddressSpaceDescriptor(let qwordAddressSpaceDescriptor):
+                largeItem = .qwordAddressSpaceDescriptor
+                encoding = qwordAddressSpaceDescriptor.encode()
+        }
+
+        let encodingLength = encoding.count
+        if let largeItem {
+            var header = BitArray8()
+            header[7] = 1
+            header[0...6] = largeItem.rawValue
+            buffer.append(header.rawValue)
+            buffer.append(UInt8(truncatingIfNeeded: encodingLength))
+            buffer.append(UInt8(truncatingIfNeeded: encodingLength >> 8))
+        } else if let smallItem {
+            var header = BitArray8()
+            header[3...6] = smallItem.rawValue
+            header[0...2] = UInt8(encodingLength)
+            buffer.append(header.rawValue)
+        }
+        buffer.append(contentsOf: encoding)
+    }
+
+    // Append End Tag
+    var checksum = buffer.reduce(0, &+)
+    checksum = ~checksum &+ 1
+    checksum = 0
+    var header = BitArray8()
+    header[3...6] = AMLSmallItemName.endTagDescriptor.rawValue
+    header[0...2] = 1 // Length
+    buffer.append(header.rawValue)
+    buffer.append(checksum)
+    return buffer
 }

@@ -16,7 +16,9 @@ final class ACPIDeviceConfig: CustomStringConvertible {
     let uid: AMLObject?
     let crs: [AMLResourceSetting]?
     let prs: [AMLResourceSetting]?
-    let prt: PCIRoutingTable?
+    // Do not retrieve the PCIRoutingTable initally as it may change due to the \\_PIC setting
+    // so just cache it when needed
+    private var _prt: PCIRoutingTable?
 
 
     init(node: ACPI.ACPIObjectNode) {
@@ -31,7 +33,6 @@ final class ACPIDeviceConfig: CustomStringConvertible {
             self.uid = try node.uniqueId()
             self.crs = try node.currentResourceSettings()
             self.prs = try node.possibleResourceSettings()
-            self.prt = node.pciRoutingTable()
         } catch {
             fatalError("ACPI: \(node.fullname()): error getting device config")
         }
@@ -43,7 +44,7 @@ final class ACPIDeviceConfig: CustomStringConvertible {
             cidStr = "[" + _cids.joined(separator: ", ") + "]"
         }
         let adrStr = (adr == nil) ? "nil" : "\(adr!.hex())"
-        return "hid:\(hid ?? "nil") cids:\(cidStr) adr:\(adrStr)" // uid"\(uid ?? "nil") crs:\(crs ?? "nil") prs:\(prs ?? "nil") prt:\(prt ?? "nil")"
+        return "hid:\(hid ?? "nil") cids:\(cidStr) adr:\(adrStr)"
     }
 
     var isPCIHost: Bool {
@@ -60,5 +61,13 @@ final class ACPIDeviceConfig: CustomStringConvertible {
             return cids.contains(where: { $0 == hidOrCid})
         }
         return false
+    }
+
+    func prt() -> PCIRoutingTable? {
+        if _prt == nil {
+            // This may still be nil if there is no routing table
+            _prt = node.pciRoutingTable()
+        }
+        return _prt
     }
 }

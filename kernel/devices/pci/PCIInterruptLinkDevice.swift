@@ -9,8 +9,12 @@
 //
 
 final class PCIInterruptLinkDevice: PNPDeviceDriver {
-    let irq: IRQSetting  // The IRQ signaled by this device
-    override var description: String { "PCI Link Device: [IRQ: \(irq)]" }
+    private let acpiConfig: ACPIDeviceConfig
+    private(set) var irq: IRQSetting?  // The IRQ signaled by this device
+    override var description: String {
+        let irqStr = irq?.description ?? "none"
+        return "PCI Link Device: [IRQ: \(irqStr)]"
+    }
 
 
     override init?(pnpDevice: PNPDevice) {
@@ -24,38 +28,73 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
             return nil
         }
 
-        guard let acpiConfig = pnpDevice.device.acpiDeviceConfig else {
+        guard let _acpiConfig = pnpDevice.device.acpiDeviceConfig else {
             #kprint("\(pnpDevice.pnpName) has no ACPIDeviceConfig")
             return nil
         }
-        guard let crs = acpiConfig.crs else {
-            #kprint("PCIInterruptLinkDevice: Cant get resources")
-            return nil
-        }
-
-        let resources = ISABus.Resources(crs)
-        let f = acpiConfig.node.fullname()
-        #kprint("PCIInterruptLinkDevice: \(f) \(resources)")
-
-        if let prs = acpiConfig.prs {
-            let s: String = prs.map { $0.description }.joined(separator: ", ")
-            #kprint("PCI LNK ", f, ": _PRS:", s)
-        }
-
-        if let cirq = resources.interrupts.first {
-            irq = cirq
-            #kprint("Using IRQ \(cirq)")
-        } else {
-            #kprint(f, "has no configured irq")
-            return nil
-        }
+        acpiConfig = _acpiConfig
         super.init(pnpDevice: pnpDevice)
-        #kprint("PCI INT Link \(f) [_UID=\(uidValue)]: resources:", resources)
     }
 
     // FIXME: Maybe select a better IRQ to use to balance them out better or make
     // .irq into a funtion to do lazy irq allocation
     override func initialise() -> Bool {
-        true
+        guard var crs = acpiConfig.crs else {
+            #kprint("PCIInterruptLinkDevice: Cant get resources")
+            return false
+        }
+        let f = acpiConfig.node.fullname()
+
+        let resources = ISABus.Resources(crs)
+        #kprint("PCIInterruptLinkDevice: \(f) \(resources)")
+
+
+        if let cirq = resources.interrupts.first {
+            if cirq.irq == 0 {  // Ignore IRQ0
+                #kprintf("%s: Need to set an IRQ\n", f)
+                guard let (resource, interrupt) = possibleInterrupts() else {
+                    #kprintf("%s: Cannot set interrupt\n", f)
+                    return false
+                }
+                crs[0] = resource
+                do {
+                    try acpiConfig.node.setResourceSettings(crs)
+                } catch {
+                    #kprintf("%s: Cannot set _SRS: %s\n", f, error.description)
+                    return false
+                }
+                irq = interrupt
+            } else {
+                irq = cirq
+            }
+            #kprintf("%s: Using IRQ: %s\n", f, irq?.irq.description ?? "none")
+        } else {
+            #kprintf("%s: has no configured irq\n", f)
+            return false
+        }
+        //        #kprint("PCI INT Link \(f) [_UID=\(uidValue)]: resources:", resources)
+        return true
+    }
+
+    private func possibleInterrupts() -> (AMLResourceSetting, IRQSetting)? {
+        let f = acpiConfig.node.fullname()
+        guard let prs = acpiConfig.prs else {
+            #kprintf("%s: No _PRS, cant get irqs\n", f)
+            return nil
+        }
+        let s: String = prs.map { $0.description }.joined(separator: ", ")
+        #kprintf("%s: PCI LNK _PRS: %s\n", f, s)
+        for resource in prs {
+            switch resource {
+                case .irqSetting(let setting):
+                    guard let interrupt = setting.interrupts().first else { return nil }
+                    return (resource, interrupt)
+                case .extendedIrqSetting(let setting):
+                    guard let interrupt = setting.interrupts().first else { return nil }
+                    return (resource, interrupt)
+                default: continue
+            }
+        }
+        return nil
     }
 }

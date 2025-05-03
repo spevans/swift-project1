@@ -233,10 +233,10 @@ class ACPITests: XCTestCase {
                 return
             }
             let result = try ACPI.invoke(method: "\\_OSI", AMLTermArg(AMLObject(try AMLString("Linux"))))?.integerValue
-            XCTAssertEqual(result, 0)
+            XCTAssertEqual(result, 0xffffffff)
 
             let result2 = try ACPI.invoke(method: "\\_OSI", AMLTermArg(AMLObject(try AMLString("Darwin"))))?.integerValue
-            XCTAssertEqual(result2, 0xffffffff)
+            XCTAssertEqual(result2, 0)
         } catch {
             XCTFail(String(describing: error))
             return
@@ -275,7 +275,7 @@ class ACPITests: XCTestCase {
                 XCTFail("Cant find object LNKA")
                 return
             }
-            guard let crs = try lnka.currentResourceSettings() else {
+            guard var crs = try lnka.currentResourceSettings() else {
                 XCTFail("Cant read LNKA._CRS")
                 return
             }
@@ -286,6 +286,25 @@ class ACPITests: XCTestCase {
             } else {
                 XCTFail("\(crs[0]) is not an IRQ")
             }
+
+            guard let prs = try lnka.possibleResourceSettings() else {
+                XCTFail("Cant read LNKA._PRS")
+                return
+            }
+
+            guard case let AMLResourceSetting.irqSetting(irq) = prs[0] else {
+                XCTFail("_PRS is not IRQs")
+                return
+            }
+            let newIrq = irq.interrupts().first!
+            crs[0] = .irqSetting(irq.with(newIrq: newIrq.irq))
+
+            try lnka.setResourceSettings(crs)
+            guard let crs2 = try lnka.currentResourceSettings() else {
+                XCTFail("Cant read LNKA._CRS")
+                return
+            }
+            XCTAssertEqual(crs, crs2)
         } catch {
             XCTFail(String(describing: error))
             return

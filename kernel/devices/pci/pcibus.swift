@@ -10,7 +10,6 @@
 
 
 final class PCIBus: DeviceDriver {
-    let interruptRoutingTable: PCIRoutingTable?
     let busId: UInt8
     var resources: [MotherBoardResource] = []
     let isHostBus: Bool
@@ -35,18 +34,11 @@ final class PCIBus: DeviceDriver {
         }
         self.busId = busId
 
-        guard let acpiConfig = pnpDevice.device.acpiDeviceConfig else {
+        guard pnpDevice.device.acpiDeviceConfig != nil else {
             #kprint("PCI: PCIBus: busId: \(asHex(busId)) \(pnpDevice.device.fullName) has no ACPI config")
             return nil
         }
         #kprint("PCIBus.init \(pnpDevice.device.fullName): busId: \(busId)")
-        // FIXME: Determine if root bus
-        if let prt = acpiConfig.prt {
-            #kprint("PCIBus, have PRT")
-            interruptRoutingTable = prt
-        } else {
-            interruptRoutingTable = nil //PCIRoutingTable(acpi: acpiDevice)
-        }
         super.init(device: pnpDevice.device)
         #kprint("PCIBus.init:", self.description)
     }
@@ -59,7 +51,6 @@ final class PCIBus: DeviceDriver {
         }
         self.busId = pciDevice.deviceFunction.bridgeDevice!.secondaryBusId
         isHostBus = false
-        self.interruptRoutingTable = nil
         super.init(device: pciDevice.device)
     }
 

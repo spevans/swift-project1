@@ -80,6 +80,7 @@ public struct InterruptManager: ~Copyable {
             try ACPI.invoke(method: "\\_PIC", AMLTermArg(1))
             #kprint("INT-MAN: _PIC mode set to APIC")
         } catch AMLError.invalidMethod {
+            #kprint("INT-MAN: Cannot set _PIC to APIC: no such method")
             // ignore, _PIC is optional
         } catch {
             fatalError("INT-MAN: Cant set ACPI mode: \(error)")

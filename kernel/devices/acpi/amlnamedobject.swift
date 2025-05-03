@@ -107,7 +107,32 @@ extension ACPI.ACPIObjectNode {
         return try _resourceSettings(node: "_PRS")
     }
 
-    private func _resourceSettings(node: String) throws(AMLError) -> [AMLResourceSetting]? {
+    func setResourceSettings(_ resources: [AMLResourceSetting]) throws(AMLError) {
+
+        guard let srsNode = childNode(named: "_SRS"), let srsMethod = srsNode.object.methodValue else {
+            throw AMLError.invalidMethod(reason: "No method \(fullname())._SRS")
+        }
+
+        // Get the current CRS to compare and overwrite
+        guard let crsBuffer = try _resourceSettingsBuffer(node: "_CRS") else {
+            throw AMLError.invalidData(reason: "Cannot set resources as no _CRS")
+        }
+        let srsBuffer = encodeResourceData(resources)
+        guard crsBuffer.count == srsBuffer.count else {
+            throw AMLError.invalidData(reason: "Setting SRS of buffer length \(srsBuffer.count), but CRS has buffer length \(crsBuffer.count)")
+        }
+        let crs = decodeResourceData(crsBuffer)
+        guard resources.count == crs.count else {
+            throw AMLError.invalidData(reason: "Setting SRS of element length \(srsBuffer.count), but CRS has element length \(crsBuffer.count)")
+        }
+        // TODO: Add more validation that the 2 buffers are matching in specific resource types
+
+        let arg = AMLObject(srsBuffer)
+        var context = ACPI.AMLExecutionContext(scope: AMLNameString(srsNode.fullname()), args: [arg])
+        try srsMethod.execute(context: &context)
+    }
+
+    private func _resourceSettingsBuffer(node: String) throws(AMLError) -> AMLBuffer? {
         guard let crs = childNode(named: node), let crsValue = try? crs.amlObject() else {
             return nil
         }
@@ -115,7 +140,14 @@ extension ACPI.ACPIObjectNode {
         guard let buffer = crsValue.bufferValue else {
             fatalError("crsObject namedValue \(crsValue) is not a buffer")
         }
-        return decodeResourceData(buffer.asAMLBuffer())
+        return buffer.asAMLBuffer()
+    }
+
+    private func _resourceSettings(node: String) throws(AMLError) -> [AMLResourceSetting]? {
+        guard let buffer = try _resourceSettingsBuffer(node: node) else {
+            return nil
+        }
+        return decodeResourceData(buffer)
     }
 
     func hardwareId() throws(AMLError) -> String? {

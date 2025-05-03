@@ -34,7 +34,7 @@ enum PCIInterruptPin: Equatable, CustomStringConvertible {
             case 3: self = .intC
             case 4: self = .intD
             default:
-                #kprint("PCI: Invalid interrupt PIN value: \(pin)")
+                #kprint("PRT: Invalid interrupt PIN value: \(pin)")
                 return nil
         }
     }
@@ -66,7 +66,7 @@ enum PCIInterruptPin: Equatable, CustomStringConvertible {
         let _slot = ariEnabled ? 0 : slot
         let newPin = ((self.rawValue - 1) + _slot) % 4
         let result = Self(pin: newPin + 1)!
-        #kprint("SWIZZLE: slot: \(slot) _slot: \(_slot) pin: \(self) newPin: \(result)")
+        #kprint("PRT: SWIZZLE: slot: \(slot) _slot: \(_slot) pin: \(self) newPin: \(result)")
         return result
     }
 }
@@ -90,7 +90,7 @@ extension PCIRoutingTable {
         let source: Source
 
         var description: String {
-            "_PRT Entry: device: \(String(pciDevice, radix: 16)), pin: \(pin) source: \(source)"
+            #sprintf("DEV: %2.2x PIN: %s source: %s", pciDevice, pin.description, source.description)
         }
     }
 }
@@ -111,12 +111,12 @@ struct PCIRoutingTable: CustomStringConvertible {
     init?(prtNode: ACPI.ACPIObjectNode) {
 
         guard let _prt = try? prtNode.amlObject() else {
-            #kprint("PCI: \(prtNode.fullname()) is not an AMLDataObject")
+            #kprint("PRT: \(prtNode.fullname()) is not an AMLDataObject")
             return nil
         }
 
         guard let routingTable = _prt.packageValue else {
-            #kprint("_PTR is not a package but a:", _prt)
+            #kprint("_PRT is not a package but a:", _prt)
             return nil
         }
 
@@ -163,7 +163,7 @@ struct PCIRoutingTable: CustomStringConvertible {
 
     func findEntryByDevice(slot: UInt8, pin: PCIInterruptPin) -> PCIRoutingTable.Entry? {
 
-        #kprint("PCI: findEntryByDevice, slot: \(String(slot, radix: 16)), pin: \(pin)")
+        #kprint("PRT: findEntryByDevice, slot: \(String(slot, radix: 16)), pin: \(pin)")
         let entry = table.first { $0.pciDevice == slot && $0.pin == pin }
         if entry != nil {
             return entry

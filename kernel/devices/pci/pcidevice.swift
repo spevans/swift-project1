@@ -12,6 +12,7 @@
 final class PCIDevice: BusDevice {
 
     let deviceFunction: PCIDeviceFunction
+
     override var description: String { "PCI \(device.fullName) \(deviceFunction.description)" }
 
 
@@ -22,7 +23,6 @@ final class PCIDevice: BusDevice {
     }
 
     func initialise() -> Bool {
-        self.device.initialised = true
         self.device.enabled = true
         return true
     }
@@ -85,7 +85,7 @@ final class PCIDevice: BusDevice {
 
         #kprint("PCI: final slot: \(slot), pin: \(pin)")
 
-        guard let itr = bus.acpiDeviceConfig?.prt else {
+        guard let itr = bus.acpiDeviceConfig?.prt() else {
             fatalError("PCI: \(bus) cant find an Interrupt Routing Table")
         }
 
@@ -115,15 +115,16 @@ final class PCIDevice: BusDevice {
                     #kprint("\(fullname) has no attached PCI InterruptLink device")
                     return nil
                 }
-                #kprint("PCI: devNode: \(fullname) device: \(node.device as Any), LNK Device: \(device), irq:", deviceDriver.irq)
+                let nodeDevice = node.device?.description ?? "none"
+                #kprint("PCI: devNode: \(fullname) device: \(nodeDevice), LNK Device: \(device), irq:", deviceDriver.irq?.description ?? "none")
                 return deviceDriver.irq
 
             case .globalSystemInterrupt(let gsi):
                 return IRQSetting(gsi: gsi, activeHigh: false, levelTriggered: true, shared: true, wakeCapable: false) // FIXME: try and determine wakeCapable status.
         }
     }
-
 }
+
 
 // Base Address Register pointing to I/O space
 struct PCIIOBar {
@@ -135,17 +136,4 @@ struct PCIIOBar {
         guard _ioPort > 0, _ioPort <= UInt16.max else { return nil }
         ioPort = UInt16(_ioPort)
     }
-}
-
-struct PCIMemoryBar {
-    private let bits: BitArray32
-
-    init?(bar: UInt32) {
-        guard bar & 1 == 0 else { return nil }
-        bits = BitArray32(bar)
-    }
-
-    var locatable: Int { Int(bits[1...2]) }
-    var isPrefetchable: Bool { Bool(bits[3])}
-    var baseAddress: UInt32 { bits.rawValue & 0xFFF0 }
 }

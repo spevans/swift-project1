@@ -157,12 +157,8 @@ struct AMLBufferField {
     }
 
     func readValue(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
-        throw AMLError.unimplemented("AMLBufferField.readValue()")
-/*
-        // TODO: Handle the output being a string buffer or integer
-        let byte = buffer.readBits(atBitIndex: Int(bitIndex), numBits: bitLength)
-        return .integer(AMLInteger(byte))
- */
+        let value = buffer.readBits(atBitIndex: Int(bitIndex), numBits: Int(bitLength))
+        return AMLObject(value)
     }
 
     func updateValue(to newValue: AMLObject, context: inout ACPI.AMLExecutionContext) throws(AMLError) {
@@ -637,13 +633,13 @@ final class AMLSharedBuffer: RandomAccessCollection {
     // Bits
     func readBits(atBitIndex bitIndex: Int, numBits: Int) -> AMLBuffer {
         var result: AMLBuffer = []
-        result.reserveCapacity((numBits + 7) / 8)
+        let byteCount = (numBits + 7) / 8
+        result.reserveCapacity(byteCount)
 
         if bitIndex.isMultiple(of: 8) && numBits.isMultiple(of: 8) {
             let start = bitIndex / 8
-            let count = numBits / 8
-            for i in 0..<count {
-                result[i] = buffer[start + i]
+            for i in 0..<byteCount {
+                result.append(buffer[start + i])
             }
             return result
         } else {
@@ -652,11 +648,10 @@ final class AMLSharedBuffer: RandomAccessCollection {
     }
 
     func writeBits<C: RandomAccessCollection>(atBitIndex bitIndex: Int, numBits: Int, value: C) where C.Element == UInt8, C.Index == Int {
-        #kprintf("WriteBits bitIndex: %d numBits: %d buffer.count: %d value.count: %d\n", bitIndex, numBits, buffer.count, value.count)
         if bitIndex.isMultiple(of: 8) && numBits.isMultiple(of: 8) {
             let start = bitIndex / 8
-            let count = numBits / 8
-            for i in 0..<count {
+            let byteCount = (numBits + 7) / 8
+            for i in 0..<byteCount {
                 buffer[start + i] = value[i]
             }
         } else {
