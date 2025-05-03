@@ -34,7 +34,7 @@ struct BitmapAllocator8: BitmapAllocatorProtocol {
     mutating func allocate() -> Int? {
         let tzbc = bitmap.trailingZeroBitCount
         guard tzbc < entryCount else { return nil }
-        bitmap &= ~BitmapType(1 << tzbc)
+        bitmap &= ~(BitmapType(1) << tzbc)
         return tzbc
     }
 
@@ -65,23 +65,23 @@ struct BitmapAllocator8: BitmapAllocatorProtocol {
 struct BitmapAllocator32: BitmapAllocatorProtocol {
     typealias BitmapType = UInt32
     private var bitmap: BitmapType
-    private let maxEntry: UInt8
+    private let maxEntry: UInt32
 
 
     init(entries: Int) {
         precondition(entries <= BitmapType.bitWidth)
-        maxEntry = UInt8(entries - 1)
+        maxEntry = UInt32(entries )
 
         // Preallocate the entries upto bitWidth
         bitmap = entries == BitmapType.bitWidth ? BitmapType.max : BitmapType((1 << entries) - 1)
     }
 
-    var entryCount: Int { Int(maxEntry) + 1 }
+    var entryCount: Int { Int(maxEntry)  }
 
     mutating func allocate() -> Int? {
         let tzbc = bitmap.trailingZeroBitCount
         guard tzbc < entryCount else { return nil }
-        bitmap &= ~BitmapType(1 << tzbc)
+        bitmap &= ~(BitmapType(1) << tzbc)
         return tzbc
     }
 
@@ -125,7 +125,7 @@ struct BitmapAllocator64: BitmapAllocatorProtocol {
     mutating func allocate() -> Int? {
         let tzbc = bitmap.trailingZeroBitCount
         guard tzbc < entryCount else { return nil }
-        bitmap &= ~BitmapType(1 << tzbc)
+        bitmap &= ~(BitmapType(1) << tzbc)
         return tzbc
     }
 
@@ -173,13 +173,13 @@ struct BitmapAllocator128: BitmapAllocatorProtocol {
 
         let tzbc0 = bitmap0.trailingZeroBitCount
         if tzbc0 < BitmapType.bitWidth {
-            bitmap0 &= ~(BitmapType(1 << tzbc0))
+            bitmap0 &= ~(BitmapType(1) << tzbc0)
             return tzbc0
         }
 
         let tzbc1 = bitmap1.trailingZeroBitCount
         if tzbc1 < BitmapType.bitWidth {
-            bitmap1 &= ~(BitmapType(1 << tzbc1))
+            bitmap1 &= ~(BitmapType(1) << tzbc1)
             return tzbc1 + BitmapType.bitWidth
         }
 

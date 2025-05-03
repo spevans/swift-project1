@@ -52,6 +52,60 @@ class KlibTests: XCTestCase {
         XCTAssertEqual(ba.toUInt8(), 0)
     }
 
+    func testBitmapAllocator8() {
+        var allocator = BitmapAllocator8()
+        XCTAssertEqual(allocator.entryCount, 8)
+        for _ in 1...8 {
+            XCTAssertNotNil(allocator.allocate())
+        }
+        XCTAssertNil(allocator.allocate())
+        XCTAssertFalse(allocator.hasSpace())
+        allocator.free(entry: 1)
+        XCTAssertTrue(allocator.hasSpace())
+        XCTAssertNotNil(allocator.allocate())
+    }
+
+    func testBitmapAllocator32() {
+        for entries in 1...32 {
+            var allocator = BitmapAllocator32(entries: entries)
+            XCTAssertEqual(allocator.entryCount, entries)
+            for _ in 1...entries {
+                XCTAssertNotNil(allocator.allocate())
+            }
+            XCTAssertNil(allocator.allocate())
+            XCTAssertFalse(allocator.hasSpace())
+            allocator.free(entry: entries - 1)
+            XCTAssertTrue(allocator.hasSpace())
+            XCTAssertNotNil(allocator.allocate(), "entries: \(entries)")
+        }
+    }
+
+    func testBitmapAllocator64() {
+        var allocator = BitmapAllocator64()
+        XCTAssertEqual(allocator.entryCount, 64)
+        for _ in 1...64 {
+            XCTAssertNotNil(allocator.allocate())
+        }
+        XCTAssertNil(allocator.allocate())
+        XCTAssertFalse(allocator.hasSpace())
+        allocator.free(entry: 1)
+        XCTAssertTrue(allocator.hasSpace())
+        XCTAssertNotNil(allocator.allocate())
+    }
+
+    func testBitmapAllocator128() {
+        var allocator = BitmapAllocator128()
+        XCTAssertEqual(allocator.entryCount, 128)
+        for _ in 1...128 {
+            XCTAssertNotNil(allocator.allocate())
+        }
+        XCTAssertNil(allocator.allocate())
+        XCTAssertFalse(allocator.hasSpace())
+        allocator.free(entry: 1)
+        XCTAssertTrue(allocator.hasSpace())
+        XCTAssertNotNil(allocator.allocate())
+    }
+
     static var allTests = [
         ("testReservatonManager", testReservationManager),
         ("testBitArray8", testBitArray8),
