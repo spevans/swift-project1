@@ -6,9 +6,13 @@
 //  Copyright © 2022 Simon Evans. All rights reserved.
 //
 
-struct PhysRegion {
+struct PhysRegion: CustomStringConvertible {
     let baseAddress: PhysAddress
     let size: UInt
+
+    var description: String {
+        #sprintf("%p/%x", baseAddress, size)
+    }
 
     init(start: PhysAddress, size: UInt) {
         precondition(size > 0)

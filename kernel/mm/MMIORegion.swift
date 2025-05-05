@@ -197,6 +197,15 @@ struct MMIOSubRegion: CustomStringConvertible, RandomAccessCollection {
         }
     }
 
+    func dump(maxBytes: Int) -> String {
+        var result = ""
+        for index in 0..<Swift.max(count, maxBytes) {
+            result += self[index].hex()
+            result += " "
+        }
+        return result
+    }
+
     var description: String {
         "MMIO @ \(baseAddress), count: \(count)"
     }

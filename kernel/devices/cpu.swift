@@ -215,7 +215,7 @@ struct CPU {
     // The Page Attribute Table (PAT) entries will be setup so that the cache type rawValues get setup to match the MTRR values.
     // weakUncacheable will be ignored here as it isnt useful at the moment
     // These are the indexes of the PAT MSRs. Not all are used, some are reserved
-    enum CacheType: Int {
+    enum CacheType: Int, CustomStringConvertible {
         case writeBack = 0
         case writeCombining = 1
         case weakUncacheable = 2
@@ -224,6 +224,27 @@ struct CPU {
         case writeProtected = 5
         case reserved2 = 6 // weakUncacheable
         case writeThrough = 7
+
+        var description: String {
+            switch self {
+                case .writeBack:
+                    "WB"
+                case .writeCombining:
+                    "WC"
+                case .weakUncacheable:
+                    "WU"
+                case .uncacheable:
+                    "UN"
+                case .reserved1:
+                    "R1"
+                case .writeProtected:
+                    "WP"
+                case .reserved2:
+                    "R2"
+                case .writeThrough:
+                    "WT"
+            }
+        }
 
         // This value is stored as three bits in a Page Table Entry mapping a page.
         var patEntry: Int { rawValue }
@@ -328,7 +349,7 @@ struct CPU {
         // 1: WriteCombining   (WC)
         // 2: Weak Uncacheable (UC-)
         // 3: Uncacheable      (UC)
-        // 4: WriteBack        (WP)
+        // 4: WriteBack        (WB)
         // 5: WriteProtected   (WP)
         // 6: Weak Uncacheable (UC-)
         // 7: WriteThrough     (WT)

@@ -64,7 +64,21 @@ func _kprintf(_ format: StaticString, _ arg: _PrintfArg) {
     do {
         try _printf(to: &_tty, format: format, arg, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
     } catch {
-        fatalError("Error")
+        let msg = switch error {
+            case .invalidNumber: "Invalid Number"
+            case .invalidString: "Invalid String"
+            case .invalidCharacter: "Invalid Character"
+            case .expectedUnsigned: "Expected an unsigned value"
+            case .expectedNumber: "Expected a number"
+            case .expectedString: "Expected a string"
+            case .expectedCharacter: "Expected a Character"
+            case .insufficientFormatChars: "Insufficient Format Characters"
+            case .insufficientArguments: "Insufficient Arguments"
+            case .invalidFormatChar(let ch): "Invalid Format Character: \(ch)"
+            case .missingArgument: "Missing Argument"
+            case .excessArguments: "Excess Arguments"
+        }
+        #kprintf("sprintf: Error with format string '%s': %s\n", format, msg)
     }
 }
 
