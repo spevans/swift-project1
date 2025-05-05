@@ -24,7 +24,7 @@ extension ACPI {
             if let p = parent {
                 result += " parent: \(p.name.description)"
             }
-            result += "children ["
+            result += " children ["
             result += childNodes.map { $0.name.value }.joined(separator: ", ")
             result += "]"
             return result
@@ -44,6 +44,7 @@ extension ACPI {
             guard self.device == nil else {
                 fatalError("\(fullname()) already has a device set")
             }
+            self.device = newDevice
         }
 
         func readValue(context: inout AMLExecutionContext) throws(AMLError) -> AMLObject {
@@ -73,19 +74,6 @@ extension ACPI {
 
         fileprivate func addChildNode(_ node: ACPIObjectNode) -> Bool {
             guard !childNodes.contains(where: { $0.name == node.name }) else {
-/*
-                // A generic ACPIObjectNode may have been added first to allow adding
-                // child nodes, but now the node of its correct type (eg AMLDefDevice)
-                // needs to replace it.
-                let child = childNodes[index]
-                node.childNodes = child.childNodes
-                node.childNodes.forEach {
-                    $0.parent = node
-                }
-                child.childNodes = []
-                child.parent = nil
-                childNodes[index] = node
-*/
                 #kprint("ACPI: Ignoring duplicate node \(self.fullname()).\(node.name.value)")
                 return false
             }

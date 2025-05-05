@@ -426,7 +426,7 @@ extension ACPI {
 
             if !status.present {
                 #kprint("ACPI: Ignoring not present device \(name)")
-                return true
+                return false
             }
 
             var parentDevice: Device? = nil
@@ -436,7 +436,7 @@ extension ACPI {
                     parentDevice = device
                     break
                 }
-                parent = p
+                parent = p.parent
             }
             if parentDevice == nil { fatalError("Reached top of tree! for \(node.fullname())")}
 
