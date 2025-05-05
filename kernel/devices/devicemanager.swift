@@ -152,8 +152,10 @@ final class DeviceManager {
         let spaces = String(repeating: " ", count: depth * 6)
         for device in bus.devices {
             var driverName = ""
-            if let driver = device.deviceDriver { driverName = ": [\(driver.description)]" }
-            #kprint("\(spaces)+--- \(device)\(driverName) [init: \(device.initialised) enab: \(device.enabled)]")
+
+            if let driver = device.deviceDriver { driverName = driver.description }
+            let busDeviceName = device.busDevice?.description ?? ""
+            #kprint("\(spaces)+--- \(device) BUS: \(busDeviceName) DRV: \(driverName)")
             if device.isBus {
                 dumpBus(device, depth: depth + 1)
             }

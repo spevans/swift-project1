@@ -13,7 +13,7 @@ final class PCIDevice: BusDevice {
 
     let deviceFunction: PCIDeviceFunction
 
-    override var description: String { "PCI \(device.fullName) \(deviceFunction.description)" }
+    override var description: String { "PCI \(deviceFunction.description)" }
 
 
     init?(device: Device, deviceFunction: PCIDeviceFunction) {

@@ -9,10 +9,14 @@
  */
 
 
-struct PCIDeviceClass: Equatable {
+struct PCIDeviceClass: Equatable, CustomStringConvertible {
     let classCode: PCIClassCode
     let subClassCode: UInt8
     let progInterface: UInt8
+
+    var description: String {
+        #sprintf("%2.2x/%2.2x/%2.2x", classCode.rawValue, subClassCode, progInterface)
+    }
 
     init?(classCode: UInt8, subClassCode: UInt8, progInterface: UInt8) {
         guard let _classCode = PCIClassCode(rawValue: classCode) else {

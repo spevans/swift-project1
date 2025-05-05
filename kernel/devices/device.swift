@@ -25,7 +25,7 @@ final class Device: CustomStringConvertible {
     var enabled = false
     var initialised = false
     var isBus: Bool { devices.count > 0 }
-    var description: String { return "\(fullName): \(unsafeBitCast(self, to: UInt.self).hex()) Generic Device" }
+    var description: String { return "\(fullName): " + (busDevice?.description ?? "Generic Device") }
 
 
     init(parent: Device?, fullName: String, acpiDeviceConfig: ACPIDeviceConfig? = nil) {
@@ -53,13 +53,6 @@ final class Device: CustomStringConvertible {
         }
         deviceDriver = driver
     }
-/*
-    var acpiDevice: AMLDefDevice? {
-        switch config {
-            case let .acpi(acpiConfig): return acpiConfig.device
-            default: return nil
-        }
-    }*/
 }
 
 // Generic Keyboard device
