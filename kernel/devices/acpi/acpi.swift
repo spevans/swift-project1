@@ -392,7 +392,6 @@ extension ACPI {
             }
         }
 
-        #kprint("ACPI: Finding _INI")
         // Find _INI for ACPI devices and run if necessary
         ACPI.globalObjects.findNodes(name: AMLNameString("_INI")) { (fullname, node) in
             // Evaluate _STA if present

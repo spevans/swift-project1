@@ -26,8 +26,6 @@ final class PCIDevice: BusDevice {
     func initialise() -> Bool {
         // FIXME: Should the caller be calling it directly, and should this only be called
         // by the device driver?
-        #kprint("PCI: initialise() for \(self)")
-        #kprint("PCI: Getting PCI IO Regions")
         self.pciIORegions = self.decodeIORegions()
         self.device.enabled = true
         #kprint("PCI: \(self) enabled")
@@ -87,17 +85,13 @@ final class PCIDevice: BusDevice {
         guard var bus = self.device.parent else {
             fatalError("PCIDevice \(self) has no parent so cant find interrupr")
         }
-        #kprint("PCI: slot: \(slot) device: \(self.deviceFunction.device) df: \(self.deviceFunction), pin: \(pin)")
 
         while let parent = self.parentPCIDevice(device: bus), let bridge = parent.deviceFunction.deviceClass?.bridgeSubClass,
               bridge == .isa {   // FIXME, add , !bus.isRootBridge test
             pin = pin.swizzle(slot: slot)
             slot = parent.deviceFunction.slot
-            #kprint("PCI: bus: \(bus), interruptPin: \(pin)")
             bus = parent.device
         }
-
-        #kprint("PCI: final slot: \(slot), pin: \(pin)")
 
         guard let itr = bus.acpiDeviceConfig?.prt() else {
             fatalError("PCI: \(bus) cant find an Interrupt Routing Table")
@@ -108,11 +102,8 @@ final class PCIDevice: BusDevice {
             return nil
         }
 
-        #kprint("PCI: Found routing entry: \(entry)")
-
         switch entry.source {
             case .namePath(let namePath, let sourceIndex):
-                #kprint("PCI: NamePath: \(namePath)")
                 // FIXME, should have better way of walking up the tree
                 guard let (node, fullname) = itr.prtAcpiNode.topParent().getGlobalObject(currentScope: AMLNameString(itr.prtAcpiNode.fullname()), name: namePath) else {
                     #kprint("PCI: Cant find object for \(namePath) under \(itr.prtAcpiNode.fullname())")
@@ -129,8 +120,6 @@ final class PCIDevice: BusDevice {
                     #kprint("\(fullname) has no attached PCI InterruptLink device")
                     return nil
                 }
-                let nodeDevice = node.device?.description ?? "none"
-                #kprint("PCI: devNode: \(fullname) device: \(nodeDevice), LNK Device: \(device), irq:", deviceDriver.irq?.description ?? "none")
                 return deviceDriver.irq
 
             case .globalSystemInterrupt(let gsi):

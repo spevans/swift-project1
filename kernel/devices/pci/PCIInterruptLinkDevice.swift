@@ -44,10 +44,7 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
             return false
         }
         let f = acpiConfig.node.fullname()
-
         let resources = ISABus.Resources(crs)
-        #kprint("PCIInterruptLinkDevice: \(f) \(resources)")
-
 
         if let cirq = resources.interrupts.first {
             if cirq.irq == 0 {  // Ignore IRQ0
@@ -67,12 +64,10 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
             } else {
                 irq = cirq
             }
-            #kprintf("%s: Using IRQ: %s\n", f, irq?.irq.description ?? "none")
         } else {
             #kprintf("%s: has no configured irq\n", f)
             return false
         }
-        //        #kprint("PCI INT Link \(f) [_UID=\(uidValue)]: resources:", resources)
         return true
     }
 
@@ -82,8 +77,6 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
             #kprintf("%s: No _PRS, cant get irqs\n", f)
             return nil
         }
-        let s: String = prs.map { $0.description }.joined(separator: ", ")
-        #kprintf("%s: PCI LNK _PRS: %s\n", f, s)
         for resource in prs {
             switch resource {
                 case .irqSetting(let setting):

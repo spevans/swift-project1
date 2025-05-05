@@ -215,7 +215,6 @@ extension ACPI.ACPIObjectNode {
 
     func addressResource() throws(AMLError) -> AMLInteger? {
         guard let adr = try childNode(named: "_ADR")?.amlObject().integerValue else {
-            #kprint("Cant find _ADR in", self.fullname())
             // Override missing _ADR for Root PCIBus
             return self.fullname() == "\\_SB.PCI0" ? AMLInteger(0) : nil
         }
@@ -361,7 +360,6 @@ enum OpRegionSpace: CustomStringConvertible {
 
 
     func write(atIndex index: Int, value: AMLInteger, flags: AMLFieldFlags) {
-        #kprintf("OpRegionSpace.write(index: %d value: %X type: %s)\n", index, value, self.description)
         switch self {
         case let .systemMemory(region): return region.write(atIndex: index, value: value, flags: flags)
         case let .systemIO(region): return region.write(atIndex: index, value: value, flags: flags)
@@ -560,29 +558,21 @@ struct SystemMemorySpace: CustomStringConvertible {
     }
 
     func write(atIndex index: Int, value: AMLInteger, flags: AMLFieldFlags) {
-        let newIndex: Int
         switch flags.fieldAccessType {
             case .AnyAcc, .ByteAcc:
                 mmioRegion.write(value: UInt8(truncatingIfNeeded: value), toByteOffset: index)
-                newIndex = index
 
             case .WordAcc:
                 mmioRegion.write(value: UInt16(truncatingIfNeeded: value), toByteOffset: index * 2)
-                newIndex = index * 2
 
             case .DWordAcc:
                 mmioRegion.write(value: UInt32(truncatingIfNeeded: value), toByteOffset: index * 4)
-                newIndex = index * 4
 
             case .QWordAcc:
                 mmioRegion.write(value: UInt64(truncatingIfNeeded: value), toByteOffset: index * 8)
-                newIndex = index * 8
 
             case .BufferAcc: fatalError("Buffer access used in a SystemRegion for writing")
         }
-        let address = offset + UInt(newIndex)
-        #kprintf("ACPI: SystemMemorySpace.write: %#x index: %d value: %x newIndex: %d length: %d\n",
-                 address, index, value, newIndex, length)
     }
 }
 
@@ -623,7 +613,6 @@ struct SystemIO: CustomStringConvertible {
             default:
                 fatalError("\(flags.fieldAccessType) access not allowed in a SystemIO region")
         }
-        //print("Read \(flags.fieldAccessType) from port 0x\(String(port + offset, radix: 16)) -> 0x\(String(result, radix: 16))")
         return result
     }
 
@@ -689,7 +678,6 @@ struct PCIConfigRegionSpace: CustomStringConvertible {
 
 
     func write(atIndex index: Int, value: AMLInteger, flags: AMLFieldFlags) {
-        #kprint("PCIConfigRegionSpace.write offset: \(offset) index: 0x\(String(index, radix: 16)) value: 0x\(String(value, radix: 16)) accesstype: \(flags.fieldAccessType)")
         switch flags.fieldAccessType {
             case .AnyAcc, .ByteAcc:
                 config.writeConfigByte(atByteOffset: offset + UInt(index), value: UInt8(truncatingIfNeeded: value))
@@ -727,7 +715,6 @@ final class AMLDefOpRegion {
 
     // FIXME .regionSpace can be initialised here if offset and length are both AMLIntegerData
     init(fullname: AMLNameString, region: AMLRegionSpace, offset: AMLTermArg, length: AMLTermArg) {
-//        var context =
         self.fullname = fullname
         self.regionSpaceType = region
         self.offset = offset

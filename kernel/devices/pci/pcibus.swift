@@ -38,7 +38,6 @@ final class PCIBus: DeviceDriver {
             #kprint("PCI: PCIBus: busId: \(asHex(busId)) \(pnpDevice.device.fullName) has no ACPI config")
             return nil
         }
-        #kprint("PCIBus.init \(pnpDevice.device.fullName): busId: \(busId)")
         super.init(device: pnpDevice.device)
         #kprint("PCIBus.init:", self.description)
     }

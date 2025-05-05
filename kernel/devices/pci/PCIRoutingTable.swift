@@ -162,8 +162,6 @@ struct PCIRoutingTable: CustomStringConvertible {
     }
 
     func findEntryByDevice(slot: UInt8, pin: PCIInterruptPin) -> PCIRoutingTable.Entry? {
-
-        #kprint("PRT: findEntryByDevice, slot: \(String(slot, radix: 16)), pin: \(pin)")
         let entry = table.first { $0.pciDevice == slot && $0.pin == pin }
         if entry != nil {
             return entry

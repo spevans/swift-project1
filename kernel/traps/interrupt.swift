@@ -67,9 +67,8 @@ public struct InterruptManager: ~Copyable {
         var _ioapics: [IOAPIC] = []
         var _overrideEntries: [MADT.InterruptSourceOverrideTable] = []
 
-        #kprintf("INT-MAN: Have %d MADT Entries\n", madtEntries.count)
         madtEntries.forEach {
-            #kprint("INT-MAN: MADT entry:", $0)
+            //#kprint("INT-MAN: MADT entry:", $0)
             switch $0 {
                 case let .ioApic(entry):
                     let baseAddress = PhysAddress(RawAddress(entry.ioApicAddress))

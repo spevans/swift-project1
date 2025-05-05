@@ -8,11 +8,15 @@
  *
  */
 
+var mmDebug = false
+
 // Add a mapping to a physical region, a mapping cant already exist
 func mapIORegion(region: PhysRegion, cacheType: CPU.CacheType = .uncacheable) -> MMIORegion {
     let alignedRegion = region.physPageAlignedRegion
     let vaddr = alignedRegion.baseAddress.vaddr
-    //print("Adding IO mapping for \(region) at 0x\(String(vaddr, radix: 16)) \(cacheType)")
+    if mmDebug {
+        #kprint("Adding IO mapping for \(region) at 0x\(String(vaddr, radix: 16)) cacheType: \(cacheType)")
+    }
     addMapping(start: vaddr, size: alignedRegion.size, physStart: alignedRegion.baseAddress,
                readWrite: true, noExec: true, cacheType: cacheType)
 
@@ -117,7 +121,6 @@ func addMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
         addr += PAGE_SIZE
         physAddress = physAddress.advanced(by: PAGE_SIZE)
     }
-    #kprintf("MM: Added kernel mapping from %p-%p [%p-%p]\n", start, addr - 1, physStart.value, physAddress.value - 1)
 }
 
 

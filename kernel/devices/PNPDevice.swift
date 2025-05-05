@@ -73,8 +73,6 @@ final class PNPDevice: BusDevice {
                 "PNP0C01":  // System Board
                 return HPET(pnpDevice: pnpDevice)
             default:
-                let name = pnpDevice.device.acpiDeviceConfig?.node.fullname() ?? "unknown"
-                #kprint("PNP: No driver for", pnpDevice.pnpName, name)
                 return nil
         }
     }

@@ -193,9 +193,6 @@ struct APIC: ~Copyable {
         apicRegisters = UnsafeMutableRawBufferPointer(start: ptr,
             count: APIC.APIC_REGISTER_SPACE_SIZE)
 
-        let bootProcessor = apicStatus[bootProcessorBit] == 1
-        #kprint("APIC: boot \(bootProcessor)")
-
         printStatus()
         setupTimer()
         spuriousIntVector = 0x1ff

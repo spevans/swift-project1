@@ -186,7 +186,6 @@ struct EFIBootParams {
             for table in tables {
                 let entry = EFIConfigTableEntry(guid: table.vendor_guid,
                     table: table.vendor_table)
-                EFITables.printGUID(entry.guid)
 
                 // Look for Root System Description Pointer and SMBios tables
                 if acpiTmpPhysAddress == nil {

@@ -11,6 +11,8 @@
 //  the CPU doesnt reorder accesses.
 //
 
+var mmioDebug = false
+
 struct MMIORegion: CustomStringConvertible {
     let physAddressRegion: PhysRegion
 
@@ -46,6 +48,9 @@ struct MMIORegion: CustomStringConvertible {
         }
         precondition(offset + bytes <= regionSize)
         let address = (baseAddress + offset).rawPointer
+        if mmioDebug {
+            #kprintf("MMIO.read from %p\n", address)
+        }
         switch bytes {
             case 1: return T(mmio_read_uint8(address))
             case 2: return T(mmio_read_uint16(address))
@@ -63,6 +68,10 @@ struct MMIORegion: CustomStringConvertible {
         }
         precondition(offset + bytes <= regionSize)
         let address = (baseAddress + offset).rawPointer
+        if mmioDebug {
+            #kprintf("MMIO.write to %p\n", address)
+        }
+
         switch bytes {
             case 1: return mmio_write_uint8(address, UInt8(value))
             case 2: return mmio_write_uint16(address, UInt16(value))
