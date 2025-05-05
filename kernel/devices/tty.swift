@@ -540,7 +540,7 @@ private struct Font: CustomStringConvertible {
 
     func characterData(_ ch: CUnsignedChar) -> UnsafeBufferPointer<UInt8> {
         let offset = Int(ch) * Int(bytesPerChar)
-        return UnsafeBufferPointer(start: data.advancedBy(bytes: offset),
+        return UnsafeBufferPointer(start: data.advanced(by: offset),
             count: Int(bytesPerChar))
     }
 }
@@ -655,7 +655,7 @@ private struct FrameBufferTTY {
 
     func scrollUp() {
         let screenBase = screen.baseAddress!
-        screenBase.update(from: screenBase.advancedBy(bytes: bytesPerTextLine),
+        screenBase.update(from: screenBase.advanced(by: bytesPerTextLine),
             count: lastLineScrollArea)
 
         // Clear the bottom line

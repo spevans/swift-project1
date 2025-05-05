@@ -65,24 +65,12 @@ extension UnsafePointer {
     var address: UInt {
         return UInt(bitPattern: self)
     }
-
-    // Increment a pointer by x bytes and recast to a new type
-    // Unwrapped result as nil pointers cant be advanced
-    func advancedBy<T>(bytes: Int) -> UnsafePointer<T> {
-        return UnsafePointer<T>(bitPattern: UInt(bitPattern: self) + UInt(bytes))!
-    }
 }
 
 
 extension UnsafeMutablePointer {
     var address: UInt {
         return UInt(bitPattern: self)
-    }
-
-    // Increment a pointer by x bytes and recast to a new type
-    // Unwrapped result as nil pointers cant be advanced
-    func advancedBy<T>(bytes: Int) -> UnsafeMutablePointer<T> {
-        return UnsafeMutablePointer<T>(bitPattern: UInt(bitPattern: self) + UInt(bytes))!
     }
 }
 

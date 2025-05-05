@@ -125,7 +125,7 @@ struct MADT: CustomDebugStringConvertible {
                         + "controllers.count: \(controllers.count)")
             }
 
-            let start: UnsafePointer<UInt8> = controllers.baseAddress!.advancedBy(bytes: position)
+            let start: UnsafePointer<UInt8> = controllers.baseAddress!.advanced(by: position)
             let tableData = UnsafeBufferPointer(start: start,
                                                 count: tableLen)
             let table = decodeTable(table: tableData)
