@@ -80,27 +80,27 @@ final class PCIDeviceFunction: CustomStringConvertible {
     var configSpaceSize: Int { configSpace.size }
 
     func readConfigByte(atByteOffset offset: UInt) -> UInt8 {
-        configSpace.readConfigByte(device: device, function: function, offset: offset)
+        configSpace.readConfigByte(atByteOffset: offset)
     }
 
     func readConfigWord(atByteOffset offset: UInt) -> UInt16 {
-        configSpace.readConfigWord(device: device, function: function, offset: offset)
+        configSpace.readConfigWord(atByteOffset: offset)
     }
 
     func readConfigDword(atByteOffset offset: UInt) -> UInt32 {
-        configSpace.readConfigDword(device: device, function: function, offset: offset)
+        configSpace.readConfigDword(atByteOffset: offset)
     }
 
     func writeConfigByte(atByteOffset offset: UInt, value: UInt8) {
-        configSpace.writeConfigByte(device: device, function: function, offset: offset, value: value)
+        configSpace.writeConfigByte(atByteOffset: offset, value: value)
     }
 
     func writeConfigWord(atByteOffset offset: UInt, value: UInt16) {
-        configSpace.writeConfigWord(device: device, function: function, offset: offset, value: value)
+        configSpace.writeConfigWord(atByteOffset: offset, value: value)
     }
 
     func writeConfigDword(atByteOffset offset: UInt, value: UInt32) {
-        configSpace.writeConfigDword(device: device, function: function, offset: offset, value: value)
+        configSpace.writeConfigDword(atByteOffset: offset, value: value)
     }
 }
 

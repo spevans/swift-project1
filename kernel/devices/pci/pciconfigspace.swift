@@ -28,7 +28,8 @@ enum PCIConfigSpace: CustomStringConvertible {
             #kprint("PCIConfigSpace, mapping regions @ \(pageRange) for base address \(mmioBaseAddress), bus: \(busId), \(device)/\(function) => \(regionAddress)")
             self = .mmio(mmioRegion: mapIORegion(region: pageRange))
         } else {
-            self = .pio(baseAddress: UInt32(busId) << 16 | 0x80000000)
+            let address = (UInt32(busId) << 16) | (UInt32(device) << 11) | (UInt32(function) << 8)
+            self = .pio(baseAddress: address | 0x80000000)
         }
     }
 
@@ -54,17 +55,17 @@ enum PCIConfigSpace: CustomStringConvertible {
             }
     }
 
-    private func setPIOConfigAddress(baseAddress: UInt32, device: UInt8, function: UInt8, offset: UInt) {
-        let address = baseAddress | UInt32(device) << 11 | UInt32(function) << 8 | UInt32(offset & 0xfc)
+    private func setPIOConfigAddress(baseAddress: UInt32, offset: UInt) {
+        let address = baseAddress | UInt32(offset & 0xfc)
         outl(PCI_CONFIG_ADDRESS, address)
     }
 
-    func readConfigByte(device: UInt8, function: UInt8, offset: UInt) -> UInt8 {
+    func readConfigByte(atByteOffset offset: UInt) -> UInt8 {
         switch self {
             case .pio(let baseAddress):
                 precondition(offset < 256)
                 return noInterrupt {
-                    setPIOConfigAddress(baseAddress: baseAddress, device: device, function: function, offset: offset)
+                    setPIOConfigAddress(baseAddress: baseAddress, offset: offset)
                     return inb(PCI_CONFIG_DATA + UInt16(offset & 0x3))
                 }
 
@@ -77,15 +78,15 @@ enum PCIConfigSpace: CustomStringConvertible {
         }
     }
 
-    func readConfigWord(device: UInt8, function: UInt8, offset: UInt) -> UInt16 {
+    func readConfigWord(atByteOffset offset : UInt) -> UInt16 {
         if offset & UInt(0x1) != 0 {
-            fatalError("PCIConfigSpace.readConfigWord(device: \(String(device, radix: 16)), function: \(String(function, radix: 16)), offset: \(String(offset, radix: 16))")
+            fatalError("PCIConfigSpace.writeConfigWord offset is not 16bit aligned")
         }
         switch self {
             case .pio(let baseAddress):
             precondition(offset < 256)
             return noInterrupt {
-                setPIOConfigAddress(baseAddress: baseAddress, device: device, function: function, offset: offset)
+                setPIOConfigAddress(baseAddress: baseAddress, offset: offset)
                 return inw(PCI_CONFIG_DATA + UInt16(offset & 0x2))
             }
 
@@ -99,15 +100,15 @@ enum PCIConfigSpace: CustomStringConvertible {
         }
     }
 
-    func readConfigDword(device: UInt8, function: UInt8, offset: UInt) -> UInt32 {
+    func readConfigDword(atByteOffset offset: UInt) -> UInt32 {
         if offset & UInt(0x3) != 0 {
-            fatalError("PCIConfigSpace.readConfigDword(device: \(String(device, radix: 16)), function: \(String(function, radix: 16)), offset: \(String(offset, radix: 16))")
+            fatalError("PCIConfigSpace.writeConfigDword offset is not 32bit aligned")
         }
         switch self {
             case .pio(let baseAddress):
             precondition(offset < 256)
             return noInterrupt {
-                setPIOConfigAddress(baseAddress: baseAddress, device: device, function: function, offset: offset)
+                setPIOConfigAddress(baseAddress: baseAddress, offset: offset)
                 return inl(PCI_CONFIG_DATA)
             }
 
@@ -120,12 +121,12 @@ enum PCIConfigSpace: CustomStringConvertible {
         }
     }
 
-    func writeConfigByte(device: UInt8, function: UInt8, offset: UInt, value: UInt8) {
+    func writeConfigByte(atByteOffset offset: UInt, value: UInt8) {
         switch self {
             case .pio(let baseAddress):
             precondition(offset < 256)
             return noInterrupt {
-                setPIOConfigAddress(baseAddress: baseAddress, device: device, function: function, offset: offset)
+                setPIOConfigAddress(baseAddress: baseAddress, offset: offset)
                 outb(PCI_CONFIG_DATA + UInt16(offset & 0x3), value)
             }
 
@@ -138,15 +139,15 @@ enum PCIConfigSpace: CustomStringConvertible {
         }
     }
 
-    func writeConfigWord(device: UInt8, function: UInt8, offset: UInt, value: UInt16) {
+    func writeConfigWord(atByteOffset offset: UInt, value: UInt16) {
         if offset & UInt(0x1) != 0 {
-            fatalError("PCIConfigSpace.writeConfigWord(device: \(String(device, radix: 16)), function: \(String(function, radix: 16)), offset: \(String(offset, radix: 16))")
+            fatalError("PCIConfigSpace.writeConfigWord offset is not 16bit aligned")
         }
         switch self {
             case .pio(let baseAddress):
             precondition(offset < 256)
             return noInterrupt {
-                setPIOConfigAddress(baseAddress: baseAddress, device: device, function: function, offset: offset)
+                setPIOConfigAddress(baseAddress: baseAddress, offset: offset)
                 outw(PCI_CONFIG_DATA + UInt16(offset & 0x2), value)
             }
 
@@ -159,15 +160,15 @@ enum PCIConfigSpace: CustomStringConvertible {
         }
     }
 
-    func writeConfigDword(device: UInt8, function: UInt8, offset: UInt, value: UInt32) {
+    func writeConfigDword(atByteOffset offset: UInt, value: UInt32) {
         if offset & UInt(0x3) != 0 {
-            fatalError("PCIConfigSpace.writeConfigDword(device: \(String(device, radix: 16)), function: \(String(function, radix: 16)), offset: \(String(offset, radix: 16))")
+            fatalError("PCIConfigSpace.writeConfigDword offset is not 32bit aligned")
         }
         switch self {
             case .pio(let baseAddress):
             precondition(offset < 256)
             return noInterrupt {
-                setPIOConfigAddress(baseAddress: baseAddress, device: device, function: function, offset: offset)
+                setPIOConfigAddress(baseAddress: baseAddress, offset: offset)
                 outl(PCI_CONFIG_DATA, value)
             }
 

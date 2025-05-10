@@ -184,6 +184,7 @@ enum AMLError: Error, CustomStringConvertible {
     case endOfStream(reason: String)
     case parseError
     case unimplementedError(reason: String)
+    case error(reason: String)
 
     var description: String {
         switch self {
@@ -196,6 +197,7 @@ enum AMLError: Error, CustomStringConvertible {
             case .endOfStream(let reason):              return "Unexpected end of stream: \(reason)"
             case .parseError:                           return "Unknown parsing error"
             case .unimplementedError(let reason):       return "Unimplemented Error: \(reason)"
+            case .error(let reason):                    return reason
         }
     }
 

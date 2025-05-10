@@ -652,7 +652,7 @@ struct SystemIO: CustomStringConvertible {
 
 
 struct PCIConfigRegionSpace: CustomStringConvertible {
-    let config: PCIDeviceFunction
+    let config: PCIConfigSpace
     let offset: UInt
     let length: Int
 
@@ -660,7 +660,7 @@ struct PCIConfigRegionSpace: CustomStringConvertible {
         return "PCIConfigSpace: offset: 0x\(String(offset, radix: 16)), length: \(length)"
     }
 
-    init(config: PCIDeviceFunction, offset: AMLInteger, length: AMLInteger) {
+    init(config: PCIConfigSpace, offset: AMLInteger, length: AMLInteger) {
         precondition(length > 0)
         precondition(offset + length <= 256)
 
@@ -734,6 +734,25 @@ final class AMLDefOpRegion {
         self.length = length
     }
 
+    private func findPciRoot(for node: ACPI.ACPIObjectNode) throws(AMLError) -> ACPI.ACPIObjectNode {
+        let rootIDs = ["PNP0A03", "PNP0308"]
+        var parent: ACPI.ACPIObjectNode? = node
+        while let p = parent {
+            if let hid = try p.hardwareId(), rootIDs.contains(hid) {
+                return p
+            }
+            if let cids = try p.compatibleIds() {
+                for cid in cids {
+                    if rootIDs.contains(cid) {
+                        return p
+                    }
+                }
+            }
+            parent = p.parent
+        }
+        throw AMLError.error(reason: "Cannot find Root PCI containing \(node.fullname())")
+    }
+
 
     func getRegionSpace(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> OpRegionSpace {
         if let rs = regionSpace {
@@ -755,25 +774,30 @@ final class AMLDefOpRegion {
                     fatalError("Cant find node: \(self.fullname)")
                 }
 
+                let root = try findPciRoot(for: _node)
+                guard let bbn = try root.baseBusNumber() else {
+                    throw AMLError.error(reason: "\(root) has no _BBN")
+                }
                 // Find the PCI address for the device
                 var node: ACPI.ACPIObjectNode? = _node
                 var address: UInt64? = nil
-                var bbn: UInt8? = nil
 
-                while let parent = node?.parent {
-                    if address == nil, let _address = try parent.addressResource() {
-                        address = _address
+                // Find the enclosing device for this node and then find its _ADR
+                while let n = node {
+                    if n.object.isDevice {
+                        address = try n.addressResource()
+                        break
                     }
-                    if bbn == nil, let _bbn = try parent.baseBusNumber() {
-                        bbn = UInt8(truncatingIfNeeded: _bbn)
-                    }
-                    node = parent
+                    node = n.parent
+                }
+                guard node != nil else {
+                    throw AMLError.error(reason: "Cannot find containing device for \(_node.fullname())")
                 }
 
                 if let address = address  {
-                    let configSpace = PCIDeviceFunction(busId: bbn ?? 0,
-                                                        device: UInt8(truncatingIfNeeded: address >> 16),
-                                                        function: UInt8(truncatingIfNeeded: address))
+                    let configSpace = PCIConfigSpace(busId: UInt8(bbn),
+                                                     device: UInt8(truncatingIfNeeded: address >> 16),
+                                                     function: UInt8(truncatingIfNeeded: address))
                     #kprintf("ACPI: %s: Using %s for PCI_Region\n",  fullname, configSpace.description)
                     regionSpace = .pciConfig(PCIConfigRegionSpace(config: configSpace, offset: regionOffset, length: regionLength))
                 } else {
