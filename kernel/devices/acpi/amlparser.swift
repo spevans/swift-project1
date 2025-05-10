@@ -752,7 +752,7 @@ final class AMLParser {
         let closure = { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let fullname = resolveNameTo(scope: context.scope, path: name)
             let dataRefObject = try objArg.dataRefObject(context: &context)
-            let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: dataRefObject)
+            let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: dataRefObject)
             return [(fullname, node, nil)]
         }
         return AMLNameSpaceModifier(name: name, closure: closure)
@@ -784,7 +784,7 @@ final class AMLParser {
             for (name, settings) in fields {
                 let fullname = resolveNameTo(scope: context.scope, path: name)
                 let object = AMLNamedField(name: name, indexField: indexName, dataField: dataName, fieldSettings: settings)
-                let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(object))
+                let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(object))
                 result.append((fullname, node, nil))
             }
             return result
@@ -800,7 +800,7 @@ final class AMLParser {
         let closure = { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let fullname = resolveNameTo(scope: context.scope, path: name)
             let mutex = AMLDefMutex(name: name, flags: flags)
-            let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(mutex))
+            let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(mutex))
             return [(fullname, node, nil)]
         }
         return AMLNameSpaceModifier(name: name, closure: closure)
@@ -841,7 +841,7 @@ final class AMLParser {
             let index = try operandAsInteger(operand: bitIndex, context: &context)
             let fullname = resolveNameTo(scope: context.scope, path: name)
             let object = try AMLBufferField(buffer: sharedBuffer, bitIndex: index, bitLength: 1)
-            let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(object))
+            let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(object))
             return [(fullname, node, nil)]
         }
         return AMLNameSpaceModifier(name: name, closure: closure)
@@ -858,7 +858,7 @@ final class AMLParser {
             let index = try operandAsInteger(operand: byteIndex, context: &context)
             let fullname = resolveNameTo(scope: context.scope, path: name)
             let object = try AMLBufferField(buffer: sharedBuffer, byteIndex: index, bitLength: 8)
-            let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(object))
+            let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(object))
             return [(fullname, node, nil)]
         }
         return AMLNameSpaceModifier(name: name, closure: closure)
@@ -876,7 +876,7 @@ final class AMLParser {
             let index = try operandAsInteger(operand: byteIndex, context: &context)
             let fullname = resolveNameTo(scope: context.scope, path: name)
             let object = try AMLBufferField(buffer: sharedBuffer, byteIndex: index, bitLength: 16)
-            let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(object))
+            let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(object))
             return [(fullname, node, nil)]
         }
         return AMLNameSpaceModifier(name: name, closure: closure)
@@ -894,7 +894,7 @@ final class AMLParser {
             let index = try operandAsInteger(operand: byteIndex, context: &context)
             let fullname = resolveNameTo(scope: context.scope, path: name)
             let object = try AMLBufferField(buffer: sharedBuffer, byteIndex: index, bitLength: 32)
-            let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(object))
+            let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(object))
             return [(fullname, node, nil)]
         }
         return AMLNameSpaceModifier(name: name, closure: closure)
@@ -912,7 +912,7 @@ final class AMLParser {
             let index = try operandAsInteger(operand: byteIndex, context: &context)
             let fullname = resolveNameTo(scope: context.scope, path: name)
             let object = try AMLBufferField(buffer: sharedBuffer, byteIndex: index, bitLength: 64)
-            let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(object))
+            let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(object))
             return [(fullname, node, nil)]
         }
         return AMLNameSpaceModifier(name: name, closure: closure)
@@ -932,7 +932,7 @@ final class AMLParser {
             let bitLength = try operandAsInteger(operand: numBits, context: &context)
             let fullname = resolveNameTo(scope: context.scope, path: name)
             let object = try AMLBufferField(buffer: sharedBuffer, bitIndex: index, bitLength: bitLength)
-            let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(object))
+            let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(object))
             return [(fullname, node, nil)]
         }
         return AMLNameSpaceModifier(name: name, closure: closure)
@@ -976,7 +976,7 @@ final class AMLParser {
             // No need to store any subobject as they get added to the tree as named objects themselves.
             let fullname = resolveNameTo(scope: context.scope, path: name)
             let dev = AMLDefDevice(name: name.shortName, value: termList)
-            let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(dev))
+            let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(dev))
             return [(fullname, node, termList)]
         }
         return AMLNameSpaceModifier(name: name, closure: closure)
@@ -993,7 +993,7 @@ final class AMLParser {
         let closure = {  (context: inout ACPI.AMLExecutionContext) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let fullname = resolveNameTo(scope: context.scope, path: name)
             let method = AMLMethod(name: name.shortName, flags: flags, parser: parser)
-            let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(method))
+            let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(method))
             return [(fullname, node, nil)]
         }
         let fullname = resolveNameTo(scope: currentScope, path: name)
@@ -1014,7 +1014,7 @@ final class AMLParser {
             for (name, settings) in fields {
                 let field = AMLNamedField(name: name, regionName: regionName, fieldSettings: settings)
                 let fullname = resolveNameTo(scope: context.scope, path: name)
-                let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(field))
+                let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(field))
                 result.append((fullname, node, nil))
             }
             return result
@@ -1026,7 +1026,7 @@ final class AMLParser {
         let closure = {  (context: inout ACPI.AMLExecutionContext) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let fullname = resolveNameTo(scope: context.scope, path: name)
             let event = AMLEvent(name: fullname)
-            let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(event))
+            let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(event))
             return [(fullname, node, nil)]
         }
         return AMLNameSpaceModifier(name: name, closure: closure)
@@ -1045,7 +1045,7 @@ final class AMLParser {
         let closure = {  (context: inout ACPI.AMLExecutionContext) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let fullname = resolveNameTo(scope: context.scope, path: name)
             let opRegion = AMLDefOpRegion(fullname: fullname, region: region, offset: offset, length: length)
-            let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(opRegion))
+            let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(opRegion))
             return [(fullname, node, nil)]
         }
         return AMLNameSpaceModifier(name: name, closure: closure)
@@ -1064,7 +1064,7 @@ final class AMLParser {
 
         let closure = {  (context: inout ACPI.AMLExecutionContext) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let fullname = resolveNameTo(scope: context.scope, path: name)
-            let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(powerResource))
+            let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(powerResource))
             return [(fullname, node, nil)]
         }
         return AMLNameSpaceModifier(name: name, closure: closure)
@@ -1083,7 +1083,7 @@ final class AMLParser {
                                             objects: parser.parseTermList())
         let closure = {  (context: inout ACPI.AMLExecutionContext) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let fullname = resolveNameTo(scope: context.scope, path: name)
-            let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(processor))
+            let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(processor))
             return [(fullname, node, nil)]
         }
         return AMLNameSpaceModifier(name: name, closure: closure)
@@ -1102,7 +1102,7 @@ final class AMLParser {
             // No need to store any subobject as they get added to the tree as named objects themselves.
             let fullname = resolveNameTo(scope: context.scope, path: name)
             let thermalZone = AMLThermalZone(name: name.shortName, termList: termList)
-            let node = ACPI.ACPIObjectNode(name: name.shortName, parent: nil, object: AMLObject(thermalZone))
+            let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(thermalZone))
             return [(fullname, node, termList)]
         }
         return AMLNameSpaceModifier(name: name, closure: closure)
