@@ -210,6 +210,8 @@ final class KBD8042: PNPDeviceDriver {
     private var _description = "KBD8042"
     override var description: String { return _description }
 
+    private var kbdInterruptHandler: InterruptHandler?
+    private var mouseInterruptHandler: InterruptHandler?
 
     override init?(pnpDevice: PNPDevice) {
         #kprint("kbd8042 init")
@@ -313,9 +315,15 @@ final class KBD8042: PNPDeviceDriver {
         let keyboard = PS2Keyboard(buffer: keyboardBuffer)
         port1device = .keyboard(keyboard)
         // FIXME: determine correct irq
-        system.deviceManager.setIrqHandler(IRQSetting(isaIrq: 1), handler: kbdInterrupt)
+        let handler = InterruptHandler(name: "kbd8042", handler: kbdInterrupt)
+        kbdInterruptHandler = handler
+        system.deviceManager.setIrqHandler(handler, forInterrupt: IRQSetting(isaIrq: 1))
+
         if dualChannel {
-            system.deviceManager.setIrqHandler(IRQSetting(isaIrq: 12), handler: mouseInterrupt)
+            let handler = InterruptHandler(name: "mount8042",
+                                           handler: mouseInterrupt)
+            mouseInterruptHandler = handler
+            system.deviceManager.setIrqHandler(handler, forInterrupt: IRQSetting(isaIrq: 12))
         }
         #kprint("i8042: kbd initialised")
         pnpDevice.device.initialised = true

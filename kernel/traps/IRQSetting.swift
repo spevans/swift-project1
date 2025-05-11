@@ -9,7 +9,7 @@
 // Describes a hardware interrupt. The interrupt pin may be an IRQ or a
 // GSI (Global System Interrupt). The only difference is that an IRQ may need
 // to be remapped according to possible MADT.InterruptSourceOverrideTable entries.
-struct IRQSetting: CustomStringConvertible {
+struct IRQSetting: Equatable, CustomStringConvertible {
 
     private let bits: BitArray16
 

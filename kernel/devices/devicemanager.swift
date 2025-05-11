@@ -139,8 +139,8 @@ final class DeviceManager {
     }
 
 
-    func setIrqHandler(_ irqSetting: IRQSetting, handler: @escaping IRQHandler) {
-        interruptManager.setIrqHandler(irqSetting, handler: handler)
+    func setIrqHandler(_ handler: InterruptHandler, forInterrupt: IRQSetting) {
+        interruptManager.setIrqHandler(handler, forInterrupt: forInterrupt)
     }
 
     func enableIRQs(){

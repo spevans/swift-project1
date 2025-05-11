@@ -24,10 +24,29 @@ protocol InterruptController {
 }
 
 
+final class InterruptHandler: Equatable, Hashable, CustomStringConvertible {
+    let description: String
+    let handler: IRQHandler
+
+    init(name: String, handler: @escaping IRQHandler) {
+        self.description = name
+        self.handler = handler
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(ObjectIdentifier(self))
+    }
+
+    static func ==(lhs: InterruptHandler, rhs: InterruptHandler) -> Bool {
+        return ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
+    }
+}
+
+
 public struct InterruptManager: ~Copyable {
 
     private(set) var localAPIC = APIC()
-    fileprivate var irqHandlers: [IRQHandler?] = Array(repeating: nil, count: NR_IRQS)
+    fileprivate var irqHandlers: [(IRQSetting, Set<InterruptHandler>)?] = Array(repeating: nil, count: NR_IRQS)
     private var ioapics: [IOAPIC] = []
     private var overrideEntries: [MADT.InterruptSourceOverrideTable] = []
 
@@ -154,16 +173,74 @@ public struct InterruptManager: ~Copyable {
         localAPIC.ackIRQ(irq)
     }
 
-    mutating func setIrqHandler(_ irqSetting: IRQSetting, handler: @escaping IRQHandler) {
-        // FIXME, deal with shared interrupts
-        #kprint("INT-MAN: Setting IRQ handler for \(irqSetting.irq)")
-        irqHandlers[irqSetting.irq] = handler
-        enableIRQ(irqSetting)
+    mutating func setIrqHandler(_ handler: InterruptHandler, forInterrupt interrupt: IRQSetting) {
+        let irq = interrupt.irq
+        #kprintf("INT-MAN: Setting IRQ handler for IRQ%d\n", irq)
+
+        var enableIrq = false
+        if let irqHandler = irqHandlers[irq] {
+            let currentInterrupt = irqHandler.0
+            var handlers = irqHandler.1
+            if currentInterrupt.shared {
+                guard currentInterrupt == interrupt else {
+                    fatalError("INT-MAN: IRQ handler for \(irq) is for shared interrupts but trying to add an mismatching interrupt \(interrupt) != \(currentInterrupt)")
+                }
+                enableIrq = handlers.count == 0
+                guard !handlers.contains(handler) else {
+                    fatalError("SharedInterrupt already contains \(handler)")
+                }
+                handlers.insert(handler)
+                irqHandlers[irq] = (currentInterrupt, handlers)
+            } else {
+                if interrupt.shared {
+                    fatalError("INT-MAN: IRQ handler for \(irq) is set for unshared but trying to add a shared handler")
+                } else {
+                    fatalError("INT-MAN: IRQ handler for \(irq) is already set")
+                }
+            }
+        } else {
+            irqHandlers[irq] = (interrupt, [handler])
+            if interrupt.shared {
+                #kprint("Adding shared handler")
+            } else {
+                #kprint("Adding unshared handler")
+            }
+            enableIrq = true
+        }
+        if enableIrq {
+            enableIRQ(interrupt)
+        }
     }
 
-    mutating func removeIrqHandler(_ irqSetting: IRQSetting) {
-        disableIRQ(irqSetting)
-        irqHandlers[irqSetting.irq] = nil
+
+    mutating func removeIrqHandler(_ handler: InterruptHandler, forInterrupt interrupt: IRQSetting) {
+
+        var disableIrq = false
+        guard let irqHandler = irqHandlers[interrupt.irq] else {
+            fatalError("INT-MAN: No interrupt handler to remove for IRQ\(interrupt.irq) \(handler)")
+        }
+
+        let currentInterrupt = irqHandler.0
+        var handlers = irqHandler.1
+
+        if currentInterrupt.shared {
+            if interrupt == currentInterrupt {
+                guard handlers.remove(handler) != nil else {
+                    fatalError("SharedInterrupt does not contain \(handler)")
+                }
+                disableIrq = handlers.count == 0
+                irqHandlers[interrupt.irq] = (currentInterrupt, handlers)
+            }
+        } else {
+                guard currentInterrupt == interrupt else {
+                    fatalError("Cannot remove mismatching interupt \(currentInterrupt) != \(interrupt)")
+                }
+                irqHandlers[interrupt.irq] = nil
+                disableIrq = true
+        }
+        if disableIrq {
+            disableIRQ(interrupt)
+        }
     }
 }
 
@@ -175,7 +252,7 @@ public struct InterruptManager: ~Copyable {
 // (include/x86defs.h:exception_regs) as the error_code.
 @_silgen_name("irqHandler")
 public func irqHandler(registers: ExceptionRegisters,
-    interruptManager: inout InterruptManager) {
+                       interruptManager: inout InterruptManager) {
 
     let irq = Int(registers.pointee.error_code)
     guard irq >= 0 && irq < NR_IRQS else {
@@ -186,8 +263,16 @@ public func irqHandler(registers: ExceptionRegisters,
     if c > 1 {
         #kprintf("\nint_nest_count: %d\n", c)
     }
-    if let handler = interruptManager.irqHandlers[irq] {
-        _ = handler()
+    if let irqHandler = interruptManager.irqHandlers[irq] {
+        let interruptHandlers = irqHandler.1
+        var acked = false
+        for interruptHandler in interruptHandlers {
+            let ack = interruptHandler.handler()
+            acked = acked || ack
+        }
+        if !acked {
+            #kprintf("\nShared IRQ:%d no handler ACKed\n", irq)
+        }
     } else {
         #kprintf("INT-MAN: Unexpected interrupt: %d\n", irq)
     }

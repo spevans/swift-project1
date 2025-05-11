@@ -10,11 +10,14 @@
 
 // Generic Timer device
 class Timer: CustomStringConvertible {
-    let irq: IRQSetting
-    var description: String { return "Generic Timer on IRQ: \(irq)" }
+    var description: String { return "Generic Timer on IRQ: \(interrupt.irq)" }
+    let interrupt: IRQSetting
+    let interruptHandler: InterruptHandler
 
-    init(irq: IRQSetting) {
-        self.irq = irq
+    init(interrupt: IRQSetting) {
+        self.interrupt = interrupt
+        interruptHandler = InterruptHandler(name: "timer",
+                                            handler: timerInterrupt)
     }
 
     func enablePeriodicInterrupt(hz: Int) -> Bool {
@@ -31,10 +34,9 @@ func setupPeriodicTimer() -> Bool {
         #kprint("Cant setup periodic timer")
         return false
     }
-    let irq = timer.irq
     #kprint(timer)
-    system.deviceManager.setIrqHandler(irq, handler: timerInterrupt)
-    #kprint("timer: Setup for 1000Hz on irq:", irq)
+    system.deviceManager.setIrqHandler(timer.interruptHandler, forInterrupt: timer.interrupt)
+    #kprintf("timer: Setup for 1000Hz on irq: %d\n", timer.interrupt.irq)
     return true
 }
 

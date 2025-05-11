@@ -199,7 +199,7 @@ final class PS2Keyboard: Keyboard {
 
     override func readKeyboard() -> UnicodeScalar? {
         while let scanCode = inputBuffer.remove() {
-            #serialPrintf("kbd: scanCode: %#02x\n", scanCode)
+            //#serialPrintf("kbd: scanCode: %#02x\n", scanCode)
 
             if scanCode == 0xf0 {
                 breakCode = 0xff

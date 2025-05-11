@@ -96,11 +96,11 @@ struct HPETTable: CustomStringConvertible {
 
 final class HPETTimer: Timer {
     private let hpet: HPET
-    override var description: String { return "HPET: IRQ: \(irq)" }
+    override var description: String { #sprintf("HPET: IRQ: %d", interrupt.irq) }
 
     init(hpet: HPET, irq: IRQSetting) {
         self.hpet = hpet
-        super.init(irq: irq)
+        super.init(interrupt: irq)
     }
 
     override func enablePeriodicInterrupt(hz: Int) -> Bool {

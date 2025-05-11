@@ -11,11 +11,11 @@
 
 final class PIT8254Timer: Timer {
     private let pit: PIT8254
-    override var description: String { return "PIT8254: IRQ: \(irq)" }
+    override var description: String { return "PIT8254: IRQ: \(interrupt.irq)" }
 
     init(pit: PIT8254, irq: IRQSetting) {
         self.pit = pit
-        super.init(irq: irq)
+        super.init(interrupt: irq)
     }
 
     override func enablePeriodicInterrupt(hz: Int) -> Bool {
