@@ -10,10 +10,9 @@
 
 
 final class USBHIDDriver {
-    private(set) var description: String
+    private(set) var description = "Unknown HID"
     private let device: USBDevice
     private let interface: USB.InterfaceDescriptor
-    private var intrPipe: USBPipe!
 
 
     // bRequest for Class specific request
@@ -37,7 +36,7 @@ final class USBHIDDriver {
         case mouse = 0x2
     }
 
-    enum HIDReport: UInt8 {
+    enum HIDReportRequest: UInt8 {
         case input = 0x1
         case output = 0x2
         case feature = 0x3
@@ -52,32 +51,31 @@ final class USBHIDDriver {
             #kprint("USB-HID: interface is not a HID")
             return nil
         }
+    }
 
-        guard interface.bInterfaceSubClass == 0x1, let interfaceProtocol = HIDInterfaceProtocol(rawValue: interface.bInterfaceProtocol) else {
-            #kprint("USB-HID: Device has no boot protocol or cant determine device type (subClass=\(interface.bInterfaceSubClass), protocol=\(interface.bInterfaceProtocol)")
-            return nil
+    func initialise() -> Bool {
+
+        guard interface.bInterfaceSubClass == 0x1,
+              let interfaceProtocol = HIDInterfaceProtocol(rawValue: interface.bInterfaceProtocol) else {
+            #kprint("USB-HID: Device has no boot protocol or cannot determine device type (subClass=\(interface.bInterfaceSubClass), protocol=\(interface.bInterfaceProtocol)")
+            return false
         }
 
         switch interfaceProtocol {
-        case .none:
-            #kprint("USB-HID: Device is not a keyboard or mouse")
-            return nil
-        case .keyboard:
-            description = "USB Keyboard"
-        case .mouse:
-            description = "USB Mouse"
+            case .none:
+                #kprint("USB-HID: Device is not a keyboard or mouse")
+                return false
+            case .keyboard:
+                description = "USB Keyboard"
+                // return default keyboard report
+            case .mouse:
+                description = "USB Mouse"
+                // return deault mouse report
         }
-    }
-
-
-    func initialise() -> Bool {
-        #kprint("USB: Setting protocol to GetReport")
-        // Set protocol to 'GetReport'
-
-        let request = setProtocolRequest(hidProtocol: .report)
-        #kprint("USB: request:", request)
+        let request = setProtocolRequest(hidProtocol: .boot)
+        #kprint("USB-HID: found \(description): set HID to boot protocol, request:", request)
         guard device.sendControlRequest(request: request) else {
-            #kprint("USB: Cant set HID Protocol to Report Protocol")
+            #kprint("USB-HID: Cant set HID Protocol to boot")
             return false
         }
 
@@ -88,175 +86,111 @@ final class USBHIDDriver {
         }
         #kprint("USB-HID: Interrupt endpoint:", intrEndpoint)
 
-        // Create a pipe for the interrupt endpoint and add it to the active queues
-        intrPipe = device.hub.allocatePipe(device: device, endpointDescriptor: intrEndpoint)
 
+        switch interfaceProtocol {
+            case .keyboard:
+                #kprint("USB-HID: Found keyboard")
+                #if false
+                #kprint("USB-HID: ignoring")
+                break
+                #else
+                let idleRequest = setIdleRequest(idleMs: 33)
+                #kprint("USB-HID: keyboard setIdle to 33")
+                guard device.sendControlRequest(request: idleRequest) else {
+                    #kprint("USB-HID: keyboard  Cant set idleRequest")
+                    return false
+                }
+                if system.deviceManager.keyboard != nil {
+                    #kprint("USB-HID: Device manager already has a keyboard!")
+                }
+
+                // Create a pipe for the interrupt endpoint and add it to the active queues
+                guard let intrPipe = device.hub.allocatePipe(device: device, endpointDescriptor: intrEndpoint) else {
+                    #kprint("Cannot allocate Interupt pipe")
+                    return false
+                }
+                let hid = USBKeyboard(device: device, interface: interface, intrPipe: intrPipe)
+                let keyboard = Keyboard(hid: hid)
+                if keyboard.initialise() {
+                    #kprint("USB-HID Adding keyboard")
+                    system.deviceManager.keyboard = keyboard
+                } else {
+                    #kprint("USB-HID Cannot initialise keyboard")
+                }
+                #endif
+
+            case .mouse:
+                #kprint("USB-HID: Found mouse")
+                #if false
+                #kprint("USB-HID: ignoring")
+                break
+                #else
+                let idleRequest = setIdleRequest(idleMs: 0)
+                #kprint("USB-HID: mouse setIdle to 0")
+                guard device.sendControlRequest(request: idleRequest) else {
+                    #kprint("USB-HID:  mouse Cant set idleRequest")
+                    return false
+                }
+
+                guard let intrPipe = device.hub.allocatePipe(device: device, endpointDescriptor: intrEndpoint) else {
+                    #kprint(" mouse Cannot allocate interrupt pipe")
+                    return false
+                }
+                let hid = USBMouse(device: device, interface: interface, intrPipe: intrPipe)
+                let mouse = Mouse(hid: hid)
+                if mouse.initialise() {
+                    #kprint("USB-HID Adding mouse")
+                    system.deviceManager.mouse = mouse
+                }else {
+                    #kprint("USB-HID Cannot initialise mouse")
+                }
+                #endif
+            default:
+                break
+        }
         return true
     }
+/*
+    private func getReportAndSetProtocol() -> HIDReport? {
 
-    // FIXME: Remove when interrupts work fully, polling test for now
-    func read() {
-        if let interfaceProtocol = HIDInterfaceProtocol(rawValue: interface.bInterfaceProtocol) {
+        // Try and get a Report Descriptor
+        guard let reportDescriptor = device.sendControlRequestReadData(request: getReportRequest(.input)),
+              let report = HIDReport(reportDescriptor) else {
+            #kprint("USB-HID: Cannot Get_Report")
+            return nil
+        }
+
+        // Device supports the Boot protocol, so set the boot protocol for now
+        if interface.bInterfaceSubClass == 0x1 {
+            guard let interfaceProtocol = HIDInterfaceProtocol(rawValue: interface.bInterfaceProtocol) else {
+                #kprint("USB-HID: Device has boot protocol but cannot determine device type (subClass=\(interface.bInterfaceSubClass), protocol=\(interface.bInterfaceProtocol)")
+                return nil
+            }
             switch interfaceProtocol {
-                case .keyboard: readKeyboard()
-                case .mouse: readMouse()
-                default: return
+                case .none:
+                    #kprint("USB-HID: Device is not a keyboard or mouse")
+                    return false
+                case .keyboard:
+                    description = "USB Keyboard"
+                    // return default keyboard report
+                case .mouse:
+                    description = "USB Mouse"
+                    // return deault mouse report
+            }
+            let request = setProtocolRequest(hidProtocol: .boot)
+            #kprint("USB: request:", request)
+            guard device.sendControlRequest(request: request) else {
+                #kprint("USB: Cant set HID Protocol to", protocolToUse)
+                return nil
             }
         }
+
+        #kprint("USB: Setting protocol to boot")
+        return report
     }
-}
-
-
-// Mouse Interface
-extension USBHIDDriver {
-    struct MouseEvent: CustomStringConvertible {
-        let buttons: BitArray8
-        let xMovement: Int8
-        let yMovement: Int8
-
-        var leftButton: Bool { buttons[0] == 1 }
-        var middleButton: Bool { buttons[1] == 1 }
-        var rightButton: Bool { buttons[2] == 1 }
-        var movement: Bool { xMovement != 0 || yMovement != 0 }
-
-        var description: String {
-            return "X: \(xMovement)\tY: \(yMovement)\t" + (leftButton ? "left " : "") + (middleButton ? "middle " : "") + (rightButton ? "right" : "")
-        }
-
-        init() {
-            buttons = BitArray8(0)
-            xMovement = 0
-            yMovement = 0
-        }
-
-        init(data: [UInt8]) {
-            precondition(data.count >= 3)
-            buttons = BitArray8(data[0])
-            xMovement = Int8(bitPattern: data[1])
-            yMovement = Int8(bitPattern: data[2])
-        }
-    }
-
-    func readMouse() {
-        // Now poll the interrupt to look for mouse changes
-        var oldEvent = MouseEvent()
-        while true {
-            sleep(milliseconds: 10)
-            var data: [UInt8] = []
-            guard intrPipe.pollInterruptPipe(into: &data) else { continue }
-            guard data.count >= 3 else {
-                #kprint("USB-Mouse, not enough data: \(data.count)")
-                continue
-            }
-            let event = MouseEvent(data: data)
-            if event.buttons != oldEvent.buttons || event.movement {
-                #kprint(event)
-                oldEvent = event
-            }
-        }
-    }
-}
-
-
-// Keyboard Interface
-extension USBHIDDriver {
-    struct KeyEvent: CustomStringConvertible {
-        let modifierKeys: BitArray8
-        let keyCode: UInt8
-        let keyDown: Bool
-
-        init(keyDown code: UInt8, modifierKeys: UInt8) {
-            keyDown = true
-            keyCode = code
-            self.modifierKeys = BitArray8(modifierKeys)
-        }
-
-        init(keyUp code: UInt8, modifierKeys: UInt8) {
-            keyDown = false
-            keyCode = code
-            self.modifierKeys = BitArray8(modifierKeys)
-        }
-
-        var keyUp: Bool { !keyDown }
-        var leftControl: Bool { modifierKeys[0] == 1 }
-        var leftShift: Bool { modifierKeys[1] == 1 }
-        var leftAlt: Bool { modifierKeys[2] == 1 }
-        var leftGUI: Bool { modifierKeys[3] == 1 }
-        var rightControl: Bool { modifierKeys[4] == 1 }
-        var rightShift: Bool { modifierKeys[5] == 1 }
-        var rightAlt: Bool { modifierKeys[6] == 1 }
-        var rightGUI: Bool { modifierKeys[7] == 1 }
-
-        var description: String {
-            var result = keyDown ? "KeyDown: " : "KeyUp: "
-            result.append(String(keyCode, radix: 16))
-            if leftControl { result.append(" LCtrl") }
-            if leftShift { result.append(" LShift") }
-            if leftAlt { result.append(" LAlt") }
-            if leftGUI { result.append(" LGUI") }
-            if rightControl { result.append(" LCtrl") }
-            if rightShift { result.append(" LShift") }
-            if rightAlt { result.append(" LAlt") }
-            if rightGUI { result.append(" LGUI") }
-            return result
-        }
-    }
-
-
-    // Remove element from the 2 input arrays that appear in both arrays
-    private func removeDuplicates(array1: [UInt8], array2: [UInt8]) -> ([UInt8], [UInt8]) {
-        var newArray1: [UInt8] = []
-        var newArray2: [UInt8] = []
-
-        for entry in array1 {
-            if entry > 1, !array2.contains(entry), !newArray1.contains(entry) {
-                newArray1.append(entry)
-            }
-        }
-
-        for entry in array2 {
-            if entry > 1, !array1.contains(entry), !newArray2.contains(entry) {
-                newArray2.append(entry)
-            }
-        }
-        return (newArray1, newArray2)
-    }
-
-
-    func readKeyboard() {
-        // Now poll the interrupt to look for keypresses
-        var oldkeys: [UInt8] = []
-
-        while true {
-            sleep(milliseconds: 10)
-            var keys: [UInt8] = []
-            guard intrPipe.pollInterruptPipe(into: &keys) else { continue }
-
-            guard let modifierKeys = keys.first else {
-                #kprint("No modifier data")
-                return
-            }
-            keys.removeFirst(2)
-
-            let (keysDown, keysUp) = removeDuplicates(array1: keys, array2: oldkeys)
-
-            for key in keysDown {
-                let event = KeyEvent(keyDown: key, modifierKeys: modifierKeys)
-                #kprint(event)
-            }
-            for key in keysUp {
-                let event = KeyEvent(keyUp: key, modifierKeys: modifierKeys)
-                #kprint(event)
-            }
-            oldkeys = keys
-        }
-    }
-}
-
-
-// HID Class specific control requests
-extension USBHIDDriver {
-    private func getReportRequest(report: HIDReport, reportId: UInt8 = 0) -> USB.ControlRequest {
+*/
+    // HID Class specific control requests
+    private func getReportRequest(report: HIDReportRequest, reportId: UInt8 = 0) -> USB.ControlRequest {
         let recipient = USB.ControlRequest.Recipient.interface(interface.bInterfaceNumber)
         let wLength = interface.endpoint0.wMaxPacketSize
         let wValue = UInt16(report.rawValue) << 8 | UInt16(reportId)
@@ -264,7 +198,7 @@ extension USBHIDDriver {
     }
 
 
-    private func setReportRequest(report: HIDRequest, reportId: UInt8 = 0, dataLength: UInt16) -> USB.ControlRequest {
+    private func setReportRequest(report: HIDReportRequest, reportId: UInt8 = 0, dataLength: UInt16) -> USB.ControlRequest {
         let recipient = USB.ControlRequest.Recipient.interface(interface.bInterfaceNumber)
         let wValue = UInt16(report.rawValue) << 8 | UInt16(reportId)
         return USB.ControlRequest.classSpecificRequest(direction: .deviceToHost, recipient: recipient, bRequest: HIDRequest.SET_REPORT.rawValue, wValue: wValue, wLength: dataLength)
@@ -274,5 +208,21 @@ extension USBHIDDriver {
     private func setProtocolRequest(hidProtocol: HIDProtocol) -> USB.ControlRequest {
         let recipient = USB.ControlRequest.Recipient.interface(interface.bInterfaceNumber)
         return USB.ControlRequest.classSpecificRequest(direction: .hostToDevice, recipient: recipient, bRequest: HIDRequest.SET_PROTOCOL.rawValue, wValue: hidProtocol.rawValue, wLength: 0)
+    }
+
+    private func setIdleRequest(idleMs: Int) -> USB.ControlRequest {
+        let recipient = USB.ControlRequest.Recipient.interface(interface.bInterfaceNumber)
+        let value = UInt16(idleMs / 4) << 8
+        return USB.ControlRequest.classSpecificRequest(direction: .hostToDevice, recipient: recipient, bRequest: HIDRequest.SET_IDLE.rawValue, wValue: value, wLength: 0)
+    }
+}
+
+
+struct HIDReport {
+
+    init?(_ bytes: [UInt8]) {
+        #kprint("HIDReport bytes:")
+        hexDump(buffer: bytes)
+        return nil
     }
 }

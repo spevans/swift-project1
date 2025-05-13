@@ -10,180 +10,104 @@
  */
 
 
-final class PS2Keyboard: Keyboard {
+final class PS2Keyboard: HID {
     let description = "PS2Keyboard"
     private var prevScanCode: UInt16 = 0
     private var breakCode: UInt8 = 0
 
-    // Keyboard state
-    private var leftShift = false
-    private var rightShift = false
-    private var leftCtrl = false
-    private var rightCtrl = false
-
-
     enum E0_ScanCodes: UInt8 {
-    case Slash          = 0x4A
-    case PrintScreen    = 0x36
-    case RightAlt       = 0x6A
-    case LeftCtrl       = 0x20
-    case RightCtrl      = 0x14
-    case Break          = 0x3E
-    case Home           = 0x6C
-    case Up             = 0x75
-    case PageUp         = 0x7d
-    case Left           = 0x6b
-    case Right          = 0x74
-    case End            = 0x69
-    case Down           = 0x72
-    case PageDown       = 0x7A
-    case Insert         = 0x52
-    case Delete         = 0x71
-    case Pause          = 0x77
+        case Slash          = 0x4A
+        case PrintScreen    = 0x36
+        case RightAlt       = 0x6A
+        case LeftCtrl       = 0x20
+        case RightCtrl      = 0x14
+        case Break          = 0x3E
+        case Home           = 0x6C
+        case Up             = 0x75
+        case PageUp         = 0x7d
+        case Left           = 0x6b
+        case Right          = 0x74
+        case End            = 0x69
+        case Down           = 0x72
+        case PageDown       = 0x7A
+        case Insert         = 0x52
+        case Delete         = 0x71
+        case Pause          = 0x77
     }
 
-
-    // FIXME: Need to be arrays
-    private let unshiftedMap: [UInt8: UnicodeScalar] = [
-        13: UnicodeScalar("\t"),
-        14: UnicodeScalar("`"),
-        21: UnicodeScalar("q"),
-        22: UnicodeScalar("1"),
-        26: UnicodeScalar("z"),
-        27: UnicodeScalar("s"),
-        28: UnicodeScalar("a"),
-        29: UnicodeScalar("w"),
-        30: UnicodeScalar("2"),
-        33: UnicodeScalar("c"),
-        34: UnicodeScalar("x"),
-        35: UnicodeScalar("d"),
-        36: UnicodeScalar("e"),
-        37: UnicodeScalar("4"),
-        38: UnicodeScalar("3"),
-        41: UnicodeScalar(" "),
-        42: UnicodeScalar("v"),
-        43: UnicodeScalar("f"),
-        44: UnicodeScalar("t"),
-        45: UnicodeScalar("r"),
-        46: UnicodeScalar("5"),
-        49: UnicodeScalar("n"),
-        50: UnicodeScalar("b"),
-        51: UnicodeScalar("h"),
-        52: UnicodeScalar("g"),
-        53: UnicodeScalar("y"),
-        54: UnicodeScalar("6"),
-        58: UnicodeScalar("m"),
-        59: UnicodeScalar("j"),
-        60: UnicodeScalar("u"),
-        61: UnicodeScalar("7"),
-        62: UnicodeScalar("8"),
-        65: UnicodeScalar(","),
-        66: UnicodeScalar("k"),
-        67: UnicodeScalar("i"),
-        68: UnicodeScalar("o"),
-        69: UnicodeScalar("0"),
-        70: UnicodeScalar("9"),
-        73: UnicodeScalar("."),
-        74: UnicodeScalar("/"),
-        75: UnicodeScalar("l"),
-        76: UnicodeScalar(";"),
-        77: UnicodeScalar("p"),
-        78: UnicodeScalar("-"),
-        82: UnicodeScalar("'"),
-        85: UnicodeScalar("="),
-        90: UnicodeScalar("\r"),
-        93: UnicodeScalar("\\"),
-        102: UnicodeScalar(8),
-        118: UnicodeScalar(27),
-
-        0x6b: UnicodeScalar(2), // left arrow = ctrl-b
-        0x74: UnicodeScalar(6), // right arrow = ctrl-f
-    ]
-
-
-    private let shiftedMap: [UInt8: UnicodeScalar] = [
-        13: UnicodeScalar("\t"),
-        14: UnicodeScalar("~"),
-        21: UnicodeScalar("Q"),
-        22: UnicodeScalar("!"),
-        26: UnicodeScalar("Z"),
-        27: UnicodeScalar("S"),
-        28: UnicodeScalar("A"),
-        29: UnicodeScalar("W"),
-        30: UnicodeScalar("@"),
-        33: UnicodeScalar("C"),
-        34: UnicodeScalar("X"),
-        35: UnicodeScalar("D"),
-        36: UnicodeScalar("E"),
-        37: UnicodeScalar("$"),
-        38: UnicodeScalar("#"),
-        41: UnicodeScalar(" "),
-        42: UnicodeScalar("V"),
-        43: UnicodeScalar("F"),
-        44: UnicodeScalar("T"),
-        45: UnicodeScalar("R"),
-        46: UnicodeScalar("%"),
-        49: UnicodeScalar("N"),
-        50: UnicodeScalar("B"),
-        51: UnicodeScalar("H"),
-        52: UnicodeScalar("G"),
-        53: UnicodeScalar("Y"),
-        54: UnicodeScalar("^"),
-        58: UnicodeScalar("M"),
-        59: UnicodeScalar("J"),
-        60: UnicodeScalar("U"),
-        61: UnicodeScalar("&"),
-        62: UnicodeScalar("*"),
-        65: UnicodeScalar("<"),
-        66: UnicodeScalar("K"),
-        67: UnicodeScalar("I"),
-        68: UnicodeScalar("O"),
-        69: UnicodeScalar(")"),
-        70: UnicodeScalar("("),
-        73: UnicodeScalar(">"),
-        74: UnicodeScalar("?"),
-        75: UnicodeScalar("L"),
-        76: UnicodeScalar(":"),
-        77: UnicodeScalar("P"),
-        78: UnicodeScalar("_"),
-        82: UnicodeScalar("\""),
-        85: UnicodeScalar("+"),
-        90: UnicodeScalar("\r"),
-        93: UnicodeScalar("|"),
-        102: UnicodeScalar(8),
-        118: UnicodeScalar(27)
-    ]
-
-
-    private let ctrlMap: [UInt8: UnicodeScalar] = [
-        21: UnicodeScalar(17),
-        26: UnicodeScalar(26),
-        27: UnicodeScalar(19),
-        28: UnicodeScalar(1),
-        29: UnicodeScalar(23),
-        33: UnicodeScalar(3),
-        34: UnicodeScalar(24),
-        35: UnicodeScalar(4),
-        36: UnicodeScalar(5),
-        42: UnicodeScalar(22),
-        43: UnicodeScalar(6),
-        44: UnicodeScalar(20),
-        45: UnicodeScalar(18),
-        49: UnicodeScalar(14),
-        50: UnicodeScalar(2),
-        51: UnicodeScalar(8),
-        52: UnicodeScalar(7),
-        53: UnicodeScalar(25),
-        58: UnicodeScalar(13),
-        59: UnicodeScalar(10),
-        60: UnicodeScalar(21),
-        66: UnicodeScalar(11),
-        67: UnicodeScalar(9),
-        68: UnicodeScalar(15),
-        75: UnicodeScalar(12),
-        77: UnicodeScalar(16),
-        102: UnicodeScalar(8),
-        118: UnicodeScalar(27),
+    private let keyMap: [UInt8: HIDEvent.Key] = [
+        1: .KEY_FN_9,
+        3: .KEY_FN_5,
+        4: .KEY_FN_3,
+        5: .KEY_FN_1,
+        6: .KEY_FN_2,
+        7: .KEY_FN_12,
+        9: .KEY_FN_10,
+        10: .KEY_FN_8,
+        11: .KEY_FN_6,
+        131: .KEY_FN_7,
+        12: .KEY_FN_4,
+        120: .KEY_FN_11,
+        13: .KEY_TAB,
+        14: .KEY_TILDE,
+        18: .KEY_LEFT_SHIFT,
+        20: .KEY_LEFT_CTRL,
+        21: .KEY_Q,
+        22: .KEY_1,
+        26: .KEY_Z,
+        27: .KEY_S,
+        28: .KEY_A,
+        29: .KEY_W,
+        30: .KEY_2,
+        33: .KEY_C,
+        34: .KEY_X,
+        35: .KEY_D,
+        36: .KEY_E,
+        37: .KEY_4,
+        38: .KEY_3,
+        41: .KEY_SPACE,
+        42: .KEY_V,
+        43: .KEY_F,
+        44: .KEY_T,
+        45: .KEY_R,
+        46: .KEY_5,
+        49: .KEY_N,
+        50: .KEY_B,
+        51: .KEY_H,
+        52: .KEY_G,
+        53: .KEY_Y,
+        54: .KEY_6,
+        58: .KEY_M,
+        59: .KEY_J,
+        60: .KEY_U,
+        61: .KEY_7,
+        62: .KEY_8,
+        65: .KEY_COMMA,
+        66: .KEY_K,
+        67: .KEY_I,
+        68: .KEY_O,
+        69: .KEY_0,
+        70: .KEY_9,
+        73: .KEY_PERIOD,
+        74: .KEY_FORWARD_SLASH,
+        75: .KEY_L,
+        76: .KEY_SEMICOLON,
+        77: .KEY_P,
+        78: .KEY_MINUS,
+        82: .KEY_SINGLE_QUOTE,
+        84: .KEY_LEFT_SQUARE_BRACKET,
+        85: .KEY_EQUALS,
+        88: .KEY_CAPS_LOCK,
+        89: .KEY_RIGHT_SHIFT,
+        90: .KEY_RETURN,
+        91: .KEY_RIGHT_SQUARE_BRACKET,
+        93: .KEY_BACK_SLASH,
+        102: .KEY_BACKSPACE,
+        107: .KEY_LEFT_ARROW,
+        114: .KEY_DOWN_ARROW,
+        116: .KEY_RIGHT_ARROW,
+        117: .KEY_UP_ARROW,
+        118: .KEY_ESCAPE,
     ]
 
 
@@ -197,7 +121,7 @@ final class PS2Keyboard: Keyboard {
     func initialise() -> Bool { true }
 
 
-    override func readKeyboard() -> UnicodeScalar? {
+    override func readNextEvent() -> HIDEvent? {
         while let scanCode = inputBuffer.remove() {
             //#serialPrintf("kbd: scanCode: %#02x\n", scanCode)
 
@@ -243,40 +167,11 @@ final class PS2Keyboard: Keyboard {
 
 
     private func keyboardInput(keyCode: UInt8, keyDown: Bool)
-        -> UnicodeScalar? {
-        if keyDown {
-            switch keyCode {
-            case 0x12: leftShift = true
-            case 0x59: rightShift = true
-            case 0x14: leftCtrl = true
-            default:
-                guard let char = readKeymap(scanCode: keyCode) else {
-                    #kprint("kbd: Unknown keycode down: \(keyCode)")
-                    return nil
-                }
-                return char
-            }
-        } else {
-            switch keyCode {
-            case 0x12: leftShift = false
-            case 0x59: rightShift = false
-            case 0x14: leftCtrl = false
-            default:
-                return nil
-            }
+    -> HIDEvent? {
+        guard let key = keyMap[keyCode] else {
+            #kprintf("ps2: Unknown keycode: %d\n", keyCode)
+            return nil
         }
-        return nil
-    }
-
-
-    private func readKeymap(scanCode: UInt8) -> UnicodeScalar? {
-        if leftCtrl {
-            return ctrlMap[scanCode]
-        }
-        if leftShift || rightShift {
-            return shiftedMap[scanCode]
-        } else {
-            return unshiftedMap[scanCode]
-        }
+        return keyDown ? .keyDown(key) : .keyUp(key)
     }
 }

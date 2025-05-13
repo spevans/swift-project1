@@ -154,6 +154,30 @@ private func vmxTestCommand(arguments: [String]) {
     disableVMX()
 }
 
+private func hidInput(arguments: [String]) {
+    let keyboard = system.deviceManager.keyboard
+    if keyboard != nil  {
+        #kprint("Have keyboard")
+    }
+
+    let mouse = system.deviceManager.mouse
+    if mouse != nil {
+        #kprint("Have mouse")
+    }
+    if mouse == nil && keyboard == nil {
+        #kprint("no mouse or keyboard")
+        return
+    }
+    while true {
+        if let scalar = keyboard?.readKeyboard() {
+            if scalar == UnicodeScalar(27) { return }
+            #kprint("keyboard:", scalar)
+        }
+        mouse?.readMouse()
+    }
+}
+
+
 private let commands: [String: ShellCommand] = [
     "help":     ShellCommand(helpCommand, "Show the available commands"),
     "echo":     ShellCommand(echoCommand, "echos the command arguments"),
@@ -173,6 +197,7 @@ private let commands: [String: ShellCommand] = [
     "vmxon":    ShellCommand(vmxOnCommand, "Enable VMX"),
     "vmxoff":   ShellCommand(vmxOffCommand, "Disable VMX"),
     "vmxtest":  ShellCommand(vmxTestCommand, "Test VMX"),
+    "hidinput": ShellCommand(hidInput, "Test HID input"),
 ]
 
 

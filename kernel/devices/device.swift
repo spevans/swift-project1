@@ -54,11 +54,3 @@ final class Device: CustomStringConvertible {
         deviceDriver = driver
     }
 }
-
-// Generic Keyboard device
-class Keyboard {
-    func readKeyboard() -> UnicodeScalar? {
-        return nil
-    }
-    // TODO: Add some key modifier state
-}

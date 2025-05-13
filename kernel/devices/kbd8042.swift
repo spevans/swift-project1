@@ -312,8 +312,9 @@ final class KBD8042: PNPDeviceDriver {
 
         flushOutput()
         keyboardBuffer.clear()
-        let keyboard = PS2Keyboard(buffer: keyboardBuffer)
-        port1device = .keyboard(keyboard)
+        let hid = PS2Keyboard(buffer: keyboardBuffer)
+        let keyboard = Keyboard(hid: hid)
+        port1device = .keyboard(hid)
         // FIXME: determine correct irq
         let handler = InterruptHandler(name: "kbd8042", handler: kbdInterrupt)
         kbdInterruptHandler = handler

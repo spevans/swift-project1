@@ -17,6 +17,7 @@ final class DeviceManager {
     private(set) var masterBus: MasterBus
 
     var keyboard: Keyboard?
+    var mouse: Mouse?
     var timer: Timer?
     var rtc: CMOSRTC?
 
