@@ -18,7 +18,8 @@
 #define barrier() __asm__ __volatile__("": : :"memory")
 
 
-static inline uint8_t
+static inline __attribute__((__always_inline__))
+uint8_t
 mmio_read_uint8(const volatile void *address) {
         barrier();
         uint8_t value = *(const volatile uint8_t *)address;
@@ -26,14 +27,16 @@ mmio_read_uint8(const volatile void *address) {
         return value;
 }
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 mmio_write_uint8(volatile void *address, uint8_t value) {
         barrier();
         *(volatile uint8_t *)address = value;
         barrier();
 }
 
-static inline uint16_t
+static inline __attribute__((__always_inline__))
+uint16_t
 mmio_read_uint16(const volatile void *address) {
         barrier();
         uint16_t value = *(const volatile uint16_t *)address;
@@ -41,14 +44,16 @@ mmio_read_uint16(const volatile void *address) {
         return value;
 }
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 mmio_write_uint16(volatile void *address, uint16_t value) {
         barrier();
         *(volatile uint16_t *)address = value;
         barrier();
 }
 
-static inline uint32_t
+static inline __attribute__((__always_inline__))
+uint32_t
 mmio_read_uint32(const volatile void *address) {
         barrier();
         uint32_t value = *(const volatile uint32_t *)address;
@@ -56,14 +61,16 @@ mmio_read_uint32(const volatile void *address) {
         return value;
 }
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 mmio_write_uint32(volatile void *address, uint32_t value) {
         barrier();
         *(volatile uint32_t *)address = value;
         barrier();
 }
 
-static inline uint64_t
+static inline __attribute__((__always_inline__))
+uint64_t
 mmio_read_uint64(const volatile void *address) {
         barrier();
         uint64_t value = *(const volatile uint64_t *)address;
@@ -71,7 +78,8 @@ mmio_read_uint64(const volatile void *address) {
         return value;
 }
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 mmio_write_uint64(volatile void *address, uint64_t value) {
         barrier();
         *(volatile uint64_t *)address = value;
@@ -79,17 +87,20 @@ mmio_write_uint64(volatile void *address, uint64_t value) {
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 memoryBarrier() {
     asm volatile("mfence" : : : "memory");
 }
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 readMemoryBarrier() {
     asm volatile("lfence" : : : "memory");
 }
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 writeMemoryBarrier() {
     asm volatile("sfence" : : : "memory");
 }

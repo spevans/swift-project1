@@ -20,7 +20,8 @@
 #include "vmx.h"
 
 
-static inline uint64_t
+static inline __attribute__((__always_inline__))
+uint64_t
 save_eflags()
 {
         uint64_t flags;
@@ -33,7 +34,8 @@ save_eflags()
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 load_eflags(uint64_t flags)
 {
         asm volatile ("push %0\n"
@@ -45,21 +47,24 @@ load_eflags(uint64_t flags)
 
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 cli()
 {
         asm volatile ("cli" : : : "memory");
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 sti()
 {
         asm volatile ("sti" : : : "memory");
 }
 
 
-static inline uint64_t
+static inline __attribute__((__always_inline__))
+uint64_t
 local_irq_save()
 {
         uint64_t flags = save_eflags();
@@ -68,7 +73,8 @@ local_irq_save()
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 hlt()
 {
         asm volatile ("hlt" : : : "memory");
@@ -76,7 +82,8 @@ hlt()
 
 static inline void stop() __attribute__ ((noreturn));
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 stop()
 {
         cli();
@@ -85,48 +92,55 @@ stop()
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 lgdt(const struct dt_info * _Nonnull gdt)
 {
         asm volatile ("lgdt (%0)" : : "r" (gdt) : "memory");
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 sgdt(struct dt_info * _Nonnull gdt)
 {
         asm volatile ("sgdt (%0)" : : "r" (gdt) : "memory");
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 lidt(const struct dt_info * _Nonnull gdt)
 {
         asm volatile ("lidt (%0)" : : "r" (gdt) : "memory");
 }
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 sidt(struct dt_info * _Nonnull gdt)
 {
         asm volatile ("sidt (%0)" : : "r" (gdt) : "memory");
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 ltr(const uint16_t tss)
 {
         asm volatile ("ltr %0" : : "r" (tss));
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 outb(uint16_t port, uint8_t data)
 {
         asm volatile ("outb %0, %1" : : "a" (data), "d" (port));
 }
 
 
-static inline uint8_t
+static inline __attribute__((__always_inline__))
+uint8_t
 inb(uint16_t port)
 {
         uint8_t data;
@@ -135,14 +149,16 @@ inb(uint16_t port)
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 outw(uint16_t port, uint16_t data)
 {
         asm volatile ("outw %0, %1" : : "a" (data), "d" (port));
 }
 
 
-static inline uint16_t
+static inline __attribute__((__always_inline__))
+uint16_t
 inw(uint16_t port)
 {
         uint16_t data;
@@ -151,14 +167,16 @@ inw(uint16_t port)
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 outl(uint16_t port, uint32_t data)
 {
         asm volatile ("outl %0, %1" : : "a" (data), "d" (port));
 }
 
 
-static inline uint32_t
+static inline __attribute__((__always_inline__))
+uint32_t
 inl(uint16_t port)
 {
         uint32_t data;
@@ -168,7 +186,8 @@ inl(uint16_t port)
 
 
 // Returns a pointer to the char array for ease of converting to a String
-static inline const char * _Nonnull
+static inline __attribute__((__always_inline__))
+const char * _Nonnull
 cpuid(const uint32_t function, union cpuid_result * _Nonnull result)
 {
         uint32_t eax, ebx, ecx, edx;
@@ -197,7 +216,8 @@ struct msr_value {
         uint32_t edx;
 };
 
-static inline struct msr_value
+static inline __attribute__((__always_inline__))
+struct msr_value
 rdmsr(uint32_t msr)
 {
         struct msr_value res;
@@ -206,13 +226,15 @@ rdmsr(uint32_t msr)
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 wrmsr(uint32_t msr, uint32_t eax, uint32_t edx)
 {
         asm volatile ("wrmsr" : : "c" (msr), "a" (eax), "d" (edx) : );
 }
 
-static inline uint64_t
+static inline __attribute__((__always_inline__))
+uint64_t
 getRBP()
 {
         uint64_t res;
@@ -221,7 +243,8 @@ getRBP()
 }
 
 
-static inline uint64_t
+static inline __attribute__((__always_inline__))
+uint64_t
 getRSP()
 {
         uint64_t res;
@@ -230,7 +253,8 @@ getRSP()
 }
 
 
-static inline uint64_t
+static inline __attribute__((__always_inline__))
+uint64_t
 getCR0()
 {
         uint64_t res;
@@ -239,14 +263,16 @@ getCR0()
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 setCR0(uint64_t value)
 {
         asm volatile ("mov %0, %%cr0" : : "r" (value) : );
 }
 
 
-static inline uintptr_t
+static inline __attribute__((__always_inline__))
+uintptr_t
 getCR2()
 {
         uintptr_t res;
@@ -255,7 +281,8 @@ getCR2()
 }
 
 
-static inline uint64_t
+static inline __attribute__((__always_inline__))
+uint64_t
 getCR3()
 {
         uint64_t res;
@@ -264,14 +291,16 @@ getCR3()
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 setCR3(uint64_t value)
 {
         asm volatile ("mov %0, %%cr3" : : "r" (value) : );
 }
 
 
-static inline uint64_t
+static inline __attribute__((__always_inline__))
+uint64_t
 getCR4()
 {
         uint64_t res;
@@ -280,21 +309,24 @@ getCR4()
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 setCR4(uint64_t value)
 {
         asm volatile ("mov %0, %%cr4" : : "r" (value) : );
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 int3()
 {
         asm volatile ("int $3" :::);
 }
 
 
-static inline uint64_t
+static inline __attribute__((__always_inline__))
+uint64_t
 rdtsc()
 {
         uint64_t edx, eax;
@@ -305,20 +337,23 @@ rdtsc()
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 invlpg(unsigned long address)
 {
         asm volatile ("invlpg (%0)" : : "r" (address) : "memory" );
 }
 
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 wbinvd(void)
 {
         asm volatile ("wbinvd" : : : "memory");
 }
 
-static inline void
+static inline __attribute__((__always_inline__))
+void
 trap(void)
 {
         asm volatile ("ud2" :::);
