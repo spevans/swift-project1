@@ -47,12 +47,16 @@ final class DeviceManager {
         interruptManager.enableGpicMode()
         initPNPDevice(withName: "PNP0C0F")  // PCI Interrupt Link Devices
          // Look for a PIT timer and add to device tree if found
-        if !initPNPDevice(withName: "PNP0103") {
-            initPNPDevice(withName: "PNP0C01") // Look for an HPET timer
+        // Look for an HPET timer
+        if initPNPDevice(withName: "PNP0103") || initPNPDevice(withName: "PNP0C01") {
+            #kprint("Found an HPET")
+        } else {
+            if initPNPDevice(withName: "PNP0100") {
+                #kprint("Found a PIT")
+            }
         }
-        initPNPDevice(withName: "PNP0100")
         guard setupPeriodicTimer() else {
-            koops("Cant find a timer to use for periodic clock")
+            koops("Cannot find a HPET or PIT to use for periodic clock")
         }
     }
 
@@ -66,16 +70,6 @@ final class DeviceManager {
             return true
         }
         return found
-    }
-
-    private func pnpDevices(pnpName: String, body: (Device) -> ()) {
-        walkDeviceTree() { device in
-            if let config = device.acpiDeviceConfig, config.matches(hidOrCid: pnpName) {
-                #kprint("** found pnp device", config)
-                body(device)
-            }
-            return true
-        }
     }
 
 

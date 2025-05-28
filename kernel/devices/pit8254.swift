@@ -141,6 +141,10 @@ final class PIT8254: PNPDeviceDriver {
 
     // FIXME, Nothing to do currently, maybe read status to check for presence of device?
     override func initialise() -> Bool {
+        guard system.deviceManager.timer == nil else {
+            #kprint("PIT8254: System already has a timer")
+            return false
+        }
         guard let pnpDevice = device.busDevice as? PNPDevice, let resources = pnpDevice.getResources() else {
             return false
         }
