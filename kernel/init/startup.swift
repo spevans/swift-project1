@@ -58,7 +58,6 @@ final class System {
 
     fileprivate func runSystem() {
         addTask(name: "IRQ Queue runner", task: mainLoop)
-        addTask(name: "KeyboardInput", task: keyboardInput)
         run_first_task() // This jumps straight into mainLoop
     }
 }
@@ -76,10 +75,11 @@ fileprivate func mainLoop() {
     system.deviceManager.enableIRQs()
     system.deviceManager.initialiseDevices()
 
+    addTask(name: "KeyboardInput", task: keyboardInput)
+
     // Idle, woken up by interrupts
     while true {
         hlt()
-        yield()
     }
 }
 

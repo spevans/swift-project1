@@ -45,11 +45,17 @@ func noInterrupt<Result>(_ task: () -> Result) -> Result {
 @_silgen_name("getNextTask")
 public func getNextTask(rsp: UnsafeMutablePointer<UInt>) -> UInt {
     tasks[currentTask].rsp = rsp
+    if tasks.count > 0 {
+        nextTask = (currentTask + 1) % tasks.count
+    }
     currentTask = nextTask
 
     return tasks[nextTask].rsp.address
 }
 
+func getCurrentTask() -> Int {
+    return currentTask
+}
 
 // Returns the stack pointer of the first task
 @_silgen_name("getFirstTask")
