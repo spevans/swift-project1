@@ -25,7 +25,7 @@ final class Device: CustomStringConvertible {
     var enabled = false
     var initialised = false
     var isBus: Bool { devices.count > 0 }
-    var description: String { return "\(fullName): " + (busDevice?.description ?? "Generic Device") }
+    var description: String { fullName }
 
 
     init(parent: Device?, fullName: String, acpiDeviceConfig: ACPIDeviceConfig? = nil) {

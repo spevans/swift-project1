@@ -103,6 +103,7 @@ final class DeviceManager {
         walkDeviceTree() { device in
             if _initPnpDevice(device: device, isPCIHost: true) {
                 #kprint("Found PCI Host:", device)
+                setPCIHostBus(device)
                 return false
             }
             return true
@@ -116,15 +117,19 @@ final class DeviceManager {
         // Now load device drivers for any known devices, ISA/PNP first
         initPnpDevices()
 
-        #kprint("Initialising USB")
-        usbBus = USB()
-        usbBus.initialiseDevices()
-        #kprint("USB initialised, looking at rest of devices")
+        if let rootPCIBus = pciHostBus {
+            #kprint("Initialising USB")
+            usbBus = USB()
+            usbBus.initialiseDevices(rootPCIBus: rootPCIBus)
+            #kprint("USB initialised, looking at rest of devices")
 
-        if let rootPCIBus = masterBus.rootPCIBus() {
             rootPCIBus.devicesMatching() { (device: PCIDevice, deviceClass: PCIDeviceClass) in
-                guard !device.device.initialised else { return }
+                guard !device.device.initialised else {
+                    // TODO: initialise PCI devices
+                    return
+                }
             }
+            return
         } else {
             #kprint("Error: Cant Find ROOT PCI Bus")
         }
@@ -149,8 +154,7 @@ final class DeviceManager {
             var driverName = ""
 
             if let driver = device.deviceDriver { driverName = driver.description }
-            let busDeviceName = device.busDevice?.description ?? ""
-            #kprint("\(spaces)+--- \(device) BUS: \(busDeviceName) DRV: \(driverName)")
+            #kprint("\(spaces)+--- \(device) DRV: \(driverName)")
             if device.isBus {
                 dumpBus(device, depth: depth + 1)
             }

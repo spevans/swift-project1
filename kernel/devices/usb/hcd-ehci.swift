@@ -51,11 +51,12 @@ final class HCD_EHCI: PCIDeviceDriver {
 
     override func initialise() -> Bool {
 
-        var pciCommand = pciDevice.deviceFunction.command
+        var deviceFunction = pciDevice.deviceFunction
+        var pciCommand = deviceFunction.command
         pciCommand.memorySpace = true
         pciCommand.interruptDisable = true //false
         pciCommand.busMaster = true
-        pciDevice.deviceFunction.command = pciCommand
+        deviceFunction.command = pciCommand
 
         // Read Capability Registers
         let capLength: UInt8 = mmioRegion.read(fromByteOffset: 0)

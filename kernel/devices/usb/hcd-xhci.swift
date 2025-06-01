@@ -37,7 +37,6 @@ final class HCD_XHCI: PCIDeviceDriver {
 
         baseAddress = base & 0xffff_ff00
         super.init(pciDevice: pciDevice)
-        pciDevice.device.setDriver(self)
         #kprint("XHCI: 0x\(String(baseAddress, radix: 16))")
     }
 

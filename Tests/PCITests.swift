@@ -68,10 +68,8 @@ class PCITests: XCTestCase {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         ]
 
-//        let testConfig = PCITestConfigSpace(bytes: pciDump)
-//        let configSpace = PCIConfigSpace(access: testConfig, device: 1, function: 0)
         let configSpace = PCIConfigSpace.bytes(pciDump)
-        let deviceFunction = PCIDeviceFunction(busId: 0, device: 1, function: 0, configSpace: configSpace)
+        var deviceFunction = PCIDeviceFunction(busId: 0, device: 1, function: 0, configSpace: configSpace)
         guard deviceFunction.hasValidVendor else {
             XCTFail("Invalid PCIDeviceFunction")
             return

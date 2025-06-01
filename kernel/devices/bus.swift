@@ -25,7 +25,6 @@ final class MotherBoardResource: PNPDeviceDriver {
 
 
 final class MasterBus: CustomStringConvertible {
-    private var pciHostBus: PCIBus?     // PCI Host Bus
     let description = "MasterBus"
     let device: Device
 
@@ -36,22 +35,5 @@ final class MasterBus: CustomStringConvertible {
     init(acpiSystemBus: ACPI.ACPIObjectNode) {
         self.device = Device(parent: nil, fullName: "MasterBus")
         self.acpiSystemBus = acpiSystemBus
-    }
-
-    func rootPCIBus() -> PCIBus? {
-        if pciHostBus == nil {
-            #kprint("Looking for rootPCIBus")
-            system.deviceManager.walkDeviceTree(bus: self.device) { device in
-                #kprint("Looking at", device.fullName, unsafeBitCast(device, to: UInt.self).hex())
-                if let driver = device.deviceDriver as? PCIBus, driver.isHostBus {
-                    #kprint("Found match on device", device.fullName)
-                    self.pciHostBus = driver
-                    return false
-                } else {
-                    return true
-                }
-            }
-        }
-        return pciHostBus
     }
 }

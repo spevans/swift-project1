@@ -93,20 +93,14 @@ final class USB {
 
     func initialise() -> Bool { return true }
 
-    func initialiseDevices(acpiDevice: AMLDefDevice? = nil) {
-
-        guard let  rootPCIBus = system.deviceManager.masterBus.rootPCIBus() else {
-            #kprint("USB: No Root PCI bus found, extiing USB initialisation")
-            return
-        }
+    func initialiseDevices(rootPCIBus: PCIBus) {
 
         var usbHcds: [(PCIDevice, PCIUSBProgrammingInterface)] = []
         rootPCIBus.devicesMatching(classCode: .serialBusController, subClassCode: PCISerialBusControllerSubClass.usb.rawValue) {
             let deviceClass = $1
             guard !$0.device.initialised else { return }
             if deviceClass.seriaBusSubClass == .usb, let progIf = PCIUSBProgrammingInterface(rawValue: deviceClass.progInterface) {
-                let name = $0.device.acpiDeviceConfig?.node.fullname() ?? "no ACPI name"
-                #kprint("USB: Found a USB HCD", $0.device.fullName, " progIf:", progIf, "name: ", name)
+                #kprint("USB: Found a USB HCD", $0.device.fullName, " progIf:", progIf)
                 // Add to the list of HCDs for later initialisation
                 switch progIf {
                     case .uhci, .ehci, .xhci:

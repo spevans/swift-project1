@@ -11,7 +11,7 @@
 
 final class PCIDevice: BusDevice {
 
-    let deviceFunction: PCIDeviceFunction
+    private(set) var deviceFunction: PCIDeviceFunction
     private(set) var pciIORegions: [PCI_IO_Region] = []
 
     override var description: String { "PCI \(deviceFunction.description)" }

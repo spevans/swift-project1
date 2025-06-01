@@ -15,7 +15,7 @@ final class PCIBus: DeviceDriver {
     let isHostBus: Bool
 
     private(set) var devices: [Device] = []
-    override var description: String { "PCIBus: busId: \(asHex(busId)) \(device.fullName)" }
+    override var description: String { "PCIBus: busId: \(asHex(busId))" }
 
     // Root Bus
     init?(pnpDevice: PNPDevice) {
@@ -74,24 +74,22 @@ final class PCIBus: DeviceDriver {
 
         // Scan PCI bus for any remaining devices
         for deviceFunction in scanBus() {
-            #kprint("Adding \(deviceFunction)")
+            #kprint("PCI: Found \(deviceFunction)")
             // FIXME: Try and find matching ACPI device node
 
             let newDevice: Device
             if let node = adrNodeMap[AMLInteger(deviceFunction.acpiADR)], let d = node.device {
-                #kprint("Found node", node.fullname(), "with device:", d)
+                #kprint("PCI: Found node", node.fullname(), "with device:", d)
                 newDevice = d
             } else {
                 newDevice = Device(parent: self.device, fullName: deviceFunction.description)
             }
             guard let pciDevice = self.device(deviceFunction: deviceFunction, newDevice: newDevice) else {
-                #kprint("PCIBus: Could not add \(deviceFunction)")
+                #kprint("PCI: Could not add \(deviceFunction)")
                 continue
             }
 
             if newDevice.busDevice == nil {
-                let nodename = newDevice.acpiDeviceConfig?.node.fullname() ?? "no node"
-                #kprintf("Setting bus device for %s [%s] pciDev: %s\n", newDevice.fullName, nodename, pciDevice.description)
                 newDevice.setBusDevice(pciDevice)
             }
             addDevice(newDevice)
@@ -100,18 +98,10 @@ final class PCIBus: DeviceDriver {
         }
 
         devices.sort {
-            let dev0 = $0.busDevice as? PCIDevice
-            let dev1 = $1.busDevice as? PCIDevice
-
-            if let dev0 = dev0, let dev1 = dev1 {
-                return dev0.deviceFunction.deviceFunction < dev1.deviceFunction.deviceFunction
-            } else if dev0 != nil {
-                return true
-            } else if dev1 != nil {
+            guard let dev0 = $0.busDevice as? PCIDevice, let dev1 = $1.busDevice as? PCIDevice else {
                 return false
-            } else {
-                return $0.fullName < $1.fullName
             }
+            return dev0.deviceFunction < dev1.deviceFunction
         }
         return true
     }
@@ -149,29 +139,28 @@ final class PCIBus: DeviceDriver {
         if let busClass = deviceFunction.deviceClass?.bridgeSubClass {
             switch busClass {
                 case .isa:
-                    guard let driver = ISABus(pciDevice: pciDevice) else {
+                    if let driver = ISABus(pciDevice: pciDevice) {
+                        newDevice.setDriver(driver)
+                    } else {
                         #kprint("PCI: Cant create ISA BUS")
-                        return nil
                     }
-                    newDevice.setDriver(driver)
-                    return pciDevice
 
                 case .host:
                     // FIXME - this could be a PCIExpress Root bus
-                    #kprint("PCI: Error: Found a PCI Host bus \(pciDevice) on a PCI bus \(self), bridgeDevice:", deviceFunction.bridgeDevice != nil)
-                    return nil
+                    #kprint("PCI: Error: Found a PCI Host bus \(pciDevice) on a PCI bus \(self)")
+                    if let bridgeDevice = pciDevice.deviceFunction.bridgeDevice {
+                        #kprint("PCI: bridge device, secondary BusId", bridgeDevice.secondaryBusId)
+                    }
 
                 case .pci:
-                    guard let driver = PCIBus(pciDevice: pciDevice) else {
+                    if let driver = PCIBus(pciDevice: pciDevice) {
+                        newDevice.setDriver(driver)
+                    } else {
                         #kprint("PCI: Cant Create PCBus from:", pciDevice)
-                        return nil
                     }
-                    newDevice.setDriver(driver)
-                    return pciDevice
 
                 default:
                     #kprint("PCI Ignoring bus of type \(deviceFunction)")
-                    return nil
             }
         }
 
@@ -189,6 +178,8 @@ final class PCIBus: DeviceDriver {
 
     // Scan the PCI bus for devices but ignore any that have already been added to the `devices` array by ACPI
     private func scanBus() -> [PCIDeviceFunction] {
+        var pciDeviceFunctions: [PCIDeviceFunction] = []
+
         // Get current devices on bus by device number, key = devicveID (0-0x1F) value = 0 if non-multifunction else bitX = functionX
         var currentPCIDevices: [UInt8: UInt8] = [:]
         for device in devices {
@@ -199,9 +190,9 @@ final class PCIBus: DeviceDriver {
             } else {
                 currentPCIDevices[devId] = (currentPCIDevices[devId] ?? 0) | 1 << pciDevice.deviceFunction.function
             }
+            pciDeviceFunctions.append(pciDevice.deviceFunction)
         }
 
-        var pciDeviceFunctions: [PCIDeviceFunction] = []
         for device: UInt8 in 0..<32 {
             if let curDevices = currentPCIDevices[device], curDevices == 0 {
                 // Already found this non-multifunction device
@@ -212,7 +203,7 @@ final class PCIBus: DeviceDriver {
             let currentFunctions: UInt8
             if currentPCIDevices[device] == nil {
                 pciDev = PCIDeviceFunction(busId: busId, device: device, function: 0)
-                guard pciDev.hasValidVendor, pciDev.hasSubFunction else { continue }
+                guard pciDev.hasValidVendor else { continue }
                 currentFunctions = 0
             } else {
                 currentFunctions = currentPCIDevices[device]!
@@ -222,7 +213,7 @@ final class PCIBus: DeviceDriver {
                     pciDeviceFunctions.append(pciDev)
                 }
             }
-            for fidx: UInt8 in 1..<8 {
+            for fidx: UInt8 in 0..<8 {
                 if (1 << fidx) & currentFunctions == 0 {
                     let dev = PCIDeviceFunction(busId: busId, device: device, function: fidx)
                     if dev.hasValidVendor {
@@ -231,6 +222,7 @@ final class PCIBus: DeviceDriver {
                 }
             }
         }
+        #kprintf("Found %d PCI devices on busId: %2.2x\n", pciDeviceFunctions.count, busId)
         return pciDeviceFunctions
     }
 }

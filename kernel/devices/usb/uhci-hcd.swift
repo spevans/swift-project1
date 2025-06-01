@@ -75,7 +75,7 @@ final class HCD_UHCI: PCIDeviceDriver {
 
     override func initialise() -> Bool {
         guard let pciDevice = self.device.busDevice as? PCIDevice else { return false }
-        let deviceFunction = pciDevice.deviceFunction
+        var deviceFunction = pciDevice.deviceFunction
 
         // Find the Interrupt
         guard let interrupt = pciDevice.findInterrupt() else {

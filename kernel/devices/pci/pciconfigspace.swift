@@ -19,26 +19,6 @@ enum PCIConfigSpace: CustomStringConvertible {
     case mmio(mmioRegion: MMIORegion)
     case bytes([UInt8])
 
-
-    init(busId: UInt8, device: UInt8, function: UInt8) {
-        let mcfgTable = system.deviceManager.acpiTables.mcfg
-        if let mmioBaseAddress = mcfgTable?.baseAddressFor(bus: busId) {
-            let regionAddress = mmioBaseAddress + (UInt(device) << 15 | UInt(function) << 12)
-            let pageRange = PhysRegion(start: regionAddress, size: 4096)
-            #kprint("PCIConfigSpace, mapping regions @ \(pageRange) for base address \(mmioBaseAddress), bus: \(busId), \(device)/\(function) => \(regionAddress)")
-            self = .mmio(mmioRegion: mapIORegion(region: pageRange))
-        } else {
-            let address = (UInt32(busId) << 16) | (UInt32(device) << 11) | (UInt32(function) << 8)
-            self = .pio(baseAddress: address | 0x80000000)
-        }
-    }
-
-    func release() {
-        if case let .mmio(mmioRegion) = self {
-            unmapMMIORegion(mmioRegion)
-        }
-    }
-
     var description: String {
         switch self {
             case .pio(let baseAddress): return #sprintf("PCIBusPIO @ %8.8X", baseAddress)
@@ -179,5 +159,49 @@ enum PCIConfigSpace: CustomStringConvertible {
             case .bytes:
                 fatalError()
         }
+    }
+}
+
+
+
+private var _mcfg: MCFG?
+private(set) var pciHostBus: PCIBus?
+
+func initPCI(mcfg: MCFG?) {
+    if let mcfg = mcfg {
+        _mcfg = mcfg
+        #kprintf("PCI: Have MCFG with %d entries\n", mcfg.allocations.count)
+        for entry in mcfg.allocations {
+            let busCount = (entry.endBus - entry.startBus) + 1
+            let size = UInt(busCount) * 32 * 8 * 4096
+            let endAddress = entry.baseAddress + size - 1
+            #kprintf("PCI: startBus: %2.2x endBus: %2.2x base: %p - %p\n",
+                     entry.startBus, entry.endBus, entry.baseAddress.value, endAddress.value)
+            let regions = PhysPageAlignedRegion.createRanges(startAddress: entry.baseAddress, endAddress: endAddress, pageSizes: [.init(4096), .init(2 * mb)])
+            for region in regions {
+                #kprintf("PCI: Mapping region @ %s\n", region.description)
+                let mmioRegion = mapIORegion(region: region)
+                #kprintf("PCI: MMIORegion: %s\n", mmioRegion.description)
+            }
+        }
+    }
+}
+
+func setPCIHostBus(_ device: Device) {
+    guard let bus = device.deviceDriver as? PCIBus, bus.isHostBus else {
+        #kprint("PCI: Device", device.description, "is not a PCI Host Bus")
+        return
+    }
+    pciHostBus = bus
+}
+
+func pciConfigSpace(busId: UInt8, device: UInt8, function: UInt8) -> PCIConfigSpace {
+    if let mmioBaseAddress = _mcfg?.baseAddressFor(bus: busId) {
+        let regionAddress = mmioBaseAddress + (UInt(device) << 15 | UInt(function) << 12)
+        let pageRange = PhysRegion(start: regionAddress, size: 4096)
+        return .mmio(mmioRegion: MMIORegion(pageRange))
+    } else {
+        let address = (UInt32(busId) << 16) | (UInt32(device) << 11) | (UInt32(function) << 8)
+        return .pio(baseAddress: address | 0x80000000)
     }
 }

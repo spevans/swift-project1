@@ -9,9 +9,9 @@
  */
 
 
-final class PCIDeviceFunction: CustomStringConvertible {
-    private let configSpace: PCIConfigSpace
-    private let busId: UInt8
+struct PCIDeviceFunction: CustomStringConvertible {
+    let configSpace: PCIConfigSpace
+    let busId: UInt8
     let device:     UInt8
     let function:   UInt8
 
@@ -49,7 +49,7 @@ final class PCIDeviceFunction: CustomStringConvertible {
         let fmt: StaticString =  "%2.2X:%2.2X/%u: %4.4X:%4.4X [%2.2X%2.2X] HT: %2.2X %s [IRQ: %u/%s]"
         let int = interruptPin?.description ?? "none"
         return #sprintf(fmt, busId, device, function, vendor, deviceId,
-                              classCode, subClassCode, headerType, configSpace.description, interruptLine, int)
+                        classCode, subClassCode, headerType, configSpace.description, interruptLine, int)
     }
 
 
@@ -59,7 +59,7 @@ final class PCIDeviceFunction: CustomStringConvertible {
         precondition(device < 32)
         precondition(function < 8)
 
-        let configSpace = PCIConfigSpace(busId: busId, device: device, function: function)
+        let configSpace = pciConfigSpace(busId: busId, device: device, function: function)
         self.configSpace = configSpace
         self.busId = busId
         self.device = device
@@ -71,10 +71,6 @@ final class PCIDeviceFunction: CustomStringConvertible {
         self.device = device
         self.function = function
         self.configSpace = configSpace
-    }
-
-    deinit {
-        configSpace.release()
     }
 
     var configSpaceSize: Int { configSpace.size }
@@ -104,11 +100,26 @@ final class PCIDeviceFunction: CustomStringConvertible {
     }
 }
 
+extension PCIDeviceFunction: Comparable {
+
+    static func ==(lhs: PCIDeviceFunction, rhs: PCIDeviceFunction) -> Bool {
+        let l = UInt32(lhs.busId) << 16 | UInt32(lhs.device) << 8 | UInt32(lhs.function)
+        let r = UInt32(rhs.busId) << 16 | UInt32(rhs.device) << 8 | UInt32(rhs.function)
+        return l == r
+    }
+
+    static func <(lhs: PCIDeviceFunction, rhs: PCIDeviceFunction) -> Bool {
+        let l = UInt32(lhs.busId) << 16 | UInt32(lhs.device) << 8 | UInt32(lhs.function)
+        let r = UInt32(rhs.busId) << 16 | UInt32(rhs.device) << 8 | UInt32(rhs.function)
+        return l < r
+    }
+}
+
 
 // Header Type 0x00, PCI General Device, excludes common fields in PCIDeviceFunction
 struct PCIGeneralDevice: CustomStringConvertible {
     let description = "GeneralDevice"
-    fileprivate let deviceFunction: PCIDeviceFunction
+    fileprivate var deviceFunction: PCIDeviceFunction
 
     var bar0:               UInt32 { deviceFunction.readConfigDword(atByteOffset: 0x10) }
     var bar1:               UInt32 { deviceFunction.readConfigDword(atByteOffset: 0x14) }
@@ -130,7 +141,7 @@ struct PCIGeneralDevice: CustomStringConvertible {
 // Header Type 0x01, PCI-to-PCI Bridge, excludes common fields in PCIDeviceFunction
 struct PCIBridgeDevice: CustomStringConvertible {
     let description = "BridgeDevice"
-    fileprivate let deviceFunction: PCIDeviceFunction
+    fileprivate var deviceFunction: PCIDeviceFunction
 
     var bar0:               UInt32 { deviceFunction.readConfigDword(atByteOffset: 0x10) }
     var bar1:               UInt32 { deviceFunction.readConfigDword(atByteOffset: 0x14) }

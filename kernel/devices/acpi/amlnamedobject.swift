@@ -795,7 +795,7 @@ final class AMLDefOpRegion {
                 }
 
                 if let address = address  {
-                    let configSpace = PCIConfigSpace(busId: UInt8(bbn),
+                    let configSpace = pciConfigSpace(busId: UInt8(bbn),
                                                      device: UInt8(truncatingIfNeeded: address >> 16),
                                                      function: UInt8(truncatingIfNeeded: address))
                     #kprintf("ACPI: %s: Using %s for PCI_Region\n",  fullname, configSpace.description)

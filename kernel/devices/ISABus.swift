@@ -20,14 +20,12 @@ final class ISABus: DeviceDriver {
         let device = pciDevice.device
         #kprint("Initialising ISABus on PCI:", device.fullName)
         super.init(device: device)
-        self.device.setDriver(self)
     }
 
     init?(pnpDevice: PNPDevice) {
         let device = pnpDevice.device
         #kprint("Initialising ISABus on PNP:", device.fullName)
         super.init(device: device)
-        self.device.setDriver(self)
     }
 
     override func initialise() -> Bool {

@@ -263,6 +263,7 @@ final class ACPI {
         switch signature {
         case "MCFG":
             mcfg = MCFG(rawSDTPtr, vendor: vendor, product: product)
+            initPCI(mcfg: mcfg)
             tables.append(.mcfg(mcfg!))
             for entry in mcfg!.allocations {
                 #kprint("MCFG:", entry)
