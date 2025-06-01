@@ -56,7 +56,7 @@ func inl(_ port: UInt16) -> UInt32 {
 
 }
 
-func outb(_ port: UInt16, _ value: UInt8) {
+public func outb(_ port: UInt16, _ value: UInt8) {
     let index = Int(port)
     ioSpace[index] = value
 }
@@ -157,4 +157,16 @@ internal struct _serial: UnicodeOutputStream {
             print(String(CChar(ch)), terminator: "")
         }
     }
+}
+
+func printStackUsage(_ msg: String = "") {
+    if msg != "" {
+        print(msg)
+    }
+}
+
+public typealias ExceptionRegisters = UnsafeMutablePointer<exception_regs>
+
+func sti() {
+    print("Enabling interrupts")
 }

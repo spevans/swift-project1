@@ -324,8 +324,8 @@ extension String {
                 case .missingArgument: "Missing Argument"
                 case .excessArguments: "Excess Arguments"
             }
-            #kprintf("sprintf: Error with format string '%s': %s\n", format, msg)
-            fatalError("")
+            let error = #sprintf("sprintf: Error with format string '%s': %s\n", format, msg)
+            fatalError(error)
         }
     }
 }

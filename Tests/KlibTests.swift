@@ -25,8 +25,6 @@ class KlibTests: XCTestCase {
         XCTAssertTrue(rs.reserveSpace(name: "kbd8042", start: 0x60, end: 0x60))
         XCTAssertTrue(rs.reserveSpace(name: "kbd8042", start: 0x64, end: 0x64))
         XCTAssertFalse(rs.reserveSpace(name: "kbd8042", start: 0x60, end: 0x62))
-
-        rs.showReservedSpaces()
     }
 
 

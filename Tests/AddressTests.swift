@@ -132,7 +132,7 @@ class AddressTests: XCTestCase {
         }
 
         do {
-            // 4k to 64gb
+            // 4k to 2TB
             let memoryRange = MemoryRange(type: .BootServicesCode, start: PhysAddress(0x1000), size: MAX_PHYSICAL_MEMORY - 4096)
             let physPageRanges = memoryRange.physPageRanges(using: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
 
@@ -149,32 +149,32 @@ class AddressTests: XCTestCase {
 
             XCTAssertEqual(physPageRanges[2].pageSize.size, 0x40_000_000)
             XCTAssertEqual(physPageRanges[2].baseAddress, PhysAddress(0x40_000_000))
-            XCTAssertEqual(physPageRanges[2].endAddress, PhysAddress(0xFFF_FFF_FFF)) // 64GB -1
-            XCTAssertEqual(physPageRanges[2].pageCount, 63) // 1ff000
+            XCTAssertEqual(physPageRanges[2].endAddress, PhysAddress(0x1fFFF_FFF_FFF)) // 64GB -1
+            XCTAssertEqual(physPageRanges[2].pageCount, 2047) // 1ff000
 
             XCTAssertEqual(physPageRanges.first?.baseAddress, memoryRange.start)
             XCTAssertEqual(physPageRanges.last?.endAddress, memoryRange.endAddress)
         }
 
         do {
-            // 64gb - last 4K page
+            // 2TB - last 4K page
             let memoryRange = MemoryRange(type: .BootServicesCode, start: PhysAddress(0), size: MAX_PHYSICAL_MEMORY - 4096)
             let physPageRanges = memoryRange.physPageRanges(using: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
 
             XCTAssertEqual(physPageRanges.count, 3)
             XCTAssertEqual(physPageRanges[0].pageSize.size, 0x40_000_000)
             XCTAssertEqual(physPageRanges[0].baseAddress, PhysAddress(0))
-            XCTAssertEqual(physPageRanges[0].endAddress, PhysAddress(0xf_bfff_ffff))
-            XCTAssertEqual(physPageRanges[0].pageCount, 63)
+            XCTAssertEqual(physPageRanges[0].endAddress, PhysAddress(0x1ff_bfff_ffff))
+            XCTAssertEqual(physPageRanges[0].pageCount, 2047)
 
             XCTAssertEqual(physPageRanges[1].pageSize.size, 0x200_000)
-            XCTAssertEqual(physPageRanges[1].baseAddress, PhysAddress(0xf_c000_0000))
-            XCTAssertEqual(physPageRanges[1].endAddress, PhysAddress(0xfff_dff_fff))
+            XCTAssertEqual(physPageRanges[1].baseAddress, PhysAddress(0x1ff_c000_0000))
+            XCTAssertEqual(physPageRanges[1].endAddress, PhysAddress(0x1ffff_dff_fff))
             XCTAssertEqual(physPageRanges[1].pageCount, 511) // 3fe00_000
 
             XCTAssertEqual(physPageRanges[2].pageSize.size, 0x1000)
-            XCTAssertEqual(physPageRanges[2].baseAddress, PhysAddress(0xfff_e00_000))
-            XCTAssertEqual(physPageRanges[2].endAddress, PhysAddress(0xf_ffff_efff))
+            XCTAssertEqual(physPageRanges[2].baseAddress, PhysAddress(0x1ffff_e00_000))
+            XCTAssertEqual(physPageRanges[2].endAddress, PhysAddress(0x1ff_ffff_efff))
             XCTAssertEqual(physPageRanges[2].pageCount, 511) // 1ff000
 
             XCTAssertEqual(physPageRanges.first?.baseAddress, memoryRange.start)
@@ -195,14 +195,14 @@ class AddressTests: XCTestCase {
             let allMemoryRegions4K = PhysPageAlignedRegion.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(MAX_PHYSICAL_MEMORY - 1), pageSizes: [PageSize()])
             XCTAssertEqual(allMemoryRegions4K.count, 1)
             let total4KPages = allMemoryRegions4K.map { $0.pageCount }.reduce(0, +)
-            XCTAssertEqual(total4KPages, 4096 * 4096)
+            XCTAssertEqual(total4KPages, 1<<29)
 
             let allMemoryRegions1G = PhysPageAlignedRegion.createRanges(startAddress: PhysAddress(0), endAddress: PhysAddress(MAX_PHYSICAL_MEMORY - 1), pageSizes: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
             XCTAssertEqual(allMemoryRegions1G.count, 1)
-            XCTAssertEqual(allMemoryRegions1G.first?.pageCount, 64)
+            XCTAssertEqual(allMemoryRegions1G.first?.pageCount, 2048)
             XCTAssertEqual(allMemoryRegions1G.first?.pageSize.size, 1 * gb)
             let total1GPages = allMemoryRegions1G.map { $0.pageCount }.reduce(0, +)
-            XCTAssertEqual(total1GPages, 64)
+            XCTAssertEqual(total1GPages, 2048)
         }
 
         do {
