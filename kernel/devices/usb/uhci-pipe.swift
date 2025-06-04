@@ -55,10 +55,10 @@ fileprivate extension HCD_UHCI {
 
                 case .interrupt:
                     guard endpointDescriptor.bInterval > 0 else {
-                        #kprint("UHCI-PIPE Interrupt endpoint has interval of \(endpointDescriptor.bInterval), ignoring")
+                        #uhciDebug("UHCI-PIPE Interrupt endpoint has interval of \(endpointDescriptor.bInterval), ignoring")
                         return nil
                     }
-                    #kprint("UHCI-PIPE: \(hcd.description)- Creating interrupt pipe, interval:", endpointDescriptor.bInterval)
+                    #uhciDebug("UHCI-PIPE: \(hcd.description)- Creating interrupt pipe, interval:", endpointDescriptor.bInterval)
 
                     // Allocate a buffer and the TDs to process it
                     physBuffer = hcd.allocator.allocPhysBuffer(length: Int(endpointDescriptor.maxPacketSize))
@@ -69,7 +69,7 @@ fileprivate extension HCD_UHCI {
                         token: TransferDescriptor.Token(pid: .pidIn, deviceAddress: device.address, endpoint: endpointDescriptor.endpoint, dataToggle: false, maximumLength: UInt(endpointDescriptor.maxPacketSize)),
                         bufferPointer: physBuffer!.physAddress32
                     ))
-                    #kprint("UHCI-PIPE: Interrupt TD:", td, td.mmioSubRegion) // FIXME td.pointer.pointee causes GP
+                    #uhciDebug("UHCI-PIPE: Interrupt TD:", td, td.mmioSubRegion) // FIXME td.pointer.pointee causes GP
                     _tds.append(td)
 
                     var queueHead = hcd.allocator.allocQueueHead()
@@ -101,7 +101,7 @@ fileprivate extension HCD_UHCI {
 
         override func pollInterruptPipe(into result: inout [UInt8]) -> Bool {
             guard case .interrupt = endpointDescriptor.transferType else {
-                #kprint("UHCI-PIPE: Attempting to poll an non interrupt pipe")
+                #uhciDebug("UHCI-PIPE: Attempting to poll an non interrupt pipe")
                 return false
             }
 
@@ -143,9 +143,7 @@ fileprivate extension HCD_UHCI {
         }
 
         override func send(request: USB.ControlRequest, withBuffer: MMIOSubRegion?) -> Bool {
-            #kprint("USB-PIPE: \(hcd.description)/\(device.port)-\(device.address).\(endpointDescriptor.endpoint) Sending request:", request, "withBuffer:", (withBuffer?.description ?? "nil"))
-            #kprintf("USB-PIPE: send start: current free entry count, QH: %d TD: %d\n",
-                     hcd.allocator.freeQHs, hcd.allocator.freeTDs)
+
             // copy the request into a 32byte low buffer
             let buffer = hcd.allocator.allocPhysBuffer(length: MemoryLayout<USB.ControlRequest>.size)
             buffer.storeBytes(of: request, as: USB.ControlRequest.self)
@@ -308,13 +306,9 @@ fileprivate extension HCD_UHCI {
                 hcd.allocator.freePhysBuffer(dataBuffer)
             }
 
-
             guard tdAllocations == 0 else {
                 fatalError("tdAllocation = \(tdAllocations), corrupted link pointers")
             }
-
-            #kprintf("USB-PIPE: send end: current free entry count, QH: %d TD: %d\n",
-                     hcd.allocator.freeQHs, hcd.allocator.freeTDs)
 
             return result
         }

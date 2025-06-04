@@ -40,3 +40,10 @@ class PCIDeviceDriver: DeviceDriver {
         super.init(driverName: driverName, device: pciDevice.device)
     }
 }
+
+
+class USBDeviceDriver: DeviceDriver {
+    init?(driverName: String, usbDevice: USBDevice) {
+        super.init(driverName: driverName, device: usbDevice.device)
+    }
+}

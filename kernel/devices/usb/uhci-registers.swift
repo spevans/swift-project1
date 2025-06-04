@@ -195,6 +195,17 @@ internal extension HCD_UHCI {
             set { bits[9] = newValue ? 1 : 0 }
         }
 
+        var overCurrentCondition: Bool {
+            get { bits[10] == 1 }
+        }
+
+        var overCurrentConditionChange: Bool {
+            get { bits[11] == 1}
+        }
+        mutating func clearOverCurrentConditionChange()  {
+            bits[11] = 1
+        }
+
         var suspend: Bool {
             get { bits[12] == 1 }
             set { bits[12] = newValue ? 1 : 0 }

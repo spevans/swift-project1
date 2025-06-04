@@ -9,7 +9,7 @@ class BusDevice: CustomStringConvertible {
     var description: String { "Generic BusDevice" }
     let device: Device
 
-    init?(device: Device) {
+    init(device: Device) {
         self.device = device
     }
 

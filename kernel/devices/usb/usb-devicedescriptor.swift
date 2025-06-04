@@ -22,13 +22,13 @@ extension USB {
 
         var description: String {
             return switch self {
-            case .interfaceSpecific:  "Interface Specific"
-            case .communications:     "Communications"
-            case .hub:                "Hub"
-            case .billboard:          "Billboard"
-            case .diagnosticDevice:   "Diagnostic"
-            case .miscellaneous:      "Miscellaneous"
-            case .vendorSpecific:     "VendorSpecific"
+                case .interfaceSpecific:  "Interface Specific"
+                case .communications:     "Communications"
+                case .hub:                "Hub"
+                case .billboard:          "Billboard"
+                case .diagnosticDevice:   "Diagnostic"
+                case .miscellaneous:      "Miscellaneous"
+                case .vendorSpecific:     "VendorSpecific"
             }
         }
     }

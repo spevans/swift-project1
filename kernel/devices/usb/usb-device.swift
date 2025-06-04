@@ -9,54 +9,30 @@
  */
 
 
-extension USB {
-    enum Speed: CustomStringConvertible {
-        case lowSpeed
-        case fullSpeed
-        case highSpeed
-        case superSpeed
-
-        var description: String {
-            return switch self {
-                case .lowSpeed: "lowSpeed"
-                case .fullSpeed: "fullSpeed"
-                case .highSpeed: "highSpeed"
-                case .superSpeed: "superSpeed"
-            }
-        }
-
-        var controlSize: Int {
-            switch self {
-                case .lowSpeed, .fullSpeed: return 8
-                case .highSpeed: return 64
-                case .superSpeed: return 512
-            }
-        }
-    }
-}
-
-
-final class USBDevice: CustomStringConvertible {
+class USBDevice: BusDevice {
     private(set) var address: UInt8 = 0 // Default Start Address when not assigned
+    let bus: USBBus
     let speed: USB.Speed
-    let hub: USBHub
-    let port: Int
+//    let deviceDescriptor: USB.DeviceDescriptor
     private var _controlPipe: USBPipe?
-    private(set) var description: String
+    override var description: String {
+        #sprintf("Device %d.%u", bus.busId, address)
+    }
 
 
-    init(hub: USBHub, port: Int, speed: USB.Speed) {
-        self.hub = hub
-        self.port = port
+    init(device: Device, bus: USBBus, speed: USB.Speed) {
+        self.bus = bus
         self.speed = speed
-        description = "\(hub)/\(port).\(address)"
+        device.deviceName = "usbdev"
+        super.init(device: device)
+        device.setBusDevice(self)
     }
 
     private func controlPipe() -> USBPipe {
         if let pipe = _controlPipe {
             return pipe
         }
-        guard let pipe = hub.allocatePipe(device: self, endpointDescriptor: USB.EndpointDescriptor(controlEndPoint: 0, maxPacketSize: 8, bInterval: 0)) else {
+        guard let pipe = bus.allocatePipe(self, USB.EndpointDescriptor(controlEndPoint: 0, maxPacketSize: 8, bInterval: 0)) else {
             fatalError("UHCI: Cant allocate pipe")
         }
         _controlPipe = pipe
@@ -92,9 +68,8 @@ final class USBDevice: CustomStringConvertible {
     func setAddress(_ newAddress: UInt8) -> Bool {
         #kprint("USBDEV: Setting address to:", newAddress)
         let request = USB.ControlRequest.setAddress(address: newAddress)
-        if controlPipe().send(request: request, withBuffer: nil) {
+        if sendControlRequest(request: request) {
             address = newAddress
-            description = "\(hub)/\(port).\(address)"
             sleep(milliseconds: 10) // Device may require some time before address takes effect
             return true
         }
@@ -157,13 +132,38 @@ final class USBDevice: CustomStringConvertible {
 
     func setConfiguration(to configuration: UInt8) -> Bool {
         #kprint("USBDEV: Setting configuration to:", configuration)
-        let pipe = controlPipe()
-
         let request = USB.ControlRequest.setConfiguration(configuration: configuration)
-        guard pipe.send(request: request, withBuffer: nil) else {
+        guard sendControlRequest(request: request) else {
             #kprint("USBDEV: Failed to set configuration")
             return false
         }
         return true
+    }
+}
+
+
+// Host controllers also act as Root Hubs so need to act as a USB Device
+// as well.
+final class HCDRootHub: USBDevice {
+
+    struct HCDDeviceFunctions {
+        let sendControlRequest:  (USB.ControlRequest) -> Bool
+        let sendControlRequestReadData: (USB.ControlRequest) -> [UInt8]?
+    }
+
+    private let hcd: HCDDeviceFunctions
+
+    init(device: Device, bus: USBBus, hcd: HCDDeviceFunctions) {
+        self.hcd = hcd
+        super.init(device: device, bus: bus, speed: .fullSpeed)
+        device.deviceName = "root-hub"
+    }
+
+    override func sendControlRequest(request: USB.ControlRequest) -> Bool {
+        return hcd.sendControlRequest(request)
+    }
+
+    override func sendControlRequestReadData(request: USB.ControlRequest) -> [UInt8]? {
+        return hcd.sendControlRequestReadData(request)
     }
 }

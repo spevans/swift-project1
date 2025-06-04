@@ -21,6 +21,7 @@ extension USB {
         case OTHER_SPEED_CONFIGURATION = 7
         case INTERFACE_POWER = 8
         case HID = 0x21
+        case HUB = 0x29
         case ENDPOINT_COMPANION = 0x30
     }
 
@@ -99,7 +100,7 @@ extension USB {
             case device
             case interface(UInt8)
             case endpoint(UInt8)
-            case other
+            case other(UInt16)
 
             var rawValue: UInt8 {
                 switch self {
@@ -118,8 +119,8 @@ extension USB {
                         #sprintf("interface:%2.2x", interface)
                     case .endpoint(let endpoint):
                         #sprintf("endpoint:%2.2x", endpoint)
-                    case .other:
-                        "other"
+                    case .other(let index):
+                        #sprintf("other:%4.4x", index)
                 }
             }
 
@@ -128,8 +129,7 @@ extension USB {
                     case 0: self = .device
                     case 1: self = .interface(UInt8(truncatingIfNeeded: wIndex))
                     case 2: self = .endpoint(UInt8(truncatingIfNeeded: wIndex))
-                    case 3: self = .other
-                    default: self = .other
+                    default: self = .other(wIndex)
                 }
             }
 
@@ -152,7 +152,8 @@ extension USB {
                             wIndex = UInt16(endpoint)
                         }
 
-                    case .other: fatalError("Recipient .other not valid")
+                    case .other(let index):
+                        wIndex = UInt16(index)
                 }
                 return wIndex
             }
@@ -212,22 +213,33 @@ extension USB {
         // The request is defined in usb.h so that the structure can be packed.
         private let request: usb_control_request
         var wLength: UInt16 { request.wLength }
+        var wIndex: UInt16 { request.wIndex }
+        var wValue: UInt16 { request.wValue }
+
+        var requestCode: RequestCode? { RequestCode(rawValue:  request.bRequest) }
+        var bmRequestType: UInt8 { request.bmRequestType }
+        var requestType: BMRequestType { BMRequestType(rawValue: request.bmRequestType, wIndex: request.wIndex) }
         var direction: TransferDirection { BMRequestType(rawValue: request.bmRequestType, wIndex: request.wIndex).direction }
+
+        func requestWord(request: RequestCode, requestType: BMRequestType) -> UInt16 {
+            return UInt16(request.rawValue) << 8 | UInt16(requestType.rawValue)
+        }
 
         private init(request: usb_control_request) {
             self.request = request
         }
 
-
-        static func getStatus(recipient: Recipient) -> ControlRequest {
+        static func getStatus(direction: TransferDirection, recipient: Recipient) -> ControlRequest {
             return ControlRequest(request: usb_control_request(
                 bmRequestType: BMRequestType(direction: .deviceToHost, requestType: .standard, recipient: recipient).rawValue,
                 bRequest: RequestCode.GET_STATUS.rawValue,
                 wValue: 0,
-                wIndex: recipient.zeroInterfaceOrEndpoint(direction: .hostToDevice),
+                wIndex: recipient.zeroInterfaceOrEndpoint(direction: direction),
                 wLength: 2
             ))
         }
+
+    #if false
 
         static func clearFeature(recipient: Recipient, selector: FeatureSelector) -> ControlRequest {
             return ControlRequest(request: usb_control_request(
@@ -250,6 +262,7 @@ extension USB {
                 wLength: 0
             ))
         }
+        #endif
 
         static func setAddress(address: UInt8) -> ControlRequest {
             guard address <= 127 else { fatalError("setAddress \(address) is > 127") }
@@ -332,7 +345,7 @@ extension USB {
                 bmRequestType: BMRequestType(direction: direction, requestType: .klass, recipient: recipient).rawValue,
                 bRequest: bRequest,
                 wValue: wValue,
-                wIndex: recipient.interface(),
+                wIndex: recipient.zeroInterfaceOrEndpoint(direction: direction),
                 wLength: wLength
             ))
         }

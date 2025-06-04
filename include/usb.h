@@ -86,6 +86,18 @@ struct usb_hid_descriptor {
     uint16_t wDescriptorLength;
 } __attribute__((packed));
 
+struct usb_hub_descriptor {
+    uint8_t bDescLength;
+    uint8_t bDescriptorType;
+    uint8_t bNbrPorts;
+    uint16_t wHubCharacteristics;
+    uint8_t bPwrOn2PwrGood;
+    uint8_t bHubContrCurrent;
+    // Variable number of bytes for DeviceRemovable, 1 bit per port - Allow 1 byte for Root Hub
+    uint8_t deviceRemoveable;
+    // Variable number of bytes for PowerPwrCtrlMask, 1 bit per port - Allow 1 byte for Root Hub
+    uint8_t powerPwrCtrlMask;
+} __attribute__((packed));
 
 struct usb_control_request {
     uint8_t bmRequestType;

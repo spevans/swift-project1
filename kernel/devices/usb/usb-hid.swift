@@ -105,7 +105,7 @@ final class USBHIDDriver {
                 }
 
                 // Create a pipe for the interrupt endpoint and add it to the active queues
-                guard let intrPipe = device.hub.allocatePipe(device: device, endpointDescriptor: intrEndpoint) else {
+                guard let intrPipe = device.bus.allocatePipe(device, intrEndpoint) else {
                     #kprint("Cannot allocate Interupt pipe")
                     return false
                 }
@@ -132,7 +132,7 @@ final class USBHIDDriver {
                     return false
                 }
 
-                guard let intrPipe = device.hub.allocatePipe(device: device, endpointDescriptor: intrEndpoint) else {
+                guard let intrPipe = device.bus.allocatePipe(device, intrEndpoint) else {
                     #kprint(" mouse Cannot allocate interrupt pipe")
                     return false
                 }

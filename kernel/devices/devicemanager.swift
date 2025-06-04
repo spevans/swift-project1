@@ -7,7 +7,6 @@
 //
 
 
-internal var usbBus: USB!
 
 private(set) var interruptManager = InterruptManager()
 
@@ -20,6 +19,7 @@ final class DeviceManager {
     var mouse: Mouse?
     var timer: Timer?
     var rtc: CMOSRTC?
+    private(set)var usb: USB?
 
 
     init(acpiTables: ACPI) {
@@ -119,8 +119,8 @@ final class DeviceManager {
 
         if let rootPCIBus = pciHostBus {
             #kprint("Initialising USB")
-            usbBus = USB()
-            usbBus.initialiseDevices(rootPCIBus: rootPCIBus)
+            usb = USB()
+            usb?.initialiseDevices(rootPCIBus: rootPCIBus)
             #kprint("USB initialised, looking at rest of devices")
 
             rootPCIBus.devicesMatching() { (device: PCIDevice, deviceClass: PCIDeviceClass) in
