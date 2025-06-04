@@ -25,6 +25,15 @@ enum PS2Device {
             return nil
         }
     }
+
+    var description: String {
+        switch self {
+            case .none:
+                "none"
+            case .keyboard:
+                "keyboard"
+        }
+    }
 }
 
 
@@ -206,16 +215,17 @@ final class KBD8042: PNPDeviceDriver {
     private var keyboardBuffer = CircularBuffer<UInt8>(item: 0, capacity: 16)
     private var port1device: PS2Device = .none
     private var port2device: PS2Device = .none
-
-    private var _description = "KBD8042"
-    override var description: String { return _description }
-
     private var kbdInterruptHandler: InterruptHandler?
     private var mouseInterruptHandler: InterruptHandler?
 
-    override init?(pnpDevice: PNPDevice) {
+
+    override func info() -> String {
+        return "KBD8042 port1: \(port1device) port2: \(port2device)"
+    }
+
+    init?(pnpDevice: PNPDevice) {
         #kprint("kbd8042 init")
-        super.init(pnpDevice: pnpDevice)
+        super.init(driverName: "kbd8042", pnpDevice: pnpDevice)
     }
 
     override func initialise() -> Bool {
@@ -223,7 +233,6 @@ final class KBD8042: PNPDeviceDriver {
             #kprint("i8042: Cant initialise PNPDevice")
             return false
         }
-        _description = "KBD8042 \(resources)"
         #kprint("i8042:", pnpDevice.pnpName, resources)
 
         // 1. Flush output buffer
@@ -321,7 +330,7 @@ final class KBD8042: PNPDeviceDriver {
         system.deviceManager.setIrqHandler(handler, forInterrupt: IRQSetting(isaIrq: 1))
 
         if dualChannel {
-            let handler = InterruptHandler(name: "mount8042",
+            let handler = InterruptHandler(name: "mouse8042",
                                            handler: mouseInterrupt)
             mouseInterruptHandler = handler
             system.deviceManager.setIrqHandler(handler, forInterrupt: IRQSetting(isaIrq: 12))

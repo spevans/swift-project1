@@ -6,18 +6,22 @@
 //
 
 class BusDevice: CustomStringConvertible {
-    var description: String { return "Generic BusDevice" }
+    var description: String { "Generic BusDevice" }
     let device: Device
 
     init?(device: Device) {
         self.device = device
     }
+
+    func info() -> String {
+        return description
+    }
 }
 
+private var nextDeviceId = 1
 final class Device: CustomStringConvertible {
 
     let acpiDeviceConfig: ACPIDeviceConfig?
-    let fullName: String
     private(set) var deviceDriver: DeviceDriver?
     private(set) var busDevice: BusDevice?
     /*unowned*/ let parent: Device?
@@ -25,13 +29,15 @@ final class Device: CustomStringConvertible {
     var enabled = false
     var initialised = false
     var isBus: Bool { devices.count > 0 }
-    var description: String { fullName }
+    var deviceName: String = "unnamed"
+    var description: String { deviceName }
 
 
-    init(parent: Device?, fullName: String, acpiDeviceConfig: ACPIDeviceConfig? = nil) {
+    init(parent: Device?, acpiDeviceConfig: ACPIDeviceConfig? = nil) {
         self.parent = parent
-        self.fullName = fullName
         self.acpiDeviceConfig = acpiDeviceConfig
+        self.deviceName = "dev\(nextDeviceId)"
+        nextDeviceId += 1
         parent?.devices.append(self)
     }
 

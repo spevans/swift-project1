@@ -13,23 +13,22 @@ final class ISABus: DeviceDriver {
 
     var resources: [MotherBoardResource] = []
     let rs = ReservedSpace(name: "IO Ports", start: 0, end: 0xfff)
-    override var description: String { "ISABus: \(device.fullName)" }
 
 
     init?(pciDevice: PCIDevice) {
         let device = pciDevice.device
-        #kprint("Initialising ISABus on PCI:", device.fullName)
-        super.init(device: device)
+        #kprint("Initialising ISABus on PCI:", device)
+        super.init(driverName: "isabus", device: device)
     }
 
     init?(pnpDevice: PNPDevice) {
         let device = pnpDevice.device
-        #kprint("Initialising ISABus on PNP:", device.fullName)
-        super.init(device: device)
+        #kprint("Initialising ISABus on PNP:", device)
+        super.init(driverName: "isabus", device: device)
     }
 
     override func initialise() -> Bool {
-        guard device.initialise() else { return false }
+        device.deviceName = "isa0"
         return true
     }
 }

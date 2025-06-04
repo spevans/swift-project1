@@ -14,7 +14,14 @@ final class PCIDevice: BusDevice {
     private(set) var deviceFunction: PCIDeviceFunction
     private(set) var pciIORegions: [PCI_IO_Region] = []
 
-    override var description: String { "PCI \(deviceFunction.description)" }
+    override var description: String {
+        #sprintf("PCI %2.2X:%2.2X/%u: %4.4X:%4.4X",
+                 deviceFunction.busId,
+                 deviceFunction.device,
+                 deviceFunction.function,
+                 deviceFunction.vendor,
+                 deviceFunction.deviceId)
+    }
 
 
     init?(device: Device, deviceFunction: PCIDeviceFunction) {
@@ -30,6 +37,16 @@ final class PCIDevice: BusDevice {
         self.device.enabled = true
         #kprint("PCI: \(self) enabled")
         return true
+    }
+
+    override func info() -> String {
+        var result = "PCI Device: \(deviceFunction)\n"
+        if pciIORegions.count > 0 {
+            for barIdx in pciIORegions.indices {
+                result += "\tBAR\(barIdx) \(pciIORegions[barIdx].description)\n"
+            }
+        }
+        return result
     }
 
     func ioRegionFor(barIdx: UInt) -> PCI_IO_Region? {

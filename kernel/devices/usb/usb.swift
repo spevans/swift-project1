@@ -100,7 +100,7 @@ final class USB {
             let deviceClass = $1
             guard !$0.device.initialised else { return }
             if deviceClass.seriaBusSubClass == .usb, let progIf = PCIUSBProgrammingInterface(rawValue: deviceClass.progInterface) {
-                #kprint("USB: Found a USB HCD", $0.device.fullName, " progIf:", progIf)
+                #kprint("USB: Found a USB HCD", $0.device, " progIf:", progIf)
                 // Add to the list of HCDs for later initialisation
                 switch progIf {
                     case .uhci, .ehci, .xhci:

@@ -151,10 +151,17 @@ final class DeviceManager {
     private func dumpBus(_ bus: Device, depth: Int) {
         let spaces = String(repeating: " ", count: depth * 6)
         for device in bus.devices {
-            var driverName = ""
-
-            if let driver = device.deviceDriver { driverName = driver.description }
-            #kprint("\(spaces)+--- \(device) DRV: \(driverName)")
+            let busName = if let busdev = device.busDevice {
+                " busdev: " + busdev.description
+            } else {
+                ""
+            }
+            let driverName = if let driver = device.deviceDriver {
+                " driver: " + driver.description
+            } else {
+                ""
+            }
+            #kprint("\(spaces)+--- \(device)\(busName)\(driverName)")
             if device.isBus {
                 dumpBus(device, depth: depth + 1)
             }
@@ -180,11 +187,15 @@ final class DeviceManager {
 
 
     func dumpPCIDevices(bus: Device? = nil) {
+        var devices: [PCIDevice] = []
         walkDeviceTree(bus: bus) { device in
             if let d = device.busDevice as? PCIDevice {
-                #kprint(d)
+                devices.append(d)
             }
             return true
+        }
+        for device in devices.sorted(by: { $0.deviceFunction < $1.deviceFunction }) {
+            #kprintf("%s => %s [%s]\n", device.description, device.device.description, device.device.deviceDriver?.description ?? "")
         }
     }
 
@@ -195,5 +206,17 @@ final class DeviceManager {
             }
             return true
         }
+    }
+
+    func getDeviceByName(_ devname: String) -> Device? {
+        var found: Device?
+        walkDeviceTree() { device in
+            if device.deviceName == devname {
+                found = device
+                return false    // stop searching
+            }
+            return true
+        }
+        return found
     }
 }

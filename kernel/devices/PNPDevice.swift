@@ -11,13 +11,13 @@
 final class PNPDevice: BusDevice {
     private(set) var resources: ISABus.Resources?
     let pnpName: String
-
-    override var description: String { "ISA: \(pnpName) \(device.fullName)" }
     let isPCIHost: Bool
+
+    override var description: String {"PNP Device \(pnpName)" }
 
     init?(device: Device, pnpName: String) {
         guard device.busDevice == nil else {
-            #kprint("Device \(device.fullName) already has a busDevice")
+            #kprint("Device \(device) already has a busDevice")
             return nil
         }
         guard device.acpiDeviceConfig != nil else {
@@ -54,6 +54,14 @@ final class PNPDevice: BusDevice {
         } else {
             return false
         }
+    }
+
+    override func info() -> String {
+        var result = "PNPDevice: \(pnpName)\n\tisPCIHost: \(isPCIHost)"
+        if let resources = self.resources {
+            result += "\n\tResources: \(resources)"
+        }
+        return result
     }
 
     #if !TEST

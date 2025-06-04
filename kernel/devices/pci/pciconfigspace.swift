@@ -189,7 +189,7 @@ func initPCI(mcfg: MCFG?) {
 
 func setPCIHostBus(_ device: Device) {
     guard let bus = device.deviceDriver as? PCIBus, bus.isHostBus else {
-        #kprint("PCI: Device", device.description, "is not a PCI Host Bus")
+        #kprintf("PCI: Device '%s' is not a PCI Host Bus\n", device.deviceName)
         return
     }
     pciHostBus = bus

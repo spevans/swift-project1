@@ -10,16 +10,22 @@
 final class MotherBoardResource: PNPDeviceDriver {
     private let resources: [AMLResourceSetting]
 
-    override var description: String { "\(device.fullName): \(resources)" }
 
-
-    override init?(pnpDevice: PNPDevice) {
+    init?(pnpDevice: PNPDevice) {
         guard let crs = pnpDevice.device.acpiDeviceConfig?.crs else {
-            #kprint("\(pnpDevice.device.fullName) No valid resources found")
+            #kprint("\(pnpDevice.device): No valid resources found")
             return nil
         }
         self.resources = crs
-        super.init(pnpDevice: pnpDevice)
+        super.init(driverName: "motherboard", pnpDevice: pnpDevice)
+    }
+
+    override func info() -> String {
+        var result = "Resources:"
+        for resource in resources {
+            result += "\n\t" + resource.description
+        }
+        return result
     }
 }
 
@@ -33,7 +39,8 @@ final class MasterBus: CustomStringConvertible {
 
 
     init(acpiSystemBus: ACPI.ACPIObjectNode) {
-        self.device = Device(parent: nil, fullName: "MasterBus")
+        self.device = Device(parent: nil)
+        device.deviceName = "MasterBus"
         self.acpiSystemBus = acpiSystemBus
     }
 }

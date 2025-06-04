@@ -119,13 +119,13 @@ final class HPET: PNPDeviceDriver {
 
     override var description: String { return hpet.description }
 
-    override init?(pnpDevice: PNPDevice) {
+    init?(pnpDevice: PNPDevice) {
         guard let _hpet = system.systemTables.acpiTables.hpet else {
             #kprint("HPET: No HPET ACPI table found")
             return nil
         }
         self.hpet = _hpet
-        super.init(pnpDevice: pnpDevice)
+        super.init(driverName: "hpet", pnpDevice: pnpDevice)
     }
 
     override func initialise() -> Bool {

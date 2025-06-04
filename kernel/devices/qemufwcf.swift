@@ -11,19 +11,21 @@
 final class QEMUFWCFG: PNPDeviceDriver {
     private var baseIOPort: UInt16 = 0
     private var hasDMAInterface = false
-    override var description: String { return "QEMU_FWCFG" }
 
-    override init?(pnpDevice: PNPDevice) {
-        super.init(pnpDevice: pnpDevice)
+    init?(pnpDevice: PNPDevice) {
+        super.init(driverName: "QEMU_FWCFG", pnpDevice: pnpDevice)
     }
 
+    override func info() -> String {
+        return #sprintf("baseIOPort: %x hasDMA: %s", baseIOPort, hasDMAInterface)
+    }
 
     override func initialise() -> Bool {
         guard let pnpDevice = device.busDevice as? PNPDevice, let resources = pnpDevice.getResources() else {
             #kprint("QEMU: Cannot get ACPI resources")
             return false
         }
-        #kprint(pnpDevice.device.fullName, "Resources:", resources)
+        #kprint(pnpDevice.device, "Resources:", resources)
         guard let ioPorts = resources.ioPorts.first, ioPorts.count > 6,
               let basePort = ioPorts.first else {
             #kprint("QEMU: port range is to small:", resources.ioPorts.count)

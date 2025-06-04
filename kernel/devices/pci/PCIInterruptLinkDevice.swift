@@ -11,13 +11,14 @@
 final class PCIInterruptLinkDevice: PNPDeviceDriver {
     private let acpiConfig: ACPIDeviceConfig
     private(set) var irq: IRQSetting?  // The IRQ signaled by this device
-    override var description: String {
+
+    override func info() -> String {
         let irqStr = irq?.description ?? "none"
         return "PCI Link Device: [IRQ: \(irqStr)]"
     }
 
 
-    override init?(pnpDevice: PNPDevice) {
+    init?(pnpDevice: PNPDevice) {
         guard let uid = pnpDevice.device.acpiDeviceConfig?.uid else {
             #kprint("PCIInterruptLinkDevice: cant get _UID")
             return nil
@@ -33,7 +34,7 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
             return nil
         }
         acpiConfig = _acpiConfig
-        super.init(pnpDevice: pnpDevice)
+        super.init(driverName: "pci-int-link", pnpDevice: pnpDevice)
     }
 
     // FIXME: Maybe select a better IRQ to use to balance them out better or make
@@ -68,6 +69,7 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
             #kprintf("%s: has no configured irq\n", f)
             return false
         }
+        device.deviceName = "pci-int-" + acpiConfig.node.name.value
         return true
     }
 

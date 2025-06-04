@@ -17,13 +17,13 @@ final class CMOSRTC: PNPDeviceDriver {
     private var centuryIndex: UInt8 = 0
 
 
-    override var description: String {
+    override func info() -> String {
         return #sprintf("CMOS RTC addr: 0x%2.2x data: 0x%2.2x irq: %s",
                               addressPort, dataPort, irq?.description ?? "none" )
     }
 
-    override init?(pnpDevice: PNPDevice) {
-        super.init(pnpDevice: pnpDevice)
+    init?(pnpDevice: PNPDevice) {
+        super.init(driverName: "cmosrtc",pnpDevice: pnpDevice)
     }
 
 

@@ -441,7 +441,7 @@ extension ACPI {
             if parentDevice == nil { fatalError("Reached top of tree! for \(node.fullname())")}
 
             let config = ACPIDeviceConfig(node: node)
-            let device = Device(parent: parentDevice, fullName: name, acpiDeviceConfig: config)
+            let device = Device(parent: parentDevice, acpiDeviceConfig: config)
             node.setDevice(device)
             nameDeviceMap[name] = device
             if let pnpName = config.pnpName {

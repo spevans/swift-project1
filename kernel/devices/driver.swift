@@ -8,29 +8,35 @@
 
 
 class DeviceDriver: CustomStringConvertible {
-    var description: String { "Unnamed device" }
+    let driverName: String
     let device: Device
+    var description: String { driverName }
+
+    init(driverName: String, device: Device) {
+        self.driverName = driverName
+        self.device = device
+    }
+
     func initialise() -> Bool {
         return false
     }
 
-    init(device: Device) {
-        self.device = device
+    func info() -> String {
+        return "Invalid device driver"
     }
 }
 
 
+//FIXME: are these needed?
 class PNPDeviceDriver: DeviceDriver {
-    override var description: String { "A PNP device" }
-    init?(pnpDevice: PNPDevice) {
-        super.init(device: pnpDevice.device)
+    init?(driverName: String, pnpDevice: PNPDevice) {
+        super.init(driverName: driverName, device: pnpDevice.device)
     }
 }
 
 
 class PCIDeviceDriver: DeviceDriver {
-    override var description: String { "A PCI device" }
-    init?(pciDevice: PCIDevice) {
-        super.init(device: pciDevice.device)
+    init?(driverName: String, pciDevice: PCIDevice) {
+        super.init(driverName: driverName, device: pciDevice.device)
     }
 }

@@ -111,7 +111,7 @@ final class PIT8254: PNPDeviceDriver {
         }
     }
 
-    override var description: String {
+    override func info() -> String {
         return #sprintf("PIT8254: cmd: 0x%2.2x chan0: 0x%2.2x chan2: 0x%2.2x, irq: %s",
                               commandPort, channel0Port, channel2Port, irq.description)
     }
@@ -134,8 +134,8 @@ final class PIT8254: PNPDeviceDriver {
     }
 
 
-    override init?(pnpDevice: PNPDevice) {
-        super.init(pnpDevice: pnpDevice)
+    init?(pnpDevice: PNPDevice) {
+        super.init(driverName: "pit8254", pnpDevice: pnpDevice)
     }
 
 

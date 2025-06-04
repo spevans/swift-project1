@@ -13,9 +13,8 @@ final class PCIBus: DeviceDriver {
     let busId: UInt8
     var resources: [MotherBoardResource] = []
     let isHostBus: Bool
-
     private(set) var devices: [Device] = []
-    override var description: String { "PCIBus: busId: \(asHex(busId))" }
+
 
     // Root Bus
     init?(pnpDevice: PNPDevice) {
@@ -35,10 +34,10 @@ final class PCIBus: DeviceDriver {
         self.busId = busId
 
         guard pnpDevice.device.acpiDeviceConfig != nil else {
-            #kprint("PCI: PCIBus: busId: \(asHex(busId)) \(pnpDevice.device.fullName) has no ACPI config")
+            #kprint("PCI: PCIBus: busId: \(asHex(busId)) \(pnpDevice.device) has no ACPI config")
             return nil
         }
-        super.init(device: pnpDevice.device)
+        super.init(driverName: "pcibus", device: pnpDevice.device)
         #kprint("PCIBus.init:", self.description)
     }
 
@@ -50,7 +49,7 @@ final class PCIBus: DeviceDriver {
         }
         self.busId = pciDevice.deviceFunction.bridgeDevice!.secondaryBusId
         isHostBus = false
-        super.init(device: pciDevice.device)
+        super.init(driverName: "pcibus", device: pciDevice.device)
     }
 
     // Non PCI Devices (eg ACPIDevice) may get added to this bus as it is in the ACPI device tree under a PCI bus
@@ -61,6 +60,7 @@ final class PCIBus: DeviceDriver {
     override func initialise() -> Bool {
         #kprint("PCIBus.initialiseDevice:", self)
 
+        device.deviceName = "pcibus" + busId.hex()
         // Find child nodes that are devices and build a map of _ADR to node
         var adrNodeMap: [AMLInteger : ACPI.ACPIObjectNode] = [:]
         if let childACPINodes = self.device.acpiDeviceConfig?.node.childNodes {
@@ -81,7 +81,7 @@ final class PCIBus: DeviceDriver {
                 #kprint("PCI: Found node", node.fullname(), "with device:", d)
                 newDevice = d
             } else {
-                newDevice = Device(parent: self.device, fullName: deviceFunction.description)
+                newDevice = Device(parent: self.device)
             }
             guard let pciDevice = self.device(deviceFunction: deviceFunction, newDevice: newDevice) else {
                 #kprint("PCI: Could not add \(deviceFunction)")
@@ -134,11 +134,12 @@ final class PCIBus: DeviceDriver {
             #kprint("PCI: Cant create PCI device for:", deviceFunction)
             return nil
         }
+        newDevice.deviceName = #sprintf("pcidev%2.2X:%2.2X/%u", deviceFunction.busId, deviceFunction.device, deviceFunction.function)
 
         if let busClass = deviceFunction.deviceClass?.bridgeSubClass {
             switch busClass {
                 case .isa:
-                    if let driver = ISABus(pciDevice: pciDevice) {
+                    if let driver = ISABus(pciDevice: pciDevice), driver.initialise() {
                         newDevice.setDriver(driver)
                     } else {
                         #kprint("PCI: Cant create ISA BUS")

@@ -12,10 +12,8 @@
 final class HCD_XHCI: PCIDeviceDriver {
     private let baseAddress: UInt32
 
-    override var description: String { "XHCI driver @ 0x\(String(baseAddress, radix: 16))" }
 
-
-    override init?(pciDevice: PCIDevice) {
+    init?(pciDevice: PCIDevice) {
         #kprint("XHCI init")
         guard pciDevice.deviceFunction.deviceClass == PCIDeviceClass(classCode: .serialBusController,
                                                                      subClassCode: PCISerialBusControllerSubClass.usb.rawValue,
@@ -36,7 +34,7 @@ final class HCD_XHCI: PCIDeviceDriver {
         }
 
         baseAddress = base & 0xffff_ff00
-        super.init(pciDevice: pciDevice)
+        super.init(driverName: "xhci", pciDevice: pciDevice)
         #kprint("XHCI: 0x\(String(baseAddress, radix: 16))")
     }
 

@@ -88,6 +88,32 @@ private func timerCommand(arguments: [String]) {
     #kprint(timer)
 }
 
+private func showDevCommand(arguments: [String]) {
+    guard let devname = arguments.first else {
+        #kprint("Error: missing device name")
+        return
+    }
+    guard let device = system.deviceManager.getDeviceByName(devname) else {
+        #kprint("Error: No such device:", devname)
+        return
+    }
+    #kprint("Device:       ", devname)
+    if let acpi = device.acpiDeviceConfig {
+        #kprint("ACPI Node:    ", acpi.node.fullname())
+    }
+    #kprint("Parent Device:", device.parent?.description ?? "none")
+    #kprint("isBus:        ", device.isBus)
+    #kprint("enabled:      ", device.enabled)
+    #kprint("initialised:  ", device.initialised)
+    if let driver = device.deviceDriver {
+        #kprint("Driver:       ", driver.description)
+        #kprint(driver.info())
+    }
+    if let bus = device.busDevice {
+        #kprint("BusDevice:    ", bus.info())
+    }
+}
+
 private func showNodeCommand(arguments: [String]) {
     guard let name = arguments.first else {
         #kprint("Error: missing node")
@@ -190,6 +216,7 @@ private let commands: [String: ShellCommand] = [
     "dumpacpi": ShellCommand(dumpACPICommand, "[node] Dump the ACPI tree from an optional node"),
     "dumpmem":  ShellCommand(dumpMemCommand, "Dump memory contents: dumpmem <address> <count>"),
     "timer":    ShellCommand(timerCommand, "Show Timer configuration"),
+    "showdev":  ShellCommand(showDevCommand, "Show device information, showdev <device>"),
     "shownode": ShellCommand(showNodeCommand, "Show an ACPI node"),
     "sleep":    ShellCommand(sleepTestCommand, "Sleep for a specified number of seconds"),
     "tests":    ShellCommand(testsCommand, "Run selected commands as tests"),

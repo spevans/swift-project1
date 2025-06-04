@@ -13,10 +13,8 @@ final class HCD_EHCI: PCIDeviceDriver {
     private let pciDevice: PCIDevice       // The device (upstream) side of the bridge
     let mmioRegion: MMIORegion
 
-    override var description: String { "EHCI driver @ 0x\(mmioRegion.baseAddress)" }
 
-
-    override init?(pciDevice: PCIDevice) {
+    init?(pciDevice: PCIDevice) {
 
         guard pciDevice.deviceFunction.deviceClass == PCIDeviceClass(classCode: .serialBusController,
                                                                     subClassCode: PCISerialBusControllerSubClass.usb.rawValue,
@@ -45,7 +43,7 @@ final class HCD_EHCI: PCIDeviceDriver {
 
         mmioRegion = mapIORegion(region: region)
         #kprint("EHCI: region:", region, "mmioRegion:", mmioRegion)
-        super.init(pciDevice: pciDevice)
+        super.init(driverName: "ehci", pciDevice: pciDevice)
     }
 
 
