@@ -35,26 +35,25 @@ extension USB {
 
         var description: String {
             return switch self {
-            case .audio:                "Audio"
-            case .cdcControl:           "CDC Control"
-            case .hid:                  "HID"
-            case .physical:             "Physical"
-            case .image:                "Image"
-            case .printer:              "Printer"
-            case .massStorage:          "Mass Storage"
-            case .cdcData:              "CDC Data"
-            case .smartCard:            "Smart Card"
-            case .contentSecurity:      "Content Security"
-            case .video:                "Video"
-            case .personalHealthcare:   "Personal Healthcare"
-            case .audioVideo:           "Audio Video"
-            case .usbTypeCBridgeClass:  "USB TypeC Bridge Class"
-            case .diagnosticDevice:     "Diagnostic Device"
-            case .wirelessController:   "Wireless Controller"
-            case .miscellaneous:        "Miscallaneous"
-            case .applicationSpecific:  "Application Specific"
-            case .vendorSpecific:       "Vendor Specific"
-
+                case .audio:                "Audio"
+                case .cdcControl:           "CDC Control"
+                case .hid:                  "HID"
+                case .physical:             "Physical"
+                case .image:                "Image"
+                case .printer:              "Printer"
+                case .massStorage:          "Mass Storage"
+                case .cdcData:              "CDC Data"
+                case .smartCard:            "Smart Card"
+                case .contentSecurity:      "Content Security"
+                case .video:                "Video"
+                case .personalHealthcare:   "Personal Healthcare"
+                case .audioVideo:           "Audio Video"
+                case .usbTypeCBridgeClass:  "USB TypeC Bridge Class"
+                case .diagnosticDevice:     "Diagnostic Device"
+                case .wirelessController:   "Wireless Controller"
+                case .miscellaneous:        "Miscallaneous"
+                case .applicationSpecific:  "Application Specific"
+                case .vendorSpecific:       "Vendor Specific"
             }
         }
     }
@@ -115,7 +114,7 @@ extension USB {
 
 
             // See if there is an optional HID descriptor
-            if _descriptor.bInterfaceClass == 0x03 {
+            if _descriptor.bInterfaceClass == InterfaceClass.hid.rawValue {
                 hid = try HIDDescriptor(from: &iterator)
             } else {
                 hid = nil

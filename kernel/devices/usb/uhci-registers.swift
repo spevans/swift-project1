@@ -124,6 +124,10 @@ internal extension HCD_UHCI {
             bits = BitArray16(rawValue & 0x0f)  // Bits 15:4 reserved
         }
 
+        static func all() -> InterruptEnable {
+            return InterruptEnable(rawValue: 0x0f)
+        }
+
         var timeoutCRCEnabled: Bool {
             get { bits[0] == 1 }
             set { bits[0] = newValue ? 1 : 0 }
@@ -169,7 +173,7 @@ internal extension HCD_UHCI {
             get { bits[2] == 1 }
             set { bits[2] = newValue ? 1 : 0 }
         }
-        var portDisables: Bool {
+        var portDisabled: Bool {
             get { !portEnabled }
             set { portEnabled = !newValue }
         }
@@ -202,6 +206,4 @@ internal extension HCD_UHCI {
                 " LnSts: \(lineStatus) Resume: \(bits[6]) LoSpd: \(bits[8]) Reset: \(bits[9]) Suspend: \(bits[12])"
         }
     }
-
- 
 }

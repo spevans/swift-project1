@@ -229,6 +229,8 @@ struct PCICommand: CustomStringConvertible {
         if interruptDisable { result += "interruptDisable" }
         return result
     }
+
+    var decodeEnabled: Bool { ioSpace || memorySpace }
 }
 
 

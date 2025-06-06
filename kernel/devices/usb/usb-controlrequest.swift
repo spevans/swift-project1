@@ -24,14 +24,21 @@ extension USB {
         case ENDPOINT_COMPANION = 0x30
     }
 
-    enum TransferDirection: UInt8 {
+    enum TransferDirection: UInt8, CustomStringConvertible {
         case hostToDevice = 0
         case deviceToHost = 1
+
+        var description: String {
+            switch self {
+                case .hostToDevice: "hostToDevice"
+                case .deviceToHost: "deviceToHost"
+            }
+        }
     }
 
     struct ControlRequest: CustomStringConvertible {
 
-        enum RequestCode: UInt8 {
+        enum RequestCode: UInt8, CustomStringConvertible {
             case GET_STATUS = 0
             case CLEAR_FEATURE = 1
             case SET_FEATURE = 3
@@ -43,16 +50,52 @@ extension USB {
             case GET_INTERFACE = 10
             case SET_INTERFACE = 11
             case SYNCH_FRAME = 12
+
+            var description: String {
+                switch self {
+                    case .GET_STATUS:
+                        "GET_STATUS"
+                    case .CLEAR_FEATURE:
+                        "CLEAR_FEATURE"
+                    case .SET_FEATURE:
+                        "SET_FEATURE"
+                    case .SET_ADDRESS:
+                        "SET_ADDRESS"
+                    case .GET_DESCRIPTOR:
+                        "GET_DESCRIPTOR"
+                    case .SET_DESCRIPTOR:
+                        "SET_DESCRIPTOR"
+                    case .GET_CONFIGURATION:
+                        "GET_CONFIG"
+                    case .SET_CONFIGURATION:
+                        "SET_CONFIG"
+                    case .GET_INTERFACE:
+                        "GET_INTERFACE"
+                    case .SET_INTERFACE:
+                        "SET_INTERFACE"
+                    case .SYNCH_FRAME:
+                        "SYNCH_FRAME"
+                }
+            }
         }
 
-        enum RequestType: UInt8 {
+        enum RequestType: UInt8, CustomStringConvertible {
             case standard = 0
             case klass = 1
             case vendor = 2
             case reserved = 3
+
+            var description: String {
+                switch self {
+                    case .standard: "standard"
+                    case .klass: "klass"
+                    case .vendor: "vendor"
+                    case .reserved: "reserved"
+                }
+            }
         }
 
-        enum Recipient {
+        enum Recipient: CustomStringConvertible {
             case device
             case interface(UInt8)
             case endpoint(UInt8)
@@ -64,6 +107,19 @@ extension USB {
                     case .interface: return 1
                     case .endpoint:  return 2
                     case .other:     return 3
+                }
+            }
+
+            var description: String {
+                switch self {
+                    case .device:
+                        "device"
+                    case .interface(let interface):
+                        #sprintf("interface:%2.2x", interface)
+                    case .endpoint(let endpoint):
+                        #sprintf("endpoint:%2.2x", endpoint)
+                    case .other:
+                        "other"
                 }
             }
 
@@ -148,6 +204,7 @@ extension USB {
 
 
         var description: String {
+            // FIXME: decode the request type correctly, eg klass
             let bmreq = BMRequestType(rawValue: request.bmRequestType, wIndex: request.wIndex)
             return "\(RequestCode(rawValue: request.bRequest)!)(\(bmreq.recipient),\(bmreq.requestType),\(bmreq.direction.rawValue)) wValue: \(request.wValue) wIndex: \(request.wIndex) wLength: \(request.wLength)"
         }

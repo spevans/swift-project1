@@ -15,7 +15,8 @@ extension HCD_UHCI {
         private let bits: BitArray32
         var rawValue: UInt32 { bits.rawValue }
         var description: String {
-            return "isTD: \(isTransferDescriptor) isQH: \(isQueueHead) isTerminator: \(isTerminator) isEmpty: \(isEmptyFrame)"
+            return #sprintf("FLP: %s, RAW: 0x%8.8X addr: 0x%8.8x %s", isTransferDescriptor ? "TD" : "QH",
+                            rawValue, address, isTerminator ? "T" : "")
         }
 
         init(queueHead address: UInt32) {
@@ -42,8 +43,8 @@ extension HCD_UHCI {
         var isTransferDescriptor: Bool { !isQueueHead }
         // FIXME: This should be a PhyiscalAddress in the 1st 4G with correct type
         var address: UInt32 { bits.rawValue & 0xffff_fff0 }
-        var physQueueHeadAddress: PhysAddress? {
-            if isQueueHead && !isTerminator {
+        var framePointer: PhysAddress? {
+            if !isTerminator {
                 //return PhysQueueHead(address: PhysAddress(RawAddress(address)))
                 return PhysAddress(RawAddress(address))
             } else {
@@ -55,7 +56,7 @@ extension HCD_UHCI {
 
     struct QueueHead: CustomStringConvertible {
         var description: String {
-            return "headLP: \(headLinkPointer.description) elementLP: \(elementLinkPointer.description)"
+            return "HLP: " + headLinkPointer.description + " HEP: " + elementLinkPointer.description
         }
 
         struct QueueHeadLinkPointer: Equatable, CustomStringConvertible {
@@ -73,7 +74,7 @@ extension HCD_UHCI {
                 self.bits = BitArray32(transferDescriptorAddress)
             }
 
-            fileprivate init(rawValue: UInt32) {
+            init(rawValue: UInt32) {
                 bits = BitArray32(rawValue)
             }
 
@@ -96,11 +97,8 @@ extension HCD_UHCI {
             }
 
             var description: String {
-                if isTerminator {
-                    return "Terminate"
-                } else {
-                    return (isQueueHead ? "QH" : "TD") + " \(String(address, radix: 16))"
-                }
+                #sprintf("RAW:%8.8X %s @ 0x%8.8x %s", bits.rawValue, isQueueHead ? "QH" : "TD", address,
+                         isTerminator ? "T" : " ")
             }
         }
 
@@ -133,11 +131,8 @@ extension HCD_UHCI {
             var address: UInt32 { bits.rawValue & 0xffff_fff0 }
 
             var description: String {
-                if isTerminator {
-                    return "Terminate"
-                } else {
-                    return (isQueueHead ? "QH" : "TD") + " \(String(address, radix: 16))"
-                }
+                #sprintf("RAW:%8.8X %s @ 0x%8.8X %s", bits.rawValue, isQueueHead ? "QH" : "TD", address,
+                         isTerminator ? "T" : " ")
             }
         }
 
@@ -153,31 +148,37 @@ extension HCD_UHCI {
         }
 
         // Dump a QueueHead showing the list of TDs and QHs below it
-        func dump() -> String {
-            var result = "QHLP: "
-            if headLinkPointer.isTerminator {
-                result += "Terminates\n"
-            } else {
-                result += (headLinkPointer.isQueueHead ? "QH" : "TD") + ": \(String(headLinkPointer.address, radix: 16))\n"
-            }
+        func dump(allocator: UHCIAllocator) -> String {
+            var result = self.description + "\n"
+
             var idx = 0
-            var lp = elementLinkPointer
-            while !lp.isTerminator {
-                result += "\(idx): \(lp.isQueueHead ? "QH" : "TD") "
-                let ptr = PhysAddress(RawAddress(lp.address))
-                result += String(lp.address, radix: 16) + " "
-                if lp.isQueueHead {
-                    let qh = ptr.rawPointer.assumingMemoryBound(to: QueueHead.self)
-                    result += qh.pointee.description + "\n"
-                    lp = qh.pointee.elementLinkPointer
+            var address = elementLinkPointer.address
+            var terminates = elementLinkPointer.isTerminator
+            var isQueueHead = elementLinkPointer.isQueueHead
+            while !terminates {
+                result += #sprintf("UHCI\t  TD%d: [0x%8.8x] ", idx, address)
+                let physAddress = PhysAddress(RawAddress(address))
+                let region = allocator.fromPhysical(address: physAddress)
+                if isQueueHead {
+                    let qh = PhysQueueHead(mmioSubRegion: region)
+                    result += qh.description
+                    address = qh.elementLinkPointer.address
+                    isQueueHead = qh.elementLinkPointer.isQueueHead
+                    terminates = qh.elementLinkPointer.isTerminator
                 } else {
-                    let td = ptr.rawPointer.assumingMemoryBound(to: TransferDescriptor.self)
-                    result += td.pointee.description + "\n"
-                    lp = QueueElementLinkPointer(rawValue: td.pointee.linkPointer.bits.rawValue)
+                    let td = PhysTransferDescriptor(mmioSubRegion: region)
+                    result += td.description
+                    address = td.linkPointer.address
+                    isQueueHead = td.linkPointer.isQueueHead
+                    terminates = td.linkPointer.terminate
                 }
+                result += "\n"
                 idx += 1
+                if idx > 20 {
+                    result += "TOO MANY ELEMENTS\n"
+                    break
+                }
             }
-            result += "\(idx): Terminates\n"
 
             return result
         }
@@ -201,6 +202,10 @@ extension HCD_UHCI {
             writeMemoryBarrier()
         }
 
+        func getQH() -> QueueHead {
+            return QueueHead(headLinkPointer: headLinkPointer, elementLinkPointer: elementLinkPointer)
+        }
+
         // Forward properties to the QueueHead
         var headLinkPointer: QueueHead.QueueHeadLinkPointer {
             get { QueueHead.QueueHeadLinkPointer(rawValue: mmioSubRegion.read(fromByteOffset: 0)) }
@@ -218,13 +223,12 @@ extension HCD_UHCI {
         }
 
         var description: String {
-            let queueHead = QueueHead(headLinkPointer: headLinkPointer, elementLinkPointer: elementLinkPointer)
+            let queueHead = getQH()
             return "PhysQH: \(mmioSubRegion.baseAddress): \(queueHead)"
         }
 
-        func dump() -> String {
-            let queueHead = QueueHead(headLinkPointer: headLinkPointer, elementLinkPointer: elementLinkPointer)
-            return queueHead.dump()
+        func dump(allocator: UHCIAllocator) -> String {
+            return getQH().dump(allocator: allocator)
         }
     }
 }

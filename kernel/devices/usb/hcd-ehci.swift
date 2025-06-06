@@ -10,14 +10,14 @@
 
 
 final class HCD_EHCI: PCIDeviceDriver {
-    private let baseAddress: UInt32
-    private let allows64BitMapping: Bool
+    private let pciDevice: PCIDevice       // The device (upstream) side of the bridge
+    let mmioRegion: MMIORegion
 
-    override var description: String { "EHCI driver @ 0x\(String(baseAddress, radix: 16))" }
+    override var description: String { "EHCI driver @ 0x\(mmioRegion.baseAddress)" }
 
 
     override init?(pciDevice: PCIDevice) {
-        #kprint("EHCI init:", pciDevice)
+
         guard pciDevice.deviceFunction.deviceClass == PCIDeviceClass(classCode: .serialBusController,
                                                                     subClassCode: PCISerialBusControllerSubClass.usb.rawValue,
                                                                     progInterface: PCIUSBProgrammingInterface.ehci.rawValue) else {
@@ -25,37 +25,122 @@ final class HCD_EHCI: PCIDeviceDriver {
             return nil
         }
 
-        guard let generalDevice = pciDevice.deviceFunction.generalDevice else {
+        guard pciDevice.deviceFunction.generalDevice != nil else {
             #kprint("EHCI: Not a PCI generalDevice")
             return nil
         }
 
-        let base = generalDevice.bar0
-        guard base & 1 == 0 else {
-            #kprint("EHCI: BAR0 address 0x\(String(base, radix: 16)) is not a memory resource")
+        guard let ioRegion = pciDevice.ioRegionFor(barIdx: 0) else {
+            #kprint("EHCI: No valid BAR0")
             return nil
         }
-        allows64BitMapping = base & 0b110 == 0b100
-        baseAddress = base & 0xffff_ff00
+
+        guard ioRegion.bar.isMemory else {
+            #kprint("EHCI: BAR0 is not a memory region")
+            return nil
+        }
+
+        self.pciDevice = pciDevice
+        let region = PhysRegion(start: PhysAddress(RawAddress(ioRegion.baseAddress)), size: UInt(ioRegion.size))
+
+        mmioRegion = mapIORegion(region: region)
+        #kprint("EHCI: region:", region, "mmioRegion:", mmioRegion)
         super.init(pciDevice: pciDevice)
-        #kprint("EHCI: 0x\(String(baseAddress, radix: 16)) allows64BitMapping: \(allows64BitMapping)")
     }
 
 
     override func initialise() -> Bool {
-        #kprint("EHCI driver")
-        guard let pciDevice = device.busDevice as? PCIDevice else { return false }
-        let sbrn = pciDevice.deviceFunction.readConfigByte(atByteOffset: 0x60)
-        #kprint("EHCI: bus release number 0x\(String(sbrn, radix: 16))")
-        return false
+
+        var pciCommand = pciDevice.deviceFunction.command
+        pciCommand.memorySpace = true
+        pciCommand.interruptDisable = true //false
+        pciCommand.busMaster = true
+        pciDevice.deviceFunction.command = pciCommand
+
+        // Read Capability Registers
+        let capLength: UInt8 = mmioRegion.read(fromByteOffset: 0)
+        let hccParams: UInt32 = mmioRegion.read(fromByteOffset: 8)
+        var eecp = UInt((hccParams >> 8) & 0xff)
+
+        while eecp >= 0x40 {
+            var eecpId: UInt8 = 0
+            var count = 0
+            while eecp != 0 {
+                eecpId = pciDevice.deviceFunction.readConfigByte(atByteOffset: eecp)
+                if eecpId == 1 {
+                    break
+                }
+                eecp = UInt(pciDevice.deviceFunction.readConfigByte(atByteOffset: eecp + 1))
+                count += 1
+                if count > 3 {
+                    eecp = 0
+                    eecpId = 0
+                    break
+                }
+            }
+
+            if eecpId == 1 {
+                var haveOwnership = false
+                let capability = pciDevice.deviceFunction.readConfigByte(atByteOffset: eecp + 2)
+                if capability & 1 != 0 {
+                    pciDevice.deviceFunction.writeConfigByte(atByteOffset: eecp + 3, value: 1)
+                    for _ in 1...10 {
+                        sleep(milliseconds: 10)
+                        if pciDevice.deviceFunction.readConfigByte(atByteOffset: eecp + 2) & 1 == 0 {
+                            haveOwnership = true
+                            break
+                        }
+                    }
+                    if haveOwnership {
+                    } else {
+                        pciDevice.deviceFunction.writeConfigDword(atByteOffset: eecp + 4, value: 0)
+                    }
+                }
+                break
+            } else {
+                eecp = UInt(pciDevice.deviceFunction.readConfigByte(atByteOffset: eecp + 1))
+            }
+        }
+
+        // Now have ownership of EHCI controllers so reset and then disable, sending
+        // everything to the UHCI controller
+
+        let opBase = Int(capLength)
+        mmioRegion.write(value: UInt32(2), toByteOffset: opBase)
+        for _ in 1...100 {
+            let state: UInt32 = mmioRegion.read(fromByteOffset: opBase)
+            if state & 2 == 0 {
+                break
+            }
+            sleep(milliseconds: 10)
+        }
+
+        // Clear the USBSTS - Write 1s to set 1s to 0
+        let usbSts: UInt32 = mmioRegion.read(fromByteOffset: opBase + 4)
+        mmioRegion.write(value: usbSts, toByteOffset: opBase + 4)
+
+        // Set CTRLDSSEGMENT  Control Data Structure Segment Register to 0
+        mmioRegion.write(value: UInt32(0), toByteOffset: opBase + 0x10)
+
+        // Disable Interrupts
+        mmioRegion.write(value: UInt32(0), toByteOffset: opBase + 0x8)
+
+        // Set USB Command to default
+        mmioRegion.write(value: UInt32(0x00080000), toByteOffset: opBase + 0x0)
+
+        var configFlag: UInt32 = mmioRegion.read(fromByteOffset: opBase + 0x40)
+        configFlag = 0
+        mmioRegion.write(value: configFlag, toByteOffset: opBase + 0x40)
+        #kprint("EHCI: ConfigFlag: \(configFlag & 1)")
+
+        return true
     }
 
     func allocatePipe(device: USBDevice, endpointDescriptor: USB.EndpointDescriptor) -> USBPipe? {
-        fatalError("xhci: allocatePipe not implemented")
+        fatalError("ehci: allocatePipe not implemented")
     }
 
     func pollInterrupt() -> Bool {
         return false
     }
-
 }

@@ -43,7 +43,8 @@ extension HCD_UHCI {
             var physAddress: PhysAddress { PhysAddress(RawAddress(address)) }
 
             var description: String {
-                "isTerm: \(bits[0]) isQH: \(bits[1]) depth: \(bits[2])"
+                #sprintf("RAW: 0x%8.8X %s @ 0x%8.8x %s depth: %s", bits.rawValue, isQueueHead ? "QH" : "TD", address,
+                         terminate ? "T" : " ", depthFirst ? "1" : "0")
             }
         }
 
@@ -58,11 +59,16 @@ extension HCD_UHCI {
                 bits = BitArray32(rawValue)
             }
 
-            init(active: Bool, lowSpeedDevice: Bool, maxErrorCount: Int) {
+            init(active: Bool, lowSpeedDevice: Bool, maxErrorCount: Int, shortPacketDetect: Bool = false, interruptOnComplete: Bool = false,
+                 isochronous: Bool = false) {
                 bits = BitArray32(0)
+                bits[0...10] = 0x0        // Actual length filled in by HCD for bytes transferred
                 bits[23] = active ? 1 : 0
+                bits[24] = interruptOnComplete ? 1 : 0
+                bits[25] = isochronous ? 1 : 0
                 bits[26] = lowSpeedDevice ? 1 : 0
                 bits[27...28] = UInt32(maxErrorCount)
+                bits[29] = shortPacketDetect ? 1 : 0
             }
 
             var actualLength: UInt {
@@ -72,7 +78,10 @@ extension HCD_UHCI {
 
             var bitstuffError: Bool { Bool(bits[17]) }
             var crcTimeoutError: Bool { Bool(bits[18]) }
-            var nakReceived: Bool { Bool(bits[19]) }
+            var nakReceived: Bool {
+                get { Bool(bits[19]) }
+                set { bits[19] = newValue ? 1 : 0 }
+            }
             var babbleDetected: Bool { Bool(bits[20]) }
             var dataBufferError: Bool { Bool(bits[21]) }
             var stalled: Bool { Bool(bits[22]) }
@@ -122,12 +131,44 @@ extension HCD_UHCI {
         }
 
         struct Token: CustomStringConvertible {
-            fileprivate let bits: BitArray32
+            var bits: BitArray32
 
-            enum PID: UInt8 {
-                case pidIn = 0x69
-                case pidOut = 0xe1
-                case pidSetup = 0x2d
+            enum PID: Equatable, CustomStringConvertible {
+                case unknown(UInt8)
+                case pidIn
+                case pidOut
+                case pidSetup
+
+                init(rawValue: UInt8) {
+                    self = switch rawValue {
+                        case 0x69: .pidIn
+                        case 0xe1: .pidOut
+                        case 0x2d: .pidSetup
+                        default: .unknown(rawValue)
+                    }
+                }
+
+                var description: String {
+                    switch self {
+                        case .unknown(let byte): "UNKNOWN(0x" + byte.hex() + ")"
+                        case .pidIn: "PID-IN"
+                        case .pidOut: "PID-OUT"
+                        case .pidSetup: "PID-SETUP"
+                    }
+                }
+
+                var rawValue: UInt8 {
+                    switch self {
+                        case .unknown(let byte): byte
+                        case .pidIn: 0x69
+                        case .pidOut: 0xe1
+                        case .pidSetup: 0x2d
+                    }
+                }
+
+                static func ==(lhs: PID, rhs: PID) -> Bool {
+                    return lhs.rawValue == rhs.rawValue
+                }
             }
 
 
@@ -139,27 +180,33 @@ extension HCD_UHCI {
                 var bits = BitArray32(UInt32(pid.rawValue))
                 bits[8...14] = UInt32(deviceAddress)
                 bits[15...18] = UInt32(endpoint)
-                bits[19] = dataToggle ? 0 : 1
+                bits[19] = dataToggle ? 1 : 0
                 bits[21...31] = (maximumLength == 0) ? 0x7FF : UInt32(maximumLength - 1)
                 self.bits = bits
             }
 
-            fileprivate init(rawValue: UInt32) {
+            init(rawValue: UInt32) {
                 bits = BitArray32(rawValue)
             }
 
-            var pid: PID { PID(rawValue: UInt8(bits[0...7]))! }
+            var pid: PID { PID(rawValue: UInt8(bits[0...7])) }
             var deviceAddress: UInt8 { UInt8(bits[8...14]) }
             var endpoint: UInt { UInt(bits[15...18]) }
-            var dataToggle: Bool { Bool(bits[19]) }
-            var data0: Bool { dataToggle }
-            var data1: Bool { !dataToggle }
+
+            var dataToggle: Bool {
+                get { Bool(bits[19]) }
+                set { bits[19] = newValue ? 1 : 0 }
+            }
+
             var maximumLength: UInt {
                 let len = UInt(bits[21...31])
                 return (len == 0x7ff) ? 0 : len + 1
             }
 
-            var description: String { "\(pid) addr: \(deviceAddress).\(endpoint) data\(data0 ? "0" : "1") maxLen: \(maximumLength) [\(String(bits.rawValue, radix: 16))]" }
+            var description: String {
+                #sprintf("%9s addr: %d.%d dataToggle:%d maxLen: %d", pid.description, deviceAddress, endpoint,
+                         dataToggle ? 1 : 0, maximumLength)
+            }
         }
 
 
@@ -169,7 +216,9 @@ extension HCD_UHCI {
         let bufferPointer: UInt32
 
         var description: String {
-            return "\(linkPointer) \(token) \(controlStatus) buffer: \(String(bufferPointer, radix: 16))"
+            #sprintf("{%8.8x %8.8x %8.8x %8.8x} %s %s %s buffer: 0x%8.8x",
+                     linkPointer.bits.rawValue, controlStatus.bits.rawValue, token.bits.rawValue, bufferPointer,
+                     linkPointer.description, token.description, controlStatus.description, bufferPointer)
         }
     }
 
@@ -211,7 +260,11 @@ extension HCD_UHCI {
         }
 
         var token: TransferDescriptor.Token {
-            TransferDescriptor.Token(rawValue: mmioSubRegion.read(fromByteOffset: 8))
+            get { TransferDescriptor.Token(rawValue: mmioSubRegion.read(fromByteOffset: 8)) }
+            set {
+                mmioSubRegion.write(value: newValue.bits.rawValue, toByteOffset: 8)
+                writeMemoryBarrier()
+            }
         }
 
         var bufferPointer: UInt32 {
@@ -220,7 +273,7 @@ extension HCD_UHCI {
 
 
         var description: String {
-            return "PhysTD: \(asHex(physAddress)): " + getTD().description
+            return getTD().description
         }
     }
 }

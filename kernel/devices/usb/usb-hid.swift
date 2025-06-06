@@ -142,7 +142,8 @@ extension USBHIDDriver {
         var oldEvent = MouseEvent()
         while true {
             sleep(milliseconds: 10)
-            guard let data = intrPipe.pollInterruptPipe() else { continue }
+            var data: [UInt8] = []
+            guard intrPipe.pollInterruptPipe(into: &data) else { continue }
             guard data.count >= 3 else {
                 #kprint("USB-Mouse, not enough data: \(data.count)")
                 continue
@@ -228,7 +229,8 @@ extension USBHIDDriver {
 
         while true {
             sleep(milliseconds: 10)
-            guard var keys = intrPipe.pollInterruptPipe() else { continue }
+            var keys: [UInt8] = []
+            guard intrPipe.pollInterruptPipe(into: &keys) else { continue }
 
             guard let modifierKeys = keys.first else {
                 #kprint("No modifier data")

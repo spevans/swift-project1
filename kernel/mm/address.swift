@@ -84,6 +84,14 @@ struct PhysAddress: Comparable, Hashable, CustomStringConvertible {
         return lhs.value < rhs.value
     }
 
+    static func <=(lhs: PhysAddress, rhs: PhysAddress) -> Bool {
+        return lhs.value <= rhs.value
+    }
+
+    static func >=(lhs: PhysAddress, rhs: PhysAddress) -> Bool {
+        return lhs.value >= rhs.value
+    }
+
     static func &(lhs: PhysAddress, rhs: RawAddress) -> PhysAddress {
         return PhysAddress(lhs.value & rhs)
     }

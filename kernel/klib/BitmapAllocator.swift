@@ -214,3 +214,51 @@ struct BitmapAllocator128: BitmapAllocatorProtocol {
         #kprint("0b\(padding(String(bitmap1, radix: 2)))_\(padding(String(bitmap0, radix: 2)))")
     }
 }
+
+// FIXME, should be a macro using an InlineArray instead of an Array
+struct LargeBitmapAllocator: BitmapAllocatorProtocol {
+    typealias BitmapType = UInt64
+    let entryCount: Int
+    private var bitmap: [UInt]
+
+    init(maxElements: Int) {
+        precondition(maxElements > 0)
+        self.entryCount = maxElements
+        let wordCount = (maxElements + (UInt.bitWidth - 1)) / UInt.bitWidth
+        bitmap = Array(repeating: UInt.max, count: wordCount)
+        let unusedBits = maxElements % UInt.bitWidth
+        if unusedBits != 0 {
+            // Set the top N bits of the last element to mark them as taken
+            bitmap[wordCount - 1] = ~(UInt.max << unusedBits)
+        }
+    }
+
+    mutating func allocate() -> Int? {
+        for index in bitmap.startIndex..<bitmap.endIndex {
+            let tzbc = bitmap[index].trailingZeroBitCount
+            if tzbc < BitmapType.bitWidth {
+                bitmap[index].bit(tzbc, false)
+                return (index * BitmapType.bitWidth) + tzbc
+            }
+        }
+        return nil
+    }
+
+    mutating func free(entry: Int) {
+        precondition(entry < entryCount)
+        let index = entry / UInt.bitWidth
+        let bit = entry % UInt.bitWidth
+        if bitmap[index].bit(bit) {
+            fatalError("Bit at entry \(entry) is already free")
+        }
+        bitmap[index].bit(bit, true)
+    }
+
+    func freeEntryCount() -> Int {
+        bitmap.reduce(0, { $0 + $1.nonzeroBitCount})
+    }
+
+    func hasSpace() -> Bool {
+        freeEntryCount() > 0
+    }
+}

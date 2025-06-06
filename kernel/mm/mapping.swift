@@ -19,6 +19,16 @@ func mapIORegion(region: PhysRegion, cacheType: CPU.CacheType = .uncacheable) ->
     return MMIORegion(region)
 }
 
+func mapIORegion(region: PhysPageAlignedRegion, cacheType: CPU.CacheType = .uncacheable) -> MMIORegion {
+    let vaddr = region.baseAddress.vaddr
+    //print("Adding IO mapping for \(region) at 0x\(String(vaddr, radix: 16)) \(cacheType)")
+    addMapping(start: vaddr, size: region.size, physStart: region.baseAddress,
+               readWrite: true, noExec: true, cacheType: cacheType)
+
+    return MMIORegion(region)
+}
+
+
 func mapRORegion(region: PhysPageAlignedRegion, cacheType: CPU.CacheType = .writeBack) -> MMIORegion {
     let vaddr = region.baseAddress.vaddr
     //print("Adding RO mapping for \(region) at 0x\(String(vaddr, radix: 16)) \(cacheType)")

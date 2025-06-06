@@ -17,7 +17,17 @@ extension UnsignedInteger {
     func bit(_ bit: Int) -> Bool {
         precondition(bit >= 0 && bit < MemoryLayout<Self>.size * 8,
             "Bit must be in range 0-\(MemoryLayout<Self>.size * 8 - 1)")
-        return self & Self(1 << UInt(bit)) != 0
+        return self & (Self(1) << bit) != 0
+    }
+
+    mutating func bit(_ bit: Int, _ newValue: Bool) {
+        precondition(bit >= 0 && bit < MemoryLayout<Self>.size * 8,
+            "Bit must be in range 0-\(MemoryLayout<Self>.size * 8 - 1)")
+        if newValue {
+            self |= (Self(1) << bit)
+        } else {
+            self &= ~(Self(1) << bit)
+        }
     }
 
     init(withBytes bytes: [Byte]) {

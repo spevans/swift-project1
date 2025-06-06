@@ -18,10 +18,10 @@ extension USB {
 
         var description: String {
             return switch self {
-            case .lowSpeed: "lowSpeed"
-            case .fullSpeed: "fullSpeed"
-            case .highSpeed: "highSpeed"
-            case .superSpeed: "superSpeed"
+                case .lowSpeed: "lowSpeed"
+                case .fullSpeed: "fullSpeed"
+                case .highSpeed: "highSpeed"
+                case .superSpeed: "superSpeed"
             }
         }
 
@@ -36,18 +36,20 @@ extension USB {
 }
 
 
-final class USBDevice {
+final class USBDevice: CustomStringConvertible {
     private(set) var address: UInt8 = 0 // Default Start Address when not assigned
     let speed: USB.Speed
     let hub: USBHub
     let port: Int
     private var _controlPipe: USBPipe?
+    private(set) var description: String
 
 
     init(hub: USBHub, port: Int, speed: USB.Speed) {
         self.hub = hub
         self.port = port
         self.speed = speed
+        description = "\(hub)/\(port).\(address)"
     }
 
     private func controlPipe() -> USBPipe {
@@ -62,7 +64,6 @@ final class USBDevice {
     }
 
     func sendControlRequest(request: USB.ControlRequest) -> Bool {
-        #kprint("USBDEV: sendControlRequest:", request.description)
         let pipe = controlPipe()
 
         return pipe.send(request: request, withBuffer: nil)
@@ -70,7 +71,6 @@ final class USBDevice {
 
 
     func sendControlRequestReadData(request: USB.ControlRequest) -> [UInt8]? {
-//        #kprint("USBDEV: sendControlRequestReadData:", request, "reading \(request.wLength) bytes")
         let pipe = controlPipe()
 
         guard request.wLength > 0 else {
@@ -82,7 +82,6 @@ final class USBDevice {
         guard pipe.send(request: request, withBuffer: infoBuffer) else { return nil }
         var result: [UInt8] = []
         result.reserveCapacity(Int(request.wLength))
-//        #kprint("USBDEV: reasing \(infoBuffer.count) bytes from response")
         for byte in infoBuffer {
             result.append(byte)
         }
@@ -90,17 +89,14 @@ final class USBDevice {
     }
 
 
-
     func setAddress(_ newAddress: UInt8) -> Bool {
         #kprint("USBDEV: Setting address to:", newAddress)
         let request = USB.ControlRequest.setAddress(address: newAddress)
-        for _ in 1...2 {
-            if controlPipe().send(request: request, withBuffer: nil) {
-                address = newAddress
-                sleep(milliseconds: 10) // Device may require some time before address takes effect
-                return true
-            }
-            sleep(milliseconds: 5)
+        if controlPipe().send(request: request, withBuffer: nil) {
+            address = newAddress
+            description = "\(hub)/\(port).\(address)"
+            sleep(milliseconds: 10) // Device may require some time before address takes effect
+            return true
         }
         #kprint("USBDEV: Failed to setAddress(\(newAddress))")
         return false

@@ -106,9 +106,29 @@ class KlibTests: XCTestCase {
         XCTAssertNotNil(allocator.allocate())
     }
 
-    static var allTests = [
-        ("testReservatonManager", testReservationManager),
-        ("testBitArray8", testBitArray8),
-        ("testBitArray64", testBitArray64),
-    ]
+    func testLargeBitmapAllocator() {
+        func testAllocatorOfSize(maxElements: Int) {
+            var allocator = LargeBitmapAllocator(maxElements: maxElements)
+            XCTAssertEqual(allocator.entryCount, maxElements)
+            XCTAssertEqual(allocator.freeEntryCount(), maxElements)
+            var entries: [Int] = []
+            for _ in 1...maxElements {
+                let entry = allocator.allocate()
+                XCTAssertNotNil(entry)
+                entries.append(entry!)
+            }
+            XCTAssertEqual(allocator.freeEntryCount(), 0)
+            XCTAssertNil(allocator.allocate())
+            for entry in entries.reversed() {
+                allocator.free(entry: entry)
+            }
+            XCTAssertEqual(allocator.freeEntryCount(), maxElements)
+            XCTAssertEqual(allocator.hasSpace(), true)
+        }
+
+        testAllocatorOfSize(maxElements: 1)
+        testAllocatorOfSize(maxElements: 63)
+        testAllocatorOfSize(maxElements: 64)
+        testAllocatorOfSize(maxElements: 1024)
+    }
 }
