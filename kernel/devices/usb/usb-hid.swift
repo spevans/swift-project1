@@ -11,7 +11,7 @@
 
 final class USBHIDDriver {
     private(set) var description = "Unknown HID"
-    private let device: USBDevice
+    private let usbDevice: USBDevice
     private let interface: USB.InterfaceDescriptor
 
 
@@ -44,7 +44,7 @@ final class USBHIDDriver {
 
 
     init?(device: USBDevice, interface: USB.InterfaceDescriptor) {
-        self.device = device
+        self.usbDevice = device
         self.interface = interface
 
         guard case .hid = interface.interfaceClass else {
@@ -74,7 +74,7 @@ final class USBHIDDriver {
         }
         let request = setProtocolRequest(hidProtocol: .boot)
         #kprint("USB-HID: found \(description): set HID to boot protocol, request:", request)
-        guard device.sendControlRequest(request: request) else {
+        guard usbDevice.sendControlRequest(request: request) else {
             #kprint("USB-HID: Cant set HID Protocol to boot")
             return false
         }
@@ -90,61 +90,39 @@ final class USBHIDDriver {
         switch interfaceProtocol {
             case .keyboard:
                 #kprint("USB-HID: Found keyboard")
-                #if false
-                #kprint("USB-HID: ignoring")
-                break
-                #else
-                let idleRequest = setIdleRequest(idleMs: 33)
-                #kprint("USB-HID: keyboard setIdle to 33")
-                guard device.sendControlRequest(request: idleRequest) else {
-                    #kprint("USB-HID: keyboard  Cant set idleRequest")
-                    return false
-                }
                 if system.deviceManager.keyboard != nil {
                     #kprint("USB-HID: Device manager already has a keyboard!")
                 }
 
-                // Create a pipe for the interrupt endpoint and add it to the active queues
-                guard let intrPipe = device.bus.allocatePipe(device, intrEndpoint) else {
-                    #kprint("Cannot allocate Interupt pipe")
-                    return false
+                let device = Device(parent: usbDevice.device.parent)
+                device.setBusDevice(usbDevice)
+                if let usbKeyboard = USBKeyboard(usbDevice: usbDevice, interface: interface) {
+                    device.setDriver(usbKeyboard)
+                    if usbKeyboard.initialise() {
+                        let keyboard = Keyboard(hid: usbKeyboard.hid())
+                        #kprint("USB-HID Adding keyboard")
+                        system.deviceManager.keyboard = keyboard
+                        break
+                    }
                 }
-                let hid = USBKeyboard(device: device, interface: interface, intrPipe: intrPipe)
-                let keyboard = Keyboard(hid: hid)
-                if keyboard.initialise() {
-                    #kprint("USB-HID Adding keyboard")
-                    system.deviceManager.keyboard = keyboard
-                } else {
-                    #kprint("USB-HID Cannot initialise keyboard")
-                }
-                #endif
+                #kprint("USB-HID Cannot initialise keyboard")
 
             case .mouse:
                 #kprint("USB-HID: Found mouse")
-                #if false
-                #kprint("USB-HID: ignoring")
-                break
-                #else
-                let idleRequest = setIdleRequest(idleMs: 0)
-                #kprint("USB-HID: mouse setIdle to 0")
-                guard device.sendControlRequest(request: idleRequest) else {
-                    #kprint("USB-HID:  mouse Cant set idleRequest")
-                    return false
-                }
 
-                guard let intrPipe = device.bus.allocatePipe(device, intrEndpoint) else {
-                    #kprint(" mouse Cannot allocate interrupt pipe")
-                    return false
+                let device = Device(parent: usbDevice.device.parent)
+                device.setBusDevice(usbDevice)
+                if let usbMouse = USBMouse(usbDevice: usbDevice, interface: interface) {
+                    device.setDriver(usbMouse)
+                    if usbMouse.initialise() {
+                        let mouse = Mouse(hid: usbMouse.hid())
+                        #kprint("USB-HID Adding mouse")
+                        system.deviceManager.mouse = mouse
+                        break
+                    }
                 }
-                let hid = USBMouse(device: device, interface: interface, intrPipe: intrPipe)
-                let mouse = Mouse(hid: hid)
-                if mouse.initialise() {
-                    #kprint("USB-HID Adding mouse")
-                    system.deviceManager.mouse = mouse
-                }else {
-                    #kprint("USB-HID Cannot initialise mouse")
-                }
-                #endif
+                #kprint("USB-HID Cannot initialise mouse")
+
             default:
                 break
         }
@@ -210,7 +188,7 @@ final class USBHIDDriver {
         return USB.ControlRequest.classSpecificRequest(direction: .hostToDevice, recipient: recipient, bRequest: HIDRequest.SET_PROTOCOL.rawValue, wValue: hidProtocol.rawValue, wLength: 0)
     }
 
-    private func setIdleRequest(idleMs: Int) -> USB.ControlRequest {
+    static func setIdleRequest(for interface: USB.InterfaceDescriptor, idleMs: Int) -> USB.ControlRequest {
         let recipient = USB.ControlRequest.Recipient.interface(interface.bInterfaceNumber)
         let value = UInt16(idleMs / 4) << 8
         return USB.ControlRequest.classSpecificRequest(direction: .hostToDevice, recipient: recipient, bRequest: HIDRequest.SET_IDLE.rawValue, wValue: value, wLength: 0)

@@ -87,6 +87,7 @@ enum HIDEvent {
         case KEY_FN_10
         case KEY_FN_11
         case KEY_FN_12
+        case INVALID
     }
 
     enum Button {

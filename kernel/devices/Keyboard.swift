@@ -8,7 +8,7 @@
 
 
 // Generic Keyboard device that reads key events from a HID
-class Keyboard {
+final class Keyboard {
     // Keyboard state
     private var leftShift = false
     private var rightShift = false

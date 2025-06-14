@@ -6,39 +6,72 @@
 //  Copyright © 2025 Simon Evans. All rights reserved.
 //
 
-final class USBMouse: HID {
+final class MouseHID: HID {
+    private let mouse: USBMouse
 
-    let description = "USBMouse"
-
-    private let device: USBDevice
-    private let interface: USB.InterfaceDescriptor
-    private var intrPipe: USBPipe
-    private var prevEvent = MouseEvent()
-    private var buffer: [HIDEvent] = []
-    private var data: [UInt8] = []
-
-    init(device: USBDevice, interface: USB.InterfaceDescriptor, intrPipe: USBPipe) {
-        #kprint("USB-HID: Creating USBMouse")
-        self.device = device
-        self.interface = interface
-        self.intrPipe = intrPipe
+    init(mouse: USBMouse) {
+        self.mouse = mouse
     }
 
-    func initialise() -> Bool {
+    override func readNextEvent() -> HIDEvent? {
+        return mouse.readNextEvent()
+    }
+}
+
+
+final class USBMouse: USBDeviceDriver {
+    private let interface: USB.InterfaceDescriptor
+    private var intrPipe: USBPipe?
+    private var prevEvent = MouseEvent()
+    private var buffer: [HIDEvent] = []
+    private var data: InlineArray<4, UInt8> = .init(repeating: 0)
+
+    init?(usbDevice: USBDevice, interface: USB.InterfaceDescriptor) {
+        #kprint("USB-HID: Creating USBMouse")
+        self.interface = interface
+        super.init(driverName: "usb-mouse", usbDevice: usbDevice)
+    }
+
+    override func initialise() -> Bool {
+        // Check the interface is valid
+        // Find the INTR endpoint
+        guard let intrEndpoint = interface.endpointMatching(transferType: .interrupt) else {
+            #kprint("USB-MOU: Cant find an interrupt endpoint")
+            return false
+        }
+        // Create a pipe for the interrupt endpoint and add it to the active queues
+        guard let _intrPipe = usbDevice.bus.allocatePipe(usbDevice, intrEndpoint) else {
+            #kprint("Cannot allocate Interupt pipe")
+            return false
+        }
+
+        self.intrPipe = _intrPipe
+
+        let idleRequest = USBHIDDriver.setIdleRequest(for: interface, idleMs: 0)
+        #kprint("USB-MOU: setIdle to 0")
+        guard usbDevice.sendControlRequest(request: idleRequest) else {
+            #kprint("USB-MOU: Cannot set idleRequest")
+            return false
+        }
+
         return true
     }
 
+    func hid() -> HID {
+        return MouseHID(mouse: self)
+    }
 
-    override func readNextEvent() -> HIDEvent? {
 
+    func readNextEvent() -> HIDEvent? {
         if buffer.isEmpty {
+            var dataSpan = data.mutableSpan
+
         // Now poll the interrupt to look for mouse changes
             sleep(milliseconds: 10)
-            data.removeAll()
-            guard intrPipe.pollInterruptPipe(into: &data) else {
+            guard let intrPipe, intrPipe.pollInterruptPipe(into: &dataSpan) == 4 else {
                 return nil
             }
-            guard let event = MouseEvent(data: data) else {
+            guard let event = MouseEvent(data: dataSpan) else {
                 #kprint("usb-mouse, no event")
                 return nil
             }
@@ -74,7 +107,7 @@ extension USBMouse {
             yMovement = 0
         }
 
-        init?(data: [UInt8]) {
+        init?(data: borrowing MutableSpan<UInt8>) {
             guard data.count >= 3 else {
                 #kprint("USB-Mouse, not enough data: \(data.count)")
                 return nil

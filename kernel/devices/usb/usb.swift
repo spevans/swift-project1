@@ -13,7 +13,7 @@ class USBPipe {
     func allocateBuffer(length: Int) -> MMIOSubRegion { fatalError() }
     func freeBuffer(_ buffer: MMIOSubRegion) {}
     func send(request: USB.ControlRequest, withBuffer: MMIOSubRegion?) -> Bool { return false }
-    func pollInterruptPipe(into buffer: inout [UInt8]) -> Bool { return false }
+    func pollInterruptPipe(into buffer: inout MutableSpan<UInt8>) -> Int { return 0 }
 }
 
 

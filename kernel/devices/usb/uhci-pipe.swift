@@ -99,10 +99,10 @@ fileprivate extension HCD_UHCI {
         }
 
 
-        override func pollInterruptPipe(into result: inout [UInt8]) -> Bool {
+        override func pollInterruptPipe(into result: inout MutableSpan<UInt8>) -> Int {
             guard case .interrupt = endpointDescriptor.transferType else {
-                #uhciDebug("UHCI-PIPE: Attempting to poll an non interrupt pipe")
-                return false
+                #uhciDebug("UHCI-PIPE: Attempting to poll a non interrupt pipe")
+                return 0
             }
 
             var td = transferDescriptors.first!
@@ -111,16 +111,16 @@ fileprivate extension HCD_UHCI {
             }
             if td.controlStatus.stalled {
                 #kprint("interrupt pipe has stalled!")
-                return false
+                return 0
             }
             guard !td.controlStatus.active else {
-                return false
+                return 0
             }
 
-            result.reserveCapacity(Int(endpointDescriptor.maxPacketSize))
-            for index in 0..<physBuffer!.count {
+            let count = min(physBuffer!.count, result.count)
+            for index in 0..<count {
                 let byte: UInt8 = physBuffer!.read(fromByteOffset: index)
-                result.append(byte)
+                result[index] = byte
             }
             // Reenable the Interrupt TD
             td.token.dataToggle.toggle()
@@ -130,7 +130,7 @@ fileprivate extension HCD_UHCI {
             for var qh in queueHeads {
                 qh.elementLinkPointer = QueueHead.QueueElementLinkPointer(transferDescriptorAddress: td.physAddress)
             }
-            return true
+            return count
         }
 
 

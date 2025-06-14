@@ -26,12 +26,10 @@ internal func _usbhubDebug(_ items: String...) {
 
 
 final class USBHubDriver: USBDeviceDriver {
-    let usbDevice: USBDevice
     private(set) var hubDescriptor = USB.HUBDescriptor(ports: 0)
     var ports: Int { Int(hubDescriptor.bNbrPorts) }
 
     init?(usbDevice: USBDevice, interface: USB.InterfaceDescriptor? = nil) {
-        self.usbDevice = usbDevice
         super.init(driverName: "usb-hub", usbDevice: usbDevice)
         device.setDriver(self)
     }

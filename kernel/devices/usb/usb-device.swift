@@ -25,7 +25,6 @@ class USBDevice: BusDevice {
         self.speed = speed
         device.deviceName = "usbdev"
         super.init(device: device)
-        device.setBusDevice(self)
     }
 
     private func controlPipe() -> USBPipe {
