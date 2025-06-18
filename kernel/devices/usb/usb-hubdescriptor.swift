@@ -23,21 +23,19 @@ extension USB {
         // Ignore PortPwrCtrlMask has it should be all ones
 
         let description: String
-        func descriptorAsBuffer(wLength: UInt16) -> [UInt8] {
-            let length = min(Int(descriptor.bDescLength), Int(wLength))
-            var buffer: [UInt8] = []
-            buffer.reserveCapacity(length)
+        func descriptorAsBuffer(wLength: UInt16, into buffer: inout MMIOSubRegion) -> Int {
+            let length = min(Int(descriptor.bDescLength), buffer.count)
             withUnsafeBytes(of: self.descriptor) {
                 for idx in 0..<length {
-                    buffer.append($0[idx])
+                    buffer[idx] = $0[idx]
                 }
             }
-            return buffer
+            return length
         }
 
         // Used by Root Hubs
         init(ports: UInt8) {
-            precondition(ports < 9) // For simplicity
+            precondition(ports < 8) // For simplicity
             descriptor = usb_hub_descriptor(
                 bDescLength: 9,
                 bDescriptorType: USB.DescriptorType.HUB.rawValue,
@@ -52,7 +50,7 @@ extension USB {
             description = "Root Hub"
         }
 
-        init(from buffer: [UInt8]) throws(ParsingError) {
+        init(from buffer: MMIOSubRegion) throws(ParsingError) {
             var iterator = buffer.makeIterator()
             // Validate the initial bytes
             guard let lengthByte = iterator.next(), let descriptorByte = iterator.next() else { throw ParsingError.packetTooShort

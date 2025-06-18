@@ -189,6 +189,7 @@ private func hidInput(arguments: [String]) {
     let mouse = system.deviceManager.mouse
     if mouse != nil {
         #kprint("Have mouse")
+        mouse?.flushInput()
     }
     if mouse == nil && keyboard == nil {
         #kprint("no mouse or keyboard")

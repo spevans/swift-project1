@@ -10,10 +10,44 @@
 
 
 class USBPipe {
+    enum Status: CustomStringConvertible {
+        case inprogress
+        case cancelled
+        case stalled
+        case nak
+        case finished  // Count of bytes trans
+        case timedout
+
+        var description: String {
+            switch self {
+                case .inprogress:
+                    "InProgress"
+                case .cancelled:
+                    "Cancelled"
+                case .stalled:
+                    "Stalled"
+                case .nak:
+                    "NAK"
+                case .finished:
+                    "Finished"
+                case .timedout:
+                    "TimedOut"
+            }
+        }
+    }
+
+    let endpointDescriptor: USB.EndpointDescriptor
+
+
+    init(endpointDescriptor: USB.EndpointDescriptor) {
+        self.endpointDescriptor = endpointDescriptor
+    }
+
+
     func allocateBuffer(length: Int) -> MMIOSubRegion { fatalError() }
     func freeBuffer(_ buffer: MMIOSubRegion) {}
-    func send(request: USB.ControlRequest, withBuffer: MMIOSubRegion?) -> Bool { return false }
-    func pollInterruptPipe(into buffer: inout MutableSpan<UInt8>) -> Int { return 0 }
+    func submitURB(_ urb: USB.Request) {}
+    func pollPipe(_ error: Bool) -> Status { .cancelled }
 }
 
 
@@ -45,12 +79,15 @@ final class USB {
                         if let driver = HCD_UHCI(pciDevice: pciDevice), driver.initialise() {
                             // FIXME: Move busId to the HCD_UHCI
                             let usbBus = driver.usbBus(busId: nextBusId)
-                            usbBuses.append(usbBus)
                             nextBusId += 1
-                            let rootHubDevice = driver.rootHubDevice(bus: usbBus)
-                            if let rootHubDriver = USBHubDriver(usbDevice: rootHubDevice), rootHubDriver.initialise() {
-                                rootHubDriver.enumerate()
+                            guard let rootHubDevice = driver.rootHubDevice(bus: usbBus),
+                                  let rootHubDriver = USBHubDriver(usbDevice: rootHubDevice),
+                                  rootHubDriver.initialise() else {
+                                #kprint("USB: Failed to add roothub")
+                                break
                             }
+                            usbBuses.append(usbBus)
+                            rootHubDriver.enumerate()
                         }
 
                     case .ehci:
@@ -106,18 +143,43 @@ extension USB {
 // can use via it's bus
 struct USBBus: CustomStringConvertible {
     let busId: Int
-    let allocatePipe: (USBDevice, USB.EndpointDescriptor) -> USBPipe?
+    let allocatePipe: (USB.EndpointDescriptor) -> USBPipe?
     let nextAddress: () -> UInt8?
+    let submitURB: (USB.Request) -> Void
     let description: String
 
-
     init (busId: Int,
-          allocatePipe: @escaping (USBDevice, USB.EndpointDescriptor) -> USBPipe?,
-          nextAddress: @escaping () -> UInt8?
+          allocatePipe: @escaping (USB.EndpointDescriptor) -> USBPipe?,
+          nextAddress: @escaping () -> UInt8?,
+          submitURB: @escaping (USB.Request) -> Void,
     ) {
         self.description = #sprintf("USBBUS: %d", busId)
         self.busId = busId
         self.allocatePipe = allocatePipe
         self.nextAddress = nextAddress
+        self.submitURB = submitURB
     }
 }
+
+extension USB {
+    struct Request {
+        let usbDevice: USBDevice
+
+// FIXME, might be better as .control(SetupRequest, direction, buffer?) .interrupt(buffer) ...
+
+        let transferType: EndpointDescriptor.TransferType
+//        let endpointDescriptor: EndpointDescriptor
+        let direction: TransferDirection    // Control requests do not use the direction in the Endpoint Descriptor
+        let pipe: USBPipe
+        let completionHandler: (Request, Response) -> ()
+        let setupRequest: MMIOSubRegion?    // Used for control requests
+        let buffer: MMIOSubRegion?
+        let bytesToTransfer: Int
+    }
+
+    struct Response {
+        let status: USBPipe.Status
+        let bytesTransferred: Int
+    }
+}
+

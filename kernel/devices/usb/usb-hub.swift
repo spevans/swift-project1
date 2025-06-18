@@ -28,10 +28,16 @@ internal func _usbhubDebug(_ items: String...) {
 final class USBHubDriver: USBDeviceDriver {
     private(set) var hubDescriptor = USB.HUBDescriptor(ports: 0)
     var ports: Int { Int(hubDescriptor.bNbrPorts) }
+    private let responseBuffer: MMIOSubRegion
 
     init?(usbDevice: USBDevice, interface: USB.InterfaceDescriptor? = nil) {
+        self.responseBuffer = usbDevice.controlPipe.allocateBuffer(length: 32)
         super.init(driverName: "usb-hub", usbDevice: usbDevice)
         device.setDriver(self)
+    }
+
+    deinit {
+        usbDevice.controlPipe.freeBuffer(responseBuffer)
     }
 
     override func initialise() -> Bool {
@@ -60,7 +66,7 @@ final class USBHubDriver: USBDeviceDriver {
     }
 
     func enumerate() {
-        #kprintf("USB: enumerating, have %d ports\n", self.ports)
+        #kprintf("USB-HUB: enumerating, have %d ports\n", self.ports)
         for portIdx in 1...self.ports {
 
             guard self.powerPort(portIdx) else {
@@ -81,60 +87,63 @@ final class USBHubDriver: USBDeviceDriver {
 
             #usbhubDebug("\(self)/\(portIdx) speed: \(connectedSpeed)")
             let d = Device(parent: self.device)
-            let usbDevice = USBDevice(device: d, bus: usbDevice.bus, speed: connectedSpeed)
+            guard let newDevice = USBDevice(device: d, bus: usbDevice.bus, speed: connectedSpeed) else {
+                #kprint("usb-hub: Failed to create USBDevice")
+                continue
+            }
+
+            // Get initial 8byte device descriptor
+            guard let deviceDescriptor = getInitialDeviceDescriptor(newDevice) else {
+                #kprint("\(self)/\(portIdx)-0: Cannot get info8")
+                continue
+            }
+            #kprintf("USB: %s deviceDescriptor: %s\n", newDevice.description, deviceDescriptor.description)
+            guard deviceDescriptor.bLength != 0 else {
+                fatalError("info8 returned zero length bLength")
+            }
 
             // Set address of device
             guard let address = usbDevice.bus.nextAddress() else {
                 fatalError("No more addresses!")
             }
 
-            var _deviceDescriptor: USB.DeviceDescriptor?
-            for _ in 1...2 {
-                _deviceDescriptor = setAddressAndGetDescriptor(usbDevice, address)
-                if _deviceDescriptor != nil { break }
+            #kprintf("USB: %s Setting address of device on to %d\n", newDevice.description, address)
+            guard newDevice.setAddress(address) else {
+                #kprint("\(self)/\(portIdx)-0: Cant set address of device - ignoring device")
+                continue
             }
-
-            guard let deviceDescriptor = _deviceDescriptor else { continue }
             // Get full DeviceDescriptor
             #usbhubDebug("\(self)/\(portIdx)-\(address) Getting full DeviceDescriptor of length:", deviceDescriptor.bLength)
-            guard let _descriptor = usbDevice.getDeviceConfig(length: UInt16(deviceDescriptor.bLength)) else {
+            guard let _descriptor = newDevice.getDeviceDescriptor(length: UInt16(deviceDescriptor.bLength)) else {
                 #usbhubDebug("\(self)/\(portIdx)-\(address) Cant get full DeviceDescriptor")
                 continue
             }
             let fullDeviceDescriptor = _descriptor
-            #usbhubDebug("\(usbDevice.description) fullDeviceDescriptor:", fullDeviceDescriptor)
+            #usbhubDebug("\(newDevice.description) fullDeviceDescriptor:", fullDeviceDescriptor)
 
             #kprintf("USB: %s vendor: %4.4x product: %4.4x manu: %2.2x product: %2.2x\n",
-                     usbDevice.description,
+                     newDevice.description,
                      fullDeviceDescriptor.idVendor, fullDeviceDescriptor.idProduct,
                      fullDeviceDescriptor.iManufacturer, fullDeviceDescriptor.iProduct)
 
-            #kprint("\nUSB: \(usbDevice.description) Getting ConfigurationDescriptor")
-            guard let configDescriptor = usbDevice.getConfigurationDescriptor() else {
-                #usbhubDebug("\(usbDevice.description) Cant get device ConfigurationDescriptor of device on port: \(portIdx) - ignoring device")
+            #kprint("\nUSB: \(newDevice.description) Getting ConfigurationDescriptor")
+            guard let configDescriptor = newDevice.getConfigurationDescriptor() else {
+                #usbhubDebug("\(newDevice.description) Cant get device ConfigurationDescriptor of device on port: \(portIdx) - ignoring device")
                 continue
             }
-            #usbhubDebug("\(usbDevice.description) configDescriptor: \(configDescriptor)")
-            configureDevice(usbDevice, fullDeviceDescriptor, configDescriptor)
+            #usbhubDebug("\(newDevice.description) configDescriptor: \(configDescriptor)")
+            configureDevice(newDevice, fullDeviceDescriptor, configDescriptor)
         }
     }
 
-
-    private func setAddressAndGetDescriptor(_ device: USBDevice, _ address: UInt8) -> USB.DeviceDescriptor? {
-        let id = #sprintf("USB: %s", device.description)
-        #kprint(id, "Setting address of device on to \(address)")
-
-        guard let deviceDescriptor = device.getDeviceConfig(length: 8) else { return nil }
-        #kprint(id, "deviceDescriptor:", deviceDescriptor)
-        guard deviceDescriptor.bLength != 0 else {
-            fatalError("info8 returned zero length bLength")
+    private func getInitialDeviceDescriptor(_ newDevice: USBDevice) -> USB.DeviceDescriptor? {
+        for _ in 1...2 {
+            if let deviceDescriptor = newDevice.getDeviceDescriptor(length: 8) {
+                return deviceDescriptor
+            }
+            sleep(milliseconds: 20)
         }
-
-        guard device.setAddress(address) else {
-            #kprint(id, "Cant set address of device - ignoring device")
-            return nil
-        }
-        return deviceDescriptor
+        return nil
     }
 
 
@@ -197,25 +206,16 @@ final class USBHubDriver: USBDeviceDriver {
             wLength: length
         )
 
-        guard let buffer = usbDevice.sendControlRequestReadData(request: request) else {
+        guard usbDevice.sendControlRequestReadData(request: request, into: responseBuffer) else {
             #kprint("USBHUB: getHubConfig: Cannot get HUB descriptor")
             return nil
         }
-
-        let numPorts = Int(buffer[2])
-        if numPorts <= 7 && length == UInt16(buffer[0]) {
+        let numPorts = Int(responseBuffer[2])
+        if numPorts <= 7 && length == UInt16(responseBuffer[0]) {
             // Got the whole descriptor so just decode it
-            guard let desc1 = try? USB.HUBDescriptor(from: buffer) else {
-                #kprint("Error decoding hub descriptor from bytes:")
-                for x in buffer {
-                    #kprintf("%2.2x ", x)
-                }
-                #kprint("")
-                return nil
-            }
-            return desc1
+            return try? USB.HUBDescriptor(from: responseBuffer)
         }
-        #kprintf("USBHUB: Got descr1 nports: %d bDescLength: %u\n", numPorts, buffer[0])
+        #kprintf("USBHUB: Got descr1 nports: %d bDescLength: %u\n", numPorts, responseBuffer[0])
         let newLength = 9 + (2 * (numPorts / 8))
         let request2 = USB.ControlRequest.classSpecificRequest(
             direction: .deviceToHost,
@@ -224,20 +224,20 @@ final class USBHubDriver: USBDeviceDriver {
             wValue: UInt16(USB.DescriptorType.HUB.rawValue) << 8 | UInt16(descriptorIndex),
             wLength: UInt16(newLength)
         )
-        guard let buffer = usbDevice.sendControlRequestReadData(request: request2) else {
+        guard usbDevice.sendControlRequestReadData(request: request2, into: responseBuffer) else {
             #kprint("USBHUB: getHubConfig: Cannot get HUB descriptor2")
             return nil
         }
-        return try? USB.HUBDescriptor(from: buffer)
+        return try? USB.HUBDescriptor(from: responseBuffer)
     }
 
     private func getHubStatus() -> Bool {
         let request = USB.ControlRequest.getStatus(direction: .hostToDevice, recipient: .device)
-        guard let buffer = usbDevice.sendControlRequestReadData(request: request) else {
+        guard usbDevice.sendControlRequestReadData(request: request, into: responseBuffer) else {
             #kprint("USBHUB getHubStatus failed")
             return false
         }
-        #kprintf("UBSHUB: status: 0x%2.2x 0x%2.2x\n", buffer[0], buffer[1])
+        #kprintf("UBSHUB: status: 0x%2.2x 0x%2.2x\n", responseBuffer[0], responseBuffer[1])
         return true
     }
 
@@ -287,11 +287,11 @@ final class USBHubDriver: USBDeviceDriver {
             wValue: 0,
             wLength: 4
         )
-        guard let status = usbDevice.sendControlRequestReadData(request: portStatusReq), status.count == 4 else {
+        guard usbDevice.sendControlRequestReadData(request: portStatusReq, into: responseBuffer) else {
             #kprintf("USB-HUB: Cannot get status of port: %d\n", port)
             return nil
         }
-        let portStatus = PortStatus(from: status)
+        let portStatus = PortStatus(from: responseBuffer)
         if portStatus.deviceAttached {
             if portStatus.lowSpeedDeviceAttached { return .lowSpeed }
             else if portStatus.highSpeedDeviceAttached { return .highSpeed }
@@ -322,11 +322,11 @@ final class USBHubDriver: USBDeviceDriver {
             wValue: 0,
             wLength: 4
         )
-        guard let status = usbDevice.sendControlRequestReadData(request: portStatusReq), status.count == 4 else {
+        guard usbDevice.sendControlRequestReadData(request: portStatusReq, into: responseBuffer) else {
             #kprintf("USB-HUB: Cannot get status of port: %d\n", port)
             return false
         }
-        let portStatus = PortStatus(from: status)
+        let portStatus = PortStatus(from: responseBuffer)
         if portStatus.resetComplete {
             let request = USB.ControlRequest.classSpecificRequest(
                 direction: .hostToDevice,
@@ -405,7 +405,7 @@ final class USBHubDriver: USBDeviceDriver {
         var resetComplete: Bool { changeStatusField[4] != 0 }
 
         @inline(__always)
-        init(from buffer: [UInt8]) {
+        init(from buffer: MMIOSubRegion) {
             let word0 = UInt16(buffer[0]) | UInt16(buffer[1] << 8)
             statusField = BitArray16(word0)
             let word1 = UInt16(buffer[2]) | UInt16(buffer[3] << 8)
@@ -463,14 +463,15 @@ final class USBHubDriver: USBDeviceDriver {
             self.changeStatusField = _changeStatusField
         }
 
-        func asBytes(into buffer: inout [UInt8], maxLength: Int) {
+        func asBytes(into buffer: inout MMIOSubRegion, maxLength: Int) -> Int {
             let length = min(4, maxLength)
             let word0 = statusField.rawValue
             let word1 = changeStatusField.rawValue
-            if length > 0 { buffer.append(UInt8(truncatingIfNeeded: word0)) }
-            if length > 1 { buffer.append(UInt8(truncatingIfNeeded: word0 >> 8)) }
-            if length > 2 { buffer.append(UInt8(truncatingIfNeeded: word1)) }
-            if length > 3 { buffer.append(UInt8(truncatingIfNeeded: word1 >> 8)) }
+            if length > 0 { buffer[0] = UInt8(truncatingIfNeeded: word0) }
+            if length > 1 { buffer[1] = UInt8(truncatingIfNeeded: word0 >> 8) }
+            if length > 2 { buffer[2] = UInt8(truncatingIfNeeded: word1) }
+            if length > 3 { buffer[3] = UInt8(truncatingIfNeeded: word1 >> 8) }
+            return length
         }
     }
 }

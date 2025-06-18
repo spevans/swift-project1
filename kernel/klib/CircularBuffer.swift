@@ -13,10 +13,12 @@
 final class CircularBuffer<T> {
     private var buffer: Array<T>
     private let capacity: Int
+    private let dropOldest: Bool
     private var idxIn = 0, idxOut = 0, count = 0
 
-    init(item: T, capacity: Int) {
+    init(item: T, capacity: Int, dropOldest: Bool = true) {
         self.capacity = capacity
+        self.dropOldest = dropOldest
         buffer = Array(repeating: item, count: capacity)
     }
 
@@ -26,14 +28,23 @@ final class CircularBuffer<T> {
         count = 0
     }
 
+    @discardableResult
     func add(_ item: T) -> Bool {
         return noInterrupt {
-            guard count < capacity else {
+            if count < capacity {
+                buffer[idxIn] = item
+                count += 1
+                idxIn += 1
+            } else if dropOldest {
+                buffer[idxIn] = item
+                idxIn += 1
+                idxOut += 1
+                if idxOut == capacity {
+                    idxOut = 0
+                }
+            } else {
                 return false
             }
-            buffer[idxIn] = item
-            count += 1
-            idxIn += 1
             if idxIn == capacity {
                 idxIn = 0
             }

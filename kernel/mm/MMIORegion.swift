@@ -145,8 +145,14 @@ struct MMIOSubRegion: CustomStringConvertible, RandomAccessCollection {
     }
 
     subscript(index: Index) -> Element {
-        get { mmio_read_uint8(baseAddress.rawPointer.advanced(by: index)) }
-        set { mmio_write_uint8(baseAddress.rawPointer.advanced(by: index), newValue) }
+        get {
+            precondition(index < count)
+            return mmio_read_uint8(baseAddress.rawPointer.advanced(by: index))
+        }
+        set {
+            precondition(index < count)
+            mmio_write_uint8(baseAddress.rawPointer.advanced(by: index), newValue)
+        }
     }
 
 
@@ -196,6 +202,17 @@ struct MMIOSubRegion: CustomStringConvertible, RandomAccessCollection {
                 let address = baseAddress.rawPointer.advanced(by: offset)
                 mmio_write_uint8(address, byte)
                 offset += 1
+            }
+        }
+    }
+
+    func loadBytes<T>(into temp: inout T) {
+        withUnsafeMutableBytes(of: &temp) { (bufferPtr: UnsafeMutableRawBufferPointer) in
+            precondition(bufferPtr.count <= count)
+            for idx in 0..<bufferPtr.count {
+                let address = baseAddress.rawPointer.advanced(by: idx)
+                let byte = mmio_read_uint8(address)
+                bufferPtr[idx] = byte
             }
         }
     }

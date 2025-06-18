@@ -110,4 +110,6 @@ class HID {
         return nil
     }
 
+    func flushInput() {
+    }
 }

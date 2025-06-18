@@ -45,8 +45,13 @@ class PCIDeviceDriver: DeviceDriver {
 class USBDeviceDriver: DeviceDriver {
     let usbDevice: USBDevice
 
-    init?(driverName: String, usbDevice: USBDevice) {
+    init(driverName: String, usbDevice: USBDevice) {
         self.usbDevice = usbDevice
         super.init(driverName: driverName, device: usbDevice.device)
+    }
+
+    init(driverName: String, usbDevice: USBDevice, device: Device) {
+        self.usbDevice = usbDevice
+        super.init(driverName: driverName, device: device)
     }
 }

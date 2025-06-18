@@ -123,19 +123,23 @@ private let keyMap: InlineArray<232, HIDEvent.Key> = [ //] [UInt8 : HIDEvent.Key
 ]
 
 final class USBKeyboard: USBDeviceDriver {
+    private let interface: USB.InterfaceDescriptor
     private var prevModifierKeys = UInt8(0)
     private var prevKeys: InlineArray<8, UInt8> = .init(repeating: 0)
     private var keys: InlineArray<8, UInt8> = .init(repeating: 0)
     private var buffer: [HIDEvent] = []
 
-    private let interface: USB.InterfaceDescriptor
     private var intrPipe: USBPipe?
+    private var physBuffer: MMIOSubRegion?
 
-
-    init?(usbDevice: USBDevice, interface: USB.InterfaceDescriptor) {
+    init?(device: Device, usbDevice: USBDevice, interface: USB.InterfaceDescriptor) {
         #kprint("USB-HID: Creating USBKeyboard")
         self.interface = interface
-        super.init(driverName: "usb-kbd", usbDevice: usbDevice)
+        self.buffer.reserveCapacity(32)
+        super.init(driverName: "usb-kbd", usbDevice: usbDevice, device: device)
+        if let parent = device.parent {
+            self.device.deviceName = parent.deviceName + ".\(interface.bInterfaceNumber)"
+        }
     }
 
     override func initialise() -> Bool {
@@ -147,12 +151,12 @@ final class USBKeyboard: USBDeviceDriver {
             return false
         }
         // Create a pipe for the interrupt endpoint and add it to the active queues
-        guard let _intrPipe = usbDevice.bus.allocatePipe(usbDevice, intrEndpoint) else {
+        guard let _intrPipe = usbDevice.bus.allocatePipe(intrEndpoint) else {
             #kprint("Cannot allocate Interupt pipe")
             return false
         }
-
         self.intrPipe = _intrPipe
+        physBuffer = _intrPipe.allocateBuffer(length: Int(intrEndpoint.maxPacketSize))
 
         let idleRequest = USBHIDDriver.setIdleRequest(for: interface, idleMs: 33)
         #kprint("USB-KBD: keyboard setIdle to 33")
@@ -161,81 +165,113 @@ final class USBKeyboard: USBDeviceDriver {
             return false
         }
 
+        let urb = USB.Request(
+            usbDevice: self.usbDevice,
+            transferType: .interrupt,
+            direction: .deviceToHost,
+            pipe: _intrPipe,
+            completionHandler: irqHandler,
+            setupRequest: nil,
+            buffer: physBuffer,
+            bytesToTransfer: Int(intrEndpoint.maxPacketSize)
+        )
+        usbDevice.bus.submitURB(urb)
+
         return true
+    }
+
+    deinit {
+        if let intrPipe, let physBuffer  {
+            intrPipe.freeBuffer(physBuffer)
+        }
     }
 
     func hid() -> HID {
         return KeyboardHID(keyboard: self)
     }
 
-
     func readNextEvent() -> HIDEvent? {
         // Now poll the interrupt to look for keypresses
-        if buffer.isEmpty {
-            sleep(milliseconds: 10)
-            var keysSpan = keys.mutableSpan
-            let prevKeysSpan = prevKeys.mutableSpan
 
-            guard let intrPipe, intrPipe.pollInterruptPipe(into: &keysSpan) == 8 else {
-                return nil
-            }
-
-            // Modifier keys
-            let mkeys = keysSpan[0]
-            keysSpan[0] = 0
-            keysSpan[1] = 0
-            // The eight modifier keys in the byte0 bitmap match the
-            // values from 0xE0 to 0xE7
-            let changedMKeys = prevModifierKeys ^ mkeys
-            let changedMkeysArray = BitArray8(changedMKeys)
-            let mKeysArray = BitArray8(mkeys)
-            for idx in 0..<8 {
-                if changedMkeysArray[idx] == 1 {
-                    let key = keyMap[0xe0 + idx]
-                    let keyDown = mKeysArray[idx] == 1
-                    buffer.append(keyDown ? .keyDown(key) : .keyUp(key))
-                }
-            }
-            prevModifierKeys = mkeys
-
-            // 6 bytes, 6 keys that are currently pressed
-            precondition(keysSpan.count == 8)
-            precondition(prevKeysSpan.count == 8)
-            for idx in 2..<8 {
-                // Key that is down, see if it was already down in the previous input
-                let newKeyCode = keysSpan[idx]
-                if !span(prevKeysSpan, contains: newKeyCode) {
-                    if Int(newKeyCode) < keyMap.count {
-                        let key = keyMap[Int(newKeyCode)]
-                        if key != .INVALID {
-                            buffer.append(.keyDown(key))
-                        }
-                    } else {
-                        #kprintf("usb: Unknown keycode: %2.2x\n", newKeyCode)
-                    }
-                }
-
-                // See if key that was previously down is now up.
-                let oldKeyCode = prevKeysSpan[idx]
-                if !span(keysSpan, contains: oldKeyCode) {
-                    if Int(oldKeyCode) < keyMap.count {
-                        let key = keyMap[Int(oldKeyCode)]
-                        if key != .INVALID {
-                            buffer.append(.keyUp(key))
-                        }
-                    } else {
-                        #kprintf("usb: Unknown keycode: %2.2x\n", oldKeyCode)
-                     }
-                }
-            }
-            prevKeys = keys
-        }
         if buffer.count > 0 {
             //kprint("usb-keyboard, returning data")
             return buffer.removeFirst()
         }
+        sleep(milliseconds: 10)
         return nil
     }
+
+
+    private func irqHandler(_ request: USB.Request, response: USB.Response) {
+//        #kprintf("USB-KBD: IRQ status: %s bytes: %d\n", response.status.description, response.bytesTransferred)
+
+        guard var physBuffer = physBuffer else { return }
+        var prevKeysSpan = prevKeys.mutableSpan
+        // Modifier keys
+        let mkeys = physBuffer[0]
+        physBuffer[0] = 0
+        physBuffer[1] = 0
+        // The eight modifier keys in the byte0 bitmap match the
+        // values from 0xE0 to 0xE7
+        let changedMKeys = prevModifierKeys ^ mkeys
+        let changedMkeysArray = BitArray8(changedMKeys)
+        let mKeysArray = BitArray8(mkeys)
+        for idx in 0..<8 {
+            if changedMkeysArray[idx] == 1 {
+                let key = keyMap[0xe0 + idx]
+                let keyDown = mKeysArray[idx] == 1
+                buffer.append(keyDown ? .keyDown(key) : .keyUp(key))
+            }
+        }
+        prevModifierKeys = mkeys
+
+        // 6 bytes, 6 keys that are currently pressed
+        //precondition(keysSpan.count == 8)
+        precondition(prevKeysSpan.count == 8)
+        for idx in 2..<8 {
+            // Key that is down, see if it was already down in the previous input
+            let newKeyCode = physBuffer[idx]
+            if !span(prevKeysSpan, contains: newKeyCode) {
+                if Int(newKeyCode) < keyMap.count {
+                    let key = keyMap[Int(newKeyCode)]
+                    if key != .INVALID {
+                        buffer.append(.keyDown(key))
+                    }
+                } else {
+                    #kprintf("usb: Unknown keycode: %2.2x\n", newKeyCode)
+                }
+            }
+
+            // See if key that was previously down is now up.
+            let oldKeyCode = prevKeysSpan[idx]
+            if !mmioRegion(physBuffer, contains: oldKeyCode) {
+                if Int(oldKeyCode) < keyMap.count {
+                    let key = keyMap[Int(oldKeyCode)]
+                    if key != HIDEvent.Key.INVALID {
+                        buffer.append(.keyUp(key))
+                    }
+                } else {
+                    #kprintf("usb: Unknown keycode: %2.2x\n", oldKeyCode)
+                }
+            }
+        }
+        for idx in 0..<physBuffer.count {
+            prevKeysSpan[idx] = physBuffer[idx]
+        }
+
+        // Resubmit the IRQ
+        usbDevice.bus.submitURB(request)
+    }
+
+    private func mmioRegion(_ region: MMIOSubRegion, contains value: UInt8) -> Bool {
+        for idx in 0..<region.count {
+            if region[idx] == value {
+                return true
+            }
+        }
+        return false
+    }
+
 
     private func span(_ span: borrowing MutableSpan<UInt8>, contains value: UInt8) -> Bool {
         for idx in span.indices {

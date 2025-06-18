@@ -10,113 +10,147 @@
 
 
 class USBDevice: BusDevice {
-    private(set) var address: UInt8 = 0 // Default Start Address when not assigned
+    fileprivate(set) var address: UInt8 = 0 // Default Start Address when not assigned
+    private(set) var maxPacketSize0: Int
     let bus: USBBus
     let speed: USB.Speed
-//    let deviceDescriptor: USB.DeviceDescriptor
-    private var _controlPipe: USBPipe?
+    let controlPipe: USBPipe
+
+    var isLowSpeedDevice: Bool { speed == .lowSpeed }
+
     override var description: String {
         #sprintf("Device %d.%u", bus.busId, address)
     }
 
 
-    init(device: Device, bus: USBBus, speed: USB.Speed) {
+    init?(device: Device, bus: USBBus, speed: USB.Speed) {
         self.bus = bus
         self.speed = speed
-        device.deviceName = "usbdev"
+
+        // Contol Pipe
+        switch speed {
+            case .lowSpeed, .fullSpeed:
+                self.maxPacketSize0 = 8
+
+            case .highSpeed, .superSpeed:
+                self.maxPacketSize0 = 64
+        }
+
+        guard let pipe = bus.allocatePipe(USB.EndpointDescriptor(controlEndPoint: 0, maxPacketSize: 8, bInterval: 0)) else {
+            #kprint("usb-dev: Failed to allocate pipe")
+            return nil
+        }
+        self.controlPipe = pipe
+        device.deviceName = "usbdev \(bus.busId).\(address)"
         super.init(device: device)
     }
 
-    private func controlPipe() -> USBPipe {
-        if let pipe = _controlPipe {
-            return pipe
-        }
-        guard let pipe = bus.allocatePipe(self, USB.EndpointDescriptor(controlEndPoint: 0, maxPacketSize: 8, bInterval: 0)) else {
-            fatalError("UHCI: Cant allocate pipe")
-        }
-        _controlPipe = pipe
-        return pipe
-    }
 
+    // FIXME: Should these 2 functions return USB.Response?
     func sendControlRequest(request: USB.ControlRequest) -> Bool {
-        let pipe = controlPipe()
-
-        return pipe.send(request: request, withBuffer: nil)
+        return sendControlRequestReadData(request: request, into: nil)
     }
 
 
-    func sendControlRequestReadData(request: USB.ControlRequest) -> [UInt8]? {
-        let pipe = controlPipe()
-
-        guard request.wLength > 0 else {
-            fatalError("USBDEV: sendControlRequestReadData wLenggth is 0!")
+    func sendControlRequestReadData(request: USB.ControlRequest, into buffer: MMIOSubRegion? = nil) -> Bool {
+        if buffer != nil, request.wLength == 0 {
+            fatalError("USBDEV: sendControlRequestReadData wLength is 0!")
         }
 
-        let infoBuffer = pipe.allocateBuffer(length: Int(request.wLength))
-        defer { pipe.freeBuffer(infoBuffer) }
-        guard pipe.send(request: request, withBuffer: infoBuffer) else { return nil }
-        var result: [UInt8] = []
-        result.reserveCapacity(Int(request.wLength))
-        for byte in infoBuffer {
-            result.append(byte)
+        #kprint("USB-DEV: \(self.bus.busId)-\(self.address).0 Sending request:", request)
+
+        let requestBuffer = controlPipe.allocateBuffer(length: MemoryLayout<USB.ControlRequest>.size)
+        requestBuffer.storeBytes(of: request, as: USB.ControlRequest.self)
+        defer { controlPipe.freeBuffer(requestBuffer) }
+
+        var lastStatus: USBPipe.Status?
+        let urb = USB.Request(
+            usbDevice: self,
+            transferType: .control,
+            direction: request.direction,
+            pipe: controlPipe,
+            completionHandler: { (urb, response) in
+                lastStatus = response.status
+            },
+            setupRequest: requestBuffer,
+            buffer: buffer,
+            bytesToTransfer: Int(request.wLength)
+        )
+        bus.submitURB(urb)
+
+        while lastStatus == nil {
+            sleep(milliseconds: 10)
         }
-        return result
+        return lastStatus == .finished
     }
 
 
     func setAddress(_ newAddress: UInt8) -> Bool {
-        #kprint("USBDEV: Setting address to:", newAddress)
+        #kprintf("%s: Setting address to: %d\n", device.deviceName, newAddress)
         let request = USB.ControlRequest.setAddress(address: newAddress)
         if sendControlRequest(request: request) {
             address = newAddress
+            device.deviceName = "usbdev \(bus.busId).\(address)"
             sleep(milliseconds: 10) // Device may require some time before address takes effect
             return true
         }
-        #kprint("USBDEV: Failed to setAddress(\(newAddress))")
+        #kprintf("%s: Failed to setAddress to %d\n", device.deviceName, newAddress)
         return false
     }
 
 
-    func getDeviceConfig(length: UInt16) -> USB.DeviceDescriptor? {
-        let pipe = controlPipe()
-
-        let descriptorRequest = USB.ControlRequest.getDescriptor(descriptorType: .DEVICE, descriptorIndex: 0, length: length)
-        var infoBuffer = pipe.allocateBuffer(length: Int(length))
+    func getDeviceDescriptor(length: UInt16) -> USB.DeviceDescriptor? {
+        let request = USB.ControlRequest.getDescriptor(descriptorType: .DEVICE, descriptorIndex: 0, length: length)
+        var infoBuffer = controlPipe.allocateBuffer(length: Int(length))
         infoBuffer.clearBuffer()
-        defer { pipe.freeBuffer(infoBuffer) }
+        defer { controlPipe.freeBuffer(infoBuffer) }
 
-        guard pipe.send(request: descriptorRequest, withBuffer: infoBuffer) else {
-            #kprint("USBDEV: getDeviceConfig: Cant get descriptor length:", length)
+        guard sendControlRequestReadData(request: request, into: infoBuffer) else {
+            #kprint("USBDEV: getDeviceDescriptor: Failed to get descriptor length:", length)
             return nil
         }
 
-        return USB.DeviceDescriptor(from: infoBuffer)
+        let descriptor = USB.DeviceDescriptor(from: infoBuffer)
+        if Int(descriptor.bMaxPacketSize0) > maxPacketSize0 {
+            // For Control Pipes update the maxPacketSize0 if new data is available
+            #kprintf("USB-DEV: Updating Control Pipe max Packet size from %d to %d\n", maxPacketSize0, descriptor.bMaxPacketSize0)
+
+            // Validate the speeds
+            switch (speed, descriptor.bMaxPacketSize0) {
+                case (.lowSpeed, 8),
+                    (.fullSpeed, 8), (.fullSpeed, 16), (.fullSpeed, 32), (.fullSpeed, 64),
+                    (.highSpeed, 64), (.superSpeed, 64):
+                    maxPacketSize0 = Int(descriptor.bMaxPacketSize0)
+                default: #kprintf("Invalid bMaxPackageSize0 %d for speed %s\n", descriptor.bMaxPacketSize0, speed.description)
+            }
+        }
+        return descriptor
     }
 
 
     func getConfigurationDescriptor() -> USB.ConfigDescriptor? {
-        let pipe = controlPipe()
-
         let length = MemoryLayout<usb_standard_config_descriptor>.size
-        let descriptorBuffer = pipe.allocateBuffer(length: length)
-        defer { pipe.freeBuffer(descriptorBuffer) }
+        let descriptorBuffer = controlPipe.allocateBuffer(length: length)
+        defer { controlPipe.freeBuffer(descriptorBuffer) }
 
         let deviceConfigRequest1 = USB.ControlRequest.getDescriptor(descriptorType: .CONFIGURATION, descriptorIndex: 0, length: UInt16(length))
-        guard pipe.send(request: deviceConfigRequest1, withBuffer: descriptorBuffer) else {
+        guard sendControlRequestReadData(request: deviceConfigRequest1, into: descriptorBuffer) else {
+            #kprint("USB-DEV: getConfigurationDescriptor request1 failed")
             return nil
         }
 
         guard let configDescriptor1 = try? USB.ConfigDescriptor(from: descriptorBuffer) else {
-            #kprint("USBDEV: Cant decode CONFIGURATION descriptor packet")
+            #kprint("USBDEV: Failed to decode CONFIGURATION descriptor packet")
                 return nil
         }
         #kprint("USBDEV:", configDescriptor1)
-        let infoBuffer = pipe.allocateBuffer(length: Int(configDescriptor1.wTotalLength))
-        defer { pipe.freeBuffer(infoBuffer) }
+        let infoBuffer = controlPipe.allocateBuffer(length: Int(configDescriptor1.wTotalLength))
+        defer { controlPipe.freeBuffer(infoBuffer) }
 
 
         let deviceConfigRequest2 = USB.ControlRequest.getDescriptor(descriptorType: .CONFIGURATION, descriptorIndex: 0, length: configDescriptor1.wTotalLength)
-        guard pipe.send(request: deviceConfigRequest2, withBuffer: infoBuffer) else {
+        guard sendControlRequestReadData(request: deviceConfigRequest2, into: infoBuffer) else {
+            #kprint("USB-DEV: getConfigurationDescriptor request2 failed")
             return nil
         }
 
@@ -124,7 +158,7 @@ class USBDevice: BusDevice {
             let configDescriptor2 = try USB.ConfigDescriptor(from: infoBuffer)
             return configDescriptor2
         } catch {
-            #kprint("USBDEV: Cant decode CONFIGURATION descriptor packet: ", error)
+            #kprint("USBDEV: Failed to decode CONFIGURATION descriptor packet: ", error)
             return nil
         }
     }
@@ -146,23 +180,39 @@ class USBDevice: BusDevice {
 final class HCDRootHub: USBDevice {
 
     struct HCDDeviceFunctions {
-        let sendControlRequest:  (USB.ControlRequest) -> Bool
-        let sendControlRequestReadData: (USB.ControlRequest) -> [UInt8]?
+        let processURB: (USB.Request) -> USB.Response
     }
 
     private let hcd: HCDDeviceFunctions
 
-    init(device: Device, bus: USBBus, hcd: HCDDeviceFunctions) {
+    init?(device: Device, bus: USBBus, hcd: HCDDeviceFunctions) {
         self.hcd = hcd
         super.init(device: device, bus: bus, speed: .fullSpeed)
-        device.deviceName = "root-hub"
+        self.address = 1
+        device.deviceName = "root-hub.\(bus.busId).\(address)"
     }
 
-    override func sendControlRequest(request: USB.ControlRequest) -> Bool {
-        return hcd.sendControlRequest(request)
-    }
 
-    override func sendControlRequestReadData(request: USB.ControlRequest) -> [UInt8]? {
-        return hcd.sendControlRequestReadData(request)
+    override func sendControlRequestReadData(request: USB.ControlRequest, into buffer: MMIOSubRegion? = nil) -> Bool {
+        let requestBuffer = controlPipe.allocateBuffer(length: MemoryLayout<USB.ControlRequest>.size)
+        requestBuffer.storeBytes(of: request, as: USB.ControlRequest.self)
+        defer { controlPipe.freeBuffer(requestBuffer) }
+
+        let urb = USB.Request(
+            usbDevice: self,
+            transferType: .control,
+            direction: request.direction,
+            pipe: controlPipe,
+            completionHandler: { (urb, response) in
+                return // Root HUB URBs are processed synchronously
+            },
+            setupRequest: requestBuffer,
+            buffer: buffer,
+            bytesToTransfer: Int(request.wLength)
+        )
+
+        let response = hcd.processURB(urb)
+        urb.completionHandler(urb, response)
+        return true
     }
 }

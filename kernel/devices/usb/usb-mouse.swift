@@ -16,20 +16,28 @@ final class MouseHID: HID {
     override func readNextEvent() -> HIDEvent? {
         return mouse.readNextEvent()
     }
+
+    override func flushInput() {
+        mouse.flushInput()
+    }
 }
 
 
 final class USBMouse: USBDeviceDriver {
     private let interface: USB.InterfaceDescriptor
     private var intrPipe: USBPipe?
+    private var physBuffer: MMIOSubRegion?
     private var prevEvent = MouseEvent()
-    private var buffer: [HIDEvent] = []
-    private var data: InlineArray<4, UInt8> = .init(repeating: 0)
+    private var eventBuffer = CircularBuffer<HIDEvent?>(item: nil, capacity: 32)
 
-    init?(usbDevice: USBDevice, interface: USB.InterfaceDescriptor) {
+
+    init?(device: Device, usbDevice: USBDevice, interface: USB.InterfaceDescriptor) {
         #kprint("USB-HID: Creating USBMouse")
         self.interface = interface
-        super.init(driverName: "usb-mouse", usbDevice: usbDevice)
+        super.init(driverName: "usb-mouse", usbDevice: usbDevice, device: device)
+        if let parent = device.parent {
+            self.device.deviceName = parent.deviceName + ".\(interface.bInterfaceNumber)"
+        }
     }
 
     override func initialise() -> Bool {
@@ -40,12 +48,13 @@ final class USBMouse: USBDeviceDriver {
             return false
         }
         // Create a pipe for the interrupt endpoint and add it to the active queues
-        guard let _intrPipe = usbDevice.bus.allocatePipe(usbDevice, intrEndpoint) else {
+        guard let _intrPipe = usbDevice.bus.allocatePipe(intrEndpoint) else {
             #kprint("Cannot allocate Interupt pipe")
             return false
         }
 
         self.intrPipe = _intrPipe
+        physBuffer = _intrPipe.allocateBuffer(length: Int(intrEndpoint.maxPacketSize))
 
         let idleRequest = USBHIDDriver.setIdleRequest(for: interface, idleMs: 0)
         #kprint("USB-MOU: setIdle to 0")
@@ -54,40 +63,80 @@ final class USBMouse: USBDeviceDriver {
             return false
         }
 
+        let urb = USB.Request(
+            usbDevice: self.usbDevice,
+            transferType: .interrupt,
+            direction: .deviceToHost,
+            pipe: _intrPipe,
+            completionHandler: irqHandler,
+            setupRequest: nil,
+            buffer: physBuffer,
+            bytesToTransfer: Int(intrEndpoint.maxPacketSize)
+        )
+        usbDevice.bus.submitURB(urb)
         return true
+    }
+
+    deinit {
+        if let intrPipe, let physBuffer  {
+            intrPipe.freeBuffer(physBuffer)
+        }
     }
 
     func hid() -> HID {
         return MouseHID(mouse: self)
     }
 
+    func flushInput() {
+        eventBuffer.clear()
+    }
 
     func readNextEvent() -> HIDEvent? {
-        if buffer.isEmpty {
-            var dataSpan = data.mutableSpan
+        // Now poll the interrupt to look for keypresses
 
-        // Now poll the interrupt to look for mouse changes
-            sleep(milliseconds: 10)
-            guard let intrPipe, intrPipe.pollInterruptPipe(into: &dataSpan) == 4 else {
-                return nil
-            }
-            guard let event = MouseEvent(data: dataSpan) else {
-                #kprint("usb-mouse, no event")
-                return nil
-            }
-            event.events(fromPrev: prevEvent, into: &buffer)
-            prevEvent = event
+        if let event = eventBuffer.remove() {
+            return event
         }
-        if buffer.count > 0 {
-            return buffer.removeFirst()
-        }
+        sleep(milliseconds: 10)
         return nil
+    }
+
+    private func irqHandler(_ request: USB.Request, response: USB.Response) {
+
+        if let physBuffer, let event = MouseEvent(data: physBuffer) {
+
+            if event.leftButton != prevEvent.leftButton {
+                eventBuffer.add(event.leftButton ? .buttonDown(.BUTTON_1) : .buttonUp(.BUTTON_1))
+            }
+
+            if event.middleButton != prevEvent.middleButton {
+                eventBuffer.add(event.middleButton ? .buttonDown(.BUTTON_2) : .buttonUp(.BUTTON_2))
+            }
+
+            if event.rightButton != prevEvent.rightButton {
+                eventBuffer.add(event.rightButton ? .buttonDown(.BUTTON_3) : .buttonUp(.BUTTON_3))
+            }
+
+            if event.xMovement != 0 {
+                eventBuffer.add(.xAxisMovement(Int16(event.xMovement)))
+            }
+            if event.yMovement != 0 {
+                eventBuffer.add(.yAxisMovement(Int16(event.yMovement)))
+            }
+            prevEvent = event
+
+        } else {
+            #kprint("usb-mouse, no event")
+        }
+
+        // Resubmit the IRQ
+        usbDevice.bus.submitURB(request)
     }
 }
 
 extension USBMouse {
     // Mouse Interface
-    fileprivate struct MouseEvent: CustomStringConvertible {
+    fileprivate struct MouseEvent {
         let buttons: BitArray8
         let xMovement: Int8
         let yMovement: Int8
@@ -97,9 +146,6 @@ extension USBMouse {
         var rightButton: Bool { buttons[2] == 1 }
         var movement: Bool { xMovement != 0 || yMovement != 0 }
 
-        var description: String {
-            return "X: \(xMovement)\tY: \(yMovement)\t" + (leftButton ? "left " : "") + (middleButton ? "middle " : "") + (rightButton ? "right" : "")
-        }
 
         init() {
             buttons = BitArray8(0)
@@ -107,7 +153,7 @@ extension USBMouse {
             yMovement = 0
         }
 
-        init?(data: borrowing MutableSpan<UInt8>) {
+        init?(data: MMIOSubRegion) {
             guard data.count >= 3 else {
                 #kprint("USB-Mouse, not enough data: \(data.count)")
                 return nil
@@ -115,27 +161,6 @@ extension USBMouse {
             buttons = BitArray8(data[0])
             xMovement = Int8(bitPattern: data[1])
             yMovement = Int8(bitPattern: data[2])
-        }
-
-        func events(fromPrev prev: MouseEvent, into events: inout [HIDEvent]) {
-            if leftButton != prev.leftButton {
-                events.append(leftButton ? .buttonDown(.BUTTON_1) : .buttonUp(.BUTTON_1))
-            }
-
-            if middleButton != prev.middleButton {
-                events.append(middleButton ? .buttonDown(.BUTTON_2) : .buttonUp(.BUTTON_2))
-            }
-
-            if rightButton != prev.rightButton {
-                events.append(rightButton ? .buttonDown(.BUTTON_3) : .buttonUp(.BUTTON_3))
-            }
-
-            if xMovement != 0 {
-                events.append(.xAxisMovement(Int16(xMovement)))
-            }
-            if yMovement != 0 {
-                events.append(.yAxisMovement(Int16(yMovement)))
-            }
         }
     }
 }

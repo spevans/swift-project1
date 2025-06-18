@@ -27,6 +27,10 @@ class Mouse {
         return true
     }
 
+    func flushInput() {
+        hid.flushInput()
+    }
+
     func readMouse() {
         if let event = hid.readNextEvent() {
 

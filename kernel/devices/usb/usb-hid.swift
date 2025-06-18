@@ -94,10 +94,10 @@ final class USBHIDDriver {
                     #kprint("USB-HID: Device manager already has a keyboard!")
                 }
 
-                let device = Device(parent: usbDevice.device.parent)
-                device.setBusDevice(usbDevice)
-                if let usbKeyboard = USBKeyboard(usbDevice: usbDevice, interface: interface) {
-                    device.setDriver(usbKeyboard)
+                let newDevice = Device(parent: usbDevice.device)
+                newDevice.setBusDevice(usbDevice)
+                if let usbKeyboard = USBKeyboard(device: newDevice, usbDevice: usbDevice, interface: interface) {
+                    newDevice.setDriver(usbKeyboard)
                     if usbKeyboard.initialise() {
                         let keyboard = Keyboard(hid: usbKeyboard.hid())
                         #kprint("USB-HID Adding keyboard")
@@ -110,10 +110,10 @@ final class USBHIDDriver {
             case .mouse:
                 #kprint("USB-HID: Found mouse")
 
-                let device = Device(parent: usbDevice.device.parent)
-                device.setBusDevice(usbDevice)
-                if let usbMouse = USBMouse(usbDevice: usbDevice, interface: interface) {
-                    device.setDriver(usbMouse)
+                let newDevice = Device(parent: usbDevice.device)
+                newDevice.setBusDevice(usbDevice)
+                if let usbMouse = USBMouse(device: newDevice, usbDevice: usbDevice, interface: interface) {
+                    newDevice.setDriver(usbMouse)
                     if usbMouse.initialise() {
                         let mouse = Mouse(hid: usbMouse.hid())
                         #kprint("USB-HID Adding mouse")

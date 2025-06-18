@@ -225,6 +225,13 @@ extension USB {
             return UInt16(request.rawValue) << 8 | UInt16(requestType.rawValue)
         }
 
+        init?(from buffer: MMIOSubRegion) {
+            guard buffer.count == MemoryLayout<usb_control_request>.size else { return nil }
+            var temp = usb_control_request()
+            buffer.loadBytes(into: &temp)
+            self.request = temp
+        }
+
         private init(request: usb_control_request) {
             self.request = request
         }
