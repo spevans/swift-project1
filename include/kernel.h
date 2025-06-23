@@ -38,6 +38,7 @@ extern const void * _Nonnull _kernel_start;
 extern const void * _Nonnull _kernel_end;
 extern const void * _Nonnull _guard_page;
 extern const void * _Nonnull _stack_start;
+extern const void * _Nonnull _kernel_stack;
 extern const void * _Nonnull _ist1_stack_top;
 extern const void * _Nonnull initial_pml4;
 extern const void * _Nonnull physmap_pml3;

@@ -345,7 +345,6 @@ malloc(size_t size)
         if (size > (UINT32_MAX - sizeof(struct malloc_region))) {
                 koops("Trying to allocate %lu bytes!", size);
         }
-        uint64_t flags = local_irq_save();
         if (atomic_fetch_add(&malloc_lock, 1) != 0) {
                 koops("(malloc)malloc_lock != 0");
         }
@@ -388,7 +387,6 @@ malloc(size_t size)
         if (atomic_fetch_sub(&malloc_lock, 1) != 1) {
                 koops("(malloc)malloc_lock != 1");
         }
-        load_eflags(flags);
         return retval;
 }
 
@@ -423,7 +421,6 @@ free(void *ptr)
                 koops("free called in interrupt handler");
         }
 
-        uint64_t flags = local_irq_save();
         if (atomic_fetch_add(&malloc_lock, 1) != 0) {
                 koops("(free)malloc_lock != 0");
         }
@@ -465,7 +462,6 @@ free(void *ptr)
         if (atomic_fetch_sub(&malloc_lock, 1) != 1) {
                 koops("(free)malloc_lock != 1");
         }
-        load_eflags(flags);
 }
 
 
@@ -481,7 +477,6 @@ malloc_usable_size(void * _Nullable ptr)
                 return 0;
         }
 
-        uint64_t flags = local_irq_save();
         if (atomic_fetch_add(&malloc_lock, 1) != 0) {
                 koops("(usable_size)malloc_lock != 0");
         }
@@ -501,7 +496,6 @@ malloc_usable_size(void * _Nullable ptr)
                 koops("(usable_size)malloc_lock != 1");
         }
 
-        load_eflags(flags);
         return retval;
 }
 

@@ -276,6 +276,7 @@ final class HPET: PNPDeviceDriver {
         setConfigFor(timer: 0, config: timer0)
 
         // Set comparator value for requested period
+        setComparatorValueFor(timer: 0, value: comparatorValue + mainCounterRegister)
         setComparatorValueFor(timer: 0, value: comparatorValue)
         // Enable the main counter
         overallEnable = true

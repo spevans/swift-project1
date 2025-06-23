@@ -42,11 +42,11 @@ final class InterruptHandler: Equatable, Hashable, CustomStringConvertible {
     }
 }
 
+fileprivate var irqHandlers: InlineArray<256, (IRQSetting, Set<InterruptHandler>)?> = .init(repeating: nil)
 
 public struct InterruptManager: ~Copyable {
 
     private(set) var localAPIC = APIC()
-    fileprivate var irqHandlers: [(IRQSetting, Set<InterruptHandler>)?] = Array(repeating: nil, count: NR_IRQS)
     private var ioapics: [IOAPIC] = []
     private var overrideEntries: [MADT.InterruptSourceOverrideTable] = []
 
@@ -251,18 +251,18 @@ public struct InterruptManager: ~Copyable {
 // (include/x86defs.h:exception_regs) as the error_code.
 @_silgen_name("irqHandler")
 public func irqHandler(registers: ExceptionRegisters,
-                       interruptManager: inout InterruptManager) {
+                       interruptManager: borrowing InterruptManager) {
 
-    let irq = Int(registers.pointee.error_code)
+    let irq = Int(truncatingIfNeeded: registers.pointee.error_code)
     guard irq >= 0 && irq < NR_IRQS else {
-        #kprintf("\nInvalid interrupt: %x\n", UInt(irq))
+        #kprintf("\nInvalid interrupt: %d\n", irq)
         return
     }
     let c = read_int_nest_count()
     if c > 1 {
         #kprintf("\nint_nest_count: %d\n", c)
     }
-    if let irqHandler = interruptManager.irqHandlers[irq] {
+    if let irqHandler = irqHandlers[irq] {
         let interruptHandlers = irqHandler.1
         var acked = false
         for interruptHandler in interruptHandlers {

@@ -75,6 +75,8 @@ fileprivate func mainLoop() {
     system.deviceManager.enableIRQs()
     system.deviceManager.initialiseDevices()
 
+    let now = current_ticks()
+    #kprintf("Total boot time: %d.%2ds\n", now / 1000, now % 1000)
     addTask(name: "KeyboardInput", task: keyboardInput)
 
     // Idle, woken up by interrupts

@@ -141,6 +141,14 @@ func setupMM(bootParams: BootParams) {
     // eg initial page maps, or EFI memory.
 }
 
+public func printStackUsage(_ msg: String = "") {
+    let bottomOfStack = VirtualAddress(bitPattern: &_stack_start)
+    let topOfStack = VirtualAddress(bitPattern: &_kernel_stack)
+    let size = topOfStack - bottomOfStack
+    let sp = getRSP()
+    let usage = topOfStack - VirtualAddress(sp)
+    #kprintf("STACK: %s start: %p - %p size: 0x%8.8x SP: %p usage: 0x%x\n", msg, bottomOfStack, topOfStack, size, sp, usage)
+}
 
 private func setupKernelMap(bootParams: BootParams) {
     let addr = VirtualAddress(KERNEL_VIRTUAL_BASE)
@@ -184,7 +192,6 @@ private func setupKernelMap(bootParams: BootParams) {
     let dataSize = pageSize.roundToNextPage(guardPage - dataStart)
     let stackHeapSize = bssEnd - VirtualAddress(bitPattern: &_stack_start)
 
-
     // Add 4 mappings for text, rodata, data + bss and the stack
     // with appropiate protections. There is a guard page between
     // BSS and stack that isnt mapped.
@@ -194,6 +201,7 @@ private func setupKernelMap(bootParams: BootParams) {
         kernelStart, kernelStart + textSize - 1,
         rodataStart, rodataStart + rodataSize - 1,
         dataStart, dataStart + dataSize - 1)
+    #kprintf("MM: stack:  %p - %p\n", stackStart, stackStart + stackHeapSize - 1)
 
     func addKMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
         readWrite: Bool, noExec: Bool) {

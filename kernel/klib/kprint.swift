@@ -58,27 +58,30 @@ func _kprint(_ firstItem: StaticString, _ items: String..., separator: String = 
     _tty.write(terminator)
 }
 
+private func _show_kprintf_error(_ error: PrintfError, forFormat format: StaticString) {
+    let msg = switch error {
+        case .invalidNumber: "Invalid Number"
+        case .invalidString: "Invalid String"
+        case .invalidCharacter: "Invalid Character"
+        case .expectedUnsigned: "Expected an unsigned value"
+        case .expectedNumber: "Expected a number"
+        case .expectedString: "Expected a string"
+        case .expectedCharacter: "Expected a Character"
+        case .insufficientFormatChars: "Insufficient Format Characters"
+        case .insufficientArguments: "Insufficient Arguments"
+        case .invalidFormatChar(let ch): "Invalid Format Character: \(ch)"
+        case .missingArgument: "Missing Argument"
+        case .excessArguments: "Excess Arguments"
+    }
+    #kprintf("sprintf: Error with format string '%s': %s\n", format, msg)
+}
 
 @inline(never)
 func _kprintf(_ format: StaticString, _ arg: _PrintfArg) {
     do {
         try _printf(to: &_tty, format: format, arg, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
     } catch {
-        let msg = switch error {
-            case .invalidNumber: "Invalid Number"
-            case .invalidString: "Invalid String"
-            case .invalidCharacter: "Invalid Character"
-            case .expectedUnsigned: "Expected an unsigned value"
-            case .expectedNumber: "Expected a number"
-            case .expectedString: "Expected a string"
-            case .expectedCharacter: "Expected a Character"
-            case .insufficientFormatChars: "Insufficient Format Characters"
-            case .insufficientArguments: "Insufficient Arguments"
-            case .invalidFormatChar(let ch): "Invalid Format Character: \(ch)"
-            case .missingArgument: "Missing Argument"
-            case .excessArguments: "Excess Arguments"
-        }
-        #kprintf("sprintf: Error with format string '%s': %s\n", format, msg)
+        _show_kprintf_error(error, forFormat: format)
     }
 }
 
@@ -89,7 +92,7 @@ func _kprintf(_ format: StaticString, _ arg0: _PrintfArg, _ arg1: _PrintfArg? = 
     do {
         try _printf(to: &_tty, format: format, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
     } catch {
-        fatalError("Error")
+        _show_kprintf_error(error, forFormat: format)
     }
 }
 
@@ -115,6 +118,6 @@ func _serialPrintf(_ format: StaticString, _ arg0: _PrintfArg, _ arg1: _PrintfAr
     do {
         try _printf(to: &_serial, format: format, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
     } catch {
-        fatalError("Error")
+        _show_kprintf_error(error, forFormat: format)
     }
 }
