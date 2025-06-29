@@ -15,8 +15,8 @@
 
 #ifndef __X86_FUNCS_H__
 #define __X86_FUNCS_H__
-#ifndef TEST
 #include "x86defs.h"
+#ifndef TEST
 #include "vmx.h"
 
 

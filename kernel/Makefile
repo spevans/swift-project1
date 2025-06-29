@@ -5,7 +5,7 @@ GITVER := $(shell git rev-parse HEAD)
 
 SWIFT_MODULE := SwiftKernel
 SWIFT_OBJS := SwiftKernel.o
-SWIFT_SRCS := $(shell find `pwd` -name '*.swift' | grep -v version.swift) init/version.swift
+SWIFT_SRCS := $(shell find `pwd` -name '*.swift' | egrep -v 'version.swift|/teststub/') init/version.swift
 
 KSWIFTC_FLAGS := -gnone -O -Xcc -mno-red-zone -Xcc -mcmodel=kernel				\
 	-Xcc -Wall -Xcc -Wextra -Xcc -std=gnu11	-Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2	\
@@ -19,16 +19,16 @@ KSWIFTC_FLAGS := -gnone -O -Xcc -mno-red-zone -Xcc -mcmodel=kernel				\
 all: kernel.o
 
 
-init/main.o: init/main.asm
-init/bss.o: init/bss.c
-traps/entry.o: traps/entry.asm
-vm/vmentry.o: vm/vmentry.asm
+arch/x86_64/main.o: arch/x86_64/main.asm
+arch/x86_64/bss.o: arch/x86_64/bss.c
+arch/x86_64/entry.o: arch/x86_64/entry.asm
+arch/x86_64/vmentry.o: arch/x86_64/vmentry.asm
 devices/timer.o: devices/timer.asm
 
-init/init.o: init/main.o init/bss.o
+init/init.o: arch/x86_64/main.o arch/x86_64/bss.o
 	$(LD) -r -z noexecstack -o $@ $^
 
-KERNEL_OBJS := init/init.o traps/entry.o vm/vmentry.o devices/timer.o SwiftKernel.o
+KERNEL_OBJS := init/init.o arch/x86_64/entry.o arch/x86_64/vmentry.o devices/timer.o SwiftKernel.o
 HEADERS = $(TOPDIR)/include/*.h
 
 init/version.swift: ../.git/index

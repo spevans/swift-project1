@@ -74,7 +74,7 @@ public func yield() -> Int {
     return 0
 }
 
-
+#if !TEST
 final class Task: CustomStringConvertible {
     let name: String
     let stackPage: PhysPageAlignedRegion
@@ -140,3 +140,4 @@ final class Task: CustomStringConvertible {
         rsp -= 1
     }
 }
+#endif
