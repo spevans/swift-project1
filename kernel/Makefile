@@ -36,13 +36,13 @@ init/version.swift: ../.git/index
 	echo 'let gitBuildVersion: StaticString = "$(GITVER)"' > init/version.swift
 
 kernel.o: $(KERNEL_OBJS)
-	$(LD) -r -z noexecstack -o $@ $(KERNEL_OBJS) $(KSWIFTLIBDIR)/libswiftUnicodeDataTables.a
+	$(LD) -r -z noexecstack -o $@ $(KERNEL_OBJS) $(SWIFTLIBDIR)/libswiftUnicodeDataTables.a
 
 SwiftKernel.o: $(SWIFT_SRCS) $(HEADERS)
 	# swiftc doesnt always seem to update the timestamp after building the delete the output file to be
 	# sure that a new file is created
 	rm -f $@
-	$(KSWIFTC) $(KSWIFTC_FLAGS) -whole-module-optimization -module-name $(SWIFT_MODULE) -emit-object -o $@ $(SWIFT_SRCS)
+	$(SWIFTC) $(KSWIFTC_FLAGS) -whole-module-optimization -module-name $(SWIFT_MODULE) -emit-object -o $@ $(SWIFT_SRCS)
 
 clean:
 	find . -name '*.bin' -o -name '*.o' |xargs rm

@@ -14,14 +14,14 @@ all: iso
 iso: output/boot-cd.iso
 
 macros:
-	cd macros/Printf && swift build -c release
+	cd macros/Printf && $(SWIFT) build -c release
 
 output/kernel.elf: macros $(ALL_SOURCES)
 	mkdir -p $(MODULE_DIR) output
 	$(RUNNER) make -C klibc
 	$(RUNNER) make -C kernel
 	# initial link must be via ELF to produce a GOT
-	$(LD) --no-demangle -static -Tlinker.script -Map=output/kernel.map -z max-page-size=0x1000 -o output/kernel.elf $(KERNEL_OBJS) $(KSWIFTLIBS) $(EXTRA_LIBS)
+	$(LD) --no-demangle -static -Tlinker.script -Map=output/kernel.map -z max-page-size=0x1000 -o output/kernel.elf $(KERNEL_OBJS) $(SWIFTLIBS) $(EXTRA_LIBS)
 
 
 output/kernel.dmp: output/kernel.elf
