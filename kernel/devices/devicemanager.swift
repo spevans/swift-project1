@@ -133,9 +133,6 @@ final class DeviceManager {
         } else {
             #kprint("Error: Cant Find ROOT PCI Bus")
         }
-
-        tty.scrollTimingTest()
-        dumpDeviceTree()
     }
 
 

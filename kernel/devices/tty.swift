@@ -320,16 +320,8 @@ enum TTY: ~Copyable {
 
 
     func scrollTimingTest() {
-/** FIXME: DISABLED for now due to SILgen error compiling this
-        let earlyTicks = benchmark(earlyTTY.scrollUp)
-        let swiftTicks = benchmark(tty.scrollUp)
-        let ratio = swiftTicks / earlyTicks
-        #kprint("tty: EarlyTTY.scrollUp():", earlyTicks)
-        #kprint("tty: TTY.scrollUp():", swiftTicks)
-        #kprint("tty: Ratio: ", ratio)
-**/
+        framebufferTTY.speedTests()
     }
-
 }
 
 
@@ -432,6 +424,7 @@ private struct TextTTY {
         screen = UnsafeMutableBufferPointer(start: screenBase, count: totalChars)
     }
 
+    @inline(never)
     func printChar(_ character: CUnsignedChar, x: TextCoord, y: TextCoord) {
         guard x < charsPerLine && y < totalLines else {
             return
@@ -501,8 +494,8 @@ private struct Font: CustomStringConvertible {
     let width:  UInt32
     let height: UInt32
     let data: UnsafePointer<UInt8>
-    let bytesPerFontLine: UInt32
-    let bytesPerChar: UInt32
+    let bytesPerFontLine: Int
+    let bytesPerChar: Int
 
     var fontData: UnsafeBufferPointer<UInt8> {
         let size = Int(width) * Int(height)
@@ -526,13 +519,13 @@ private struct Font: CustomStringConvertible {
         self.width = width
         self.height = height
         self.data = data
-        self.bytesPerFontLine = ((width + 7) / 8)
-        self.bytesPerChar = bytesPerFontLine * height
+        self.bytesPerFontLine = Int((width + 7) / 8)
+        self.bytesPerChar = bytesPerFontLine * Int(height)
     }
 
-
-    func characterData(_ ch: CUnsignedChar) -> UnsafeBufferPointer<UInt8> {
-        let offset = Int(ch) * Int(bytesPerChar)
+    @inline(__always)
+    func characterData(_ ch: Int) -> UnsafeBufferPointer<UInt8> {
+        let offset = ch &* bytesPerChar
         return UnsafeBufferPointer(start: data.advanced(by: offset),
             count: Int(bytesPerChar))
     }
@@ -544,26 +537,33 @@ private let _font = Font(
     width: 8, height: 16, data: UnsafePointer<UInt8>(bitPattern: UInt(bitPattern: &fontdata_8x16))!
 )
 
+
 private struct FrameBufferTTY {
     private var font = Font()
     private var screen = UnsafeMutableBufferPointer<UInt8>(
         start: UnsafeMutablePointer<UInt8>(bitPattern: 0x1)!, count: 0
     )
-    private var bytesPerChar: Int = 0
-    private var depthInBytes: Int = 0
-    private var bytesPerTextLine: Int = 0
-    private var lastLineScrollArea: Int = 0
+    private var bytesPerChar = 0
+    private var depthInBytes = 0
+    private var bytesPerTextLine = 0
+    private var lastLineScrollArea = 0
+    private var visibleBytesPerScanLine = 0
+    private var totalBytesPerScanLine = 0
+    private var fontBytesPerLineDepth = 0
 
     private let textRed: UInt8 = 0x2f
     private let textGreen: UInt8 = 0xff
     private let textBlue: UInt8 = 0x12
     private var colourMask: UInt32 = 0
-    private var frameBufferInfo =  FrameBufferInfo()
+    private let backgroundColour: UInt32 = 0x0000_0000
+    private let blankChar: UInt8 = 32   // Space character is used when clearing text
+    private var frameBufferInfo = FrameBufferInfo()
 
     private var _cursorX: TextCoord = 0
     private var _cursorY: TextCoord = 0
     private(set) var charsPerLine: TextCoord = 0
     private(set) var totalLines:   TextCoord = 0
+    private var textMemory: UnsafeMutableRawBufferPointer?
 
 
     var cursorX: TextCoord {
@@ -594,6 +594,11 @@ private struct FrameBufferTTY {
     init() {
     }
 
+    // FIXME: FrameBufferTTY should be ~Copyable but this currently has compiler errors
+//    deinit {
+//        textMemory?.deallocate()
+//    }
+
     mutating func setFrameBuffer(_ frameBufferInfo: FrameBufferInfo) {
         // TODO: Deinit the old settings?
         self.font = _font
@@ -601,10 +606,13 @@ private struct FrameBufferTTY {
         charsPerLine = TextCoord(frameBufferInfo.width / font.width)
         totalLines = TextCoord(frameBufferInfo.height / font.height)
         depthInBytes = Int(frameBufferInfo.depth) / 8
-        bytesPerChar = Int(font.bytesPerChar)
-        bytesPerTextLine = Int(frameBufferInfo.pxPerScanline) * Int(font.height)
-            * depthInBytes
+        bytesPerTextLine = Int(frameBufferInfo.pxPerScanline) * Int(font.height) * depthInBytes
         lastLineScrollArea = bytesPerTextLine * (Int(totalLines) - 1)
+
+        visibleBytesPerScanLine = Int(frameBufferInfo.width) * depthInBytes
+        totalBytesPerScanLine = Int(frameBufferInfo.pxPerScanline) * depthInBytes
+        fontBytesPerLineDepth = Int(font.width) * depthInBytes
+
         let size = Int(frameBufferInfo.pxPerScanline)
             * Int(frameBufferInfo.height) * depthInBytes
 
@@ -614,47 +622,261 @@ private struct FrameBufferTTY {
         screen = UnsafeMutableBufferPointer<UInt8>(start: screenBase,
             count: size)
         colourMask = computeColourMask()
+
+        textMemory = UnsafeMutableRawBufferPointer.allocate(byteCount: Int(charsPerLine * totalLines), alignment: 8)
+        textMemory?.initializeMemory(as: UInt8.self, repeating: blankChar)
     }
 
 
-    func printChar(_ ch: CUnsignedChar, x: TextCoord, y: TextCoord) {
+    @inline(never)
+    mutating func printChar(_ ch: CUnsignedChar, x: TextCoord, y: TextCoord) {
         guard x < charsPerLine && y < totalLines else {
             return
         }
-        let data = font.characterData(ch)
-        var pixel = Int(UInt32(y) * font.height * frameBufferInfo.pxPerScanline)
-            + Int(UInt32(x) * font.width)
-        pixel *= depthInBytes
 
-        for line in 0..<font.height {
-            let offset = Int(line * font.bytesPerFontLine)
-            let screenByte = screen.baseAddress!.advanced(by: pixel)
-            let screenLine = UnsafeMutableBufferPointer(start: screenByte,
-                count: 8 * depthInBytes)
+        // Update textMemory buffer
+        let textAddress = Int(y * charsPerLine + x)
+        textMemory?[textAddress] = ch
 
-            writeFontLine(data: data, mask: colourMask, offset: offset,
-                screenLine: screenLine)
-            pixel += Int(frameBufferInfo.pxPerScanline) * depthInBytes
-        }
-    }
+        let ch = Int(ch)
+        var pixelOffset: Int = (Int(y) &* bytesPerTextLine) &+ (Int(x) &* fontBytesPerLineDepth)
 
-
-    func clearScreen() {
-        for i in 0..<screen.count {
-            screen[i] = 0
-        }
-    }
-
-
-    func scrollUp() {
+        var fontByteOffset = 0
         let screenBase = screen.baseAddress!
-        screenBase.update(from: screenBase.advanced(by: bytesPerTextLine),
-            count: lastLineScrollArea)
+        var count = font.height
 
-        // Clear the bottom line
-        for i in 0..<bytesPerTextLine {
-            screen[lastLineScrollArea + i] = 0
+        let data = font.characterData(ch).span
+        let base = UnsafeMutableRawPointer(bitPattern: screenBase.address)!
+        while count > 0 {
+            let screenLine = base.advanced(by: pixelOffset)
+            let charByte = data[unchecked: fontByteOffset]
+            switch depthInBytes {
+                case 4: writeFontLine4(charByte, screenLine)
+                case 3: writeFontLine3(charByte, screenLine)
+                case 2: writeFontLine2(charByte, screenLine)
+                case 1: writeFontLine1(charByte, screenLine)
+                default: break
+            }
+            fontByteOffset &+= font.bytesPerFontLine
+            pixelOffset &+= totalBytesPerScanLine
+            count &-= 1
         }
+    }
+
+
+    // Write a line for a bitmap font to a line on the screen, 1 function for each supported depth
+    private func writeFontLine4(_ fontLineByte: UInt8, _ screenLine: UnsafeMutableRawPointer) {
+
+        var screenByte = 0
+        var bit = 0
+        while bit < 8 {
+            let colour1 = fontLineByte.bit(7 - bit) ? colourMask : backgroundColour
+            let colour2 = fontLineByte.bit(6 - bit) ? colourMask : backgroundColour
+            let qword = UInt64(colour2) << 32 | UInt64(colour1)
+            screenLine.storeBytes(of: qword, toByteOffset: screenByte, as: UInt64.self)
+            screenByte &+= 8
+            bit &+= 2
+        }
+    }
+
+
+    private func writeFontLine3(_ fontLineByte: UInt8, _ screenLine: UnsafeMutableRawPointer) {
+
+        var screenByte = 0
+        for bit in 0...7 {
+            let colour = fontLineByte.bit(7 - bit) ? colourMask : backgroundColour
+            screenLine.storeBytes(of: UInt16(truncatingIfNeeded: colour), toByteOffset: screenByte, as: UInt16.self)
+            screenLine.storeBytes(of: UInt8(truncatingIfNeeded: colour >> 16), toByteOffset: screenByte &+ 2, as: UInt8.self)
+            screenByte &+= 3
+        }
+    }
+
+
+    private func writeFontLine2(_ fontLineByte: UInt8, _ screenLine: UnsafeMutableRawPointer) {
+
+        var screenByte = 0
+        for bit in 0...7 {
+            let colour = fontLineByte.bit(7 - bit) ? colourMask : backgroundColour
+            screenLine.storeBytes(of: UInt16(truncatingIfNeeded: colour), toByteOffset: screenByte, as: UInt16.self)
+            screenByte &+= 2
+        }
+    }
+
+    private func writeFontLine1(_ fontLineByte: UInt8, _ screenLine: UnsafeMutableRawPointer) {
+
+        var screenByte = 0
+        for bit in 0...7 {
+            let colour = fontLineByte.bit(7 - bit) ? colourMask : backgroundColour
+            screenLine.storeBytes(of: UInt8(truncatingIfNeeded: colour), toByteOffset: screenByte, as: UInt8.self)
+            screenByte &+= 1
+        }
+    }
+
+
+    // Clear the screen by memsetting the frame buffer then clearing the textMemory
+    mutating func clearScreen() {
+        let blankData = UInt64(backgroundColour) << 32 | UInt64(backgroundColour)
+        if visibleBytesPerScanLine == totalBytesPerScanLine {
+            let totalBytes = Int(totalBytesPerScanLine) * Int(frameBufferInfo.height)
+            // Just memset the whole screen as there is no extra memory at the end of each scanline
+            inline_memset8(screen.baseAddress!, blankData, totalBytes / 8, totalBytes % 8)
+        } else {
+            let qwordsPerLine = visibleBytesPerScanLine / 8
+            let extraBytes = visibleBytesPerScanLine % 8
+            var offset = 0
+            let increment = Int(frameBufferInfo.pxPerScanline) * depthInBytes
+            for _ in 1...frameBufferInfo.height {
+                inline_memset8(screen.baseAddress!.advanced(by: offset), blankData, qwordsPerLine, extraBytes)
+                offset &+= increment
+            }
+        }
+        cursorX = 0
+        cursorY = 0
+        guard let textMemory else { return }
+        textMemory.initializeMemory(as: UInt8.self, repeating: blankChar)
+    }
+
+
+    mutating func clearScreen2() {
+        guard let textMemory else { return }
+        textMemory.initializeMemory(as: UInt8.self, repeating: blankChar)
+        var textOffset = 0
+        for y in 0..<totalLines {
+            for x in 0..<charsPerLine {
+                printChar(textMemory[textOffset], x: x, y: y)
+                textOffset &+= 1
+            }
+        }
+    }
+
+    mutating func scrollUp() {
+        scrollUpTxt()
+    }
+
+    private mutating func scrollUpTxt() {
+        guard let textMemory else { return }
+        var textOffset = 0
+        for y in 0..<totalLines {
+            for x in 0..<charsPerLine {
+                let ch = textMemory[textOffset &+ Int(charsPerLine)]
+                textMemory[textOffset] = ch
+                printChar(ch, x: x, y: y)
+                textOffset &+= 1
+            }
+        }
+        // Clear the bottom row
+        for x in 0..<charsPerLine {
+            textMemory[textOffset] = blankChar
+            printChar(blankChar, x: x, y: totalLines &- 1)
+            textOffset &+= 1
+        }
+    }
+
+
+    private func scrollUpFB() {
+        let blankData = UInt64(backgroundColour) << 32 | UInt64(backgroundColour)
+        if visibleBytesPerScanLine == totalBytesPerScanLine {
+            // memcpy the whole screen - bottom row up
+            let destination = screen.baseAddress!
+            let source = destination.advanced(by: bytesPerTextLine)
+            let totalBytes = lastLineScrollArea
+            inline_memcpy8(destination, source, totalBytes / 8, totalBytes % 8)
+            // Clear the bottom row
+            inline_memset8(destination.advanced(by: lastLineScrollArea), blankData, bytesPerTextLine / 8, bytesPerTextLine % 8)
+        } else {
+            // Memcpy
+            let destination = screen.baseAddress!
+            let bytesPerLine = Int(frameBufferInfo.pxPerScanline) * depthInBytes
+            let source = destination.advanced(by: bytesPerLine * Int(font.height))
+            let qwordsPerLine = visibleBytesPerScanLine / 8
+            let extraBytes = visibleBytesPerScanLine % 8
+            var offset = 0
+            for _ in 1...(frameBufferInfo.height - font.height) {
+                inline_memcpy8(destination.advanced(by: offset), source.advanced(by: offset), qwordsPerLine, extraBytes)
+                offset &+= bytesPerLine
+            }
+            for _ in 1...font.height {
+                inline_memset8(destination.advanced(by: offset), blankData, qwordsPerLine, extraBytes)
+                offset &+= bytesPerLine
+            }
+        }
+    }
+
+
+    private struct Timings {
+        let fullscreenCharTicks: UInt64
+        let oneLineCharTicks: UInt64
+        let oneCharTicks: UInt64
+    }
+
+
+    private mutating func doTimings() -> Timings {
+        let fullscreenCharTicks = benchmark {
+            var char: CUnsignedChar = 0
+            for y in 0..<totalLines {
+                for x in 0..<charsPerLine {
+                    printChar(char, x: x, y: y)
+                    char &+= 1
+                }
+            }
+        }
+
+        let oneLineCharTicks = benchmark {
+            for x in 0..<charsPerLine {
+                printChar(UInt8(ascii: "X"), x: x, y: 30)
+            }
+        }
+
+        let oneCharTicks = benchmark {
+            printChar(UInt8(ascii: "A"), x: 10, y: 31)
+        }
+        return Timings(fullscreenCharTicks: fullscreenCharTicks, oneLineCharTicks: oneLineCharTicks, oneCharTicks: oneCharTicks)
+    }
+
+
+    private func printTimings(name: String, timings: Timings) {
+        let totalChars = UInt64(charsPerLine) * UInt64(totalLines)
+
+        #kprint("\nTimings for", name)
+        #kprintf("print one character:         %u\n", timings.oneCharTicks)
+        #kprintf("print one line:              %u\tperChar: %u\n", timings.oneLineCharTicks,
+                 timings.oneLineCharTicks / UInt64(charsPerLine))
+        #kprintf("print whole screen:          %u\tperLine: %u\tperChar: %u\n", timings.fullscreenCharTicks,
+                 timings.fullscreenCharTicks / UInt64(totalLines), timings.fullscreenCharTicks / totalChars)
+    }
+
+
+    mutating func speedTests() {
+
+        let writeFontLineTimings = doTimings()
+
+        let clearScreenTicks = benchmark {
+            clearScreen()
+        }
+        let clearScreen2Ticks = benchmark {
+            clearScreen2()
+        }
+
+        let totalChars = UInt64(charsPerLine) * UInt64(totalLines)
+
+        let earlyScrollUpTicks = benchmark(earlyTTY.scrollUp)
+        let scrollUpFBTicks = benchmark(framebufferTTY.scrollUpFB)
+        let scrollUpTxtTicks = benchmark({ framebufferTTY.scrollUpTxt() })
+
+        clearScreen()
+        #kprintf("\n\nFramebufferInfo: Address: %p Size: 0x%x\n", frameBufferInfo.address, frameBufferInfo.size)
+        #kprintf("FramebufferInfo: width: %u height: %u pxPerScanLine: %u depth: %u\n",
+                 frameBufferInfo.width, frameBufferInfo.height, frameBufferInfo.pxPerScanline, frameBufferInfo.depth)
+        #kprintf("Columns: %d Lines: %d totalChars: %d bytesPerPixel: %d\n",
+                charsPerLine, totalLines, totalChars, depthInBytes)
+
+        printTimings(name: "writeFontLine", timings: writeFontLineTimings)
+
+        #kprintf("clearScreen:                 %u\n", clearScreenTicks)
+        #kprintf("clearScreen2:                %u\n", clearScreen2Ticks)
+        #kprintf("tty: EarlyTTY.scrollUp():    %u\n", earlyScrollUpTicks)
+        #kprintf("tty: scrollUpFB():           %u\n", scrollUpFBTicks)
+        #kprintf("tty: scrollUpTxt():          %u\n", scrollUpTxtTicks)
     }
 
 
@@ -664,27 +886,6 @@ private struct FrameBufferTTY {
         mask |= UInt32(textBlue & frameBufferInfo.blueMask) << UInt32(frameBufferInfo.blueShift)
 
         return mask
-    }
-
-
-    func writeFontLine(data: UnsafeBufferPointer<UInt8>, mask: UInt32,
-        offset: Int, screenLine: UnsafeMutableBufferPointer<UInt8>) {
-
-        var screenByte = 0
-        for i in stride(from: 7, through: 0, by: -1) {
-            let m = UInt8(1 << i)
-            let bit = (data[offset] & m) != 0
-            for x in 0..<depthInBytes {
-                let shift = UInt32(x * 8)
-                if (bit) {
-                    let pixel = UInt8(truncatingIfNeeded: (mask >> shift))
-                    screenLine[screenByte] = pixel
-                } else {
-                    screenLine[screenByte] = 0
-                }
-                screenByte += 1
-            }
-        }
     }
 }
 

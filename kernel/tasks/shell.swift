@@ -204,7 +204,6 @@ private func hidInput(arguments: [String]) {
     }
 }
 
-
 private let commands: [String: ShellCommand] = [
     "help":     ShellCommand(helpCommand, "Show the available commands"),
     "echo":     ShellCommand(echoCommand, "echos the command arguments"),
@@ -226,6 +225,8 @@ private let commands: [String: ShellCommand] = [
     "vmxoff":   ShellCommand(vmxOffCommand, "Disable VMX"),
     "vmxtest":  ShellCommand(vmxTestCommand, "Test VMX"),
     "hidinput": ShellCommand(hidInput, "Test HID input"),
+    "ttytests": ShellCommand( {_ in tty.scrollTimingTest() }, "Test TTY speed"),
+    "cls"     : ShellCommand( { _ in tty.clearScreen() }, "Clear the screen"),
 ]
 
 

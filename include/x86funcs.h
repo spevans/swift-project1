@@ -359,6 +359,35 @@ trap(void)
         asm volatile ("ud2" :::);
 }
 
+
+static inline __attribute__((__always_inline__))
+void
+inline_memset8(void * _Nonnull dest, uint64_t data, size_t qword_count, size_t byte_count)
+{
+    int d0, d1, d2;
+     asm volatile("rep stosq\n\t"
+                  "movq %4, %%rcx\n\t"
+                  "rep stosb\n"
+                  : "=&c" (d0), "=&D" (d1), "=&a" (d2)
+                  : "0" (qword_count), "r" (byte_count), "1" (dest), "2" (data)
+                  : "memory");
+ }
+
+static inline __attribute__((__always_inline__))
+void
+inline_memcpy8(void * _Nonnull dest, void * _Nonnull src, size_t qword_count, size_t byte_count)
+{
+    int d0, d1, d2;
+    asm volatile("rep movsq\n\t"
+                 "movq %4, %%rcx\n\t"
+                 "rep movsb\n"
+                 : "=&c" (d0), "=&D" (d1), "=&S" (d2)
+                 : "0" (qword_count), "r" (byte_count), "1" (dest), "2" (src)
+                 : "memory");
+ }
+
+
+
 // kernel/klib/x86.asm functions
 void reload_segments(void);
 void test_breakpoint(void);

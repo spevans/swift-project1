@@ -64,9 +64,11 @@ final class System {
 
 
 func benchmark(_ function: () -> ()) -> UInt64 {
-    let t0 = rdtsc()
-    function()
-    return rdtsc() - t0
+    return noInterrupt {
+        let t0 = rdtsc()
+        function()
+        return rdtsc() - t0
+    }
 }
 
 
