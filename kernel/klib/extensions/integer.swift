@@ -99,6 +99,73 @@ extension FixedWidthInteger {
             self = (1 << bitCount) - 1
         }
     }
+
+    @inline(never)
+    init?(_ value: String) {
+        func valueOfCharacter(_ character: Character, _ base: Int) -> Int? {
+            guard let ch = character.asciiValue else { return nil }
+            let value: Int
+            if ch >= 0x30, ch <= 0x39 {
+                value  = Int(ch - 0x30)
+            } else if ch >= 97, ch <= 102 {
+                value = Int(ch - 0x61) + 10
+            } else {
+                return nil
+            }
+            return value < base ? value : nil
+        }
+        guard !value.isEmpty else {
+            return nil
+        }
+        let value = value.lowercased()
+        var base = 10
+        let negate: Bool
+        var index = value.startIndex
+        if value.first == "-" {
+            negate = true
+            index = value.index(index, offsetBy: 1)
+        } else {
+            negate = false
+        }
+
+        if !negate, value.count > 1, value.first == "0" {
+            index = value.index(index, offsetBy: 1)
+            switch value[index] {
+                case "x":
+                    base = 16
+                    index = value.index(index, offsetBy: 1)
+                case "b":
+                    base = 2
+                    index = value.index(index, offsetBy: 1)
+                default:
+                    break
+            }
+        }
+        var result: Self = 0
+        while index < value.endIndex {
+            let ch = value[index]
+            guard let digitValue = valueOfCharacter(ch, base) else {
+                return nil
+            }
+            let (partialValue1, overflow1) = result.multipliedReportingOverflow(by: Self(base))
+            if overflow1 {
+                return nil
+            }
+            result = partialValue1
+            let (partialValue2, overflow2) = result.addingReportingOverflow(Self(digitValue))
+            if overflow2 {
+                return nil
+            }
+            result = partialValue2
+            index = value.index(index, offsetBy: 1)
+        }
+        if negate {
+            let (partialValue, overflow) = result.multipliedReportingOverflow(by: -1)
+            if overflow { return nil }
+            result = partialValue
+        }
+        self = result
+    }
 }
 
 

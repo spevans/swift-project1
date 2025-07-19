@@ -130,4 +130,8 @@ class KlibTests: XCTestCase {
         testAllocatorOfSize(maxElements: 64)
         testAllocatorOfSize(maxElements: 1024)
     }
+
+    func testStringToValue() {
+        XCTAssertEqual(UInt32("0x99000000"), 0x9000000)
+    }
 }
