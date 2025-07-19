@@ -36,6 +36,10 @@ final class Keyboard {
                     case .KEY_LEFT_CTRL: leftCtrl = true
                     case .KEY_LEFT_SHIFT: leftShift = true
                     case .KEY_RIGHT_SHIFT: rightShift = true
+                    case .KEY_LEFT_ARROW: return UnicodeScalar(2)   // CTRL-B readline move back
+                    case .KEY_RIGHT_ARROW: return UnicodeScalar(6)  // CTRL-F readline move forward
+                    case .KEY_UP_ARROW: return UnicodeScalar(16)    // CTRL-P readline previous line
+                    case .KEY_DOWN_ARROW: return UnicodeScalar(14)  // CTRL-N readline next line
                     default:
                         if leftCtrl {
                             return ctrlMap[key]
@@ -203,7 +207,7 @@ final class Keyboard {
         .KEY_V: UnicodeScalar(22),
         .KEY_W: UnicodeScalar(23),
         .KEY_X: UnicodeScalar(24),
-        .KEY_Y: UnicodeScalar(26),
+        .KEY_Y: UnicodeScalar(25),
         .KEY_Z: UnicodeScalar(26),
     ]
 }

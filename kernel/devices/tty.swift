@@ -90,6 +90,7 @@ private var earlyTTY = EarlyTTY()
 private var textTTY = TextTTY()
 private var framebufferTTY = FrameBufferTTY()
 private(set)var tty = TTY.early
+private var history: [String] = []
 
 
 // This is called to remap the text screen or framebuffer after new page maps have been
@@ -228,94 +229,138 @@ enum TTY: ~Copyable {
 
 
     mutating func readLine(prompt: String, keyboard: Keyboard) -> String {
-        var cmdString: [CChar] = []
-        var clipboard: [CChar] = []
+        var currentLine = ""
+        currentLine.reserveCapacity(64)
 
         #kprintf("%s", prompt)
         var initialCursorX = cursorX
         var initialCursorY = cursorY
-        var idx = 0 // index in current string
-        var line: String?
+        var idx = currentLine.startIndex // index in current string
+        var clipboard = currentLine[..<idx]
+        var historyIndex = history.endIndex
 
-        while line == nil {
-            while let char = keyboard.readKeyboard() {
-                var clearSpaces = 0
-                if !char.isASCII {
-                    continue
-                }
-                let ch = CChar(truncatingIfNeeded: char.value)
+        while true {
+            guard let us = keyboard.readKeyboard() else {
+                continue
+            }
+            let character = Character(us)
+            guard let asciiValue = character.asciiValue else {
+                continue
+            }
+            var clearSpaces = 0
+            switch asciiValue {
+                case 1: // ctrl-a Start of line
+                    idx = currentLine.startIndex
 
-                if ch == 1 { // ctrl-a
-                    idx = 0
-                }
-                else if ch == 2 { // ctrl-b
-                    if idx > 0 {
-                        idx -= 1
+                case 2: // ctrl-b Left arrow
+                    if idx > currentLine.startIndex {
+                        idx = currentLine.index(before: idx)
                     }
-                }
-                else if ch == 5 { // ctrl-e
-                    idx = cmdString.count
-                }
-                else if ch == 6 { // ctrl-f
-                    if idx < cmdString.count {
-                        idx += 1
-                    }
-                }
 
-                else if ch == 8 { // ctrl-h DEL
-                    if idx > 0 {
-                        idx -= 1
-                        cmdString.remove(at: idx)
+                case 4: // ctrl-d Delete character at cursor
+                    if idx < currentLine.endIndex {
+                        currentLine.remove(at: idx)
+                        if idx > currentLine.endIndex {
+                            idx = currentLine.endIndex
+                        }
                         clearSpaces = 1
                     }
-                }
-                else if ch == 10 || ch == 13 { // ctrl-j, ctrl-m NL, CR
-                    cmdString.append(0)
-                    line = cmdString.withUnsafeBufferPointer {
-                        return String(validatingCString: $0.baseAddress!)
+
+                case 5: // ctrl-e End of line
+                    idx = currentLine.endIndex
+
+                case 6: // ctrl-f Right Arrow
+                    if idx < currentLine.endIndex {
+                        idx = currentLine.index(after: idx)
                     }
-                    if line == nil {
-                        #kprint("\nCant convert to a String");
-                        line = ""
+
+                case 8: // ctrl-h DEL
+                    if idx > currentLine.startIndex {
+                        idx = currentLine.index(before: idx)
+                        currentLine.remove(at: idx)
+                        clearSpaces = 1
                     }
-                    cmdString.removeLast()
-                    cmdString.append(10)
-                } else if ch == 11 { // ctrl-k cut to clipboard
-                    if idx < cmdString.count {
-                        let r = idx..<cmdString.count
-                        clipboard = Array(cmdString[r])
-                        cmdString.removeSubrange(r)
+
+                case 10, 13:    // ctrl-j, ctrl-m NL, CR
+                    printChar(10)
+                    if history.last != currentLine {
+                        history.append(currentLine)
+                    }
+                    return currentLine
+
+
+                case 11: // ctrl-k cut to clipboard
+                    if idx < currentLine.endIndex {
+                        let r = idx..<currentLine.endIndex
+                        clipboard = currentLine[r]
+                        currentLine.removeSubrange(r)
                         clearSpaces = clipboard.count
                     }
-                } else if ch == 25 { // ctrl-y yank back
-                    cmdString.insert(contentsOf: clipboard, at: idx)
-                    idx += clipboard.count
-                } else if ch == 12 { // ctrl-l
+
+                case 12: // ctrl-l
                     clearScreen()
                     #kprintf("%s", prompt)
                     initialCursorX = cursorX
                     initialCursorY = cursorY
-                }
 
-                else if ch >= 32 {
-                    cmdString.insert(ch, at: idx)
-                    idx += 1
-                }
-                // Draw the current string
-                cursorX = initialCursorX
-                cursorY = initialCursorY
+                case 14: // ctrl-n, next line in history
+                    if historyIndex < history.endIndex - 1 {
+                        historyIndex = history.index(after: historyIndex)
+                        clearSpaces = max(currentLine.count, history[historyIndex].count) - currentLine.count
+                        currentLine = history[historyIndex]
+                        idx = currentLine.endIndex
+                        initialCursorX = TextCoord(prompt.count)
+                    }
 
-                cmdString.forEach {
-                    printChar($0)
-                }
-                while clearSpaces > 0 {
-                    printChar(32)
-                    clearSpaces -= 1
+                case 16: // ctrl-p, previous line in history
+                    if historyIndex > history.startIndex {
+                        historyIndex = history.index(before: historyIndex)
+                        clearSpaces = max(currentLine.count, history[historyIndex].count) - history[historyIndex].count
+                        currentLine = history[historyIndex]
+                        idx = currentLine.endIndex
+                        initialCursorX = TextCoord(prompt.count)
+                    }
+
+                case 23: // ctrl-w delete word backwards
+                    guard !currentLine.isEmpty else {
+                        continue
+                    }
+                    // Search backwards to find a non-space, then keep search until a space in front of it is found
+                    while idx > currentLine.startIndex, currentLine[currentLine.index(before: idx)].isWhitespace {
+                        idx = currentLine.index(before: idx)
+                        clearSpaces += 1
+                    }
+                    while idx > currentLine.startIndex, !currentLine[currentLine.index(before: idx)].isWhitespace {
+                        idx = currentLine.index(before: idx)
+                        clearSpaces += 1
+                    }
+                    currentLine.removeSubrange(idx..<currentLine.endIndex)
+
+                case 25: // ctrl-y yank back
+                    currentLine.insert(contentsOf: clipboard, at: idx)
+                    idx = currentLine.endIndex
+
+                case 32...:
+                    currentLine.insert(character, at: idx)
+                    idx = currentLine.index(after: idx)
+
+                default:
+                    continue
+            }
+            // Draw the current string
+            cursorX = initialCursorX
+            cursorY = initialCursorY
+
+            for ch in currentLine {
+                if let ch = ch.asciiValue {
+                    printChar(CChar(ch))
                 }
             }
+            while clearSpaces > 0 {
+                printChar(32)
+                clearSpaces -= 1
+            }
         }
-
-        return line!
     }
 
 
