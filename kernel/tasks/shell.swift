@@ -204,6 +204,23 @@ private func hidInput(arguments: [String]) {
     }
 }
 
+private func deviceDebug(arguments: [String]) {
+    guard let deviceName = arguments.first else {
+        #kprint("Error: Missing device name")
+        return
+    }
+    guard let device = system.deviceManager.getDeviceByName(deviceName) else {
+        #kprintf("Failed to find device '%s'\n", deviceName)
+        return
+    }
+    guard let driver = device.deviceDriver else {
+        #kprintf("Device '%s' has no device driver\n", deviceName)
+        return
+    }
+    driver.debug(arguments: Array(arguments[1...]))
+}
+
+
 private let commands: [String: ShellCommand] = [
     "help":     ShellCommand(helpCommand, "Show the available commands"),
     "echo":     ShellCommand(echoCommand, "echos the command arguments"),
@@ -227,6 +244,9 @@ private let commands: [String: ShellCommand] = [
     "hidinput": ShellCommand(hidInput, "Test HID input"),
     "ttytests": ShellCommand( {_ in tty.scrollTimingTest() }, "Test TTY speed"),
     "cls"     : ShellCommand( { _ in tty.clearScreen() }, "Clear the screen"),
+    "device":   ShellCommand(deviceDebug, "Debug Device"),
+    "i915":     ShellCommand(testi915, "Test an i915 display"),
+    "memory":   ShellCommand( { _ in system.showMemoryRanges() }, "Show memory ranges"),
 ]
 
 

@@ -122,10 +122,30 @@ func remapTTY(_ frameBufferInfo: FrameBufferInfo?) {
     }
 }
 
+func setTTYDriver(_ driver: TTY.Driver) {
+    tty = .driver(driver)
+}
+
 enum TTY: ~Copyable {
+
+    struct Driver {
+        let charsPerLine: TextCoord
+        let totalLines: TextCoord
+        let printChar: (_ ch: CUnsignedChar, _ x: TextCoord, _ y: TextCoord) -> ()
+        let clearScreen: () -> ()
+        let scrollUp: () -> ()
+        let getCursorX: () -> TextCoord
+        let getCursorY: () -> TextCoord
+        let setCursorX: (_ x: TextCoord) -> ()
+        let setCursorY: (_ x: TextCoord) -> ()
+        let doTimings: () -> TTY.Timings
+    }
+
+
     case none
     case text
     case framebuffer
+    case driver(TTY.Driver)
 
     // The cursorX and cursorY and managed by early_tty.c so they
     // can be kept in sync
@@ -135,6 +155,7 @@ enum TTY: ~Copyable {
                 case .none: return 0
                 case .text: return textTTY.cursorX
                 case .framebuffer: return framebufferTTY.cursorX
+                case .driver(let driver): return driver.getCursorX()
             }
         }
         set {
@@ -142,6 +163,7 @@ enum TTY: ~Copyable {
                 case .none: break
                 case .text: textTTY.cursorX = newValue
                 case .framebuffer: framebufferTTY.cursorX = newValue
+                case .driver(let driver): return driver.setCursorX(newValue)
             }
         }
     }
@@ -153,6 +175,7 @@ enum TTY: ~Copyable {
                 case .none: return 0
                 case .text: return textTTY.cursorY
                 case .framebuffer: return framebufferTTY.cursorY
+                case .driver(let driver): return driver.getCursorY()
             }
         }
         set {
@@ -160,6 +183,7 @@ enum TTY: ~Copyable {
                 case .none: break
                 case .text: textTTY.cursorY = newValue
                 case .framebuffer: framebufferTTY.cursorY = newValue
+                case .driver(let driver): return driver.setCursorY(newValue)
             }
         }
     }
@@ -176,6 +200,10 @@ enum TTY: ~Copyable {
                 framebufferTTY.clearScreen()
                 framebufferTTY.cursorX = 0
                 framebufferTTY.cursorY = 0
+            case .driver(let driver):
+                driver.clearScreen()
+                driver.setCursorX(0)
+                driver.setCursorY(0)
         }
     }
 
@@ -188,6 +216,8 @@ enum TTY: ~Copyable {
                 textTTY.scrollUp()
             case .framebuffer:
                 framebufferTTY.scrollUp()
+            case .driver(let driver):
+                driver.scrollUp()
         }
     }
 
@@ -199,6 +229,8 @@ enum TTY: ~Copyable {
                 textTTY.printChar(character, x: x, y: y)
             case .framebuffer:
                 framebufferTTY.printChar(character, x: x, y: y)
+            case .driver(let driver):
+                driver.printChar(character, x, y)
         }
     }
 
@@ -207,6 +239,7 @@ enum TTY: ~Copyable {
             case .none: 0
             case .text: textTTY.charsPerLine
             case .framebuffer: framebufferTTY.charsPerLine
+            case .driver(let driver): driver.charsPerLine
         }
     }
 
@@ -215,6 +248,7 @@ enum TTY: ~Copyable {
             case .none: 0
             case .text: textTTY.totalLines
             case .framebuffer: framebufferTTY.totalLines
+            case .driver(let driver): driver.totalLines
         }
     }
 
@@ -436,6 +470,12 @@ enum TTY: ~Copyable {
                 let timings = framebufferTTY.doTimings()
                 clearScreen()
                 timings.printTimings(name: "FrameBufferTTY", timings: timings)
+
+            case .driver(let driver):
+                let timings = driver.doTimings()
+                clearScreen()
+                timings.printTimings(name: "DriverTTY", timings: timings)
+
         }
     }
 }

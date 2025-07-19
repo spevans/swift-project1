@@ -60,6 +60,12 @@ final class System {
         addTask(name: "IRQ Queue runner", task: mainLoop)
         run_first_task() // This jumps straight into mainLoop
     }
+
+    func showMemoryRanges() {
+        for range in bootParams.memoryRanges {
+            #kprint(range)
+        }
+    }
 }
 
 
@@ -73,7 +79,7 @@ func benchmark(_ function: () -> ()) -> UInt64 {
 
 
 fileprivate func mainLoop() {
-    #kprint("Runing mainLoop, enabling IRQs")
+    #kprint("TASK: mainLoop task started")
     system.deviceManager.enableIRQs()
     system.deviceManager.initialiseDevices()
 
@@ -92,6 +98,7 @@ fileprivate func keyboardInput() {
     // Try reading from the keyboard otherwise just pause forever
     // (used for testing on macbook where there is no PS/2 keyboard)
 
+    #kprint("TASK: keyboardInput task started")
     commandShell()
     #kprint("commandShell exited")
     if system.deviceManager.keyboard == nil {

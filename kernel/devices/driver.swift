@@ -24,6 +24,10 @@ class DeviceDriver: CustomStringConvertible {
     func info() -> String {
         return "Invalid device driver"
     }
+
+    func debug(arguments: [String]) {
+        #kprintf("Device: %s does not support debug commands\n", device.description)
+    }
 }
 
 

@@ -143,7 +143,7 @@ func hexDump<C: RandomAccessCollection>(buffer: C, offset: UInt = 0) where C.Ele
             }
          //   #kprintf("%8.8X: ", UInt(idx) + offset)
         }
-       // #kprintf("%2.2x ", buffer[idx])
+        #kprintf("%2.2x ", buffer[idx])
         chars.append(byteAsChar(value: buffer[idx]))
     }
     let padding = 3 * (16 - chars.count)

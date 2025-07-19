@@ -47,6 +47,7 @@ let package = Package(
                           "devices/pic8259.swift",
                           "devices/device.swift",
                           "devices/tty",
+                          "devices/gpu",
                           "devices/pit8254.swift",
                           "devices/PNPDevice.swift",
                           "devices/qemufwcf.swift",

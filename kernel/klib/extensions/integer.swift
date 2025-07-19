@@ -14,12 +14,20 @@ extension UnsignedInteger {
     typealias DWord = UInt32
 
 
+    @inline(__always)
     func bit(_ bit: Int) -> Bool {
    //     precondition(bit >= 0 && bit < MemoryLayout<Self>.size * 8,
    //         "Bit must be in range 0-\(MemoryLayout<Self>.size * 8 - 1)")
         return self & (Self(1) << bit) != 0
     }
 
+    func bits(_ bits: ClosedRange<Int>) -> Int {
+        let value = Int(self >> bits.lowerBound)
+        let mask = 1 << (bits.upperBound - bits.lowerBound)
+        return value & (mask | (mask - 1))
+    }
+
+    @inline(__always)
     mutating func bit(_ bit: Int, _ newValue: Bool) {
         precondition(bit >= 0 && bit < MemoryLayout<Self>.size * 8,
             "Bit must be in range 0-\(MemoryLayout<Self>.size * 8 - 1)")
