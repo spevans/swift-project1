@@ -17,7 +17,7 @@ ifeq ($(UNAME_S), Linux)
 	OBJCOPY=x86_64-linux-gnu-objcopy
     PRINTF_MACROS := $(TOPDIR)/macros/Printf/.build/$(BUILD_ARCH)-unknown-linux-gnu/release/PrintfMacros-tool
  else
-    SWIFTDIR := ~/Library/Developer/Toolchains/swift-LOCAL-2025-07-01-a.xctoolchain/usr
+    SWIFTDIR := ~/Library/Developer/Toolchains/swift-LOCAL-2025-07-20-a.xctoolchain/usr
 	RUNNER= #docker run --platform linux/amd64  --rm -v $(CWD):$(CWD) -w $(CWD) -t  swift-kstdlib
 	CC=clang
 	LD=x86_64-elf-ld
