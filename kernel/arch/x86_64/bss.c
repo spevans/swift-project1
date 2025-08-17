@@ -19,7 +19,6 @@
 struct idt_entry idt[NR_INTERRUPTS] bss_page;
 // The dispatch table from the IDT stubs to the actual handlers
 void (*trap_dispatch_table[NR_TRAPS])(struct exception_regs *);
-void (*irq_dispatch_table[NR_IRQS])();
 
 #define PAGE_TABLE_SIZE 4096
 
@@ -30,8 +29,3 @@ uint8_t physmap_pml2[PAGE_TABLE_SIZE] bss_page;
 uint8_t kernmap_pml2[PAGE_TABLE_SIZE] bss_page;
 uint8_t physmap_pml1[PAGE_TABLE_SIZE][8] bss_page;
 uint8_t kernmap_pml1[PAGE_TABLE_SIZE][8] bss_page;
-
-
-#define EXPORT_SYMBOL_TO_SWIFT(x) const void *x##_addr = &x;
-
-EXPORT_SYMBOL_TO_SWIFT(irq_dispatch_table)

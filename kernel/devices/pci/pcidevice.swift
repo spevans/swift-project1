@@ -35,7 +35,6 @@ final class PCIDevice: BusDevice {
         // by the device driver?
         self.pciIORegions = self.decodeIORegions()
         self.device.enabled = true
-        #kprint("PCI: \(self) enabled")
         return true
     }
 
@@ -46,6 +45,17 @@ final class PCIDevice: BusDevice {
                 result += "\tBAR\(barIdx) \(pciIORegions[barIdx].description)\n"
             }
         }
+        if let msi = msiCapability() {
+            result += #sprintf("\tMSI Capability: request vectors: %d\n", msi.messageControl.requestVectors)
+        }
+        if let msix = msixCapability() {
+            result += #sprintf("\tMSI-X Capability: Table BAR: %d, tableOffset: 0x%x maxTableSize: %d PBA_BAR: %d PBA_Offset: 0x%x\n",
+                               msix.tableBAR, msix.tableOffset,
+                               msix.messageControl.tableSize,
+                               msix.pendingBitArrayBAR, msix.pendingBitArrayOffset
+            )
+        }
+
         return result
     }
 
@@ -81,9 +91,9 @@ final class PCIDevice: BusDevice {
     func findInterrupt() -> IRQSetting? {
         #kprint("PCI: Looking for interrupt for device: \(self)")
 
-        if let msixCapability = self.msixCapability() {
-            fatalError("TODO - implement MSI-X interrupts: \(msixCapability)")
-        }
+//        if let msixCapability = self.msixCapability() {
+//            fatalError("TODO - implement MSI-X interrupts: \(msixCapability)")
+ //       }
 
         if let msiCapability = self.msiCapability() {
             fatalError("TODO - implement MSI interrupts: \(msiCapability)")
@@ -145,6 +155,86 @@ final class PCIDevice: BusDevice {
     }
 
 
+    // Request MSI or MSI-X interrupts vectors, preferring MSI-X.
+    // Returns the count of vectors actually available which may be less than the number requested
+    // Vectors are contiguous.
+    func requestMSI(vectorStart: UInt8, requested: Int = 1) -> IRQSetting? {
+        guard requested > 0 else { return nil }
+
+        // APIC values
+        let messageAddress: UInt64 = 0xFEE0_0000   // 0xFEE, Destination ID = 0 RH=0 DM=0
+        let messageData: UInt32 = UInt32(vectorStart) // Delivery Mode: Fixed TriggerMode: Edge
+
+        let msi = msiCapability()
+
+        // Prefer MSI-X to MSI
+        if let msix = msixCapability() {
+            #kprint("msi: getting ioregion")
+            guard let msiIORegion = self.ioRegionFor(barIdx: UInt(msix.tableBAR)),
+                msiIORegion.bar.isMemory else {
+                #kprintf("PCI-MSI: Bar: %u is not a memory bar\n", msix.tableBAR)
+                return nil
+            }
+            let msiBar = msiIORegion.bar
+            let region = PhysRegion(start: PhysAddress(RawAddress(msiBar.baseAddress)),
+                                    size: UInt(msiIORegion.size))
+            let mmioRegion = mapIORegion(region: region, cacheType: .uncacheable)
+            #kprint("MSI region:", region)
+            let tableRegion = mmioRegion.mmioSubRegion(offset: Int(msix.tableOffset),
+                                                       count: msix.messageControl.tableSize)
+
+            #kprint("reading current msix entry")
+            let curEntry = PCICapability.MSIX.TableEntry(
+                dword0: tableRegion.read(fromByteOffset: 0x0),
+                dword1: tableRegion.read(fromByteOffset: 0x4),
+                dword2: tableRegion.read(fromByteOffset: 0x8),
+                dword3: tableRegion.read(fromByteOffset: 0xC),
+            )
+            #kprint("PCI-MSIX: Current MSIX table entry:", curEntry)
+
+            let entry = PCICapability.MSIX.TableEntry(
+                messageAddress: messageAddress, messageData: messageData, vectorControl: 0)
+            #kprint("PCI-MSIX: New MSIX table entry:", entry)
+
+            tableRegion.write(value: entry.dword0, toByteOffset: 0x0)
+            tableRegion.write(value: entry.dword1, toByteOffset: 0x4)
+            tableRegion.write(value: entry.dword2, toByteOffset: 0x8)
+            tableRegion.write(value: entry.dword3, toByteOffset: 0xC)
+
+            // Enable the MSI-X interrupts
+            msix.setMessageControl(enable: true, mask: false) 
+
+            return IRQSetting(irq: vectorStart - 40, activeHigh: true,
+                              levelTriggered: false, shared: false,
+                              wakeCapable: false)
+        } else if let msi = msi {
+            var available = 0
+            if requested < msi.messageControl.requestVectors {
+                // Round up to next power of 2
+                if requested.nonzeroBitCount != 1 {
+                    available = 1 << ((Int.bitWidth - 1) - (requested << 1).leadingZeroBitCount)
+                } else {
+                    available = requested
+                }
+            }
+
+            guard msi.setMessage(address: messageAddress, data: UInt16(messageData), vectorCount: available) else {
+                #kprintf("PCI-MSI: Failed to set MSI interrupt for %d vectors\n", available)
+                return nil
+            }
+
+            #kprintf("PCI-MSI: requested: %d available: %d\n", requested, available)
+            return IRQSetting(irq: vectorStart - 40, activeHigh: true,
+                              levelTriggered: false, shared: false,
+                              wakeCapable: false)
+        } else {
+            #kprint("PCI-MSI: No MSI or MSI-X available")
+            return nil
+        }
+    }
+
+
+
     private func decodeIORegions() -> [PCI_IO_Region] {
         let maxBarCount = deviceFunction.headerType == 0 ? 6 : 2
         var regions: [PCI_IO_Region] = []
@@ -152,7 +242,6 @@ final class PCIDevice: BusDevice {
         while barIdx < maxBarCount {
             if let region = decodeIORegion(barIdx) {
                 regions.append(region)
-                #kprint("PCI: BAR: \(barIdx) Region: base: ", asHex(region.baseAddress), "size: ", asHex(region.size), "IO: ", region.bar.isPort)
                 if region.bar.is64Bit {
                     // Skip next bar if current one consumed it
                     barIdx += 1
@@ -176,8 +265,10 @@ final class PCIDevice: BusDevice {
         }
 
         let bar = PCI_BAR(rawValue: deviceFunction.readConfigDword(atByteOffset: offset))
+        // Set the BAR to all ones then readback to find the size mask
         deviceFunction.writeConfigDword(atByteOffset: offset, value: UInt32.max)
         let barSize = deviceFunction.readConfigDword(atByteOffset: offset)
+        // Restore the original BAR
         deviceFunction.writeConfigDword(atByteOffset: offset, value: bar.rawValue)
 
         defer {
@@ -205,10 +296,11 @@ final class PCIDevice: BusDevice {
         var barSize64 = UInt64(barSize)
         if bar.is64Bit {
             let offset = offset + 4
+            // Save current BAR, set to all ones, read back the mask, then restore the original value
             let baseAddressUpper = deviceFunction.readConfigDword(atByteOffset: offset)
             deviceFunction.writeConfigDword(atByteOffset: offset, value: UInt32.max)
             let barSizeUpper = deviceFunction.readConfigDword(atByteOffset: offset)
-            deviceFunction.writeConfigDword(atByteOffset: offset, value: barSizeUpper)
+            deviceFunction.writeConfigDword(atByteOffset: offset, value: baseAddressUpper)
             baseAddress |= UInt64(baseAddressUpper) << 32
             barSize64 |= UInt64(barSizeUpper) << 32
 
@@ -247,11 +339,14 @@ struct PCI_IO_Region: CustomStringConvertible {
     let barIdx: UInt
     let bar: PCI_BAR
     let upperAddressBits: UInt32    // Used for 64bit addresses
+    // TODO: This should probably be UInt
     let size: UInt64                // must be power of 2
+    // TODO: thse address should probably be RawAddress or PhysAddress
     var baseAddress: UInt64 { UInt64(bar.baseAddress) | UInt64(upperAddressBits) << 32 }
 
     var description: String {
-        #sprintf("PCI_IO @ %p/%x", baseAddress, size)
+        #sprintf("PCI_IO @ %p/%x %dbit io: %s isValid: %s", baseAddress, size,
+                 bar.is64Bit ? 64 : 3, bar.isPort ? "port" : "memory", bar.isValid)
     }
 
     init(barIdx: UInt, bar: PCI_BAR, size: UInt32) {
@@ -266,5 +361,62 @@ struct PCI_IO_Region: CustomStringConvertible {
         self.bar = bar
         self.upperAddressBits = upperAddressBits
         self.size = size
+    }
+}
+
+struct PCIDeviceMatch {
+    let vendorDeviceId: (UInt32, UInt32)?
+    let function: UInt8?
+    let classCode: PCIClassCode?
+    let subClassCode: UInt8?
+    let programmingInterface: UInt8?
+
+    init(vendor: UInt32, deviceId: UInt32, function: UInt8? = nil) {
+        self.vendorDeviceId = (vendor, deviceId)
+        self.function = function
+        self.classCode = nil
+        self.subClassCode = nil
+        self.programmingInterface = nil
+    }
+
+    init(classCode: PCIClassCode, subClassCode: UInt8, programmingInterface: UInt8) {
+        self.vendorDeviceId = nil
+        self.function = nil
+        self.classCode = classCode
+        self.subClassCode = subClassCode
+        self.programmingInterface = programmingInterface
+    }
+
+    func matches(_ device: PCIDevice) -> Bool {
+        let deviceFunction = device.deviceFunction
+        if let vendorDeviceId = self.vendorDeviceId {
+            guard deviceFunction.vendor == vendorDeviceId.0,
+                  deviceFunction.deviceId == vendorDeviceId.1 else {
+                return false
+            }
+        }
+        if let function = self.function, deviceFunction.function != function {
+            return false
+        }
+
+        if let classCode = self.classCode?.rawValue, deviceFunction.classCode != classCode {
+            return false
+        }
+
+        if let subClassCode = self.subClassCode, deviceFunction.subClassCode != subClassCode {
+            return false
+        }
+
+        if let interface = self.programmingInterface, deviceFunction.progInterface != interface {
+            return false
+        }
+        return true
+    }
+
+    static func matches(_ matches: Span<PCIDeviceMatch>, device: PCIDevice) -> Bool {
+        for matchIdx in matches.indices {
+            if matches[matchIdx].matches(device) { return true }
+        }
+        return false
     }
 }

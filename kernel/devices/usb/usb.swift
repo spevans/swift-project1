@@ -67,9 +67,12 @@ final class USB {
         // So do the controllers in the order XHCI, EHCI, UHCI
         for progIf in [PCIUSBProgrammingInterface.xhci, .ehci, .uhci] {
             #kprint("Looking for progIf", progIf.description)
-            rootPCIBus.devicesMatching(classCode: .serialBusController,
-                                       subClassCode: PCISerialBusControllerSubClass.usb.rawValue,
-                                       progInterface: progIf.rawValue) { (pciDevice, deviceClass) in
+            let deviceMatch: InlineArray<1, _> = [
+                PCIDeviceMatch(classCode: .serialBusController,
+                               subClassCode: PCISerialBusControllerSubClass.usb.rawValue,
+                               programmingInterface: progIf.rawValue)
+            ]
+            rootPCIBus.devicesMatching(deviceMatch.span) { pciDevice in
                 #kprint("USB: Found a USB HCD", pciDevice, " progIf:", progIf)
                 guard !pciDevice.device.initialised else { return }
 

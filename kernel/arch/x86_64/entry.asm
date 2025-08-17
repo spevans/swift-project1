@@ -100,31 +100,19 @@ _run_handler:
         add     rsp, 8  ; pop error code
         iretq
 
+        ;; 24 IRQs
+%assign irq_num 0
+%rep    24
+        IRQ_STUB    irq_num
+%assign irq_num irq_num+1
+%endrep
 
-        IRQ_STUB        00
-        IRQ_STUB        01
-        IRQ_STUB        02
-        IRQ_STUB        03
-        IRQ_STUB        04
-        IRQ_STUB        05
-        IRQ_STUB        06
-        IRQ_STUB        07
-        IRQ_STUB        08
-        IRQ_STUB        09
-        IRQ_STUB        10
-        IRQ_STUB        11
-        IRQ_STUB        12
-        IRQ_STUB        13
-        IRQ_STUB        14
-        IRQ_STUB        15
-        IRQ_STUB        16
-        IRQ_STUB        17
-        IRQ_STUB        18
-        IRQ_STUB        19
-        IRQ_STUB        20
-        IRQ_STUB        21
-        IRQ_STUB        22
-        IRQ_STUB        23
+        ;; 64 MSI interrupts
+%assign msi_irq 24
+%rep    64
+        IRQ_STUB    msi_irq
+%assign msi_irq msi_irq + 1
+%endrep
 
         APIC_INT_STUB   0
         APIC_INT_STUB   1

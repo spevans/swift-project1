@@ -105,6 +105,7 @@ final class PCIBus: DeviceDriver {
         return true
     }
 
+    // FIXME: Can this be removed and rolled into the function below?
     // Find PCI Devices matching a specific classCode and optional subClassCode and progInterface
     func devicesMatching(classCode: PCIClassCode? = nil, subClassCode: UInt8? = nil, progInterface: UInt8? = nil, body: (PCIDevice, PCIDeviceClass) -> ()) {
         for device in devices {
@@ -124,6 +125,21 @@ final class PCIBus: DeviceDriver {
             }
             if let bus = device.deviceDriver as? PCIBus {
                 bus.devicesMatching(classCode: classCode, subClassCode: subClassCode, progInterface: progInterface, body: body)
+            }
+        }
+    }
+
+
+    func devicesMatching(_ deviceMatches: Span<PCIDeviceMatch>, body: (PCIDevice) -> ()) {
+        for device in self.devices {
+            guard let pciDevice = device.busDevice as? PCIDevice else { continue }
+            for matchIdx in deviceMatches.indices {
+                if deviceMatches[matchIdx].matches(pciDevice) {
+                    body(pciDevice)
+                }
+                if let bus = device.deviceDriver as? PCIBus {
+                    bus.devicesMatching(deviceMatches, body: body)
+                }
             }
         }
     }

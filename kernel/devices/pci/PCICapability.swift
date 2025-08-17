@@ -73,14 +73,25 @@ enum PCICapability {
 
     struct MSI {
         struct MessageControl {
-            private let bits: BitArray16
+            private var bits: BitArray16
+            var rawValue: UInt16 { bits.rawValue }
 
             init(bits: UInt16) {
                 self.bits = BitArray16(bits)
             }
 
-            var enabled: Bool { Bool(bits[0]) }
+            var enabled: Bool {
+                get { Bool(bits[0]) }
+                set { bits[0] = newValue ? 1 : 0 }
+            }
             var requestVectors: Int { 1 << bits[1...3] }
+            var multipleMessages: Int {
+                get { 1 << bits[4...6] }
+                set {
+                    bits[4...6] = UInt16(newValue)
+                }
+            }
+
             var is64Bit: Bool { Bool(bits[7]) }
             var vectorMaskingCapable: Bool { Bool(bits[8]) }
         }
@@ -88,6 +99,9 @@ enum PCICapability {
         private let _messageAddress: UInt64
         private let _maskBits: UInt32
         private let _pendingBits: UInt32
+        private let offset: UInt
+        private let deviceFunction: PCIDeviceFunction   // FIXME: dont store this, find a better API
+
         let messageControl: MessageControl
         let messageData: UInt16
 
@@ -102,6 +116,9 @@ enum PCICapability {
 
 
         init(offset: UInt, deviceFunction: PCIDeviceFunction) {
+            self.offset = offset
+            self.deviceFunction = deviceFunction
+
             var offset = offset + 2
             messageControl = MessageControl(bits: deviceFunction.readConfigWord(atByteOffset: offset))
             offset += 2
@@ -128,9 +145,81 @@ enum PCICapability {
                 _pendingBits = 0
             }
         }
+
+        func setMessage(address: UInt64, data: UInt16, vectorCount: Int) -> Bool {
+            if !messageControl.is64Bit, address > UInt32.max {
+                return false
+            }
+
+            // Get the log2 of Vector Count which must be a power of 2 upto 5 (32 vectors)
+            var log2 = 0
+            while (1 << log2) != vectorCount {
+                log2 += 1
+                if log2 > 5 { return false }
+            }
+
+            self.deviceFunction.writeConfigDword(atByteOffset: self.offset + 0x4, value: UInt32(truncatingIfNeeded: address))
+            if messageControl.is64Bit {
+                self.deviceFunction.writeConfigDword(atByteOffset: self.offset + 0x8, value: UInt32(truncatingIfNeeded: address >> 32))
+                self.deviceFunction.writeConfigWord(atByteOffset: self.offset + 0xc, value: data)
+            } else {
+                self.deviceFunction.writeConfigWord(atByteOffset: self.offset + 0x8, value: data)
+            }
+
+            var newMessageControl = messageControl
+            newMessageControl.enabled = true // Enable this MSI
+            newMessageControl.multipleMessages = log2
+            // Enable multiple messages
+            #kprintf("PCI-MSI: Setting MSI messageControl to 0x%4.4x\n", newMessageControl.rawValue)
+            self.deviceFunction.writeConfigWord(atByteOffset: self.offset + 2, value: newMessageControl.rawValue)
+
+            if messageControl.vectorMaskingCapable {
+                var maskBits = UInt32(0)
+                for idx in 0..<vectorCount {
+                    maskBits |= 1 << idx
+                }
+                #kprintf("PCI-MSI: Setting vector mask to 0x%8.8x\n", maskBits)
+                if messageControl.is64Bit {
+                    deviceFunction.writeConfigDword(atByteOffset: self.offset + 0x10, value: maskBits)
+                } else {
+                    deviceFunction.writeConfigDword(atByteOffset: self.offset + 0x0C, value: maskBits)
+                }
+            }
+
+            return true
+        }
     }
 
-    struct MSIX {
+    struct MSIX: CustomStringConvertible {
+        struct TableEntry: CustomStringConvertible {
+            let messageAddress: UInt64
+            let messageData: UInt32
+            let vectorControl: UInt32
+
+            var dword0: UInt32 { UInt32(truncatingIfNeeded: messageAddress) }
+            var dword1: UInt32 { UInt32(truncatingIfNeeded: messageAddress >> 32) }
+            var dword2: UInt32 { messageData }
+            var dword3: UInt32 { vectorControl }
+
+            var description: String {
+                #sprintf("msgAddr: %p data: 0x%8.8x vectorControl: 0x%8.8x mask: %s",
+                         messageAddress, messageData, vectorControl, vectorControl.bit(0))
+            }
+
+            init(dword0: UInt32, dword1: UInt32, dword2: UInt32, dword3: UInt32) {
+                messageAddress = UInt64(dword1) << 32 | UInt64(dword0)
+                messageData = dword2
+                vectorControl = dword3
+            }
+
+            init(messageAddress: UInt64, messageData: UInt32, vectorControl: UInt32) {
+                self.messageAddress = messageAddress
+                self.messageData = messageData
+                self.vectorControl = vectorControl
+            }
+        }
+
+
         struct MessageControl {
             private let bits: BitArray16
 
@@ -145,6 +234,8 @@ enum PCICapability {
 
         private let tableOffsetBIR: UInt32
         private let pbaOffsetBIR: UInt32
+        private let offset: UInt
+        private let deviceFunction: PCIDeviceFunction   // FIXME: dont store this, find a better API for updating bits.
         let messageControl: MessageControl
         var tableBAR: Int { Int(tableOffsetBIR & 0b111) }
         var tableOffset: UInt32 { tableOffsetBIR & ~0b111 }
@@ -153,9 +244,33 @@ enum PCICapability {
 
 
         init(offset: UInt, deviceFunction: PCIDeviceFunction) {
+            self.offset = offset
+            self.deviceFunction = deviceFunction
             messageControl = MessageControl(bits: deviceFunction.readConfigWord(atByteOffset: offset + 2))
             tableOffsetBIR = deviceFunction.readConfigDword(atByteOffset: offset + 4)
             pbaOffsetBIR = deviceFunction.readConfigDword(atByteOffset: offset + 8)
+        }
+
+        func setMessageControl(enable: Bool, mask: Bool) {
+            var word = deviceFunction.readConfigWord(atByteOffset: offset + 2)
+            if enable {
+                word |= 0x8000
+            } else {
+                word &= 0x7fff
+            }
+            if mask {
+                word |= 0x4000
+            } else {
+                word &= ~0x4000
+            }
+            deviceFunction.writeConfigWord(atByteOffset: offset + 2, value: word)
+        }
+
+        var description: String {
+            #sprintf("MSI-X: enabled: %s mask: %s  tabOffset: 0x%8.8x pbaOffset: %8.8x\n",
+                     messageControl.enabled,
+                     messageControl.functionMask,
+                     tableOffsetBIR, pbaOffsetBIR)
         }
     }
 }
@@ -176,11 +291,11 @@ extension PCIDeviceFunction {
             }
 
             let nextPtr = readConfigByte(atByteOffset: ptr + 1)
-            if nextPtr <= ptr {
-                #kprint("PCI: capabilities, nextPtr \(nextPtr) <= currentPtr \(ptr)")
-                break
-            }
-            #kprint("ID: \(asHex(id)), ptr: \(ptr) nextPTR: \(nextPtr)")
+//            if nextPtr <= ptr {
+//                #kprint("PCI: capabilities, nextPtr \(nextPtr) <= currentPtr \(ptr)")
+//                break
+//            }
+//              #kprint("ID: \(asHex(id)), ptr: \(ptr) nextPTR: \(nextPtr)")
             ptr = UInt(nextPtr)
         }
         return nil
