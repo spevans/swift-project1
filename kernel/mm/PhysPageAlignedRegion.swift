@@ -54,6 +54,10 @@ struct PhysPageAlignedRegion: Hashable, Sequence, CustomStringConvertible {
         self.pageCount = pageCount
     }
 
+    func clearRegion() {
+        self.rawBufferPointer.initializeMemory(as: UInt8.self, repeating: 0)
+    }
+
     var vaddr: VirtualAddress {
         return baseAddress.vaddr
     }

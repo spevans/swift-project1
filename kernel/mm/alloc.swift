@@ -71,7 +71,7 @@ func freePages(pages: PhysPageAlignedRegion) {
 }
 
 
-// FIXME, these needs to take a `pages` argument to allocate contiguous pages
+// FIXME, these needs to take a `count` argument to allocate contiguous pages
 func allocIOPage() -> PhysPageAlignedRegion {
     return alloc(pages: 1, fromList: &ioPagesListHead)
 }
@@ -179,11 +179,13 @@ private func alloc(pages: Int, fromList list: inout FreePageListEntryPtr?) -> Ph
             } else {
                 prev!.pointee.next = entry.next
             }
+            result.clearRegion()
             return result
         }
         if pageCount > pages {
             let (newRegion, result) = region.splitRegion(withFirstRegionCount: pageCount - pages)
             ptr.pointee.region = newRegion
+            result.clearRegion()
             return result
         }
         prev = ptr

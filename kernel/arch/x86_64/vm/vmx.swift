@@ -365,7 +365,6 @@ func testVMX() -> Result<VMXExit, VMXError> {
 
     // Allocate a page for the 'physical' RAM for the VM
     let vmMemory = alloc(pages: 1)
-    vmMemory.rawBufferPointer.initializeMemory(as: UInt8.self, repeating: 0)
     vmMemory.rawPointer.copyMemory(from: &realModeTestProgram,
                                    byteCount: realModeTestProgram.count)
     // Map this page into address space (currently shared with the kernel)

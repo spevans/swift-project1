@@ -11,7 +11,7 @@ struct PhysRegion: CustomStringConvertible {
     let size: UInt
 
     var description: String {
-        #sprintf("%p/%x", baseAddress, size)
+        #sprintf("%p/0x%x", baseAddress, size)
     }
 
     init(start: PhysAddress, size: UInt) {
