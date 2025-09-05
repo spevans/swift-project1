@@ -7,9 +7,11 @@
 *~
 \#*
 *.aml
+.swiftpm
 
 modules
 output
+output.*
 kernel/init/version.swift
 # Mac OS X filesystem metadata
 .DS_Store
@@ -23,6 +25,7 @@ project.xcworkspace
 
 Build
 DerivedData
+Package.resolved
 .build
 .configuration
 .arcconfig
