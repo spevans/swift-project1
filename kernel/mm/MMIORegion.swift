@@ -44,7 +44,9 @@ struct MMIORegion: CustomStringConvertible {
         let bytes = T.bitWidth / 8
 
         if offset + bytes > regionSize {
-            fatalError("MMIORegion.read: offset \(offset) + bytes \(bytes) > regionSize \(regionSize)")
+            #kprintf("MMIORegion.read: offset %d + bytes %d > regionSize %d\n",
+                     offset, bytes, regionSize)
+            fatalError()
         }
         precondition(offset + bytes <= regionSize)
         let address = (baseAddress + offset).rawPointer
@@ -64,7 +66,9 @@ struct MMIORegion: CustomStringConvertible {
     func write<T: FixedWidthInteger & UnsignedInteger>(value: T, toByteOffset offset: Int) {
         let bytes = T.bitWidth / 8
         if offset + bytes > regionSize {
-            fatalError("MMIORegion.read: offset \(offset) + bytes \(bytes) > regionSize \(regionSize)")
+            #kprintf("MMIORegion.read: offset %d + bytes %d > regionSize %d\n",
+                     offset, bytes, regionSize)
+            fatalError()
         }
         precondition(offset + bytes <= regionSize)
         let address = (baseAddress + offset).rawPointer

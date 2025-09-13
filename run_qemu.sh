@@ -29,6 +29,16 @@ do
         DEBUG="-s -S"
         ;;
 
+    --uhci-test)
+        # Test with a keyboard, hub and mouse
+        ARGS="$ARGS -usb -device usb-hub,bus=usb-bus.0,port=2 -device usb-kbd,bus=usb-bus.0,port=2.3 -device usb-mouse,bus=usb-bus.0,port=1"
+        ;;
+    --xhci-test)
+        # Test with a keyboard, hub and mouse
+        ARGS="$ARGS -device qemu-xhci,id=xhci -device usb-mouse,bus=xhci.0,port=1"
+        #ARGS="$ARGS -device qemu-xhci -device usb-mouse"
+        ;;
+
     *)
         ARGS="$ARGS $arg"
     esac

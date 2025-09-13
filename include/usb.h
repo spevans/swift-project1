@@ -10,6 +10,8 @@
 
 #include <stdint.h>
 
+#define USB_MAX_DEVICE 128
+
 struct usb_standard_device_descriptor {
     uint8_t bLength;
     uint8_t bDescriptorType;
