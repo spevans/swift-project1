@@ -9,6 +9,7 @@
 
 class DeviceDriver: CustomStringConvertible {
     let driverName: String
+    private(set) var instanceName = ""
     let device: Device
     var description: String { driverName }
 
@@ -22,11 +23,18 @@ class DeviceDriver: CustomStringConvertible {
     }
 
     func info() -> String {
-        return "Invalid device driver"
+        return "Driver does not override info() method."
     }
 
     func debug(arguments: [String]) {
         #kprintf("Device: %s does not support debug commands\n", device.description)
+    }
+
+    func setInstanceName(to newName: String) {
+        guard self.instanceName == "" else {
+            fatalError("instanceName alread set to \(self.instanceName)")
+        }
+        self.instanceName = newName
     }
 }
 

@@ -112,6 +112,9 @@ final class HPETTimer: Timer {
     }
 }
 
+// TODO: atomic
+private var hpetNumber = 1
+
 final class HPET: PNPDeviceDriver {
     private let hpet: HPETTable
     private var mmioRegion: MMIORegion = MMIORegion.invalidRegion()
@@ -126,6 +129,8 @@ final class HPET: PNPDeviceDriver {
         }
         self.hpet = _hpet
         super.init(driverName: "hpet", pnpDevice: pnpDevice)
+        self.setInstanceName(to: #sprintf("hpet%d", hpetNumber))
+        hpetNumber += 1
     }
 
     override func initialise() -> Bool {

@@ -25,10 +25,10 @@ final class ISABus: DeviceDriver {
         let device = pnpDevice.device
         #kprint("Initialising ISABus on PNP:", device)
         super.init(driverName: "isabus", device: device)
+        self.setInstanceName(to: "isa0")
     }
 
     override func initialise() -> Bool {
-        device.deviceName = "isa0"
         return true
     }
 }

@@ -71,9 +71,10 @@ final class HCD_UHCI: PCIDeviceDriver {
 
         ioBasePort = pciIOBar.portAddress
         allocator = UHCIAllocator()
-        uhciNumber += 1
         super.init(driverName: "uhci", pciDevice: pciDevice)
         device.setDriver(self)
+        self.setInstanceName(to: "uhci\(uhciNumber)")
+        uhciNumber += 1
     }
 
 
@@ -86,7 +87,6 @@ final class HCD_UHCI: PCIDeviceDriver {
             #kprintf("UHCI: %s: Failed to find interrupt\n", device.deviceName)
             return false
         }
-        device.deviceName = "uhci-hcd\(uhciNumber)"
         deviceFunction.interruptLine = UInt8(interrupt.irq)
 
         var pciCommand = deviceFunction.command

@@ -85,11 +85,11 @@ final class DeviceManager {
         guard isPCIHost == pnpDevice.isPCIHost else { return false }
         if let matchingId = matchingId, !pnpDevice.matchesId(matchingId) { return false }
         guard let driver = PNPDevice.initPnpDevice(pnpDevice) else { return false }
-        device.setDriver(driver)
         guard driver.initialise() else {
             #kprint("\(driver) initialisation failed")
             return false
         }
+        device.setDriver(driver)
         return true
     }
 
@@ -149,12 +149,13 @@ final class DeviceManager {
         let spaces = String(repeating: " ", count: depth * 6)
         for device in bus.devices {
             let busName = if let busdev = device.busDevice {
-                " busdev: " + busdev.description
+                " busdev: " + busdev.busDeviceName
             } else {
                 ""
             }
             let driverName = if let driver = device.deviceDriver {
-                " driver: " + driver.description
+                #sprintf(" driver: %s instance: %s",
+                         driver.driverName, driver.instanceName)
             } else {
                 ""
             }

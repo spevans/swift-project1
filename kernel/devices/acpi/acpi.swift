@@ -444,9 +444,9 @@ extension ACPI {
             let device = Device(parent: parentDevice, acpiDeviceConfig: config)
             node.setDevice(device)
             nameDeviceMap[name] = device
-            if let pnpName = config.pnpName {
-                _ = PNPDevice(device: device, pnpName: pnpName)
-            }
+            #if true
+            _ = PNPDevice(device: device, acpiDeviceConfig: config)
+            #endif
             return true
         }
         #kprint("ACPI: Found all devices")

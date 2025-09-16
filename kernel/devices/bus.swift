@@ -40,7 +40,6 @@ final class MasterBus: CustomStringConvertible {
 
     init(acpiSystemBus: ACPI.ACPIObjectNode) {
         self.device = Device(parent: nil)
-        device.deviceName = "MasterBus"
         self.acpiSystemBus = acpiSystemBus
     }
 }

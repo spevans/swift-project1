@@ -52,6 +52,7 @@ final class CMOSRTC: PNPDeviceDriver {
         }
         device.initialised = true
         system.deviceManager.rtc = self
+        self.setInstanceName(to: "cmos0")
         return true
     }
 

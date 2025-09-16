@@ -27,7 +27,10 @@ final class PCIDevice: BusDevice {
     init?(device: Device, deviceFunction: PCIDeviceFunction) {
         guard deviceFunction.vendor != 0xffff else { return nil } // Invalid device
         self.deviceFunction = deviceFunction
-        super.init(device: device)
+        let name = #sprintf("pci%2.2X:%2.2X.%u", deviceFunction.busId,
+                            deviceFunction.device,
+                            deviceFunction.function)
+        super.init(device: device, busDeviceName: name)
     }
 
     func initialise() -> Bool {

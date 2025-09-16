@@ -33,6 +33,7 @@ final class USBHubDriver: USBDeviceDriver {
     init?(usbDevice: USBDevice, interface: USB.InterfaceDescriptor? = nil) {
         self.responseBuffer = usbDevice.controlPipe.allocateBuffer(length: 32)
         super.init(driverName: "usb-hub", usbDevice: usbDevice)
+        self.setInstanceName(to: "usb-hub-\(usbDevice.bus.busId)-\(usbDevice.address)")
         device.setDriver(self)
     }
 

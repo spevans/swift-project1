@@ -41,8 +41,8 @@ class USBDevice: BusDevice {
             return nil
         }
         self.controlPipe = pipe
-        device.deviceName = "usbdev \(bus.busId).\(address)"
-        super.init(device: device)
+        super.init(device: device,
+                   busDeviceName: #sprintf("usbdev-%d.%u", self.bus.busId, self.address))
     }
 
 
@@ -89,13 +89,17 @@ class USBDevice: BusDevice {
         #kprintf("%s: Setting address to: %d\n", device.deviceName, newAddress)
         let request = USB.ControlRequest.setAddress(address: newAddress)
         if sendControlRequest(request: request) {
-            address = newAddress
-            device.deviceName = "usbdev \(bus.busId).\(address)"
+            self.updateAddress(newAddress)
             sleep(milliseconds: 10) // Device may require some time before address takes effect
             return true
         }
         #kprintf("%s: Failed to setAddress to %d\n", device.deviceName, newAddress)
         return false
+    }
+
+    func updateAddress(_ newAddress: UInt8) {
+        self.address = newAddress
+        self.busDeviceName = #sprintf("usbdev-%d.%u", self.bus.busId, self.address)
     }
 
 
@@ -189,7 +193,6 @@ final class HCDRootHub: USBDevice {
         self.hcd = hcd
         super.init(device: device, bus: bus, speed: .fullSpeed)
         self.address = 1
-        device.deviceName = "root-hub.\(bus.busId).\(address)"
     }
 
 

@@ -164,6 +164,7 @@ final class PIT8254: PNPDeviceDriver {
         let timer = PIT8254Timer(pit: self, irq: irq)
         system.deviceManager.timer = timer
         device.initialised = true
+        self.setInstanceName(to: "pit0")
         return true
     }
 

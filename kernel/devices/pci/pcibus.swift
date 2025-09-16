@@ -38,6 +38,7 @@ final class PCIBus: DeviceDriver {
             return nil
         }
         super.init(driverName: "pcibus", device: pnpDevice.device)
+        self.setInstanceName(to: "pcibus\(busId)")
         #kprint("PCIBus.init:", self.description)
     }
 
@@ -50,6 +51,7 @@ final class PCIBus: DeviceDriver {
         self.busId = pciDevice.deviceFunction.bridgeDevice!.secondaryBusId
         isHostBus = false
         super.init(driverName: "pcibus", device: pciDevice.device)
+        self.setInstanceName(to: "pcibus\(busId)")
     }
 
     // Non PCI Devices (eg ACPIDevice) may get added to this bus as it is in the ACPI device tree under a PCI bus
@@ -60,7 +62,6 @@ final class PCIBus: DeviceDriver {
     override func initialise() -> Bool {
         #kprint("PCIBus.initialiseDevice:", self)
 
-        device.deviceName = "pcibus" + busId.hex()
         // Find child nodes that are devices and build a map of _ADR to node
         var adrNodeMap: [AMLInteger : ACPI.ACPIObjectNode] = [:]
         if let childACPINodes = self.device.acpiDeviceConfig?.node.childNodes {
@@ -150,7 +151,6 @@ final class PCIBus: DeviceDriver {
             #kprint("PCI: Cant create PCI device for:", deviceFunction)
             return nil
         }
-        newDevice.deviceName = #sprintf("pcidev%2.2X:%2.2X/%u", deviceFunction.busId, deviceFunction.device, deviceFunction.function)
 
         if let busClass = deviceFunction.deviceClass?.bridgeSubClass {
             switch busClass {

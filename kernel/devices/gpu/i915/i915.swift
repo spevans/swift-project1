@@ -119,8 +119,8 @@ final class I915: PCIDeviceDriver {
                 #kprint("Failed to add i915 TTY driver")
             }
         }
-        device.deviceName = "i915"
         device.setDriver(self)
+        self.setInstanceName(to: "intel-gpu0")
     }
 
     override func initialise() -> Bool {

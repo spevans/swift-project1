@@ -35,6 +35,7 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
         }
         acpiConfig = _acpiConfig
         super.init(driverName: "pci-int-link", pnpDevice: pnpDevice)
+        self.setInstanceName(to: "pciint\(uidValue)")
     }
 
     // FIXME: Maybe select a better IRQ to use to balance them out better or make
@@ -69,7 +70,6 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
             #kprintf("%s: has no configured irq\n", f)
             return false
         }
-        device.deviceName = "pci-int-" + acpiConfig.node.name.value
         return true
     }
 

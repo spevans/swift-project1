@@ -275,6 +275,7 @@ final class KBD8042: PNPDeviceDriver {
         } else {
             #kprint("i8042: cant send POST")
         }
+        self.setInstanceName(to: "ps2kbd")
 
         // 5. Interface tests
         if let resp = sendCommandGetResponse(.SelfTest1stPort) {

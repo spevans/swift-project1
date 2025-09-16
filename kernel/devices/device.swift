@@ -8,9 +8,12 @@
 class BusDevice: CustomStringConvertible {
     var description: String { "Generic BusDevice" }
     let device: Device
+    var busDeviceName: String
 
-    init(device: Device) {
+    init(device: Device, busDeviceName: String) {
         self.device = device
+        self.busDeviceName = busDeviceName
+        device.setBusDevice(self)
     }
 
     func info() -> String {
@@ -18,7 +21,11 @@ class BusDevice: CustomStringConvertible {
     }
 }
 
-private var nextDeviceId = 1
+private var _nextDeviceId = 1
+private func nextDeviceId() -> Int {
+    return atomic_inc(&_nextDeviceId)
+}
+
 final class Device: CustomStringConvertible {
 
     let acpiDeviceConfig: ACPIDeviceConfig?
@@ -26,18 +33,18 @@ final class Device: CustomStringConvertible {
     private(set) var busDevice: BusDevice?
     /*unowned*/ let parent: Device?
     private(set) var devices: [Device] = []
+    let deviceName: String
     var enabled = false
     var initialised = false
+
     var isBus: Bool { devices.count > 0 }
-    var deviceName: String = "unnamed"
     var description: String { deviceName }
 
 
     init(parent: Device?, acpiDeviceConfig: ACPIDeviceConfig? = nil) {
         self.parent = parent
         self.acpiDeviceConfig = acpiDeviceConfig
-        self.deviceName = "dev\(nextDeviceId)"
-        nextDeviceId += 1
+        self.deviceName = "dev\(nextDeviceId())"
         parent?.devices.append(self)
     }
 

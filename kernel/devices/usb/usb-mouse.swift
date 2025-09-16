@@ -34,10 +34,7 @@ final class USBMouse: USBDeviceDriver {
     init?(device: Device, usbDevice: USBDevice, interface: USB.InterfaceDescriptor) {
         #kprint("USB-HID: Creating USBMouse")
         self.interface = interface
-        super.init(driverName: "usb-mouse", usbDevice: usbDevice, device: device)
-        if let parent = device.parent {
-            self.device.deviceName = parent.deviceName + ".\(interface.bInterfaceNumber)"
-        }
+        super.init(driverName: "usb-mouse", usbDevice: usbDevice)
     }
 
     override func initialise() -> Bool {
@@ -62,6 +59,7 @@ final class USBMouse: USBDeviceDriver {
             #kprint("USB-MOU: Cannot set idleRequest")
             return false
         }
+        self.setInstanceName(to: "usb-mouse0")
 
         let urb = USB.Request(
             usbDevice: self.usbDevice,

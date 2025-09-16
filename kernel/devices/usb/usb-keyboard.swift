@@ -145,10 +145,8 @@ final class USBKeyboard: USBDeviceDriver {
         #kprint("USB-HID: Creating USBKeyboard")
         self.interface = interface
         self.buffer.reserveCapacity(32)
-        super.init(driverName: "usb-kbd", usbDevice: usbDevice, device: device)
-        if let parent = device.parent {
-            self.device.deviceName = parent.deviceName + ".\(interface.bInterfaceNumber)"
-        }
+        super.init(driverName: "usb-kbd", usbDevice: usbDevice)
+        self.setInstanceName(to: "usb-kbd0")
     }
 
     override func initialise() -> Bool {

@@ -44,6 +44,7 @@ final class HCD_EHCI: PCIDeviceDriver {
         mmioRegion = mapIORegion(region: region)
         #kprint("EHCI: region:", region, "mmioRegion:", mmioRegion)
         super.init(driverName: "ehci", pciDevice: pciDevice)
+        self.setInstanceName(to: "ehci0")
     }
 
 

@@ -107,6 +107,7 @@ private func showDevCommand(arguments: [String]) {
     #kprint("initialised:  ", device.initialised)
     if let driver = device.deviceDriver {
         #kprint("Driver:       ", driver.description)
+        #kprint("instance:     ", driver.instanceName)
         #kprint(driver.info())
     }
     if let bus = device.busDevice {

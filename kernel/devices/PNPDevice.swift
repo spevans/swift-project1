@@ -15,19 +15,18 @@ final class PNPDevice: BusDevice {
 
     override var description: String {"PNP Device \(pnpName)" }
 
-    init?(device: Device, pnpName: String) {
+    init?(device: Device, acpiDeviceConfig: ACPIDeviceConfig) {
         guard device.busDevice == nil else {
             #kprint("Device \(device) already has a busDevice")
             return nil
         }
-        guard device.acpiDeviceConfig != nil else {
-            #kprint("\(pnpName) has no ACPI DeviceConfgi")
+        guard let pnpName = acpiDeviceConfig.hid else {
+            #kprintf("%s has no ACPI DeviceConfig or _HID\n", device.deviceName)
             return nil
         }
-        self.isPCIHost = device.acpiDeviceConfig?.isPCIHost ?? false
         self.pnpName = pnpName
-        super.init(device: device)
-        device.setBusDevice(self)
+        self.isPCIHost = acpiDeviceConfig.isPCIHost
+        super.init(device: device, busDeviceName: "acpi-" + pnpName)
     }
 
 
