@@ -44,26 +44,44 @@ class USBPipe {
     }
 
 
-    func allocateBuffer(length: Int) -> MMIOSubRegion { fatalError() }
+    func allocateBuffer(length: Int) -> MMIOSubRegion { fatalError("Implement USBPipe.allocateBuffer") }
     func freeBuffer(_ buffer: MMIOSubRegion) {}
     func submitURB(_ urb: USB.Request) {}
     func pollPipe(_ error: Bool) -> Status { .cancelled }
 }
 
 
+private var _nextBusId = 1
+
 final class USB {
 
     let devices: [Device] = []
-    private var usbBuses: [USBBus] = [] // Each HCD is a Bus and also a Root Hub
-    let description = "USB"
+    // Each HCD is a Bus and also a Root Hub
+    private var rootDevices: [HCDRootHub] = []
+
 
     init() {
     }
 
 
+    func nextBusId() -> Int {
+        return atomic_inc(&_nextBusId)
+    }
+
+    func addRootDevice(_ rootHubDevice: HCDRootHub) -> Bool {
+        guard let rootHubDriver = USBHubDriver(usbDevice: rootHubDevice),
+        rootHubDriver.initialise() else {
+            #kprint("USB: Failed to add roothub")
+            return false
+        }
+        rootDevices.append(rootHubDevice)
+        rootHubDriver.enumerate()
+        return true
+    }
+
     func initialiseDevices(rootPCIBus: PCIBus) {
-        var nextBusId = 1
-        // Initialse the Host controllers. EHCI needs to be initialised before UHCI due to the companion controller setup
+        // Initialse the Host controllers. EHCI needs to be initialised
+        // before UHCI due to the companion controller setup.
         // So do the controllers in the order XHCI, EHCI, UHCI
         for progIf in [PCIUSBProgrammingInterface.xhci, .ehci, .uhci] {
             #kprint("Looking for progIf", progIf.description)
@@ -79,32 +97,18 @@ final class USB {
                 guard pciDevice.initialise() else { return }
                 switch progIf {
                     case .uhci:
-                        if let driver = HCD_UHCI(pciDevice: pciDevice), driver.initialise() {
-                            // FIXME: Move busId to the HCD_UHCI
-                            let usbBus = driver.usbBus(busId: nextBusId)
-                            nextBusId += 1
-                            guard let rootHubDevice = driver.rootHubDevice(bus: usbBus),
-                                  let rootHubDriver = USBHubDriver(usbDevice: rootHubDevice),
-                                  rootHubDriver.initialise() else {
-                                #kprint("USB: Failed to add roothub")
-                                break
-                            }
-                            usbBuses.append(usbBus)
-                            rootHubDriver.enumerate()
+                        if let driver = HCD_UHCI(pciDevice: pciDevice) {
+                            _ = driver.initialise()
                         }
 
                     case .ehci:
-                        if let driver = HCD_EHCI(pciDevice: pciDevice), driver.initialise() {
-//                            let rootHub = USBHub.ehci(driver)
-//                            #kprint("rootHub2: ", rootHub.description)
-//                            rootHubs.append(rootHub)
+                        if let driver = HCD_EHCI(pciDevice: pciDevice) {
+                            _ = driver.initialise()
                         }
 
                     case .xhci:
-                        if let driver = HCD_XHCI(pciDevice: pciDevice), driver.initialise() {
- //                           let rootHub = USBHub.xhci(driver)
- //                           #kprint("rootHub3: ", rootHub.description)
- //                           rootHubs.append(rootHub)
+                            if let driver = HCD_XHCI(pciDevice: pciDevice) {
+                            _ = driver.initialise()
                         }
 
                     default: break
@@ -117,17 +121,35 @@ final class USB {
 
 extension USB {
     enum Speed: CustomStringConvertible {
+        case unknown
         case lowSpeed
         case fullSpeed
         case highSpeed
-        case superSpeed
+        case superSpeed_gen1_x1
+        case superSpeed_gen2_x1
+        case superSpeed_gen1_x2
+        case superSpeed_gen2_x2
 
         var description: String {
             return switch self {
-                case .lowSpeed: "lowSpeed"
-                case .fullSpeed: "fullSpeed"
-                case .highSpeed: "highSpeed"
-                case .superSpeed: "superSpeed"
+                case .unknown: "Unknown"
+                case .lowSpeed: "LowSpeed 1.5M"
+                case .fullSpeed: "FullSpeed 12M"
+                case .highSpeed: "HighSpeed 480M"
+                case .superSpeed_gen1_x1: "SuperSpeed 5G"
+                case .superSpeed_gen1_x2: "SuperSpeed 10G"
+                case .superSpeed_gen2_x1: "SuperSpeed+ 10G"
+                case .superSpeed_gen2_x2: "SuperSpeed+ 20G"
+            }
+        }
+
+        var slotContextSpeed: UInt32 {
+            return switch self {
+                case .unknown: 0
+                case .lowSpeed: 2
+                case .fullSpeed: 1
+                case .highSpeed: 3
+                default: 4
             }
         }
 
@@ -135,32 +157,52 @@ extension USB {
             switch self {
                 case .lowSpeed, .fullSpeed: return 8
                 case .highSpeed: return 64
-                case .superSpeed: return 512
+                default: return 512
+            }
+        }
+
+        var protocolMajor: Int {
+            switch self {
+                case .lowSpeed, .fullSpeed, .highSpeed: return 2
+                default: return 3
             }
         }
     }
 }
 
 
-// Every USB Host controller is both a Bus and a Root Hub. This deines the functions that a USBDevice
+// Every USB Host controller is both a Bus and a Root Hub. This defines the functions that a USBDevice
 // can use via it's bus
 struct USBBus: CustomStringConvertible {
     let busId: Int
-    let allocatePipe: (USB.EndpointDescriptor) -> USBPipe?
-    let nextAddress: () -> UInt8?
+    let hcdData: ((USBDevice) -> HCDData)?
+    let allocateBuffer: (Int) -> MMIOSubRegion
+    let freeBuffer: (MMIOSubRegion) -> ()
+    let allocatePipe: (USBDevice, USB.EndpointDescriptor) -> USBPipe?
+    let setAddress: (USBDevice) -> UInt8?
     let submitURB: (USB.Request) -> Void
     let description: String
 
     init (busId: Int,
-          allocatePipe: @escaping (USB.EndpointDescriptor) -> USBPipe?,
-          nextAddress: @escaping () -> UInt8?,
+          hcdData: ((USBDevice) -> HCDData)? = nil,
+          allocateBuffer: @escaping (Int) -> MMIOSubRegion,
+          freeBuffer: @escaping (MMIOSubRegion) -> (),
+          allocatePipe: @escaping (USBDevice, USB.EndpointDescriptor) -> USBPipe?,
+          setAddress: @escaping (USBDevice) -> UInt8?,
           submitURB: @escaping (USB.Request) -> Void,
     ) {
         self.description = #sprintf("USBBUS: %d", busId)
         self.busId = busId
+        self.hcdData = hcdData
+        self.allocateBuffer = allocateBuffer
+        self.freeBuffer = freeBuffer
         self.allocatePipe = allocatePipe
-        self.nextAddress = nextAddress
+        self.setAddress = setAddress
         self.submitURB = submitURB
+    }
+
+    func allocateBuffer(length: Int) -> MMIOSubRegion {
+        self.allocateBuffer(length)
     }
 }
 
@@ -168,7 +210,9 @@ extension USB {
     struct Request {
         let usbDevice: USBDevice
 
-// FIXME, might be better as .control(SetupRequest, direction, buffer?) .interrupt(buffer) ...
+        // FIXME, might be better as .control(SetupRequest, direction, buffer?) .interrupt(buffer) ...
+        // FIXME: Could remove pipe, transferType and usbDevice and just do submitURB directly
+        //        on the pipe instead of the device
 
         let transferType: EndpointDescriptor.TransferType
 //        let endpointDescriptor: EndpointDescriptor

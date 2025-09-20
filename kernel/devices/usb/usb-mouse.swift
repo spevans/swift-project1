@@ -45,7 +45,7 @@ final class USBMouse: USBDeviceDriver {
             return false
         }
         // Create a pipe for the interrupt endpoint and add it to the active queues
-        guard let _intrPipe = usbDevice.bus.allocatePipe(intrEndpoint) else {
+        guard let _intrPipe = usbDevice.allocatePipe(intrEndpoint) else {
             #kprint("Cannot allocate Interupt pipe")
             return false
         }
@@ -101,7 +101,7 @@ final class USBMouse: USBDeviceDriver {
 
     private func irqHandler(_ request: USB.Request, response: USB.Response) {
 
-        if let physBuffer, let event = MouseEvent(data: physBuffer) {
+        if let physBuffer, response.bytesTransferred >= 3, let event = MouseEvent(data: physBuffer) {
 
             if event.leftButton != prevEvent.leftButton {
                 eventBuffer.add(event.leftButton ? .buttonDown(.BUTTON_1) : .buttonUp(.BUTTON_1))
@@ -124,7 +124,7 @@ final class USBMouse: USBDeviceDriver {
             prevEvent = event
 
         } else {
-            #kprint("usb-mouse, no event")
+            #kprint("usb-mouse, insufficient event data")
         }
 
         // Resubmit the IRQ

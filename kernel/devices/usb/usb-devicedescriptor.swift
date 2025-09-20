@@ -38,7 +38,7 @@ extension USB {
 
         var description: String {
             let dc = deviceClass?.description ?? "unknown"
-            return "bcdUSB: 0x\(String(bcdUSB, radix: 16)) bDeviceClass: \(String(bDeviceClass, radix: 16)) bDeviceSubClass: \(String(bDeviceSubClass, radix: 16))"
+            return "\(idVendor.hex()):\(idProduct.hex()) bcdUSB: 0x\(String(bcdUSB, radix: 16)) bDeviceClass: \(String(bDeviceClass, radix: 16)) bDeviceSubClass: \(String(bDeviceSubClass, radix: 16))"
                 + " bDeviceProtocol: \(String(bDeviceProtocol, radix: 16)) bMaxPacketSize0: \(String(bMaxPacketSize0)) class: \(dc)"
         }
 

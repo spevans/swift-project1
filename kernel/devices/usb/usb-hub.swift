@@ -16,7 +16,7 @@ macro usbhubDebug(_ item: CustomStringConvertible, _ items: CustomStringConverti
 private let USBHUB_DEBUG = true
 internal func _usbhubDebug(_ items: String...) {
     if USBHUB_DEBUG {
-        _kprint("UHCI:", terminator: "")
+        _kprint("USB-HUB:", terminator: "")
         for item in items {
             _kprint(" ", item, terminator: "")
         }
@@ -26,19 +26,21 @@ internal func _usbhubDebug(_ items: String...) {
 
 
 final class USBHubDriver: USBDeviceDriver {
-    private(set) var hubDescriptor = USB.HUBDescriptor(ports: 0)
-    var ports: Int { Int(hubDescriptor.bNbrPorts) }
     private let responseBuffer: MMIOSubRegion
+    private(set) var hubDescriptor = USB.HUBDescriptor(ports: 0)
+    private(set) var multiTT: Bool = false
+    var ports: Int { Int(hubDescriptor.bNbrPorts) }
+
 
     init?(usbDevice: USBDevice, interface: USB.InterfaceDescriptor? = nil) {
-        self.responseBuffer = usbDevice.controlPipe.allocateBuffer(length: 32)
+        self.responseBuffer = usbDevice.bus.allocateBuffer(length: 32)
         super.init(driverName: "usb-hub", usbDevice: usbDevice)
         self.setInstanceName(to: "usb-hub-\(usbDevice.bus.busId)-\(usbDevice.address)")
         device.setDriver(self)
     }
 
     deinit {
-        usbDevice.controlPipe.freeBuffer(responseBuffer)
+        usbDevice.bus.freeBuffer(responseBuffer)
     }
 
     override func initialise() -> Bool {
@@ -86,9 +88,11 @@ final class USBHubDriver: USBDeviceDriver {
                 continue
             }
 
-            #usbhubDebug("\(self)/\(portIdx) speed: \(connectedSpeed)")
+            #usbhubDebug("\(self)/\(portIdx) New Device speed: \(connectedSpeed)")
             let d = Device(parent: self.device)
-            guard let newDevice = USBDevice(device: d, bus: usbDevice.bus, speed: connectedSpeed) else {
+            guard let newDevice = USBDevice(device: d, bus: usbDevice.bus,
+                                            port: UInt8(portIdx),
+                                            speed: connectedSpeed) else {
                 #kprint("usb-hub: Failed to create USBDevice")
                 continue
             }
@@ -104,15 +108,18 @@ final class USBHubDriver: USBDeviceDriver {
             }
 
             // Set address of device
-            guard let address = usbDevice.bus.nextAddress() else {
-                fatalError("No more addresses!")
+            #kprintf("USB: %s Setting address of device\n", newDevice.description)
+            guard let address = usbDevice.bus.setAddress(newDevice) else {
+                #kprint("\(self)/\(portIdx)-0: Cant set address of device - ignoring device")
+                continue
             }
-
-            #kprintf("USB: %s Setting address of device on to %d\n", newDevice.description, address)
+            #kprintf("USB: %s set to address %u\n", newDevice.description, address)
+/*
             guard newDevice.setAddress(address) else {
                 #kprint("\(self)/\(portIdx)-0: Cant set address of device - ignoring device")
                 continue
             }
+ */
             // Get full DeviceDescriptor
             #usbhubDebug("\(self)/\(portIdx)-\(address) Getting full DeviceDescriptor of length:", deviceDescriptor.bLength)
             guard let _descriptor = newDevice.getDeviceDescriptor(length: UInt16(deviceDescriptor.bLength)) else {
@@ -121,6 +128,7 @@ final class USBHubDriver: USBDeviceDriver {
             }
             let fullDeviceDescriptor = _descriptor
             #usbhubDebug("\(newDevice.description) fullDeviceDescriptor:", fullDeviceDescriptor)
+            newDevice.setDescriptor(fullDeviceDescriptor)
 
             #kprintf("USB: %s vendor: %4.4x product: %4.4x manu: %2.2x product: %2.2x\n",
                      newDevice.description,
@@ -238,7 +246,7 @@ final class USBHubDriver: USBDeviceDriver {
             #kprint("USBHUB getHubStatus failed")
             return false
         }
-        #kprintf("UBSHUB: status: 0x%2.2x 0x%2.2x\n", responseBuffer[0], responseBuffer[1])
+        //#kprintf("UBSHUB: status: 0x%2.2x 0x%2.2x\n", responseBuffer[0], responseBuffer[1])
         return true
     }
 
@@ -258,7 +266,7 @@ final class USBHubDriver: USBDeviceDriver {
         }
         // Wait for the port to power up
         let potpgt = Int(hubDescriptor.bPwrOn2PwrGood) * 2
-        #kprintf("USB-HUB: Waiting %dms for port to power up\n", potpgt)
+//        #kprintf("USB-HUB: Waiting %dms for port to power up\n", potpgt)
         sleep(milliseconds: potpgt)
         return true
     }
@@ -449,7 +457,7 @@ final class USBHubDriver: USBDeviceDriver {
                     break
                 case .highSpeed:
                     _statusField[10] = 1
-                case .superSpeed:
+                default:
                     // FIXME: this isnt supported,
                     break
             }

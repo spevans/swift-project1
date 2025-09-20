@@ -128,5 +128,18 @@ extension USB {
 
             descriptor = _descriptor
         }
+
+        // Used by XHCI, Table 6-9
+        var endpointType: UInt32 {
+            return switch (transferType, direction) {
+                case (.isochronous, .hostToDevice): 1
+                case (.bulk, .hostToDevice): 2
+                case (.interrupt, .hostToDevice): 3
+                case (.control, _): 4
+                case (.isochronous, .deviceToHost): 5
+                case (.bulk, .deviceToHost): 6
+                case (.interrupt, .deviceToHost): 7
+            }
+        }
     }
 }

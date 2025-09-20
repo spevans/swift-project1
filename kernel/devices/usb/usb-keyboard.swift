@@ -136,6 +136,7 @@ final class USBKeyboard: USBDeviceDriver {
     private var prevModifierKeys = UInt8(0)
     private var prevKeys: InlineArray<8, UInt8> = .init(repeating: 0)
     private var keys: InlineArray<8, UInt8> = .init(repeating: 0)
+    // FIXME: This is accessed by the irqHandler so should NOT be a heap allocated collection
     private var buffer: [HIDEvent] = []
 
     private var intrPipe: USBPipe?
@@ -158,7 +159,7 @@ final class USBKeyboard: USBDeviceDriver {
             return false
         }
         // Create a pipe for the interrupt endpoint and add it to the active queues
-        guard let _intrPipe = usbDevice.bus.allocatePipe(intrEndpoint) else {
+        guard let _intrPipe = usbDevice.allocatePipe(intrEndpoint) else {
             #kprint("Cannot allocate Interupt pipe")
             return false
         }
@@ -213,6 +214,9 @@ final class USBKeyboard: USBDeviceDriver {
 //        #kprintf("USB-KBD: IRQ status: %s bytes: %d\n", response.status.description, response.bytesTransferred)
 
         guard var physBuffer = physBuffer else { return }
+        let byteCount = response.bytesTransferred
+//        #kprintf("usb-keyboard, byteCount: %d physBuffer.count: %d\n", byteCount, physBuffer.count)
+
         var prevKeysSpan = prevKeys.mutableSpan
         // Modifier keys
         let mkeys = physBuffer[0]
@@ -231,7 +235,7 @@ final class USBKeyboard: USBDeviceDriver {
             }
         }
         prevModifierKeys = mkeys
-
+//        #kprintf("usb-keyboard: checking against previous keys, prevKeysSpan.count: %d\n", prevKeysSpan.count)
         // 6 bytes, 6 keys that are currently pressed
         //precondition(keysSpan.count == 8)
         precondition(prevKeysSpan.count == 8)
@@ -262,7 +266,8 @@ final class USBKeyboard: USBDeviceDriver {
                 }
             }
         }
-        for idx in 0..<physBuffer.count {
+//        #kprintf("usb-keyboard: Copying %d bytes to prevKeysSpan\n", min(byteCount, physBuffer.count))
+        for idx in 0..<min(byteCount, physBuffer.count) {
             prevKeysSpan[idx] = physBuffer[idx]
         }
 

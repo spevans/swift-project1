@@ -212,12 +212,13 @@ extension USB {
 
         // The request is defined in usb.h so that the structure can be packed.
         private let request: usb_control_request
-        var wLength: UInt16 { request.wLength }
-        var wIndex: UInt16 { request.wIndex }
+        var bmRequestType: UInt8 { request.bmRequestType }
+        var bRequest: UInt8 { request.bRequest }
         var wValue: UInt16 { request.wValue }
+        var wIndex: UInt16 { request.wIndex }
+        var wLength: UInt16 { request.wLength }
 
         var requestCode: RequestCode? { RequestCode(rawValue:  request.bRequest) }
-        var bmRequestType: UInt8 { request.bmRequestType }
         var requestType: BMRequestType { BMRequestType(rawValue: request.bmRequestType, wIndex: request.wIndex) }
         var direction: TransferDirection { BMRequestType(rawValue: request.bmRequestType, wIndex: request.wIndex).direction }
 

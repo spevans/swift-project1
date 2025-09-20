@@ -22,6 +22,9 @@ extension USB {
         let deviceRemovable: [Bool] // FIXME: Should be a BitArray
         // Ignore PortPwrCtrlMask has it should be all ones
 
+        // wHubCharacteristics
+        var ttThinkTime: Int { bDescriptorType.bits(5...6) }
+
         let description: String
         func descriptorAsBuffer(wLength: UInt16, into buffer: inout MMIOSubRegion) -> Int {
             let length = min(Int(descriptor.bDescLength), buffer.count)
@@ -35,7 +38,7 @@ extension USB {
 
         // Used by Root Hubs
         init(ports: UInt8) {
-            precondition(ports < 8) // For simplicity
+//            precondition(ports < 8) // For simplicity
             descriptor = usb_hub_descriptor(
                 bDescLength: 9,
                 bDescriptorType: USB.DescriptorType.HUB.rawValue,

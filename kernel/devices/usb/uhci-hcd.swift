@@ -30,7 +30,6 @@ final class HCD_UHCI: PCIDeviceDriver {
 
     let allocator: UHCIAllocator
     var enabled = true
-    let hubDescriptor = USB.HUBDescriptor(ports: 2)
 
     fileprivate let ioBasePort: UInt16
     private var addressAllocator = BitmapAllocator128()
@@ -140,7 +139,28 @@ final class HCD_UHCI: PCIDeviceDriver {
 
         deviceFunction.writeConfigWord(atByteOffset: 0xC0, value: 0x2000)
         sleep(milliseconds: 50)
-        return true
+
+        let busId = system.deviceManager.usb!.nextBusId()
+        let usbBus = USBBus(
+            busId: busId,
+            allocateBuffer: { self.allocator.allocPhysBuffer(length: $0) },
+            freeBuffer: { self.allocator.freePhysBuffer($0) },
+            allocatePipe: { self.allocatePipe(device: $0, endpointDescriptor: $1) },
+            setAddress: { self.setAddress($0) },
+            submitURB: { self.submitURB($0) },
+        )
+
+        guard let rootHubDevice = HCDRootHub(
+            device: Device(parent: self.device),
+            bus: usbBus,
+            hcd: HCDRootHub.HCDDeviceFunctions(
+                processURB: { self.processURB($0, into: $1) }
+            )
+        ) else {
+            #kprint("uhci: Failed to create root hub device")
+            return false
+        }
+        return system.deviceManager.usb!.addRootDevice(rootHubDevice)
     }
 
     private func setupInitialFrames() {
@@ -334,7 +354,7 @@ final class HCD_UHCI: PCIDeviceDriver {
         #uhciDebug(device.deviceName, "did not reset")
     }
 
-
+    // USBBus functions
     private var currentURBs: InlineArray<4, USB.Request?> = .init(repeating: nil)
     // Fixme this needs to do locking etc
     func submitURB(_ urb: USB.Request) {
@@ -347,6 +367,16 @@ final class HCD_UHCI: PCIDeviceDriver {
         }
         fatalError("UHCI: No more space for URBs!")
     }
+
+    private func setAddress(_ usbDevice: USBDevice) -> UInt8? {
+        guard let _address = addressAllocator.allocate() else {
+            return nil
+        }
+        let address = UInt8(_address)
+
+        return usbDevice.setAddress(address) ? address : nil
+    }
+
 
     fileprivate var interruptOccurred = false
     private func uhciInterrupt() -> Bool {
@@ -387,20 +417,100 @@ final class HCD_UHCI: PCIDeviceDriver {
         defer { interruptOccurred = false }
         return interruptOccurred
     }
-}
 
-// USBHub functions
-extension HCD_UHCI {
+    // USBHub functions
+    var portCount: UInt8 { 2 }
 
-    func usbBus(busId: Int) -> USBBus {
-        return USBBus(busId: busId,
-                      allocatePipe: { self.allocatePipe(endpointDescriptor: $0) },
-                      nextAddress: { self.nextAddress() },
-                      submitURB: { self.submitURB($0) },
-        )
+    func processURB(_ setupRequest: USB.ControlRequest, into buffer: MMIOSubRegion?) -> USB.Response {
+
+        let okResponse = USB.Response(status: .finished, bytesTransferred: 0)
+        let errorResponse = USB.Response(status: .stalled, bytesTransferred: 0)
+
+        guard let requestCode = setupRequest.requestCode else {
+            #kprint("uhci-root: Invalid request code")
+            return errorResponse
+        }
+
+        let deviceRequest = USB.ControlRequest.BMRequestType(
+            direction: .deviceToHost, requestType: .klass, recipient: .device
+        ).rawValue
+
+        let toPortRequest = USB.ControlRequest.BMRequestType(
+            direction: .hostToDevice, requestType: .klass, recipient: .other(0)
+        ).rawValue
+
+        let fromPortRequest = USB.ControlRequest.BMRequestType(
+            direction: .deviceToHost, requestType: .klass, recipient: .other(0)
+        ).rawValue
+
+        let standardDtoH = USB.ControlRequest.BMRequestType(
+            direction: .deviceToHost, requestType: .standard, recipient: .device
+        ).rawValue
+
+        func getPort() -> Int? {
+            guard setupRequest.wIndex > 0
+                    && setupRequest.wIndex <= UInt16(self.portCount) else {
+                #kprintf("uhci-root: Invalid port %d\n", setupRequest.wIndex)
+                return nil
+            }
+
+            let port = Int(setupRequest.wIndex) - 1 // Convert from 1based ports to 0based ports
+            return port
+        }
+
+
+        switch (setupRequest.bmRequestType, requestCode) {
+            case (standardDtoH, .GET_STATUS):
+                guard var buffer = buffer else { return errorResponse }
+                buffer[0] = 0
+                buffer[1] = 0
+                return USB.Response(status: .finished, bytesTransferred: 2)
+
+            case (deviceRequest, .GET_DESCRIPTOR):
+                // FIXME, use the returned length in a URB response
+                guard var buffer = buffer else { return errorResponse }
+                let hubDescriptor = USB.HUBDescriptor(ports: portCount)
+                let length = hubDescriptor.descriptorAsBuffer(wLength: setupRequest.wLength, into: &buffer)
+                return USB.Response(status: .finished, bytesTransferred: length)
+
+            case (fromPortRequest, .GET_STATUS):
+                guard let port = getPort() else { return errorResponse }
+                guard var buffer = buffer else { return errorResponse }
+                let portStatus = self.portStatus(port)
+                let length = portStatus.asBytes(into: &buffer, maxLength: 4)
+                return USB.Response(status: .finished, bytesTransferred: length)
+
+            case (toPortRequest, .SET_FEATURE), (toPortRequest, .CLEAR_FEATURE):
+                guard let port = getPort() else { return errorResponse }
+                guard let feature = USBHubDriver.FEATURE_SELECTOR(rawValue: setupRequest.wValue) else {
+                    #kprintf("uhci-root: Invalid FEATURE_SELECTOR: %4.4x\n", setupRequest.wValue)
+                    return errorResponse
+                }
+
+                switch (requestCode, feature) {
+                    case (.SET_FEATURE, .PORT_POWER):
+                        return okResponse
+
+                    case (.SET_FEATURE, .PORT_RESET):
+                        return self.reset(port: port) ? okResponse : errorResponse
+
+                    case (.CLEAR_FEATURE, .C_PORT_CONNECTION):
+                        self.clearConnectStatus(port: port)
+                        return okResponse
+
+                    default:
+                        #kprintf("xhci-root: Unsupported Port Feature %s request: %2.2x\n",
+                                 requestCode.description, setupRequest.wValue)
+                        return errorResponse
+                }
+
+            default:
+                break
+        }
+        #kprint("uhci-root: Failed to handle request:", setupRequest)
+        return errorResponse
     }
 
-    var portCount: Int { 2 }
 
     func reset(port: Int) -> Bool {
         precondition(port < portCount)
@@ -450,206 +560,35 @@ extension HCD_UHCI {
         return resetOK
     }
 
-
-    func detectConnected(port: Int) -> USB.Speed? {
+    func portStatus(_ port: Int) -> USBHubDriver.PortStatus {
         let status = portStatus(port: port)
-        #uhciDebug("detectConnected, status: ", status)
-        guard status.currentConnectStatus else {
-            #uhciDebug("no device detected")
-            return nil
-        }
+        #kprintf("USB-UHCI: %s: port: %d connected: %s\n", device.deviceName, port + 1, status.currentConnectStatus)
+
         let speed = status.lowSpeedDeviceAttached ? USB.Speed.lowSpeed : USB.Speed.fullSpeed
-        #uhciDebug(device.deviceName + " device on port \(port) connected at speed:", speed)
-        return speed
-    }
-
-
-    func nextAddress() -> UInt8? {
-        guard let address = addressAllocator.allocate() else {
-            return nil
-        }
-        return UInt8(address)
-    }
-
-
-    func registerDump() {
-        #uhciDebug(device.deviceName + " **** START registerDump")
-        #uhciDebug(device.deviceName + " cmdRegister:", self.cmdRegister)
-        #uhciDebug(device.deviceName + " statusRegister:", self.statusRegister)
-        #uhciDebug(device.deviceName + " interruptEnableRegister:", self.interruptEnableRegister)
-        #uhciDebug(device.deviceName + " FrameNumberRegister: 0x\(String(self.frameNumberRegister, radix: 16))")
-        #uhciDebug(device.deviceName + " FrameListBaseAddress: 0x\(String(self.frameListBaseAddress, radix: 16))")
-        #uhciDebug(device.deviceName + " startOfFrame:", self.startOfFrame)
-        #uhciDebug(device.deviceName + " Port0:", portStatus(port: 0))
-        #uhciDebug(device.deviceName + " Port1:", portStatus(port: 1))
-        #uhciDebug(device.deviceName + " **** END registerDump")
-    }
-
-
-    private func processURB(_ urbRequest: USB.Request) -> USB.Response {
-
-        let okResponse = USB.Response(status: .finished, bytesTransferred: 0)
-        let errorResponse = USB.Response(status: .stalled, bytesTransferred: 0)
-
-        guard let setup = urbRequest.setupRequest, let setupRequest = USB.ControlRequest(from: setup) else {
-            #kprint("UHCI-HCD \(device.deviceName): invalid setup request packet")
-            return errorResponse
-        }
-
-        guard let requestCode = setupRequest.requestCode else {
-            #kprint("UHCI-HCD \(device.deviceName): Invalid request code")
-            return errorResponse
-        }
-
-        let deviceRequest = USB.ControlRequest.BMRequestType(
-            direction: .deviceToHost, requestType: .klass, recipient: .device
-        ).rawValue
-
-        let toPortRequest = USB.ControlRequest.BMRequestType(
-            direction: .hostToDevice, requestType: .klass, recipient: .other(0)
-        ).rawValue
-
-        let fromPortRequest = USB.ControlRequest.BMRequestType(
-            direction: .deviceToHost, requestType: .klass, recipient: .other(0)
-        ).rawValue
-
-        let standardDtoH = USB.ControlRequest.BMRequestType(
-            direction: .deviceToHost, requestType: .standard, recipient: .device
-        ).rawValue
-
-        switch setupRequest.bmRequestType {
-            case standardDtoH:
-                switch requestCode {
-                    case .GET_STATUS:
-                        guard var buffer = urbRequest.buffer else { return errorResponse }
-                        buffer[0] = 0
-                        buffer[1] = 0
-                        return USB.Response(status: .finished, bytesTransferred: 2)
-
-                    default:
-                        #kprint("UHCI-HUB \(device.deviceName): Unsupport standardDtoH request:", requestCode)
-                        return errorResponse
-                }
-
-            case deviceRequest:
-                switch requestCode {
-                    case .GET_DESCRIPTOR:
-                        // FIXME, use the returned length in a URB response
-                        guard var buffer = urbRequest.buffer else { return errorResponse }
-                        let length = hubDescriptor.descriptorAsBuffer(wLength: setupRequest.wLength, into: &buffer)
-                        return USB.Response(status: .finished, bytesTransferred: length)
-
-                    default:
-                        #kprint("UHCI-HUB \(device.deviceName): Unsupport device request:", requestCode)
-                        return errorResponse
-                }
-
-            case fromPortRequest:
-                let port = Int(setupRequest.wIndex) - 1 // Convert from 1based ports to 0based ports
-
-                guard port >= 0, port < 2 else {
-                    #kprintf("USB-UHCI: %s Invalid port %d\n", device.deviceName, port + 1)
-                    return errorResponse
-                }
-
-                switch requestCode {
-                    case .GET_STATUS:
-                        guard var buffer = urbRequest.buffer else { return errorResponse }
-                        let status = portStatus(port: port)
-                        let speed = status.lowSpeedDeviceAttached ? USB.Speed.lowSpeed : USB.Speed.fullSpeed
-                        let portStatus = USBHubDriver.PortStatus(
-                            deviceAttached: status.currentConnectStatus,
-                            isEnabled: status.portEnabled,
-                            isSuspended: status.suspend,
-                            isOverCurrent: status.overCurrentCondition,
-                            isInReset: status.portReset,
-                            isPowered: true,
-                            speed: speed,
-                            currentConnectChange: status.connectStatusChange,
-                            portEnabledChange: status.portEnabledChange,
-                            suspendChange: false,
-                            overCurrentIndicatorChanged: status.overCurrentConditionChange,
-                            resetComplete: false
-                        )
-                        #kprintf("UHCI-HCD %s: port: %d connected: %s\n", device.deviceName, port + 1, status.currentConnectStatus)
-                        let length = portStatus.asBytes(into: &buffer, maxLength: 4)
-                        return USB.Response(status: .finished, bytesTransferred: length)
-
-                    default:
-                        #kprint("UHCI-HCD \(device.deviceName):: Unsupported fromPort request:", requestCode)
-                        return errorResponse
-                }
-
-            case toPortRequest:
-                let port = Int(setupRequest.wIndex) - 1 // Convert from 1based ports to 0based ports
-
-                guard port >= 0, port < 2 else {
-                    #kprintf("USB-UHCI %s: Invalid port %d\n", device.deviceName, port + 1)
-                    return errorResponse
-                }
-
-                switch requestCode {
-
-                    case .SET_FEATURE:
-                        guard let feature = USBHubDriver.FEATURE_SELECTOR(rawValue: setupRequest.wValue) else {
-                            #kprintf("Invalid SET_FEATURE selector: %4.4x\n", setupRequest.wValue)
-                            return errorResponse
-                        }
-
-                        switch feature {
-                            case .PORT_POWER:
-                                return okResponse
-
-                            case .PORT_RESET:
-                                return reset(port: port) ? okResponse : errorResponse
-
-                            default:
-                                #kprintf("UHCI-HCD %s: Unsupported Port Set Feature request: %2.2x\n", device.deviceName, setupRequest.wValue)
-                                return errorResponse
-                        }
-                    case .CLEAR_FEATURE:
-                        guard let feature = USBHubDriver.FEATURE_SELECTOR(rawValue: setupRequest.wValue) else {
-                            #kprintf("Invalid CLEAR_FEATURE selector: %4.4x\n", setupRequest.wValue)
-                            return errorResponse
-                        }
-
-                        switch feature {
-                            case .C_PORT_CONNECTION:
-                                var status = portStatus(port: port)
-                                status.clearConnectStatusChange()
-                                portControl(port: port, data: status)
-                                return okResponse
-
-                            default:
-                                #kprint("Unsupported Port Clear Feature request: %2.2x\n", setupRequest.wValue)
-                                return errorResponse
-                        }
-
-                    default: break
-                }
-
-            default:
-                break
-        }
-        #kprint("Failed to handle request:", setupRequest)
-        return errorResponse
-    }
-
-
-    func rootHubDevice(bus: USBBus) -> USBDevice? {
-        return HCDRootHub(
-            device: Device(parent: self.device),
-            bus: bus,
-            hcd: HCDRootHub.HCDDeviceFunctions(
-                processURB: { return self.processURB($0) },
-            )
+        return USBHubDriver.PortStatus(
+            deviceAttached: status.currentConnectStatus,
+            isEnabled: status.portEnabled,
+            isSuspended: status.suspend,
+            isOverCurrent: status.overCurrentCondition,
+            isInReset: status.portReset,
+            isPowered: true,
+            speed: speed,
+            currentConnectChange: status.connectStatusChange,
+            portEnabledChange: status.portEnabledChange,
+            suspendChange: false,
+            overCurrentIndicatorChanged: status.overCurrentConditionChange,
+            resetComplete: false
         )
     }
-}
+
+    func clearConnectStatus(port: Int) {
+        var status = portStatus(port: port)
+        status.clearConnectStatusChange()
+        portControl(port: port, data: status)
+    }
 
 
-// HCD Register access
-extension HCD_UHCI {
+    // HCD Register access
     var cmdRegister: Command {
         get {
             return Command(rawValue: inw(ioBasePort))
@@ -727,6 +666,20 @@ extension HCD_UHCI {
     var port1: PortStatusControl {
         get { portStatus(port: 1) }
         set { portControl(port: 1, data: newValue) }
+    }
+
+
+    func registerDump() {
+        #uhciDebug(device.deviceName + " **** START registerDump")
+        #uhciDebug(device.deviceName + " cmdRegister:", self.cmdRegister)
+        #uhciDebug(device.deviceName + " statusRegister:", self.statusRegister)
+        #uhciDebug(device.deviceName + " interruptEnableRegister:", self.interruptEnableRegister)
+        #uhciDebug(device.deviceName + " FrameNumberRegister: 0x\(String(self.frameNumberRegister, radix: 16))")
+        #uhciDebug(device.deviceName + " FrameListBaseAddress: 0x\(String(self.frameListBaseAddress, radix: 16))")
+        #uhciDebug(device.deviceName + " startOfFrame:", self.startOfFrame)
+        #uhciDebug(device.deviceName + " Port0:", portStatus(port: 0))
+        #uhciDebug(device.deviceName + " Port1:", portStatus(port: 1))
+        #uhciDebug(device.deviceName + " **** END registerDump")
     }
 }
 
