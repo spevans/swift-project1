@@ -1,6 +1,8 @@
 #ifndef __EFI_API_H__
 #define __EFI_API_H__
 
+#include <stdint.h>
+
 typedef struct {
         efi_table_header_t hdr;
 
@@ -19,7 +21,7 @@ typedef struct {
         void *convert_pointer;
 
         //
-        // Variable serviers
+        // Variable services
         //
         void *get_variable;
         void *get_next_variable_name;
@@ -32,6 +34,50 @@ typedef struct {
         void *reset_system;
 } efi_runtime_services_t;
 
+#define efiapi __attribute__((ms_abi))
+
+typedef efi_status_t(*efi_allocate_pages) (
+        efi_allocate_type type,
+        efi_memory_type memory_type,
+        efi_uintn pages,
+        efi_physical_address *memory
+) efiapi;
+
+typedef efi_status_t (*efi_free_pages) (
+        efi_physical_address memory, efi_uintn pages
+) efiapi;
+
+typedef efi_status_t (*efi_get_memory_map) (efi_uintn *memory_map_size,
+                       efi_memory_descriptor_t *memory_map,
+                       efi_uintn *map_key,
+                       efi_uintn *descriptor_size,
+                       uint32_t *descriptorversion
+) efiapi;
+
+typedef efi_status_t (*efi_locate_handle) (
+        efi_locate_search_type search_type,
+        efi_guid_t *protocol,
+        void *search_key,
+        efi_uintn *buffer_size,
+        efi_handle_t *buffer
+) efiapi;
+
+typedef efi_status_t (*efi_locate_protocol) (
+        efi_guid_t *protocol,
+        void *registration,
+        void **interface
+) efiapi;
+
+typedef efi_status_t (*efi_handle_protocol) (
+        efi_handle_t handle,
+        efi_guid_t *protocol,
+        void **interface
+) efiapi;
+
+typedef efi_status_t (*efi_exit_boot_services) (
+        efi_handle_t image_handle,
+        efi_uintn map_key
+) efiapi;
 
 typedef struct {
         efi_table_header_t hdr;
@@ -45,9 +91,9 @@ typedef struct {
         //
         // Memory functions
         //
-        void *allocate_pages;
-        void *free_pages;
-        void *get_memory_map;
+        efi_allocate_pages allocate_pages;
+        efi_free_pages free_pages;
+        efi_get_memory_map get_memory_map;
         void *allocate_pool;
         void *free_pool;
 
@@ -67,10 +113,10 @@ typedef struct {
         void *install_protocol_interface;
         void *reinstall_protocol_interface;
         void *uninstall_protocol_interface;
-        void *handle_protocol;
+        efi_handle_protocol handle_protocol;
         void *p_c_handle_protocol;
         void *register_protocol_notify;
-        void *locate_handle;
+        efi_locate_handle locate_handle;
         void *locate_device_path;
         void *install_configuration_table;
 
@@ -81,7 +127,7 @@ typedef struct {
         void *start_image;
         void *exit;
         void *unload_image;
-        void *exit_boot_services;
+        efi_exit_boot_services exit_boot_services;
 
         //
         // Misc functions
@@ -107,8 +153,8 @@ typedef struct {
         // Library Services
         //
         void *protocols_per_handle;
-        void *locate_handle_buffer;
-        void *locate_protocol;
+        void *locate_handle_buffer  ;
+        efi_locate_protocol locate_protocol;
         void *install_multiple_protocol_interfaces;
         void *uninstall_multiple_protocol_interfaces;
 
@@ -149,21 +195,5 @@ typedef struct {
         uint64_t nr_entries;
         efi_config_table_t *config_table;
 } efi_system_table_t;
-
-
-extern efi_status_t
-efi_call2(void *func, uint64_t data1, uint64_t data2);
-
-extern efi_status_t
-efi_call3(void *func, uint64_t data1, uint64_t data2, uint64_t data3);
-
-extern efi_status_t
-efi_call4(void *func, uint64_t data1, uint64_t data2, uint64_t data3,
-          uint64_t data4);
-
-extern efi_status_t
-efi_call5(void *func, uint64_t data1, uint64_t data2, uint64_t data3,
-          uint64_t data4, uint64_t data5);
-
 
 #endif  // __EFI_API_H__

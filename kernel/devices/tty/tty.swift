@@ -97,7 +97,7 @@ private var history: [String] = []
 // setup but before they are switched to. This
 @_cdecl("init_early_tty")
 func initTTY(_ frame_buffer: UnsafePointer<frame_buffer>?) {
-    if let frame_buffer = frame_buffer {
+    if let frame_buffer = frame_buffer, frame_buffer.pointee.address != nil {
         let frameBufferInfo = FrameBufferInfo(fb: frame_buffer.pointee)
         framebufferTTY.setFrameBuffer(frameBufferInfo)
         tty = .framebuffer

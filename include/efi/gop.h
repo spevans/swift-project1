@@ -69,12 +69,12 @@ typedef enum {
 typedef efi_status_t
 (*efi_graphics_output_protocol_query_mode_t)(struct _efi_graphics_output_protocol *this,
                                              uint32_t mode_number,
-                                             uint64_t *size_of_info,
-                                             efi_graphics_output_mode_information_t **info);
+                                             efi_uintn *size_of_info,
+                                             efi_graphics_output_mode_information_t **info) __attribute__((ms_abi));
 
 typedef efi_status_t
 (*efi_graphics_output_protocol_set_mode_t)(struct _efi_graphics_output_protocol *this,
-                                           uint32_t mode_number);
+                                           uint32_t mode_number) __attribute__((ms_abi));
 
 typedef efi_status_t
 (*efi_graphics_output_protocol_blt_t)(struct _efi_graphics_output_protocol *this,
@@ -86,13 +86,13 @@ typedef efi_status_t
                                       efi_uintn destination_y,
                                       efi_uintn width,
                                       efi_uintn height,
-                                      efi_uintn delta);
+                                      efi_uintn delta) __attribute__((ms_abi));
 
 
 typedef struct _efi_graphics_output_protocol {
         efi_graphics_output_protocol_query_mode_t query_mode;
         efi_graphics_output_protocol_set_mode_t set_mode;
-        efi_graphics_output_protocol_blt_t *blt;
+        efi_graphics_output_protocol_blt_t blt;
         efi_graphics_output_protocol_mode_t *mode;
 } efi_graphics_output_protocol_t;
 

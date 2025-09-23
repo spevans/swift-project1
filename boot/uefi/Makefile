@@ -20,7 +20,10 @@ efi_elf.o: efi_elf.c
 kprintf.o: ../../klibc/kprintf.c
 	$(CC) $(EFI_CFLAGS) -c -o $@ $<
 
-efi_body.o: efi_main.o efi_elf.o kprintf.o
+early_tty.o: ../../klibc/early_tty.c
+	$(CC) $(EFI_CFLAGS) -c -o $@ $<
+
+efi_body.o: efi_main.o efi_elf.o kprintf.o early_tty.o
 	#partial link
 	${LD} -r -e efi_main --gc-sections -z noexecstack -o $@ $^
 

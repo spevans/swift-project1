@@ -1,6 +1,7 @@
 #ifndef __EFI_CONSOLE_H__
 #define __EFI_CONSOLE_H__
 
+
 #define EFI_CONSOLE_CONTROL_GUID        \
         { 0xf42f7782, 0x12e, 0x4c12, { 0x99, 0x56, 0x49, 0xf9, 0x43, 0x4, 0xf7, 0x21 }}
 
@@ -15,11 +16,11 @@ struct _efi_simple_input;
 
 typedef
 efi_status_t (*efi_input_reset_t)(struct _efi_simple_input *this,
-                                  efi_boolean extra_tests);
+                                  efi_boolean extra_tests) __attribute__((ms_abi));;
 
 typedef
 efi_status_t (*efi_input_read_key)(struct _efi_simple_input *this,
-                                   efi_input_key_t *key);
+                                   efi_input_key_t *key) __attribute__((ms_abi));;
 
 
 typedef struct _efi_simple_input {
@@ -33,25 +34,25 @@ struct _efi_simple_output;
 
 typedef
 efi_status_t (*efi_text_reset_t)(struct _efi_simple_output *this,
-                                 efi_boolean extra_tests);
+                                 efi_boolean extra_tests) __attribute__((ms_abi));
 
 typedef
 efi_status_t (*efi_text_output_string_t)(struct _efi_simple_output *this,
-                                         uint16_t *string);
+                                         uint16_t *string) __attribute__((ms_abi));;
 
 typedef
 efi_status_t (*efi_text_test_string_t)(struct _efi_simple_output *this,
-                                       uint16_t *string);
+                                       uint16_t *string) __attribute__((ms_abi));
 
 
 typedef
 efi_status_t (*efi_text_query_mode_t)(struct _efi_simple_output *this,
                                       unsigned int mode, unsigned int *columns,
-                                      unsigned int *rows);
+                                      unsigned int *rows) __attribute__((ms_abi));
 
 typedef
 efi_status_t (*efi_text_set_mode_t)(struct _efi_simple_output *this,
-                                    unsigned int mode);
+                                    unsigned int mode) __attribute__((ms_abi));
 
 typedef
 efi_status_t (*efi_text_set_attribute_t)(struct _efi_simple_output *this,
@@ -62,11 +63,11 @@ efi_status_t (*efi_text_clear_screen_t)(struct _efi_simple_output *this);
 
 typedef
 efi_status_t (*efi_text_set_cursor_t)(struct _efi_simple_output *this,
-                                      unsigned int column, unsigned int row);
+                                      unsigned int column, unsigned int row) __attribute__((ms_abi));
 
 typedef
 efi_status_t (*efi_text_enable_cursor_t)(struct _efi_simple_output *this,
-                                         efi_boolean enable);
+                                         efi_boolean enable) __attribute__((ms_abi));
 
 typedef struct {
         int32_t max_mode;
@@ -104,11 +105,11 @@ typedef
 efi_status_t (*efi_console_get_mode_t)(struct _efi_console_control_interface *this,
                                        efi_console_screen_mode_t *mode,
                                        efi_boolean *uga_exists,
-                                       efi_boolean *stdin_locked);
+                                       efi_boolean *stdin_locked) __attribute__((ms_abi));
 
 typedef
 efi_status_t (*efi_console_set_mode_t)(struct _efi_console_control_interface *this,
-                                       efi_console_screen_mode_t *mode);
+                                       efi_console_screen_mode_t mode) __attribute__((ms_abi));
 
 typedef struct _efi_console_control_interface {
         efi_console_get_mode_t get_mode;

@@ -11,6 +11,8 @@
 #include <efi.h>
 #include <klibc.h>
 
+// Enable to send debug messages over COM1
+//#define SERIAL_DEBUG   1
 
 // For passing data back to efi_entry.asm
 struct pointer_table {
@@ -23,16 +25,18 @@ struct pointer_table {
 // For alloc_memory() / free_memory()
 struct memory_region {
         size_t type;
-        size_t req_size;
+        efi_uintn req_size;
         void *base;
-        size_t pages;
+        efi_uintn pages;
 };
 
 
-// memory types for allocated memory
-#define MEM_TYPE_PAGE_MAP       0x80000001
-#define MEM_TYPE_BOOT_DATA      0x80000002
-#define MEM_TYPE_KERNEL         0x80000003
+// memory types for allocated memory - These are reserved for OEM use but some UEFI
+// firmwares crash if they are used so mark all allocated regions as EFILoaderData now.
+// vendor
+//#define MEM_TYPE_PAGE_MAP       0x80000001
+//#define MEM_TYPE_BOOT_DATA      0x80000002
+//#define MEM_TYPE_KERNEL         0x80000003
 
 #define PAGE_PRESENT    1
 #define PAGE_READ_WRITE 2
@@ -55,9 +59,12 @@ typedef uint64_t pte;
 void __attribute__ ((noinline))
 efi_print_string(uint16_t *str)
 {
-        efi_call2(sys_table->con_out->output_string, (uintptr_t)sys_table->con_out,
-                  (uintptr_t)str);
+        sys_table->con_out->output_string(sys_table->con_out, str);
 }
+
+
+void serial_print_string(const char *str);
+int serial_printf(const char * _Nonnull fmt, ...) __attribute__ ((format (printf, 1, 2)));
 
 
 void __attribute__ ((noinline))
@@ -70,6 +77,9 @@ uprint_string(char *str)
         int j = 0;
         while(*str) {
                 char ch = *str++;
+#ifdef SERIAL_DEBUG
+                serial_print_char(ch);
+#endif
                 if (ch == '\n') {
                         buf[j++] = (uint16_t)'\r';
                 }
@@ -134,8 +144,7 @@ wait_for_key(efi_input_key_t *key)
                 key = &dummy;
         }
         do {
-                status = efi_call2(sys_table->con_in->read_key,
-                                   (uintptr_t)sys_table->con_in, (uintptr_t)key);
+                status = sys_table->con_in->read_key(sys_table->con_in, key);
         } while(status == EFI_NOT_READY);
         return status;
 }
@@ -180,12 +189,11 @@ print_status(char *str, efi_status_t status)
 efi_status_t
 alloc_memory(struct memory_region *region)
 {
-        size_t pages = (region->req_size + (PAGE_SIZE - 1)) / PAGE_SIZE;
+        efi_uintn pages = (region->req_size + (PAGE_SIZE - 1)) / PAGE_SIZE;
         void *address = region->base;
         efi_allocate_type allocate_type = region->base == NULL ? EFI_ALLOCATE_ANY_PAGES : EFI_ALLOCATE_ADDRESS;
-        efi_status_t status = efi_call4(sys_table->boot_services->allocate_pages,
-                                        allocate_type, region->type,
-                                        pages, (uintptr_t)&address);
+        efi_status_t status = sys_table->boot_services->allocate_pages(allocate_type, region->type, pages,
+                                                                       (efi_physical_address *)&address);
         if (status == EFI_SUCCESS) {
                 memset(address, 0, pages * PAGE_SIZE);
                 region->base = address;
@@ -193,7 +201,7 @@ alloc_memory(struct memory_region *region)
         } else {
                 region->base = NULL;
                 region->pages = 0;
-                uprintf("Cant allocate %ld bytes\n", region->req_size);
+                uprintf("Failed to allocate %ld bytes\n", region->req_size);
         }
 
         return status;
@@ -203,8 +211,8 @@ alloc_memory(struct memory_region *region)
 efi_status_t
 free_memory(struct memory_region *region)
 {
-        efi_status_t status = efi_call2(sys_table->boot_services->free_pages,
-                                        region->pages, (uintptr_t)&region->base);
+        efi_status_t status = sys_table->boot_services->free_pages((efi_physical_address)region->base,
+                                                                   region->pages);
         if (status == EFI_SUCCESS) {
                 region->base = NULL;
                 region->pages = 0;
@@ -217,10 +225,9 @@ free_memory(struct memory_region *region)
 void *
 alloc_page()
 {
-        struct memory_region region = { .type = MEM_TYPE_PAGE_MAP,
+        struct memory_region region = { .type = EFI_LOADER_DATA,
                                         .req_size = PAGE_SIZE };
         alloc_memory(&region);
-
         return region.base;
 }
 
@@ -231,38 +238,24 @@ set_text_mode(int on)
         efi_guid_t protocol = EFI_CONSOLE_CONTROL_GUID;
         efi_console_control_interface_t *interface;
 
-        efi_status_t status = efi_call3(sys_table->boot_services->locate_protocol,
-                                        (uintptr_t)&protocol, (uintptr_t)NULL,
-                                        (uintptr_t) &interface);
-
-
+        efi_status_t status = sys_table->boot_services->locate_protocol(&protocol, NULL, (void **)&interface);
         if (status != EFI_SUCCESS) {
+                print_status("Failed to locate text protocol", status);
                 return status;
         }
 
         efi_console_screen_mode_t mode;
-        status = efi_call4(interface->get_mode, (uintptr_t)interface,
-                           (uintptr_t)&mode, 0, 0);
+        status = interface->get_mode(interface, &mode, 0, 0);
         print_status("get_mode", status);
         if (status != EFI_SUCCESS) {
-                return 0;
+                return status;
         }
         uprint_string("Setting text mode\n");
         efi_console_screen_mode_t newmode = on ? efi_screen_text : efi_screen_graphics;
-        status = efi_call2(interface->set_mode, (uintptr_t)interface, newmode);
+        status = interface->set_mode(interface, newmode);
         print_status("set_mode", status);
 
         return status;
-}
-
-
-efi_status_t
-locate_handle(efi_locate_search_type type, efi_guid_t *guid, void *search_key,
-              uint64_t *nr_handles, efi_handle_t *handles)
-{
-        return efi_call5(sys_table->boot_services->locate_handle,
-                         type, (uintptr_t)guid, (uintptr_t)search_key,
-                         (uintptr_t)nr_handles, (uintptr_t)handles);
 }
 
 
@@ -396,9 +389,7 @@ show_gop_info(efi_graphics_output_protocol_t *gop,
         for(mode = 0; mode < gop->mode->max_mode; mode++) {
                 efi_uintn size_of_info;
                 efi_graphics_output_mode_information_t *info;
-                efi_status_t status = efi_call4(gop->query_mode, (uintptr_t)gop,
-                                                mode, (uintptr_t)&size_of_info,
-                                                (uintptr_t)&info);
+                efi_status_t status = gop->query_mode(gop, mode, &size_of_info, &info);
                 if (status != EFI_SUCCESS) {
                         print_status("QueryMode", status);
                         return status;
@@ -418,7 +409,7 @@ show_gop_info(efi_graphics_output_protocol_t *gop,
         if (best_mode != gop->mode->mode) {
                 uprintf("Trying to set mode to: %d, press any key to continue\n",
                         best_mode);
-                status = efi_call2(gop->set_mode, (uintptr_t)gop, best_mode);
+                status = gop->set_mode(gop, best_mode);
                 if (status != EFI_SUCCESS) {
                         print_status("Cant set best GOP mode", status);
                 } else {
@@ -439,7 +430,7 @@ find_gop(struct frame_buffer *fb)
         uint64_t buffer_sz = sizeof(handles);
         efi_guid_t guid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
 
-        efi_status_t status = locate_handle(efi_by_protocol, &guid, NULL,
+        efi_status_t status = sys_table->boot_services->locate_handle(efi_by_protocol, &guid, NULL,
                                             &buffer_sz, handles);
         if (status != EFI_SUCCESS) {
                 print_status("locate_handle EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID",
@@ -455,9 +446,7 @@ find_gop(struct frame_buffer *fb)
         efi_graphics_output_mode_information_t current_info;
         for (int i = 0; i < handlecnt; i++) {
                 efi_graphics_output_protocol_t *gop;
-                status = efi_call3(sys_table->boot_services->handle_protocol,
-                                   (uintptr_t)handles[i], (uintptr_t)&guid,
-                                   (uintptr_t)&gop);
+                status = sys_table->boot_services->handle_protocol(handles[i], &guid, (void **)&gop);
                 if (status != EFI_SUCCESS) {
                         print_status("handle_procotol", status);
                         continue;
@@ -491,7 +480,7 @@ find_uga(struct frame_buffer *fb)
         efi_handle_t handles[64];
         uint64_t buffer_sz = sizeof(handles);
         efi_guid_t guid = EFI_UGA_PROTOCOL_GUID;
-        efi_status_t status = locate_handle(efi_by_protocol, &guid, NULL,
+        efi_status_t status = sys_table->boot_services->locate_handle(efi_by_protocol, &guid, NULL,
                                             &buffer_sz, handles);
         if (status != EFI_SUCCESS) {
                 print_status("locate_handle EFI_UGA_PROTOCOL_GUID", status);
@@ -503,17 +492,13 @@ find_uga(struct frame_buffer *fb)
 
         for (int i = 0; i < handlecnt; i++) {
                 efi_uga_draw_protocol_t *uga;
-                status = efi_call3(sys_table->boot_services->handle_protocol,
-                                   (uintptr_t)handles[i], (uintptr_t)&guid,
-                                   (uintptr_t)&uga);
+                status = sys_table->boot_services->handle_protocol(handles[i], &guid, (void **)&uga);
                 if (status != EFI_SUCCESS) {
                         print_status("handle_procotol ", status);
                         continue;
                 }
                 uint32_t hres, vres, depth, refresh;
-                status = efi_call5(uga->get_mode, (uintptr_t)uga, (uintptr_t)&hres,
-                                   (uintptr_t)&vres, (uintptr_t)&depth,
-                                   (uintptr_t)&refresh);
+                status = uga->get_mode(uga, &hres, &vres, &depth, &refresh);
                 if (status == EFI_SUCCESS) {
                         fb->width = hres;
                         fb->height = vres;
@@ -595,19 +580,24 @@ exit_boot_services()
 {
         uint64_t map_key = 0;
         uint32_t version = 0;
+        efi_uintn memory_map_size = 0;
+        efi_uintn memory_map_desc_size = 0;
         struct efi_boot_params *bp = &ptr_table->boot_params;
 
-        struct memory_region region = { .type = MEM_TYPE_BOOT_DATA };
+        struct memory_region region = { .type = EFI_LOADER_DATA };
         // Call once to find out size of buffer to allocate
-        efi_status_t status = efi_call5(sys_table->boot_services->get_memory_map,
-                                        (uintptr_t)&region.req_size,
-                                        (uintptr_t)bp->memory_map,
-                                        (uintptr_t)&map_key,
-                                        (uintptr_t)&bp->memory_map_desc_size,
-                                        (uintptr_t)&version);
+        efi_status_t status = sys_table->boot_services->get_memory_map(
+                &region.req_size,
+                bp->memory_map,
+                &map_key,
+                &memory_map_desc_size,
+                &version);
+
         if (status != EFI_BUFFER_TOO_SMALL) {
                 return status;
         }
+
+        bp->memory_map_desc_size = memory_map_desc_size;
         /* Add an extra page to the request size as some pages will be allocated
            to map the region into the kernel's space and so we need to take
            account of extra memory allocations that will occur now */
@@ -620,7 +610,7 @@ exit_boot_services()
         }
         bp->size = sizeof(struct efi_boot_params);
         bp->memory_map = region.base;
-        bp->memory_map_size = region.pages * PAGE_SIZE;
+        memory_map_size = region.pages * PAGE_SIZE;
 
         // Map it just after the kernel BSS +1 page as the ptr_table
         // occupies the page after the bss. Compute the offset from the
@@ -631,15 +621,22 @@ exit_boot_services()
         uprintf("Adding mapping for memory_map, vaddr = %p\n",
                 memory_map_vaddr);
         status = add_mapping(memory_map_vaddr, region.base, region.pages);
+        if (status != EFI_SUCCESS) {
+                print_status("add_mapping:", status);
+                return status;
+        }
         bp->nr_efi_config_entries = sys_table->nr_entries;
         bp->efi_config_table = sys_table->config_table;
 
-        status = efi_call5(sys_table->boot_services->get_memory_map,
-                           (uintptr_t)&bp->memory_map_size,
-                           (uintptr_t)bp->memory_map,
-                           (uintptr_t)&map_key,
-                           (uintptr_t)&bp->memory_map_desc_size,
-                           (uintptr_t)&version);
+        status = sys_table->boot_services->get_memory_map(
+                &memory_map_size,
+                bp->memory_map,
+                &map_key,
+                &memory_map_desc_size,
+                &version);
+
+        bp->memory_map_size = memory_map_size;
+        bp->memory_map_desc_size = memory_map_desc_size;
 
         if (status != EFI_SUCCESS || bp->memory_map_desc_size == 0) {
                 print_status("get_memory_map", status);
@@ -674,11 +671,11 @@ exit_boot_services()
 
         // ExitBootServices() must be called immediately after GetMemoryMap()
         // so that nothing can change the map_key
-        status = efi_call2(sys_table->boot_services->exit_boot_services,
-                           (uintptr_t)image_handle, map_key);
+        status = sys_table->boot_services->exit_boot_services(image_handle, map_key);
         if (status != EFI_SUCCESS) {
-                print_status("exit_boot_services", status);
+                return status;
         }
+
         // Now update the ptr table with the virtual memory map address
         bp->memory_map = memory_map_vaddr;
 
@@ -766,7 +763,7 @@ relocate_kernel()
 
         size_t symbol_size = ki->symbol_table->sh_size
                 + ki->string_table->sh_size;
-        uprintf("symbol_size: %lx\n", symbol_size);
+        uprintf("symbol_size: %ld\n", symbol_size);
 
         // Compute the vaddr where the symbol table will reside
         Elf64_Addr symtab_vaddr = first->p_vaddr + total_sz;
@@ -774,13 +771,13 @@ relocate_kernel()
         size_t symbol_offset = total_sz;
         total_sz += (symbol_size + (PAGE_SIZE - 1)) & PAGE_MASK;
         total_sz += PAGE_SIZE;
-        uprintf("Size of kernel+bss+symbols %lx\n", total_sz);
+        uprintf("Size of kernel+bss+symbols %ld\n", total_sz);
 
         // Load the kernel at 0x1000000 (16MB physical).
         // TODO: This could fail so add a fallback to memcpy it into place.
         struct memory_region region = {
                 .req_size = total_sz,
-                .type = MEM_TYPE_KERNEL,
+                .type = EFI_LOADER_DATA,
                 .base = (void *)0x1000000
         };
 
@@ -959,7 +956,6 @@ add_mapping(void *vaddr, void *paddr, size_t page_cnt)
                 }
 
                 if (pt_page[idx3] & PAGE_PRESENT) {
-                        uprintf("Page already mapped @ %p => %p\n", vaddr, paddr);
                         return EFI_INVALID_PARAMETER;
                 } else {
                         pte entry = (uintptr_t)paddr;
@@ -1033,6 +1029,7 @@ efi_main(void *handle, efi_system_table_t *_sys_table,
         image_handle = handle;
         sys_table = _sys_table;
         ptr_table = ptrs;
+
         print_ptr_table();
 
         set_text_mode(1);
@@ -1046,16 +1043,17 @@ efi_main(void *handle, efi_system_table_t *_sys_table,
                 goto error;
         }
 
-
         struct frame_buffer *fb = &ptr_table->boot_params.fb;
         if ((status = setup_frame_buffer(fb)) != EFI_SUCCESS) {
-                goto error;
+                // Framebuffer is not always available, this is not an error.
+                uprint_string("No framebuffer available\n");
         }
 
         if ((status = setup_page_tables()) != EFI_SUCCESS) {
                 goto error;
         }
         print_ptr_table();
+
 #ifdef DEBUG
         uprintf("nr_entries: %ld, config_table: %p\n", sys_table->nr_entries,
                  sys_table->config_table);
@@ -1069,6 +1067,9 @@ efi_main(void *handle, efi_system_table_t *_sys_table,
                 goto error;
         }
 
+#ifdef SERIAL_DEBUG
+        serial_print_string("Exiting Boot Services\n");
+#endif
         return EFI_SUCCESS;
 
  error:

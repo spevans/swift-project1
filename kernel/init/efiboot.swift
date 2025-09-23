@@ -87,7 +87,11 @@ struct EFIBootParams {
             let descriptorSize = efiBootParams.memory_map_desc_size
 
             #kprint("bootparams: reading frameBufferInfo")
-            frameBufferInfo = FrameBufferInfo(fb: efiBootParams.fb)
+            if efiBootParams.fb.address != nil {
+                frameBufferInfo = FrameBufferInfo(fb: efiBootParams.fb)
+            } else {
+                frameBufferInfo = nil
+            }
 
             memoryRanges = EFIBootParams.parseMemoryMap(memoryMapAddr,
                 UInt(memoryMapSize), UInt(descriptorSize), frameBufferInfo)

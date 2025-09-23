@@ -640,7 +640,6 @@ bprintf(const char *fmt, ...)
 }
 
 
-#ifndef EFI
 static void
 serial_print_func(void *data __attribute__((unused)), const char c)
 {
@@ -660,6 +659,7 @@ serial_printf(const char *fmt, ...)
 }
 
 
+#ifndef EFI
 void
 m_print_char(void *buf_p, char ch)
 {

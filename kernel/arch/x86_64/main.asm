@@ -72,7 +72,7 @@ main:
         retf
 .here:
 
-        ;; convert EDI:ESI => R12, ECX:RDX => R13
+        ;; convert EDI:ESI => R12, ECX:EDX => R13
         mov     r12, rdi
         shl     r12, 32
         or      r12, rsi

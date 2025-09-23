@@ -15,14 +15,14 @@ typedef efi_status_t
                                     uint32_t *horizontal_resolution,
                                     uint32_t *vertical_resolution,
                                     uint32_t *color_depth,
-                                    uint32_t *refresh_rate);
+                                    uint32_t *refresh_rate) __attribute__((ms_abi));
 
 typedef efi_status_t
 (*efi_uga_draw_protocol_set_mode_t)(struct _efi_uga_draw_protocol *this,
                                     uint32_t horizontal_resolution,
                                     uint32_t vertical_resolution,
                                     uint32_t color_depth,
-                                    uint32_t refresh_rate);
+                                    uint32_t refresh_rate) __attribute__((ms_abi));
 
 typedef struct {
         uint8_t blue;
@@ -55,7 +55,7 @@ typedef efi_status_t
 
 typedef struct _efi_uga_draw_protocol {
         efi_uga_draw_protocol_get_mode_t get_mode;
-        efi_uga_draw_protocol_set_mode_t SetMode;
+        efi_uga_draw_protocol_set_mode_t set_mode;
         efi_uga_draw_protocol_blt_t Blt;
 } efi_uga_draw_protocol_t;
 
