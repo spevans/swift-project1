@@ -132,6 +132,6 @@ class KlibTests: XCTestCase {
     }
 
     func testStringToValue() {
-        XCTAssertEqual(UInt32("0x99000000"), 0x9000000)
+        XCTAssertEqual(UInt32("0x99000000"), 0x99000000)
     }
 }

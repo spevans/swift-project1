@@ -7,6 +7,8 @@
 //
 
 import XCTest
+@testable import Kernel
+
 /*
 struct PCITestConfigSpace: PCIConfigAccessProtocol, CustomStringConvertible {
     private let data: [UInt8]
@@ -69,7 +71,7 @@ class PCITests: XCTestCase {
         ]
 
         let configSpace = PCIConfigSpace.bytes(pciDump)
-        var deviceFunction = PCIDeviceFunction(busId: 0, device: 1, function: 0, configSpace: configSpace)
+        let deviceFunction = PCIDeviceFunction(busId: 0, device: 1, function: 0, configSpace: configSpace)
         guard deviceFunction.hasValidVendor else {
             XCTFail("Invalid PCIDeviceFunction")
             return

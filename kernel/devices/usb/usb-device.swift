@@ -15,14 +15,17 @@ class HCDData {
 class USBDevice: BusDevice {
     fileprivate(set) var address: UInt8 = 0 // Default Start Address when not assigned
     private(set) var maxPacketSize0: Int
-    let bus: USBBus // FIXME, could this just be HCDRootHub?
-    let port: UInt8
-    let speed: USB.Speed
     private(set) var hcdData: HCDData?   // FIXME, could be an enum but need to fix pointers in enum bug
     private var _controlPipe: USBPipe?
     private(set) var descriptor: USB.DeviceDescriptor?
 
+    let bus: USBBus // FIXME, could this just be HCDRootHub?
+    let port: UInt8
+    let speed: USB.Speed
+
+    override var className: String { "USBDevice" }
     var isLowSpeedDevice: Bool { speed == .lowSpeed }
+
 
     override var description: String {
         #sprintf("Device %d.%u isUSBDevice: %s isHCDRootHub: %s",
@@ -244,6 +247,8 @@ class USBDevice: BusDevice {
 // as well.
 final class HCDRootHub: USBDevice {
 
+    override var className: String { "HCDRootHub" }
+
     struct HCDDeviceFunctions {
         let processURB: (USB.ControlRequest, MMIOSubRegion?) -> USB.Response
     }
@@ -269,4 +274,5 @@ final class HCDRootHub: USBDevice {
         #kprint("rootPort() for HCDRootHub")
         return 0
     }
+
 }

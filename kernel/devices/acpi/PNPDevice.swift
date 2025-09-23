@@ -14,6 +14,7 @@ final class PNPDevice: BusDevice {
     let isPCIHost: Bool
 
     override var description: String {"PNP Device \(pnpName)" }
+    override var className: String { "PNPDevice" }
 
     init?(device: Device, acpiDeviceConfig: ACPIDeviceConfig) {
         guard device.busDevice == nil else {
@@ -84,4 +85,11 @@ final class PNPDevice: BusDevice {
         }
     }
     #endif
+}
+
+
+class PNPDeviceDriver: DeviceDriver {
+    init?(driverName: String, pnpDevice: PNPDevice) {
+        super.init(driverName: driverName, device: pnpDevice.device)
+    }
 }

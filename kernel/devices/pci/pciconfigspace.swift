@@ -164,8 +164,9 @@ enum PCIConfigSpace: CustomStringConvertible {
 
 
 
-private var _mcfg: MCFG?
 private(set) var pciHostBus: PCIBus?
+#if ACPI
+private var _mcfg: MCFG?
 
 func initPCI(mcfg: MCFG?) {
     if let mcfg = mcfg {
@@ -186,6 +187,7 @@ func initPCI(mcfg: MCFG?) {
         }
     }
 }
+#endif
 
 func setPCIHostBus(_ device: Device) {
     guard let bus = device.deviceDriver as? PCIBus, bus.isHostBus else {
@@ -196,12 +198,14 @@ func setPCIHostBus(_ device: Device) {
 }
 
 func pciConfigSpace(busId: UInt8, device: UInt8, function: UInt8) -> PCIConfigSpace {
+#if ACPI
     if let mmioBaseAddress = _mcfg?.baseAddressFor(bus: busId) {
         let regionAddress = mmioBaseAddress + (UInt(device) << 15 | UInt(function) << 12)
         let pageRange = PhysRegion(start: regionAddress, size: 4096)
         return .mmio(mmioRegion: MMIORegion(pageRange))
-    } else {
-        let address = (UInt32(busId) << 16) | (UInt32(device) << 11) | (UInt32(function) << 8)
-        return .pio(baseAddress: address | 0x80000000)
     }
+#endif
+
+    let address = (UInt32(busId) << 16) | (UInt32(device) << 11) | (UInt32(function) << 8)
+    return .pio(baseAddress: address | 0x80000000)
 }

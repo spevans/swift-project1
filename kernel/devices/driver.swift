@@ -37,33 +37,3 @@ class DeviceDriver: CustomStringConvertible {
         self.instanceName = newName
     }
 }
-
-
-//FIXME: are these needed?
-class PNPDeviceDriver: DeviceDriver {
-    init?(driverName: String, pnpDevice: PNPDevice) {
-        super.init(driverName: driverName, device: pnpDevice.device)
-    }
-}
-
-
-class PCIDeviceDriver: DeviceDriver {
-    init?(driverName: String, pciDevice: PCIDevice) {
-        super.init(driverName: driverName, device: pciDevice.device)
-    }
-}
-
-
-class USBDeviceDriver: DeviceDriver {
-    let usbDevice: USBDevice
-
-    init(driverName: String, usbDevice: USBDevice) {
-        self.usbDevice = usbDevice
-        super.init(driverName: driverName, device: usbDevice.device)
-    }
-
-    init(driverName: String, usbDevice: USBDevice, device: Device) {
-        self.usbDevice = usbDevice
-        super.init(driverName: driverName, device: device)
-    }
-}

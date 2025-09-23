@@ -281,3 +281,65 @@ struct PCIStatus: CustomStringConvertible {
         return result
     }
 }
+
+// INTA - INTD
+enum PCIInterruptPin: Equatable, CustomStringConvertible {
+    case intA
+    case intB
+    case intC
+    case intD
+
+    private var rawValue: UInt8 {
+        switch self {
+            case .intA: return 1
+            case .intB: return 2
+            case .intC: return 3
+            case .intD: return 4
+        }
+    }
+
+    // The Interrupt Pin from offset 0x3D of the PCI config area. 0 = No interrupt, 1-4 => A-D
+    init?(pin: UInt8) {
+        switch pin {
+            case 0: return nil
+            case 1: self = .intA
+            case 2: self = .intB
+            case 3: self = .intC
+            case 4: self = .intD
+            default:
+                #kprint("PRT: Invalid interrupt PIN value: \(pin)")
+                return nil
+        }
+    }
+
+
+    // The pin value from the _PRT PCI Routing Table: 0-3 -> A-D
+    init?(routingTablePin pin: UInt8) {
+        switch pin {
+            case 0: self = .intA
+            case 1: self = .intB
+            case 2: self = .intC
+            case 3: self = .intD
+            default: return nil
+        }
+    }
+
+    var description: String {
+        switch self {
+            case .intA: return "INT #A"
+            case .intB: return "INT #B"
+            case .intC: return "INT #C"
+            case .intD: return "INT #D"
+        }
+    }
+
+
+    // Swizzle according to 'System Interrupt Mapping' in PCI Express spec section 2.2.8.1.
+    func swizzle(slot: UInt8, ariEnabled: Bool = false) -> Self {
+        let _slot = ariEnabled ? 0 : slot
+        let newPin = ((self.rawValue - 1) + _slot) % 4
+        let result = Self(pin: newPin + 1)!
+        #kprint("PRT: SWIZZLE: slot: \(slot) _slot: \(_slot) pin: \(self) newPin: \(result)")
+        return result
+    }
+}

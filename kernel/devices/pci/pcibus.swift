@@ -11,11 +11,10 @@
 
 final class PCIBus: DeviceDriver {
     let busId: UInt8
-    var resources: [MotherBoardResource] = []
     let isHostBus: Bool
     private(set) var devices: [Device] = []
 
-
+#if ACPI
     // Root Bus
     init?(pnpDevice: PNPDevice) {
         isHostBus = true
@@ -41,6 +40,7 @@ final class PCIBus: DeviceDriver {
         self.setInstanceName(to: "pcibus\(busId)")
         #kprint("PCIBus.init:", self.description)
     }
+#endif
 
     init?(pciDevice: PCIDevice) {
         // FIXME for PCI express root port
@@ -62,6 +62,7 @@ final class PCIBus: DeviceDriver {
     override func initialise() -> Bool {
         #kprint("PCIBus.initialiseDevice:", self)
 
+#if ACPI
         // Find child nodes that are devices and build a map of _ADR to node
         var adrNodeMap: [AMLInteger : ACPI.ACPIObjectNode] = [:]
         if let childACPINodes = self.device.acpiDeviceConfig?.node.childNodes {
@@ -71,6 +72,7 @@ final class PCIBus: DeviceDriver {
                 }
             }
         }
+#endif
 
         // Scan PCI bus for any remaining devices
         for deviceFunction in scanBus() {
@@ -78,12 +80,17 @@ final class PCIBus: DeviceDriver {
             // FIXME: Try and find matching ACPI device node
 
             let newDevice: Device
+#if ACPI
             if let node = adrNodeMap[AMLInteger(deviceFunction.acpiADR)], let d = node.device {
                 #kprint("PCI: Found node", node.fullname(), "with device:", d)
                 newDevice = d
             } else {
                 newDevice = Device(parent: self.device)
             }
+#else
+            newDevice = Device(parent: self.device)
+#endif
+
             guard let pciDevice = self.device(deviceFunction: deviceFunction, newDevice: newDevice) else {
                 #kprint("PCI: Could not add \(deviceFunction)")
                 continue
@@ -183,7 +190,7 @@ final class PCIBus: DeviceDriver {
         return pciDevice
     }
 
-
+#if ACPI
     // Convert an ACPI _ADR PCI address and busId. Only returns if the PCI device has valid vendor/device codes.
     static func pciDeviceFunctionFor(address: AMLInteger, withBusId busId: UInt8) -> PCIDeviceFunction? {
         let device = UInt8(address >> 16)
@@ -191,6 +198,7 @@ final class PCIBus: DeviceDriver {
         let deviceFunction = PCIDeviceFunction(busId: busId, device: device, function: function)
         return deviceFunction.hasValidVendor ? deviceFunction : nil
     }
+#endif
 
     // Scan the PCI bus for devices but ignore any that have already been added to the `devices` array by ACPI
     private func scanBus() -> [PCIDeviceFunction] {

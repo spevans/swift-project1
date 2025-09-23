@@ -11,7 +11,6 @@
 
 final class ISABus: DeviceDriver {
 
-    var resources: [MotherBoardResource] = []
     let rs = ReservedSpace(name: "IO Ports", start: 0, end: 0xfff)
 
 
@@ -19,21 +18,24 @@ final class ISABus: DeviceDriver {
         let device = pciDevice.device
         #kprint("Initialising ISABus on PCI:", device)
         super.init(driverName: "isabus", device: device)
+        self.setInstanceName(to: "isa0")
     }
 
+#if ACPI
     init?(pnpDevice: PNPDevice) {
         let device = pnpDevice.device
         #kprint("Initialising ISABus on PNP:", device)
         super.init(driverName: "isabus", device: device)
         self.setInstanceName(to: "isa0")
     }
+#endif
 
     override func initialise() -> Bool {
         return true
     }
 }
 
-
+#if ACPI
 extension ISABus {
     // Resources used by a device
     struct Resources: CustomStringConvertible {
@@ -103,3 +105,4 @@ extension ISABus {
         }
     }
 }
+#endif

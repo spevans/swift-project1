@@ -7,6 +7,7 @@
 
 class BusDevice: CustomStringConvertible {
     var description: String { "Generic BusDevice" }
+    var className: String { "BusDevice" }
     let device: Device
     var busDeviceName: String
 
@@ -26,9 +27,12 @@ private func nextDeviceId() -> Int {
     return atomic_inc(&_nextDeviceId)
 }
 
+
 final class Device: CustomStringConvertible {
 
+#if ACPI
     let acpiDeviceConfig: ACPIDeviceConfig?
+#endif
     private(set) var deviceDriver: DeviceDriver?
     private(set) var busDevice: BusDevice?
     /*unowned*/ let parent: Device?
@@ -40,13 +44,21 @@ final class Device: CustomStringConvertible {
     var isBus: Bool { devices.count > 0 }
     var description: String { deviceName }
 
-
+#if ACPI
     init(parent: Device?, acpiDeviceConfig: ACPIDeviceConfig? = nil) {
         self.parent = parent
         self.acpiDeviceConfig = acpiDeviceConfig
         self.deviceName = "dev\(nextDeviceId())"
         parent?.devices.append(self)
     }
+#else
+
+    init(parent: Device?) {
+        self.parent = parent
+        self.deviceName = "dev\(nextDeviceId())"
+        parent?.devices.append(self)
+    }
+#endif
 
     func initialise() -> Bool {
         self.initialised = true

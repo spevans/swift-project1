@@ -7,6 +7,10 @@
 //  Monitor EDID decode - Extended Display Identification Data
 //
 
+#if TEST
+// FIXME: Move these to a common constant file (from tty.swift)
+private let NEWLINE: CUnsignedChar = 0x0A
+#endif
 
 struct EDID {
     struct StandardTiming {

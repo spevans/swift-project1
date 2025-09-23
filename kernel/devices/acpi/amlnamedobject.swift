@@ -470,13 +470,13 @@ enum OpRegionSpace: CustomStringConvertible {
             assert(_width >= 0)
         } while _width > 0
 
-        #if TEST
+#if TEST
         // testing check
         let readBack = read(bitOffset: bitOffset, width: width, flags: flags)
         if readBack != value {
             fatalError("read after write failed [value=\(value) readBack=\(readBack)]")
         }
-        #endif
+#endif
     }
 
     private func createMask(_ startBit: Int, _ endBit: Int) -> AMLInteger {

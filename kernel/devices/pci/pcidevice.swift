@@ -14,6 +14,8 @@ final class PCIDevice: BusDevice {
     private(set) var deviceFunction: PCIDeviceFunction
     private(set) var pciIORegions: [PCI_IO_Region] = []
 
+    override var className: String { "PCIDevice" }
+
     override var description: String {
         #sprintf("PCI %2.2X:%2.2X/%u: %4.4X:%4.4X",
                  deviceFunction.busId,
@@ -123,6 +125,9 @@ final class PCIDevice: BusDevice {
             bus = parent.device
         }
 
+#if !ACPI
+        return nil
+#else
         guard let itr = bus.acpiDeviceConfig?.prt() else {
             fatalError("PCI: \(bus) cant find an Interrupt Routing Table")
         }
@@ -155,6 +160,7 @@ final class PCIDevice: BusDevice {
             case .globalSystemInterrupt(let gsi):
                 return IRQSetting(gsi: gsi, activeHigh: false, levelTriggered: true, shared: true, wakeCapable: false) // FIXME: try and determine wakeCapable status.
         }
+#endif
     }
 
 
@@ -321,6 +327,13 @@ final class PCIDevice: BusDevice {
 }
 
 
+class PCIDeviceDriver: DeviceDriver {
+    init?(driverName: String, pciDevice: PCIDevice) {
+        super.init(driverName: driverName, device: pciDevice.device)
+    }
+}
+
+
 struct PCI_BAR: Equatable {
     let rawValue: UInt32
     var baseAddress: UInt32 { rawValue & ~0b111 }
@@ -416,10 +429,12 @@ struct PCIDeviceMatch {
         return true
     }
 
+#if !TEST
     static func matches(_ matches: Span<PCIDeviceMatch>, device: PCIDevice) -> Bool {
         for matchIdx in matches.indices {
             if matches[matchIdx].matches(device) { return true }
         }
         return false
     }
+#endif
 }
