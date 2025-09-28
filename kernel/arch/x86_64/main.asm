@@ -13,6 +13,7 @@
 
 
         extern init_early_tty
+        extern init_serial
         extern init_mm
         extern klibc_start
         extern startup ; SwiftKernel.startup () -> ()
@@ -97,6 +98,7 @@ main:
 
         mov     rdi, r13        ; framebuffer info
         call    init_early_tty
+        call    init_serial
         mov     rdi, r12
         call    init_mm         ; required for malloc/free
 

@@ -113,7 +113,7 @@ func setupMM(bootParams: BootParams) {
     setupInitialPhysicalMap(bootParams.memoryRanges)
     // Create a mapping for the text/framebuffer in the new page maps so that print(), printf()
     // etc still works.
-    setTTY(frameBufferInfo: bootParams.frameBufferInfo)
+    remapTTY(bootParams.frameBufferInfo)
 
     let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_addr).value)
     #kprintf("MM: Updating CR3 to %p\n", pml4paddr)
