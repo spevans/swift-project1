@@ -15,9 +15,16 @@ project at some point.
 
 ## Current status
 
+29/09/2025
+
+- XHCI host controller, sufficient to support keyboard and mouse but
+  does not currently support hubs.
+- Intel GPU driver to use the 2D blitter engine for text mode. Only
+  supports for specific GPU currently.
+
 21/07/2025
 
-- Rewritten ACPI intepreter, required due to heavy use of [existentials](https://docs.swift.org/embedded/documentation/embedded/existentials/)
+- Rewritten ACPI interpreter, required due to heavy use of [existentials](https://docs.swift.org/embedded/documentation/embedded/existentials/)
   which are not supported in Embedded Swift. This also fixed a lot of ACPI bugs.
 - Improved EFI Framebuffer driver to speed up the text console. This reduces boot
   time significantly.
@@ -37,7 +44,7 @@ The next major tasks are:
 - Installs interrupts and exception/fault handlers
 - Sets up paging
 - Scans ACPI/SMBIOS tables
-- Parses ACPI tables including AML bytecode in DSDT, SSDT tables
+- Parses ACPI tables including AML byte code in DSDT, SSDT tables
 - Initialises the APIC and IO/APIC (or PIC)
 - Traverses the ACPI device tree adding known devices according to topology.
 - Scans PCI bus (MMIO or PIO) to show vendor/device IDs
@@ -48,13 +55,13 @@ The next major tasks are:
   have an i8042 PS/2 keyboard controller so the keyboard will not work.
 
 Currently working on enabling ACPI to process ACPI events and setting up more
-devices including the Realtime Clock and PCI interrupts.
+devices including the Real-time Clock and PCI interrupts.
 
 
 ## How to build it
 
 A custom Swift toolchain is currently required to build the kernel as it contains
-a modififed version of the Embedded Swift runtime for x86-64. For more details see
+a modified version of the Embedded Swift runtime for x86-64. For more details see
 [swift-kstdlib](https://github.com/spevans/swift-kstdlib/blob/kstdlib-20250720/KERNEL_LIB.md)
 
 The project has a `Package.swift` but this is only used for building and running the tests,
