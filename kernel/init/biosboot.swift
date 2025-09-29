@@ -74,8 +74,10 @@ struct BiosBootParams: CustomStringConvertible {
             }
 
             return MemoryRange(type: mtype,
-                start: PhysAddress(RawAddress(self.baseAddress)),
-                size: UInt(self.length))
+                               start: PhysAddress(RawAddress(self.baseAddress)),
+                               size: UInt(self.length),
+                               attributes: [.writeBack]
+            )
         }
     }
 
@@ -160,16 +162,16 @@ struct BiosBootParams: CustomStringConvertible {
                         let range1size = memEntry.start.distance(to: kernelPhysAddress)
                         if range1size > 0 {
                             ranges.append(MemoryRange(type: memEntry.type,
-                                    start: memEntry.start, size: UInt(range1size)))
+                                                      start: memEntry.start, size: UInt(range1size), attributes: memEntry.attributes))
                         }
 
                         ranges.append(MemoryRange(type: .Kernel,
-                                start: kernelPhysAddress, size: kernelSize))
+                                                  start: kernelPhysAddress, size: kernelSize, attributes: [.writeBack]))
                         let range2end = memEntry.start.advanced(by: memEntry.size)
                         let range2size = kernelPhysEnd.distance(to: range2end)
                         if range2size > 0 {
                             ranges.append(MemoryRange(type: memEntry.type,
-                                    start: kernelPhysEnd, size: UInt(range2size)))
+                                                      start: kernelPhysEnd, size: UInt(range2size), attributes: memEntry.attributes))
                         }
                     } else {
                         ranges.append(memEntry)
@@ -189,7 +191,7 @@ struct BiosBootParams: CustomStringConvertible {
                 if addr < entry.start {
                     let size = addr.distance(to: entry.start)
                     ranges.append(MemoryRange(type: MemoryType.Hole, start: addr,
-                            size: UInt(size)))
+                                              size: UInt(size), attributes: []))
                 }
                 addr = entry.start.advanced(by: entry.size)
             }
@@ -211,10 +213,10 @@ struct BiosBootParams: CustomStringConvertible {
         // Add in a range for the VGA framebuffer. This may already exist or may overwrite something that already
         // covers that range.
         // FIXME: Dont overwrite if there is a better mapping already.
-        ranges.insertRange(MemoryRange(type: .Reserved, start: PhysAddress(0), size: PAGE_SIZE))
-        ranges.insertRange(MemoryRange(type: .FrameBuffer, start: PhysAddress(0xA0000), size: UInt(128 * kb)))
+        ranges.insertRange(MemoryRange(type: .Reserved, start: PhysAddress(0), size: PAGE_SIZE, attributes: []))
+        ranges.insertRange(MemoryRange(type: .FrameBuffer, start: PhysAddress(0xA0000), size: UInt(128 * kb), attributes: [.writeCombining]))
         let apicRegion = APIC.addressRegion()
-        let apicRange = MemoryRange(type: .MemoryMappedIO, start: apicRegion.baseAddress, endAddress: apicRegion.endAddress)
+        let apicRange = MemoryRange(type: .MemoryMappedIO, start: apicRegion.baseAddress, endAddress: apicRegion.endAddress, attributes: [.uncacheable])
         ranges.insertRange(apicRange)
         #kprint("Added APIC into memory ranges")
         for range in ranges {

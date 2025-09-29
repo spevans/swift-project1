@@ -61,9 +61,13 @@ enum MemoryType: UInt32, CustomStringConvertible {
         case mmio
         case readOnly
         case readWrite
+        case reserved
 
         func lowest(_ other: Access) -> Access {
             switch (self, other) {
+                case (.reserved, _), (_, .reserved):
+                    return .reserved
+
                 case (.mmio, _), (_, .mmio):
                     return .mmio
 
@@ -80,19 +84,65 @@ enum MemoryType: UInt32, CustomStringConvertible {
 
     var access: Access {
         switch self {
-            case .Hole, .Reserved, .Unusable, .MemoryMappedIOPortSpace:
+            case .Hole, .Unusable, .MemoryMappedIOPortSpace:
                 return .unusable
 
-            case .LoaderCode, .LoaderData, .BootServicesCode, .BootServicesData, .RuntimeServicesCode, .RuntimeServicesData,
-                    .ACPIReclaimable, .ACPINonVolatile, .BootData, .E820Reserved:
+            case .Reserved:
+                return .reserved
+
+            case .LoaderCode, .LoaderData, .BootServicesCode, .BootServicesData,
+                    .RuntimeServicesCode, .RuntimeServicesData,
+                    .ACPIReclaimable, .BootData, .E820Reserved:
                 return .readOnly
 
             case .MemoryMappedIO, .FrameBuffer:
                 return .mmio
 
-            case .Conventional, .Kernel, .PageMap:
+            case .Conventional, .Kernel, .PageMap, .ACPINonVolatile:
                 return .readWrite
         }
+    }
+}
+
+// Defined in UEFI spec 7.2.3 EFI_BOOT_SERVICES.GetMemoryMap()
+struct MemoryAttributes: OptionSet, CustomStringConvertible {
+    let rawValue: UInt64
+
+    static let uncacheable = MemoryAttributes(rawValue: UInt64(EFI_MEMORY_UC.rawValue))
+    static let writeCombining = MemoryAttributes(rawValue: UInt64(EFI_MEMORY_WC.rawValue))
+    static let writeThrough = MemoryAttributes(rawValue: UInt64(EFI_MEMORY_WT.rawValue))
+    static let writeBack = MemoryAttributes(rawValue: UInt64(EFI_MEMORY_WB.rawValue))
+    static let extendedUncacheable = MemoryAttributes(rawValue: UInt64(EFI_MEMORY_UCE.rawValue))
+    static let writeProtected = MemoryAttributes(rawValue: UInt64(EFI_MEMORY_WP.rawValue))
+    static let readProtected = MemoryAttributes(rawValue: UInt64(EFI_MEMORY_RP.rawValue))
+    static let executionProtected = MemoryAttributes(rawValue: UInt64(EFI_MEMORY_XP.rawValue))
+    static let nonVolatile = MemoryAttributes(rawValue: UInt64(EFI_MEMORY_NV.rawValue))
+    static let moreReliable = MemoryAttributes(rawValue: UInt64(EFI_MEMORY_MORE_RELIABLE.rawValue))
+    static let readOnly = MemoryAttributes(rawValue: UInt64(EFI_MEMORY_RO.rawValue))
+    static let specificPurpose = MemoryAttributes(rawValue: UInt64(EFI_MEMORY_SP.rawValue))
+    static let cpuCrypto = MemoryAttributes(rawValue: UInt64(EFI_MEMORY_CPU_CRYPTO.rawValue))
+    static let runtime = MemoryAttributes(rawValue: UInt64(EFI_MEMORY_RUNTIME.rawValue))
+    static let isaSpecific = MemoryAttributes(rawValue: UInt64(EFI_MEMORY_ISA_VALID.rawValue))
+
+    var description: String {
+        var result = ""
+        if self.contains(.uncacheable) { result += "uc "}
+        if self.contains(.writeCombining) { result += "wc " }
+        if self.contains(.writeThrough) { result += "wt " }
+        if self.contains(.writeBack) { result += "wb " }
+        if self.contains(.extendedUncacheable) { result += "uce " }
+        if self.contains(.writeProtected) { result += "wp " }
+        if self.contains(.readProtected) { result += "rp " }
+        if self.contains(.executionProtected) { result += "xp "}
+        if self.contains(.nonVolatile) { result += "nv " }
+        if self.contains(.moreReliable) { result += "mr "}
+        if self.contains(.readOnly) { result += "ro "}
+        if self.contains(.specificPurpose) { result += "sp "}
+        if self.contains(.cpuCrypto) { result += "cryp "}
+        if self.contains(.runtime) { result += "rt "}
+        if self.contains(.isaSpecific) { result += "isa " }
+        if !result.isEmpty { result.removeLast() }
+        return result
     }
 }
 
@@ -106,19 +156,22 @@ struct MemoryRange: Equatable, CustomStringConvertible {
     let type: MemoryType
     let start: PhysAddress
     let size: UInt
+    let attributes: MemoryAttributes
     var endAddress: PhysAddress { start + (size - 1 ) }
 
 
-    init(type: MemoryType, start: PhysAddress, size: UInt) {
+    init(type: MemoryType, start: PhysAddress, size: UInt, attributes: MemoryAttributes) {
         self.type = type
         self.start = start
         self.size = size
+        self.attributes = attributes
     }
 
-    init(type: MemoryType, start: PhysAddress, endAddress: PhysAddress) {
+    init(type: MemoryType, start: PhysAddress, endAddress: PhysAddress, attributes: MemoryAttributes) {
         self.type = type
         self.start = start
         self.size = UInt((endAddress - start) + 1)
+        self.attributes = attributes
     }
 
     var physPageRanges: [PhysPageAlignedRegion] {
@@ -135,7 +188,34 @@ struct MemoryRange: Equatable, CustomStringConvertible {
         let str = (size >= mb) ? #sprintf(" %6uMB  ", size / mb) :
         #sprintf(" %6uKB  ", size / kb)
 
-        return #sprintf("%12X - %12X %s %s", start.value,  endAddress.value, str, type.description)
+        return #sprintf("%12X - %12X %s %25s %s", start.value,  endAddress.value, str, type.description, attributes.description)
+    }
+
+    func contains(_ address: PhysAddress) -> Bool {
+        return address >= start && address <= endAddress
+    }
+
+    func pageSettings() -> (Bool, CPU.CacheType)? {
+        let cacheType: CPU.CacheType
+
+        guard self.type.access != .unusable else {
+            return nil
+        }
+
+        // Find 'best' cache setting
+        if self.attributes.contains(.writeBack) {
+            cacheType = .writeBack
+        } else if self.attributes.contains(.writeThrough) {
+            cacheType = .writeThrough
+        } else if self.attributes.contains(.writeCombining) {
+            cacheType = .writeCombining
+        } else if self.attributes.contains(.uncacheable) {
+            cacheType = .uncacheable
+        } else {
+            return nil
+        }
+
+        return (self.type.access != .readOnly, cacheType)
     }
 }
 
@@ -169,7 +249,7 @@ private struct RangesWithHoles: IteratorProtocol {
             // Insert a Hole
             defer { lastIndex += 1 }
             let size = UInt(array[nextIndex].start - (array[lastIndex].endAddress + 1))
-            return MemoryRange(type: .Hole, start: array[lastIndex].endAddress + 1, size: size)
+            return MemoryRange(type: .Hole, start: array[lastIndex].endAddress + 1, size: size, attributes: [])
         }
         lastIndex += 1
         nextIndex += 1
@@ -213,8 +293,8 @@ extension MemoryRange {
                     if !pageSize.onSamePage(range.start, range.endAddress) {
                         // If it crosses a page boundary, split in 2 with the split at the page boundary
                         let newEndAddress = pageSize.lastAddressInPage(range.start)
-                        currentRange = MemoryRange(type: range.type, start: newEndAddress + 1, endAddress: range.endAddress)
-                        return MemoryRange(type: range.type, start: range.start, endAddress: newEndAddress)
+                        currentRange = MemoryRange(type: range.type, start: newEndAddress + 1, endAddress: range.endAddress, attributes: range.attributes)
+                        return MemoryRange(type: range.type, start: range.start, endAddress: newEndAddress, attributes: range.attributes)
                     } else {
                         currentRange = nil
                         state = .start
@@ -231,12 +311,12 @@ extension MemoryRange {
                         currentRange = nil
                         return range
                     }
-                    let result = MemoryRange(type: range.type, start: range.start, size: pageSize.roundDown(range.size))
+                    let result = MemoryRange(type: range.type, start: range.start, size: pageSize.roundDown(range.size), attributes: range.attributes)
                     if result.endAddress == range.endAddress {
                         currentRange = nil
                         state = .start
                     } else {
-                        currentRange = MemoryRange(type: range.type, start: result.endAddress + 1, endAddress: range.endAddress)
+                        currentRange = MemoryRange(type: range.type, start: result.endAddress + 1, endAddress: range.endAddress, attributes: range.attributes)
                     }
                     return result
                 }
@@ -287,28 +367,28 @@ extension Array where Element == MemoryRange {
                 result.append(newRange)
                 let newStart = newRange.endAddress + 1
                 let newSize = UInt(range.endAddress - newStart)
-                result.append(MemoryRange(type: range.type, start: newStart, size: newSize))
+                result.append(MemoryRange(type: range.type, start: newStart, size: newSize, attributes: range.attributes))
                 break
             }
 
             if range.endAddress > newRange.start && range.endAddress < newRange.endAddress {
                 let newSize = UInt(newRange.start - range.start)
-                result.append(MemoryRange(type: range.type, start: range.start, size: newSize))
+                result.append(MemoryRange(type: range.type, start: range.start, size: newSize, attributes: range.attributes))
                 result.append(newRange)
                 break
             }
 
-            // New region sits within current region and may/maynot start or end on same address
+            // New region sits within current region and may/may not start or end on same address
             if newRange.start >= range.start && newRange.endAddress <= range.endAddress {
                 let frontSize = UInt(newRange.start - range.start)
                 if frontSize > 0 {
-                    result.append(MemoryRange(type: range.type, start: range.start, size: frontSize))
+                    result.append(MemoryRange(type: range.type, start: range.start, size: frontSize, attributes: range.attributes))
                 }
                 result.append(newRange)
                 let endSize = UInt(range.endAddress - newRange.endAddress)
                 if endSize > 0 {
                     let start = (range.endAddress - endSize) + 1
-                    result.append(MemoryRange(type: range.type, start: start, size: endSize))
+                    result.append(MemoryRange(type: range.type, start: start, size: endSize, attributes: range.attributes))
                 }
                 break
             }
@@ -331,7 +411,7 @@ extension Array where Element == MemoryRange {
         if var range = iterator.next() {
             while let next = iterator.next() {
                 if range.type == next.type && (range.endAddress + 1 == next.start) {
-                    range = MemoryRange(type: range.type, start: range.start, size: range.size + next.size)
+                    range = MemoryRange(type: range.type, start: range.start, size: range.size + next.size, attributes: range.attributes)
                 } else {
                     result.append(range)
                     range = next

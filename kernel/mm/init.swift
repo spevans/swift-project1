@@ -356,7 +356,7 @@ private func setupInitialPhysicalMap(_ memoryRanges: [MemoryRange]) {
         }
     }
 
-    // The kernel is in the next physical memeory at 0x1000000 (16MB) and is already mapped using 4K pages,
+    // The kernel is in the next physical memory at 0x1000000 (16MB) and is already mapped using 4K pages,
     // at its own kernel base. Reuse the page tables and just add entries for the page directories which
     // each cover 2MB of the kernel.
     // This needs to be setup now as the heap pages in the kernel .data section are accessed using the
@@ -380,6 +380,10 @@ private func mapPhysicalMemory(_ ranges: [MemoryRange]) {
 
     let memoryRanges = ranges.filter {
         $0.start >= PhysAddress(16 * mb) && $0.type == .Conventional
+    }
+    #kprint("Mapping Physical memory in ranges:")
+    for range in memoryRanges {
+        #kprint(range)
     }
 
     guard !memoryRanges.isEmpty else { return }

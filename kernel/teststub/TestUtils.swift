@@ -81,7 +81,8 @@ func noInterrupt<Result>(_ task: () -> Result) -> Result {
 }
 
 struct CPU {
-    enum CacheType: Int {
+    // TODO: Use the real one as this is a straight copy
+    enum CacheType: Int, CustomStringConvertible {
         case writeBack = 0
         case writeCombining = 1
         case weakUncacheable = 2
@@ -90,6 +91,27 @@ struct CPU {
         case writeProtected = 5
         case reserved2 = 6 // weakUncacheable
         case writeThrough = 7
+
+        var description: String {
+            switch self {
+                case .writeBack:
+                    "WB"
+                case .writeCombining:
+                    "WC"
+                case .weakUncacheable:
+                    "WU"
+                case .uncacheable:
+                    "UN"
+                case .reserved1:
+                    "R1"
+                case .writeProtected:
+                    "WP"
+                case .reserved2:
+                    "R2"
+                case .writeThrough:
+                    "WT"
+            }
+        }
 
         // This value is stored as three bits in a Page Table Entry mapping a page.
         var patEntry: Int { rawValue }
@@ -109,6 +131,10 @@ func mapRORegion(region: PhysRegion) -> MMIORegion {
 }
 
 func unmapMMIORegion(_ mmioRegion: MMIORegion) {
+}
+
+func mapRegion(region: PhysRegion, readWrite: Bool, cacheType: CPU.CacheType) -> MMIORegion {
+    return MMIORegion(region)
 }
 
 func koops(_ message: String) -> Never {

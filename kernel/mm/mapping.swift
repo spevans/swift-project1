@@ -35,17 +35,26 @@ func mapIORegion(region: PhysPageAlignedRegion, cacheType: CPU.CacheType = .unca
 
 func mapRORegion(region: PhysPageAlignedRegion, cacheType: CPU.CacheType = .writeBack) -> MMIORegion {
     let vaddr = region.baseAddress.vaddr
-    //print("Adding RO mapping for \(region) at 0x\(String(vaddr, radix: 16)) \(cacheType)")
     addMapping(start: vaddr, size: region.size, physStart: region.baseAddress,
                readWrite: false, noExec: true, cacheType: cacheType)
 
     return MMIORegion(region)
 }
 
+
+func mapRWRegion(region: PhysRegion) -> MMIORegion {
+    let physPageRegion = region.physPageAlignedRegion
+    let vaddr = physPageRegion.baseAddress.vaddr
+    addMapping(start: vaddr, size: physPageRegion.size, physStart: physPageRegion.baseAddress,
+               readWrite: true, noExec: true, cacheType: .writeBack)
+
+    return MMIORegion(region)
+}
+
+
 func mapRORegion(region: PhysRegion) -> MMIORegion {
     let physPageRegion = region.physPageAlignedRegion
     let vaddr = physPageRegion.baseAddress.vaddr
-    //print("Adding RO mapping for \(region) [\(physPageRegion)] at 0x\(String(vaddr, radix: 16))")
     addMapping(start: vaddr, size: physPageRegion.size, physStart: physPageRegion.baseAddress,
                readWrite: false, noExec: true, cacheType: .writeBack)
 
@@ -55,7 +64,6 @@ func mapRORegion(region: PhysRegion) -> MMIORegion {
 
 // Converts an existing mapping to MMIO by changing its cacheType
 func remapAsIORegion(region: PhysPageAlignedRegion, cacheType: CPU.CacheType = .uncacheable) -> MMIORegion {
-    //print("Remapping to IO mapping for \(region) at 0x\(String(vaddr, radix: 16)) \(cacheType)")
     for page in region {
         guard changeEntry(address: page.vaddr, cacheType: cacheType, readWrite: true) else {
             fatalError("remapAsIORegion: Tried to remap non-mapped region: \(region)")
@@ -67,12 +75,21 @@ func remapAsIORegion(region: PhysPageAlignedRegion, cacheType: CPU.CacheType = .
 
 func unmapMMIORegion(_ mmioRegion: MMIORegion) {
     let pageRange = mmioRegion.physAddressRegion.physPageAlignedRegion
-    //print("unmapIORegion:", pageRange)
     for page in pageRange {
         guard removeMapping(address: page.vaddr) else {
             fatalError("unmapIORegion: Tried to unmap non-mapped region: \(mmioRegion)")
         }
     }
+}
+
+
+func mapRegion(region: PhysRegion, readWrite: Bool, cacheType: CPU.CacheType) -> MMIORegion {
+    let physPageRegion = region.physPageAlignedRegion
+    let vaddr = physPageRegion.baseAddress.vaddr
+    addMapping(start: vaddr, size: physPageRegion.size, physStart: physPageRegion.baseAddress,
+               readWrite: readWrite, noExec: true, cacheType: cacheType)
+
+    return MMIORegion(region)
 }
 
 

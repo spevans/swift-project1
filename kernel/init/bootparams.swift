@@ -68,7 +68,7 @@ struct FrameBufferInfo: CustomStringConvertible {
 
 
     var memoryRange: MemoryRange {
-        MemoryRange(type: .FrameBuffer, start: address, size: size)
+        MemoryRange(type: .FrameBuffer, start: address, size: size, attributes: [.writeCombining])
     }
 }
 

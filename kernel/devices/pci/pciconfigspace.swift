@@ -168,22 +168,34 @@ private(set) var pciHostBus: PCIBus?
 #if ACPI
 private var _mcfg: MCFG?
 
-func initPCI(mcfg: MCFG?) {
-    if let mcfg = mcfg {
-        _mcfg = mcfg
-        #kprintf("PCI: Have MCFG with %d entries\n", mcfg.allocations.count)
-        for entry in mcfg.allocations {
-            let busCount = UInt(entry.endBus - entry.startBus) + 1
-            let size = busCount * 32 * 8 * 4096
-            let endAddress = entry.baseAddress + size - 1
-            #kprintf("PCI: startBus: %2.2x endBus: %2.2x base: %p - %p\n",
-                     entry.startBus, entry.endBus, entry.baseAddress.value, endAddress.value)
-            let regions = PhysPageAlignedRegion.createRanges(startAddress: entry.baseAddress, endAddress: endAddress, pageSizes: [.init(4096), .init(2 * mb)])
-            for region in regions {
-                #kprintf("PCI: Mapping region @ %s\n", region.description)
-                let mmioRegion = mapIORegion(region: region)
-                #kprintf("PCI: MMIORegion: %s\n", mmioRegion.description)
+func initPCI(mcfg: MCFG) {
+    _mcfg = mcfg
+    #kprintf("PCI: Have MCFG with %d entries\n", mcfg.allocations.count)
+    for entry in mcfg.allocations {
+        #kprint("pci:", entry)
+
+        // There may be a memory range covering the PCI MMIO region but its not always there
+        // Add one in if not as it is needed by ACPI when it creates OperationRegions that
+        // cover PCI Config space
+        if let range = findMemoryRangeContaining(physAddress: entry.baseAddress) {
+            #kprint("pci: memory range for PCI MMIO:", range)
+            if range.start != entry.baseAddress || range.size != entry.size {
+                #kprint("pci: warning, memory range does not match the mcfg entry")
             }
+        } else {
+            // Add a range
+            let pciMemory = MemoryRange(type: .MemoryMappedIO, start: entry.baseAddress, size: entry.size, attributes: [.uncacheable])
+            #kprint("pci: Adding memory range for PCI:", pciMemory)
+            addMemoryRange(pciMemory)
+        }
+
+        let regions = PhysPageAlignedRegion.createRanges(
+            startAddress: entry.baseAddress, endAddress: entry.endAddress,
+            pageSizes: [.init(4096), .init(2 * mb)])
+        for region in regions {
+            #kprintf("PCI: Mapping region @ %s\n", region.description)
+            let mmioRegion = mapIORegion(region: region)
+            #kprintf("PCI: MMIORegion: %s\n", mmioRegion.description)
         }
     }
 }

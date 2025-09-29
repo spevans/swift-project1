@@ -221,6 +221,13 @@ private func deviceDebug(arguments: [String]) {
     driver.debug(arguments: Array(arguments[1...]))
 }
 
+private func showMCFG(arguments: [String]) {
+    if let mcfg = system.systemTables.acpiTables.mcfg {
+        mcfg.showEntries()
+    } else {
+        #kprint("No MCFG table found")
+    }
+}
 
 private let commands: [String: ShellCommand] = [
     "help":     ShellCommand(helpCommand, "Show the available commands"),
@@ -248,6 +255,7 @@ private let commands: [String: ShellCommand] = [
     "device":   ShellCommand(deviceDebug, "Debug Device"),
     "i915":     ShellCommand(testi915, "Test an i915 display"),
     "memory":   ShellCommand( { _ in system.showMemoryRanges() }, "Show memory ranges"),
+    "mcfg":     ShellCommand(showMCFG, "Show ACPI MCFG table"),
 //    "xhci":     ShellCommand(testXHCI, "Test XHCI Driver"),
 
 ]

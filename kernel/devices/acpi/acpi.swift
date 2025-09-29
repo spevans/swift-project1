@@ -190,7 +190,11 @@ final class ACPI {
                 mRanges.append(memoryRange)
                 #kprint("ACPI: using range:", memoryRange)
                 let region = PhysRegion(start: memoryRange.start, size: memoryRange.size)
-                let mmioRegion = mapRORegion(region: region)
+                let mmioRegion = switch memoryRange.type.access {
+                    case .readOnly: mapRORegion(region: region)
+                    case .readWrite: mapRWRegion(region: region)
+                    default: fatalError("Trying to map region that is not RO or RW")
+                }
                 mmioRegions.append(mmioRegion)
             }
             parseEntry(physAddress: entry, vendor: vendor, product: product)
@@ -260,12 +264,14 @@ final class ACPI {
 //        #kprintf("Found: \(signature)")
         switch signature {
         case "MCFG":
-            mcfg = MCFG(rawSDTPtr, vendor: vendor, product: product)
-            initPCI(mcfg: mcfg)
-            tables.append(.mcfg(mcfg!))
-            for entry in mcfg!.allocations {
-                #kprint("MCFG:", entry)
-            }
+                self.mcfg = MCFG(rawSDTPtr, vendor: vendor, product: product)
+                if let _mcfg = self.mcfg  {
+                    initPCI(mcfg: _mcfg)
+                    tables.append(.mcfg(_mcfg))
+                    for entry in _mcfg.allocations {
+                        #kprint("MCFG:", entry)
+                    }
+                }
 
         case "FACP":
             facp = FACP(rawSDTPtr)

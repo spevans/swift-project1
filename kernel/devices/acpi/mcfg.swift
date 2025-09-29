@@ -9,7 +9,7 @@
  */
 
 
-// FIXME: This table may need to be fixedup using PNP0C01/PNP0C02 info from
+// FIXME: This table may need to be fixed up using PNP0C01/PNP0C02 info from
 // motherboard resources as the bus range may be too big
 struct MCFG {
 
@@ -19,11 +19,16 @@ struct MCFG {
         let startBus: UInt8
         let endBus: UInt8
         let reserved: UInt32
+        var busCount: UInt { UInt(endBus - startBus) + 1 }
+        var size: UInt { busCount * 32 * 8 * 4096 }
+        var endAddress: PhysAddress { baseAddress + size - 1 }
 
         var description: String {
-            return "base: \(asHex(baseAddress.value)) segment: \(segmentGroup)"
-                + " startBus: \(asHex(startBus)) endBus: \(asHex(endBus))"
+            #sprintf("startBus: %2.2x endBus: %2.2x seg: %4.4x range: %p - %p",
+                     startBus, endBus, segmentGroup,
+                     baseAddress.value, endAddress.value)
         }
+
 
         init(entry: acpi_mcfg_config_entry) {
             baseAddress = PhysAddress(RawAddress(entry.base_address))
@@ -91,5 +96,12 @@ struct MCFG {
         }
 
         return nil
+    }
+
+    func showEntries() {
+        #kprintf("mcfg: Have %d entries\n", allocations.count)
+        for entry in allocations {
+            #kprint("mcfg:", entry)
+        }
     }
 }

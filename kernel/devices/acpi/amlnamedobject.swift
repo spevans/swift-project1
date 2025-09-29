@@ -265,7 +265,7 @@ struct AMLDefMutex {
 }
 
 
-enum AMLRegionSpace: AMLByteData {
+enum AMLRegionSpace: AMLByteData, CustomStringConvertible {
     case systemMemory = 0x00
     case systemIO = 0x01
     case pciConfig = 0x02
@@ -277,6 +277,22 @@ enum AMLRegionSpace: AMLByteData {
     case generalPurposeIO = 0x08
     case genericSerialBus = 0x09
     case oemDefined = 0x80 // .. 0xff fixme
+
+    var description: String {
+        return switch self {
+            case .systemMemory: "System Memory"
+            case .systemIO: "System IO"
+            case .pciConfig: "PCI Config"
+            case .embeddedControl: "EmbeddedControl"
+            case .smbus: "SMBus"
+            case .systemCMOS: "System CMOS"
+            case .pciBarTarget: "PCI Bar Target"
+            case .ipmi: "IPMI"
+            case .generalPurposeIO: "GPIO"
+            case .genericSerialBus: "GPSerialBus"
+            default: "OEMDefined"
+        }
+    }
 }
 
 enum OpRegionSpace: CustomStringConvertible {
@@ -534,8 +550,31 @@ struct SystemMemorySpace: CustomStringConvertible {
         precondition(length > 0)
         self.offset = UInt(offset)
         self.length = Int(length)
-        let region = PhysRegion(start: PhysAddress(UInt(offset)), size: UInt(length))
-        mmioRegion = mapIORegion(region: region)
+        let size = UInt(length)
+        let physAddress = PhysAddress(self.offset)
+
+        let region = PhysRegion(start: physAddress, size: size)
+        #kprintf("acpi: Adding system memory space: %s\n", region.description)
+        guard var memoryRange = findMemoryRangeContaining(physAddress: physAddress) else {
+            fatalError("Failed to find memory range covering \(region)")
+        }
+        if memoryRange.type == .Hole {
+            // Need to add in memory range to cover the region
+            let region = PhysPageAlignedRegion(start: physAddress, size: size)
+            #kprintf("acpi: Adding system memory space: %s\n", region.description)
+            memoryRange = MemoryRange(type: .MemoryMappedIO, start: region.baseAddress,
+                                      size: region.size, attributes: [.uncacheable])
+            #kprint("acpi: Adding new memory range:", memoryRange)
+            addMemoryRange(memoryRange)
+        }
+
+        guard let (readWrite, cacheType) = memoryRange.pageSettings() else {
+            fatalError("Failed to get page settings for memory range \(memoryRange)")
+        }
+
+        #kprintf("acpi: mapping region: %s as rw: %s cache: %s\n",
+                 memoryRange.description, readWrite, cacheType.description)
+        mmioRegion = mapRegion(region: region, readWrite: readWrite, cacheType: cacheType)
     }
 
 
@@ -649,6 +688,7 @@ struct PCIConfigRegionSpace: CustomStringConvertible {
         return "PCIConfigSpace: offset: 0x\(String(offset, radix: 16)), length: \(length)"
     }
 
+    // PCI Config space should already be mapped for MMIO by the PCI subsystem
     init(config: PCIConfigSpace, offset: AMLInteger, length: AMLInteger) {
         precondition(length > 0)
         precondition(offset + length <= 256)
@@ -706,10 +746,7 @@ final class AMLDefOpRegion {
 
 
     var description: String {
-        let _offset = offset.description
-        let _length = length.description
-       // let rs = regionSpace?.description ?? "nil"
-        return "regionType: \(regionSpaceType)\noffset: \(_offset)\nlength: \(_length)\nregionSpace: "
+        return "OpRegion: " + regionSpaceType.description
     }
 
 

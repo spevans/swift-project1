@@ -37,6 +37,18 @@ struct FakePhysMemory {
     }
 }
 
+func findMemoryRangeContaining(physAddress: PhysAddress) -> MemoryRange? {
+    for memory in physicalMemory {
+        if memory.start <= physAddress && memory.end >= physAddress {
+            return MemoryRange(type: .MemoryMappedIO, start: memory.start, endAddress: memory.end, attributes: [.uncacheable])
+        }
+    }
+    return nil
+}
+
+func addMemoryRange(_ memoryRange: MemoryRange) {
+    FakePhysMemory.addPhysicalMemory(start: memoryRange.start, size: Int(memoryRange.size))
+}
 
 extension PhysAddress {
     var vaddr: VirtualAddress {

@@ -108,7 +108,7 @@ final class I915: PCIDeviceDriver {
         ringBufferMmioRegion = mapIORegion(region: ringBufferPhysRegion, cacheType: .uncacheable)
 
         super.init(driverName: "i915", pciDevice: pciDevice)
-        if let frameBufferInfo = system.bootParams.frameBufferInfo {
+        if let frameBufferInfo = system.frameBufferInfo {
             #kprintf("EFI Frame buffer baseAddress: %p size: 0x%x\n", frameBufferInfo.address, frameBufferInfo.size)
             height = Int(frameBufferInfo.height)
             width = Int(frameBufferInfo.width)

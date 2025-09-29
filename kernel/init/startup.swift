@@ -11,6 +11,10 @@
 
 fileprivate(set) var system: System!
 
+// This is global as it is needed when creating elements in System
+// TODO: Should System exist or should the members just be globals?
+private var memoryRanges: [MemoryRange]! = nil
+
 @_cdecl("startup")
 public func startup(bootParamsAddr: UInt) {
     system = System(bootParamsAddr: bootParamsAddr)
@@ -23,7 +27,8 @@ public func startup(bootParamsAddr: UInt) {
 final class System {
     let systemTables: SystemTables
     let deviceManager: DeviceManager
-    let bootParams: BootParams
+    let frameBufferInfo: FrameBufferInfo?
+
 
     init(bootParamsAddr: RawAddress) {
         // Setup GDT/IDT as early as possible to help catch CPU exceptions
@@ -31,7 +36,10 @@ final class System {
         setupIDT()
         CPU.getInfo()
         // BootParams must come first to find memory regions for MM
-        bootParams = parse(bootParamsAddr: VirtualAddress(bootParamsAddr))
+        let bootParams = parse(bootParamsAddr: VirtualAddress(bootParamsAddr))
+        frameBufferInfo = bootParams.frameBufferInfo
+        memoryRanges = bootParams.memoryRanges
+
         // Setup the new page tables and add the free RAM to the free list so that
         // ACPI parsing etc has more memory available.
         setupMM(bootParams: bootParams)
@@ -62,10 +70,21 @@ final class System {
     }
 
     func showMemoryRanges() {
-        for range in bootParams.memoryRanges {
+        for range in memoryRanges {
             #kprint(range)
         }
     }
+}
+
+func findMemoryRangeContaining(physAddress: PhysAddress) -> MemoryRange? {
+    return memoryRanges.findRange(containing: physAddress)
+}
+
+// TODO: need to check for overlaps (especially with holes) and decide
+// what to do. This is especially try for MMIO regions added as devices
+// are found
+func addMemoryRange(_ range: MemoryRange) {
+    memoryRanges.insertRange(range)
 }
 
 

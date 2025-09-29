@@ -55,7 +55,7 @@ class AddressTests: XCTestCase {
     func testCreateRanges() {
         do {
             let start = PhysAddress(0xbcb5c000)
-            let memoryRange = MemoryRange(type: .BootServicesCode, start: start, size: 0x1000)
+            let memoryRange = MemoryRange(type: .BootServicesCode, start: start, size: 0x1000, attributes: [.writeBack])
             let physPageRanges = memoryRange.physPageRanges(using: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
             XCTAssertEqual(physPageRanges.count, 1)
             XCTAssertEqual(physPageRanges[0].pageSize.size, 0x1000)
@@ -66,7 +66,7 @@ class AddressTests: XCTestCase {
 
         do {
             let start = PhysAddress(0x200_000)
-            let memoryRange = MemoryRange(type: .BootServicesCode, start: start, size: 0x200_000)
+            let memoryRange = MemoryRange(type: .BootServicesCode, start: start, size: 0x200_000, attributes: [.readOnly])
             let physPageRanges = memoryRange.physPageRanges(using: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
             XCTAssertEqual(physPageRanges.count, 1)
             XCTAssertEqual(physPageRanges[0].pageSize.size, 0x200_000)
@@ -77,7 +77,7 @@ class AddressTests: XCTestCase {
 
         do {
             let start = PhysAddress(0x40_000_000)
-            let memoryRange = MemoryRange(type: .BootServicesCode, start: start, size: 0x40_000_000)
+            let memoryRange = MemoryRange(type: .BootServicesCode, start: start, size: 0x40_000_000, attributes: [.readOnly])
             let physPageRanges = memoryRange.physPageRanges(using: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
             XCTAssertEqual(physPageRanges.count, 1)
             XCTAssertEqual(physPageRanges[0].pageSize.size, 0x40_000_000)
@@ -88,7 +88,7 @@ class AddressTests: XCTestCase {
 
         do {
             let start = PhysAddress(0xbc000000)
-            let memoryRange = MemoryRange(type: .BootServicesCode, start: start, size: 0x20000)
+            let memoryRange = MemoryRange(type: .BootServicesCode, start: start, size: 0x20000, attributes: [.readOnly])
             let physPageRanges = memoryRange.physPageRanges(using: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
             XCTAssertEqual(physPageRanges.count, 1)
 
@@ -105,7 +105,7 @@ class AddressTests: XCTestCase {
             let start = (1 * gb) - (4 * mb) - (12 * kb)
             let end = (2 * gb) + (8 * kb)
             let size = end - start
-            let memoryRange = MemoryRange(type: .BootServicesCode, start: PhysAddress(start), size: size)
+            let memoryRange = MemoryRange(type: .BootServicesCode, start: PhysAddress(start), size: size, attributes: [.readOnly])
             let physPageRanges = memoryRange.physPageRanges(using: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
             XCTAssertEqual(physPageRanges.count, 4)
             XCTAssertEqual(physPageRanges[0].pageSize.size, 0x1000)
@@ -134,7 +134,7 @@ class AddressTests: XCTestCase {
 
         do {
             // 4k to 2TB
-            let memoryRange = MemoryRange(type: .BootServicesCode, start: PhysAddress(0x1000), size: MAX_PHYSICAL_MEMORY - 4096)
+            let memoryRange = MemoryRange(type: .BootServicesCode, start: PhysAddress(0x1000), size: MAX_PHYSICAL_MEMORY - 4096, attributes: [.readOnly])
             let physPageRanges = memoryRange.physPageRanges(using: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
 
             XCTAssertEqual(physPageRanges.count, 3)
@@ -159,7 +159,7 @@ class AddressTests: XCTestCase {
 
         do {
             // 2TB - last 4K page
-            let memoryRange = MemoryRange(type: .BootServicesCode, start: PhysAddress(0), size: MAX_PHYSICAL_MEMORY - 4096)
+            let memoryRange = MemoryRange(type: .BootServicesCode, start: PhysAddress(0), size: MAX_PHYSICAL_MEMORY - 4096, attributes: [.readOnly])
             let physPageRanges = memoryRange.physPageRanges(using: [PageSize(4 * kb), PageSize(2 * mb), PageSize(1 * gb)])
 
             XCTAssertEqual(physPageRanges.count, 3)

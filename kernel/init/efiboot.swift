@@ -9,39 +9,39 @@
 
 struct EFIBootParams {
 
-    typealias EFIPhysicalAddress = UInt
-    typealias EFIVirtualAddress = UInt
+    typealias EFIPhysicalAddress = UInt64
+    typealias EFIVirtualAddress = UInt64
 
     // Physical layout in memory
     struct EFIMemoryDescriptor: CustomStringConvertible {
         let type: MemoryType
-        let padding: UInt32
         let physicalStart: EFIPhysicalAddress
         let virtualStart: EFIVirtualAddress
         let numberOfPages: UInt64
-        let attribute: UInt64
+        let attributes: MemoryAttributes
 
         var description: String {
             let size = UInt(numberOfPages) * PAGE_SIZE
-            let endAddr = physicalStart + size - 1
+            let endAddr = UInt(physicalStart) + size - 1
             return #sprintf("%12X - %12X %8.8X ", physicalStart,
                 endAddr, size) + "\(type)"
         }
 
 
-        init?(descriptor: inout MemoryBufferReader) {
-            let offset = descriptor.offset
+        init?(buffer: inout MemoryBufferReader) {
+            let offset = buffer.offset
             do {
-                guard let dt = MemoryType(rawValue: try descriptor.read()) else {
-                    #kprintf("EFI: Cant read descriptor at offset: %d\n", offset)
-                    return nil
+                let descriptor: efi_memory_descriptor_t = try buffer.read()
+
+                guard let dt = MemoryType(rawValue: descriptor.type) else {
+                    fatalError(#sprintf("EFI: Cant read descriptor at offset: %d type: %x\n", offset, descriptor.type))
+//                    return nil
                 }
                 type = dt
-                padding = try descriptor.read()
-                physicalStart = try descriptor.read()
-                virtualStart = try descriptor.read()
-                numberOfPages = try descriptor.read()
-                attribute = try descriptor.read()
+                physicalStart = descriptor.physical_start
+                virtualStart = descriptor.virtual_start
+                numberOfPages = descriptor.number_of_pages
+                attributes = MemoryAttributes(rawValue: descriptor.attribute)
             } catch {
                 return nil
             }
@@ -126,13 +126,14 @@ struct EFIBootParams {
 
         for i in 0..<descriptorCount {
             descriptorBuf.offset = Int(descriptorSize * i)
-            guard let descriptor = EFIMemoryDescriptor(descriptor: &descriptorBuf) else {
+            guard let descriptor = EFIMemoryDescriptor(buffer: &descriptorBuf) else {
                 #kprint("bootparams: Failed to read descriptor")
                 continue
             }
             let entry = MemoryRange(type: descriptor.type,
-                start: PhysAddress(descriptor.physicalStart),
-                size: UInt(descriptor.numberOfPages) * PAGE_SIZE)
+                                    start: PhysAddress(RawAddress(descriptor.physicalStart)),
+                                    size: UInt(descriptor.numberOfPages) * PAGE_SIZE,
+                                    attributes: descriptor.attributes)
             ranges.append(entry)
         }
 
