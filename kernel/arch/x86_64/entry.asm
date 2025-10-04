@@ -17,8 +17,7 @@
         EXTERN  apicIntHandler
         EXTERN  getFirstTask
         EXTERN  getNextTask
-
-
+        DEFAULT ABS
 
         ;; For exceptions/faults without an error code
         %macro  TRAP_STUB 2

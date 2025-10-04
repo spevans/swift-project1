@@ -7,7 +7,7 @@
 
         GLOBAL  timer_callback
         GLOBAL  current_ticks
-
+        DEFAULT ABS
 
 timer_callback:
         inc     qword [ticks]
