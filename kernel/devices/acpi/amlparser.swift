@@ -144,16 +144,10 @@ final class AMLParser {
     private var byteStream: AMLByteStream!
     private var currentScope: AMLNameString
     let acpiGlobalObjects: ACPI.ACPIObjectNode
-    // FIXME, special handling for parsing a method is probably not needed as the namespace modifiers should be
-    // done as part of execution and the top level block should be treasted as an anonymouns function
-    let isParsingMethod: Bool
-    // FIXME: If methods a re parsed when encountered or a context is passed around parsing
-    // this can probably be removed
 
     init(globalObjects: ACPI.ACPIObjectNode) {
         currentScope = AMLNameString(String(AMLNameString.rootChar))
         acpiGlobalObjects = globalObjects
-        isParsingMethod = false
     }
 
 
@@ -163,8 +157,7 @@ final class AMLParser {
     }
 
 
-    private func subParser(parsingMethod: Bool = false) throws(AMLError) -> AMLParser {
-        //byteStream.dump()
+    private func subParser() throws(AMLError) -> AMLParser {
         let curPos = byteStream.position
         let pkgLength = try parsePkgLength()
         let bytesRead = byteStream.position - curPos
@@ -172,8 +165,7 @@ final class AMLParser {
         let stream = try byteStream.substreamOf(length: byteCount)
         let parser = AMLParser(byteStream: stream,
                                scope: currentScope,
-                               globalObjects: acpiGlobalObjects,
-                               parsingMethod: parsingMethod
+                               globalObjects: acpiGlobalObjects
         )
         return parser
     }
@@ -181,11 +173,10 @@ final class AMLParser {
 
     // Called by subParser
     init(byteStream: AMLByteStream, scope: AMLNameString,
-                 globalObjects: ACPI.ACPIObjectNode, parsingMethod: Bool) {
+                 globalObjects: ACPI.ACPIObjectNode) {
         self.byteStream = byteStream
         self.currentScope = scope
         self.acpiGlobalObjects = globalObjects
-        self.isParsingMethod = parsingMethod
     }
 
 
@@ -292,12 +283,24 @@ final class AMLParser {
 
     // parse funcs return, true = matched and ran ok, false = no match,
     // throw on error
-    func parseTermList() throws(AMLError) -> AMLTermList {
+    func parseTermList(newScope: AMLNameString? = nil) throws(AMLError) -> AMLTermList {
+
+        if let name = newScope {
+            let fqn = name.isFullPath ? name : resolveNameToCurrentScope(path: name)
+            // open a new scope.
+            self.currentScope = fqn
+        }
+
         var termList: AMLTermList = []
         while let symbol = try nextSymbol() {
             do {
-                let termObj = try parseTermObj(symbol: symbol)
-                termList.append(termObj)
+                let x = try parseSymbol(symbol: symbol)
+                if x.isTermObj {
+                    termList.append(x)
+                } else {
+                    let r = "\(symbol.currentOpcode?.description ?? "nil") is Invalid for termobj in scope \(self.currentScope)"
+                    throw AMLError.invalidSymbol(reason: r)
+                }
             }
         }
         return termList
@@ -369,26 +372,6 @@ final class AMLParser {
     }
 
 
-    private func parseTermObj(symbol: ParsedSymbol) throws(AMLError) -> AMLParsedItem {
-        let x = try parseSymbol(symbol: symbol)
-        if x.isTermObj {
-            return x
-        }
-
-        let r = "\(symbol.currentOpcode?.description ?? "nil") is Invalid for termobj in scope \(self.currentScope)"
-        throw AMLError.invalidSymbol(reason: r)
-    }
-
-
-    private func parseTermArgList(argCount: Int) throws(AMLError) -> AMLTermArgList {
-        var termArgList: AMLTermArgList = []
-        while termArgList.count < argCount {
-            termArgList.append(try parseTermArg())
-        }
-        return termArgList
-    }
-
-
     private func parseTermArg() throws(AMLError) -> AMLTermArg {
         guard let symbol = try nextSymbol() else {
             throw AMLError.endOfStream(reason: "parseTermArg: no nextSymbol()")
@@ -452,7 +435,17 @@ final class AMLParser {
             case .breakOp:      return .type1opcode(.amlDefBreak)
             case .breakPointOp: return .type1opcode(.amlDefBreakPoint)
             case .continueOp:   return .type1opcode(.amlDefContinue)
-            case .elseOp:       return try .type1opcode(parseDefElse())
+            case .elseOp:
+                if byteStream.endOfStream() {
+                    return .type1opcode(.amlDefElse(nil))
+                }
+                let parser = try subParser()
+                if parser.byteStream.endOfStream() {
+                    return .type1opcode(.amlDefElse(nil))
+                }
+                let termList = try parser.parseTermList()
+                return .type1opcode(.amlDefElse(termList))
+
             case .fatalOp:      return try .type1opcode(.amlDefFatal(nextByte(), nextDWord(), parseTermArg()))
             case .ifOp:         return try .type1opcode(parseDefIfElse())
             case .noopOp:       return .type1opcode(.amlDefNoop)
@@ -466,18 +459,24 @@ final class AMLParser {
             case .stallOp:      return try .type1opcode(.amlDefStall(parseTermArg()))
             case .unloadOp:     return try .type1opcode(.amlDefUnload(parseSuperName()))
             case .whileOp:
-                let parser = try subParser(parsingMethod: isParsingMethod)
+                let parser = try subParser()
                 return try .type1opcode(.amlDefWhile(parser.parseTermArg(), parser.parseTermList()))
 
             // Type2 opcodes
             case .acquireOp:            return try .type2opcode(.amlDefAcquire(parseSuperName(), nextWord()))
             case .addOp:                return try .type2opcode(.amlDefAdd(parseTermArg(), parseTermArg(), parseTarget()))
             case .andOp:                return try .type2opcode(.amlDefAnd(parseTermArg(), parseTermArg(), parseTarget()))
-            case .bufferOp:             return try .type2opcode(.amlDefBuffer(parseDefBuffer()))
+            case .bufferOp:
+                let parser = try subParser()
+                let bufSize = try parser.parseTermArg()
+                let bytes = parser.byteStream.bytesToEnd()
+                return .type2opcode(.amlDefBuffer(
+                    AMLDefBuffer(bufferSize: bufSize, byteList: bytes)))
+
             case .concatOp:             return try .type2opcode(.amlDefConcat(parseTermArg(), parseTermArg(), parseTarget()))
             case .concatResOp:          return try .type2opcode(.amlDefConcatRes(parseTermArg(), parseTermArg(), parseTarget()))
             case .condRefOfOp:          return try .type2opcode(.amlDefCondRefOf(parseSuperName(), parseTarget()))
-            case .copyObjectOp:         return try .type2opcode(parseDefCopyObject())
+            case .copyObjectOp:         return try .type2opcode(parseDefCopyObject(parseTermArg(), parseSimpleName()))
             case .decrementOp:          return try .type2opcode(.amlDefDecrement(parseSuperName()))
             case .derefOfOp:            return try .type2opcode(.amlDefDerefOf(AMLDefDerefOf(operand: parseTermArg())))
             case .divideOp:             return try .type2opcode(.amlDefDivide(parseTermArg(), parseTermArg(), parseTarget(), parseTarget()))
@@ -496,8 +495,8 @@ final class AMLParser {
             case .lNotOp:               return try .type2opcode(.amlDefLNot(parseTermArg()))
             case .lNotEqualOp:          return try .type2opcode(.amlDefLNotEqual(parseTermArg(), parseTermArg()))
             case .loadOp:               return try .type2opcode(.amlDefLoad(parseNameString(), parseTarget()))
-            case .loadTableOp:          return try .type2opcode(.amlDefLoadTable(parseTermArg(), parseTermArg(), parseTermArg(),
-                                                                                 parseTermArg(), parseTermArg(), parseTermArg()))
+            case .loadTableOp:          return try .type2opcode(
+                .amlDefLoadTable(parseTermArg(), parseTermArg(), parseTermArg(), parseTermArg(), parseTermArg(), parseTermArg()))
 
             case .lOrOp:                return try .type2opcode(.amlDefLOr(parseTermArg(), parseTermArg()))
             case .matchOp:              return try .type2opcode(.amlDefMatch(parseTermArg(), nextByte(), parseTermArg(),
@@ -510,8 +509,24 @@ final class AMLParser {
             case .notOp:                return try .type2opcode(.amlDefNot(parseTermArg(), parseTarget()))
             case .objectTypeOp:         return try .type2opcode(.amlDefObjectType(parseDefObjectType()))
             case .orOp:                 return try .type2opcode(.amlDefOr(parseTermArg(), parseTermArg(), parseTarget()))
-            case .packageOp:            return try .type2opcode(.amlDefPackage(parseDefPackage()))
-            case .varPackageOp:         return try .type2opcode(.amlDefPackage(parseDefVarPackage()))
+            case .packageOp:
+                let parser = try subParser()
+                let numElements = try parser.nextByte()
+                let elements = try parser.parsePackageElementList(numElements: Int(numElements))
+
+                return .type2opcode(.amlDefPackage(
+                    AMLDefPackage(numElements: numElements, packageElementList: elements)))
+
+
+            case .varPackageOp:
+                let parser = try subParser()
+                let numElements = try parser.parseTermArg()
+                let elements = try parser.parsePackageElementList(numElements: nil)
+
+                return.type2opcode(.amlDefPackage(
+                    AMLDefPackage(varNumElements: numElements, packageElementList: elements)))
+
+
             case .refOfOp:              return try .type2opcode(.amlDefRefOf(AMLDefRefOf(name: parseSuperName())))
             case .shiftLeftOp:          return try .type2opcode(.amlDefShiftLeft(parseTermArg(), parseTermArg(), parseTarget()))
             case .shiftRightOp:         return try .type2opcode(.amlDefShiftRight(parseTermArg(), parseTermArg(), parseTarget()))
@@ -529,16 +544,24 @@ final class AMLParser {
             case .xorOp:                return try .type2opcode(.amlDefXor(parseTermArg(), parseTermArg(), parseTarget()))
 
             // AMLDataObject
-            case .bytePrefix:           return .dataRefObject(try AMLByteConst(nextByte()))
-            case .wordPrefix:           return .dataRefObject(try AMLWordConst(nextWord()))
-            case .dwordPrefix:          return .dataRefObject(try AMLDWordConst(nextDWord()))
-            case .qwordPrefix:          return .dataRefObject(try AMLQWordConst(nextQWord()))
-            case .stringPrefix:         return try parseString()
+            case .bytePrefix:           return try .dataRefObject(AMLByteConst(nextByte()))
+            case .wordPrefix:           return try .dataRefObject(AMLWordConst(nextWord()))
+            case .dwordPrefix:          return try .dataRefObject(AMLDWordConst(nextDWord()))
+            case .qwordPrefix:          return try .dataRefObject(AMLQWordConst(nextQWord()))
+            case .stringPrefix:         return try .dataRefObject(parseString())
             case .revisionOp:           return .dataRefObject(AMLRevisionOp())
 
             // Named objects
-            case .dataRegionOp:         return .namespaceModifier(try parseDefDataRegion())
-            case .deviceOp:             return .namespaceModifier(try parseDefDevice())
+            case .dataRegionOp:
+                return .namespaceModifier(try parseDefDataRegion(
+                    parseNameString(), parseTermArg(), parseTermArg(), parseTermArg()))
+
+            case .deviceOp:
+                 let parser = try subParser()
+                 let name = try parser.parseNameString()
+                 let termList = try parser.parseTermList(newScope: name)
+                 return .namespaceModifier(parseDefDevice(name, termList))
+
             case .externalOp:
                 let fullName =  try parseNameString()
                 let objectType = try nextByte()
@@ -549,33 +572,89 @@ final class AMLParser {
                 _ = ACPI.globalObjects.add(fullName.value, node)
                 return .type1opcode(.amlDefNoop)
 
-            case .methodOp:             return .namespaceModifier(try parseDefMethod())
-            case .mutexOp:              return .namespaceModifier(try parseDefMutex())
-            case .opRegionOp:           return .namespaceModifier(try parseDefOpRegion())
-            case .powerResOp:           return .namespaceModifier(try parseDefPowerResource())
-            case .processorOp:          return .namespaceModifier(try parseDefProcessor())
-            case .thermalZoneOp:        return .namespaceModifier(try parseDefThermalZone())
+            // NameSpace Modifiers
+            case .methodOp:
+                return try .namespaceModifier(parseDefMethod(parser: subParser()))
 
-            case .bankFieldOp:          return .namespaceModifier(try parseDefBankField())
-            case .createBitFieldOp:     return .namespaceModifier(try parseDefCreateBitField())
-            case .createByteFieldOp:    return .namespaceModifier(try parseDefCreateByteField())
-            case .createDWordFieldOp:   return .namespaceModifier(try parseDefCreateDWordField())
-            case .createFieldOp:        return .namespaceModifier(try parseDefCreateField())
-            case .createQWordFieldOp:   return .namespaceModifier(try parseDefCreateQWordField())
-            case .createWordFieldOp:    return .namespaceModifier(try parseDefCreateWordField())
+            case .mutexOp:              return try .namespaceModifier(
+                parseDefMutex(parseNameString(), nextByte()))
+
+            case .opRegionOp:           return try .namespaceModifier(
+                parseDefOpRegion(parseNameString(), nextByte(), parseTermArg(), parseTermArg()))
+
+            case .powerResOp:
+                 let parser = try subParser()
+                 let name = try parser.parseNameString()
+                 let systemLevel = try parser.nextByte()
+                 let resourceOrder = try parser.nextWord()
+                 let termList = try parser.parseTermList(newScope: name)
+                 return .namespaceModifier(parseDefPowerResource(name, systemLevel, resourceOrder, termList))
+
+            case .processorOp:
+                 let parser = try subParser()
+                 let name = try parser.parseNameString()
+                 let procId = try parser.nextByte()
+                 let pblkAddr = try parser.nextDWord()
+                 let pblkLen = try parser.nextByte()
+                 let objects = try parser.parseTermList(newScope: name)
+                 return .namespaceModifier(parseDefProcessor(name, procId, pblkAddr, pblkLen, objects))
+
+            case .thermalZoneOp:
+                 let parser = try subParser()
+                 let name = try parser.parseNameString()
+                 let termList = try parser.parseTermList(newScope: name)
+                 return .namespaceModifier(parseDefThermalZone(name, termList))
+
+            case .bankFieldOp:          return .namespaceModifier(try parseDefBankField(parseNameString(), parseNameString(), parseTermArg(), nextByte()))
+
+            case .createBitFieldOp:
+                return try .namespaceModifier(
+                    parseDefCreateBitField(parseTermArg(), parseTermArg(), parseNameString()))
+
+            case .createByteFieldOp:    return try .namespaceModifier(
+                    parseDefCreateByteField(parseTermArg(), parseTermArg(), parseNameString()))
+
+            case .createDWordFieldOp:   return try .namespaceModifier(
+                parseDefCreateDWordField(parseTermArg(), parseTermArg(), parseNameString()))
+
+            case .createFieldOp:        return try .namespaceModifier(
+                parseDefCreateField(parseTermArg(), parseTermArg(), parseTermArg(), parseNameString()))
+
+            case .createQWordFieldOp:   return try .namespaceModifier(
+                parseDefCreateQWordField(parseTermArg(), parseTermArg(), parseNameString()))
+
+            case .createWordFieldOp:    return try .namespaceModifier(
+                parseDefCreateWordField(parseTermArg(), parseTermArg(), parseNameString()))
+
             case .eventOp:              return .namespaceModifier(try parseDefEvent(name: parseNameString()))
-            case .fieldOp:              return .namespaceModifier(try parseDefField())
-            case .indexFieldOp:         return .namespaceModifier(try parseDefIndexField())
+            case .fieldOp:
+                 let parser = try subParser()
+                 return try .namespaceModifier(parseDefField(
+                                       parser.parseNameString(),
+                                       parser.parseFieldList(fieldFlags: AMLFieldFlags(flags: parser.nextByte()))
+                 ))
+
+            case .indexFieldOp:
+                 let parser = try subParser()
+                 return .namespaceModifier(try parseDefIndexField(
+                        parser.parseNameString(), parser.parseNameString(),
+                        parser.parseFieldList(fieldFlags: AMLFieldFlags(flags: parser.nextByte()))
+                 ))
+
+            case .aliasOp:              return try .namespaceModifier(parseDefAlias(parseNameString(), parseNameString()))
+            case .nameOp:               return .namespaceModifier(try parseDefName())
+            case .scopeOp:
+                 let parser = try subParser()
+                 let name = try parser.parseNameString()
+                 let termList = try parser.parseTermList(newScope: name)
+                 let newScope = resolveNameToCurrentScope(path: name)
+                 return .namespaceModifier(.defScope(AMLDefScope(scope: newScope, termList: termList)))
+
 
             // AMLDataObj
             case .zeroOp:   return .dataRefObject(AMLZeroOp())
             case .oneOp:    return .dataRefObject(AMLOneOp())
             case .onesOp:   return .dataRefObject(AMLOnesOp())
-
-            // NameSpace Modifiers
-            case .aliasOp:  return .namespaceModifier(try parseDefAlias())
-            case .nameOp:   return .namespaceModifier(try parseDefName())
-            case .scopeOp:  return .namespaceModifier(.defScope(try parseDefScope()))
 
             case .debugOp:  return .debugObj(AMLDebugObj())
             case .local0Op, .local1Op, .local2Op, .local3Op, .local4Op, .local5Op, .local6Op, .local7Op:
@@ -600,7 +679,7 @@ final class AMLParser {
         let argCount: Int
         // Check if node is a Method or External Method
         if let method = node.object.methodValue {
-            argCount = method.flags.argCount
+            argCount = Int(method.flags.argCount)
         } else if let externalObj = node.object.externalObject, externalObj.0 == 8 {
             argCount = Int(externalObj.1)
         } else {
@@ -609,7 +688,10 @@ final class AMLParser {
 
         var args: AMLTermArgList = []
         if argCount > 0 {
-            args = try parseTermArgList(argCount: argCount)
+            while args.count < argCount {
+                args.append(try parseTermArg())
+            }
+
             guard args.count == argCount else {
                 let r = "Method: \(name.value) has argCount of "
                     + "\(argCount) but only parsed \(args.count) args"
@@ -620,9 +702,9 @@ final class AMLParser {
     }
 
 
-    private func parseString() throws(AMLError) -> AMLParsedItem {
+    private func parseString() throws(AMLError) -> AMLObject {
         var result: String = ""
-        // FIXME, simpliyfy this now that AMLString has an initialiser
+        // FIXME, simplify this now that AMLString has an initialiser
         while true {
             let byte = try nextByte()
             if byte == 0x00 { // NullChar
@@ -634,11 +716,11 @@ final class AMLParser {
                 throw AMLError.invalidData(reason: "Bad asciichar \(byte)")
             }
         }
-        return .dataRefObject(AMLObject(try AMLString(result)))
+        return AMLObject(AMLString(asciiString: result))
     }
 
 
-    func parsePackageElementList(numElements: Int?) throws(AMLError) -> [AMLParsedItem] {
+    private func parsePackageElementList(numElements: Int?) throws(AMLError) -> [AMLParsedItem] {
 
         func parsePackageElement(_ symbol: ParsedSymbol) throws(AMLError) -> AMLParsedItem {
             if let ch = symbol.currentChar, ch.charType != .nullChar {
@@ -678,27 +760,7 @@ final class AMLParser {
         return elements
     }
 
-    // MARK: Parse Def
-    private func parseDefPackage() throws(AMLError) -> AMLDefPackage {
-        let parser = try subParser()
-        let numElements = try parser.nextByte()
-        let elements = try parser.parsePackageElementList(numElements: Int(numElements))
-
-        return AMLDefPackage(numElements: numElements, packageElementList: elements)
-    }
-
-
-    private func parseDefVarPackage() throws(AMLError) -> AMLDefPackage {
-        let parser = try subParser()
-        let numElements = try parser.parseTermArg()
-        let elements = try parser.parsePackageElementList(numElements: nil)
-        return AMLDefPackage(varNumElements: numElements, packageElementList: elements)
-    }
-
-
-    private func parseDefAlias() throws(AMLError) -> AMLNameSpaceModifier {
-        let sourceObject = try parseNameString()
-        let aliasObject = try parseNameString()
+    private func parseDefAlias(_ sourceObject: AMLNameString, _ aliasObject: AMLNameString) throws(AMLError) -> AMLNameSpaceModifier {
 
         let closure = { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let fullname = resolveNameTo(scope: context.scope, path: aliasObject)
@@ -713,20 +775,16 @@ final class AMLParser {
     }
 
 
-    private func parseDefBuffer() throws(AMLError) -> AMLDefBuffer {
-        let parser = try subParser()
-        let bufSize = try parser.parseTermArg()
-        let bytes = parser.byteStream.bytesToEnd()
-        return AMLDefBuffer(bufferSize: bufSize, byteList: bytes)
-    }
-
-
     private func parseDefName() throws(AMLError) -> AMLNameSpaceModifier {
         let name = try parseNameString()
+
         guard let symbol = try nextSymbol() else {
             throw AMLError.invalidSymbol(reason: "parseDefName")
         }
         let parsed = try parseSymbol(symbol: symbol)
+        // FIXME: This should only a DataRefObject but currently some are held as type2opcodes
+        // instead of .dataRefObject (but both are term args). Probably needs to better store packages
+        // an other data NOT as type2opcodes.
         guard let objArg = parsed.termArg else {
             throw AMLError.invalidSymbol(reason: "\(symbol) is not an AMLDataRefObject")
         }
@@ -740,30 +798,13 @@ final class AMLParser {
         return AMLNameSpaceModifier(name: name, closure: closure)
     }
 
-
-    // FIXME: Validate the location in the scope already exists. Also should DefScope
-    // even exist as a type? parseDefScope has already altered the scope by the time its created.
-    private func parseDefScope() throws(AMLError) -> AMLDefScope {
-        let parser = try subParser()
-        let nameString = try parser.parseNameString()
-        let newScope = resolveNameToCurrentScope(path: nameString)
-        parser.currentScope = newScope
-        let termList = try parser.parseTermList()
-        return AMLDefScope(scope: newScope, termList: termList)
-    }
-
-
-    private func parseDefIndexField() throws(AMLError) -> AMLNameSpaceModifier {
-        let parser = try subParser()
-
-        let indexName = try parser.parseNameString()
-        let dataName = try parser.parseNameString()
-        let flags = try AMLFieldFlags(flags: parser.nextByte())
-        let fields = try parser.parseFieldList(fieldFlags: flags)
+    private func parseDefIndexField(_ indexName: AMLNameString, _ dataName: AMLNameString,
+                                    _ fields: AMLFieldList) -> AMLNameSpaceModifier {
 
         let closure = { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             var result: [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] = []
             for (name, settings) in fields {
+                // TODO: Hoist ouside of loop
                 let fullname = resolveNameTo(scope: context.scope, path: name)
                 guard
                     let (indexObject, _) = context.getObject(named: indexName),
@@ -781,13 +822,12 @@ final class AMLParser {
     }
 
 
-    private func parseDefMutex() throws(AMLError) -> AMLNameSpaceModifier {
-        let name = try parseNameString()
-        let flags = try AMLMutexFlags(flags: nextByte())
+    private func parseDefMutex(_ name: AMLNameString, _ byte: AMLByteData) throws(AMLError) -> AMLNameSpaceModifier {
+        let flags = try AMLMutexFlags(flags: byte)
+        let mutex = AMLDefMutex(name: name, flags: flags)
 
         let closure = { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let fullname = resolveNameTo(scope: context.scope, path: name)
-            let mutex = AMLDefMutex(name: name, flags: flags)
             let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(mutex))
             return [(fullname, node, nil)]
         }
@@ -795,12 +835,10 @@ final class AMLParser {
     }
 
 
-    private func parseDefBankField() throws(AMLError) -> AMLNameSpaceModifier {
+    private func parseDefBankField(_ regionName: AMLNameString, _ bankName: AMLNameString,
+                                   _ bankValue: AMLTermArg, _ byte: AMLByteData) throws(AMLError) -> AMLNameSpaceModifier {
         // BankFieldOp PkgLength NameString NameString BankValue FieldFlags FieldList
-        let regionName = try parseNameString()
-        let bankName = try parseNameString()
-        let bankValue = try parseTermArg()
-        let fieldFlags = try AMLFieldFlags(flags: nextByte())
+        let fieldFlags = AMLFieldFlags(flags: byte)
         let fieldList = try parseFieldList(fieldFlags: fieldFlags)
 
         let closure = { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
@@ -819,11 +857,8 @@ final class AMLParser {
     }
 
 
-    private func parseDefCreateBitField() throws(AMLError) -> AMLNameSpaceModifier {
-        let sourceBuff = try parseTermArg() // => Buffer
-        let bitIndex = try parseTermArg()   // => Integer
-        let name = try parseNameString()
-
+    private func parseDefCreateBitField(_ sourceBuff: AMLTermArg, _ bitIndex: AMLTermArg,
+                                        _ name: AMLNameString) -> AMLNameSpaceModifier {
         let closure = { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let sharedBuffer = try operandAsSharedBuffer(operand: sourceBuff, context: &context)
             let index = try operandAsInteger(operand: bitIndex, context: &context)
@@ -836,11 +871,7 @@ final class AMLParser {
     }
 
 
-    private func parseDefCreateByteField() throws(AMLError) -> AMLNameSpaceModifier {
-        let sourceBuff = try parseTermArg()
-        let byteIndex = try parseTermArg()
-        let name = try parseNameString()
-
+    private func parseDefCreateByteField(_ sourceBuff: AMLTermArg, _ byteIndex: AMLTermArg, _ name: AMLNameString) -> AMLNameSpaceModifier {
         let closure = { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let sharedBuffer = try operandAsSharedBuffer(operand: sourceBuff, context: &context)
             let index = try operandAsInteger(operand: byteIndex, context: &context)
@@ -853,12 +884,7 @@ final class AMLParser {
     }
 
 
-    private func parseDefCreateWordField() throws(AMLError) -> AMLNameSpaceModifier {
-        // CreateWordFieldOp SourceBuff ByteIndex NameString
-        let sourceBuff = try parseTermArg()  // => Buffer
-        let byteIndex  = try parseTermArg()  // => Integer
-        let name = try parseNameString()
-
+    private func parseDefCreateWordField(_ sourceBuff: AMLTermArg, _ byteIndex: AMLTermArg, _ name: AMLNameString) -> AMLNameSpaceModifier {
         let closure = { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let sharedBuffer = try operandAsSharedBuffer(operand: sourceBuff, context: &context)
             let index = try operandAsInteger(operand: byteIndex, context: &context)
@@ -871,11 +897,7 @@ final class AMLParser {
     }
 
 
-    private func parseDefCreateDWordField() throws(AMLError) -> AMLNameSpaceModifier {
-        // CreateDWordFieldOp SourceBuff ByteIndex NameString
-        let sourceBuff = try parseTermArg()  // => Buffer
-        let byteIndex  = try parseTermArg()  // => Integer
-        let name = try parseNameString()
+    private func parseDefCreateDWordField(_ sourceBuff: AMLTermArg, _ byteIndex: AMLTermArg, _ name: AMLNameString) -> AMLNameSpaceModifier {
 
         let closure = { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let sharedBuffer = try operandAsSharedBuffer(operand: sourceBuff, context: &context)
@@ -889,11 +911,7 @@ final class AMLParser {
     }
 
 
-    private func parseDefCreateQWordField() throws(AMLError) -> AMLNameSpaceModifier {
-        // CreateQWordFieldOp SourceBuff ByteIndex NameString
-        let sourceBuff = try parseTermArg()  // => Buffer
-        let byteIndex  = try parseTermArg()  // => Integer
-        let name = try parseNameString()
+    private func parseDefCreateQWordField(_ sourceBuff: AMLTermArg, _ byteIndex: AMLTermArg, _ name: AMLNameString) -> AMLNameSpaceModifier {
 
         let closure = {  (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let sharedBuffer = try operandAsSharedBuffer(operand: sourceBuff, context: &context)
@@ -907,12 +925,8 @@ final class AMLParser {
     }
 
 
-    private func parseDefCreateField() throws(AMLError) -> AMLNameSpaceModifier {
+    private func parseDefCreateField(_ sourceBuff: AMLTermArg, _ bitIndex: AMLTermArg, _ numBits: AMLTermArg, _ name: AMLNameString) -> AMLNameSpaceModifier {
         // CreateFieldOp SourceBuff BitIndex NumBits NameString
-        let sourceBuff = try parseTermArg() // => Buffer
-        let bitIndex   = try parseTermArg() // => Integer
-        let numBits    = try parseTermArg() // => Integer
-        let name       = try parseNameString()
 
         let closure = {  (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let sharedBuffer = try operandAsSharedBuffer(operand: sourceBuff, context: &context)
@@ -927,12 +941,9 @@ final class AMLParser {
     }
 
 
-    private func parseDefDataRegion() throws(AMLError) -> AMLNameSpaceModifier {
+    private func parseDefDataRegion(_ regionName: AMLNameString, _ arg1: AMLTermArg,
+                                    _ arg2: AMLTermArg, _ arg3: AMLTermArg) -> AMLNameSpaceModifier {
         // DataRegionOp NameString TermArg TermArg TermArg
-        let regionName = try parseNameString()
-        let arg1 = try parseTermArg()
-        let arg2 = try parseTermArg()
-        let arg3 = try parseTermArg()
 
         let closure = {  (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
 
@@ -952,18 +963,13 @@ final class AMLParser {
     }
 
 
-    private func parseDefDevice() throws(AMLError) -> AMLNameSpaceModifier {
-        let parser = try subParser()
-        let name = try parser.parseNameString()
-        let fqn = name.isFullPath ? name : resolveNameToCurrentScope(path: name)
-        // open a new scope.
-        parser.currentScope = fqn
-        let termList = try parser.parseTermList()
+    private func parseDefDevice(_ name: AMLNameString, _ termList: AMLTermList) -> AMLNameSpaceModifier {
+
+        let dev = AMLDefDevice(name: name.shortName, value: termList)
 
         let closure = {  (context: inout ACPI.AMLExecutionContext) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             // No need to store any subobject as they get added to the tree as named objects themselves.
             let fullname = resolveNameTo(scope: context.scope, path: name)
-            let dev = AMLDefDevice(name: name.shortName, value: termList)
             let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(dev))
             return [(fullname, node, termList)]
         }
@@ -971,8 +977,7 @@ final class AMLParser {
     }
 
 
-    private func parseDefMethod() throws(AMLError) -> AMLNameSpaceModifier {
-        let parser = try subParser(parsingMethod: true)
+    private func parseDefMethod( parser: AMLParser) throws(AMLError) -> AMLNameSpaceModifier {
         let name = try parser.parseNameString()
         let fullPath = resolveNameToCurrentScope(path: name)
         parser.currentScope = fullPath
@@ -980,23 +985,20 @@ final class AMLParser {
 
         let closure = {  (context: inout ACPI.AMLExecutionContext) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let fullname = resolveNameTo(scope: context.scope, path: name)
+            // FIXME, can this be parsed before the closure
             let method = AMLMethod(name: name.shortName, flags: flags, parser: parser)
             let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(method))
             return [(fullname, node, nil)]
         }
 
-        _ = self.acpiGlobalObjects.add(fullPath.value, ACPI.ACPIObjectNode(name: fullPath.shortName,
-                                                                       object: AMLObject(8, UInt8(flags.argCount))))
+        let node = ACPI.ACPIObjectNode(name: fullPath.shortName, object: AMLObject(8, flags.argCount))
+        _ = self.acpiGlobalObjects.add(fullPath.value, node)
         return AMLNameSpaceModifier(name: name, closure: closure)
     }
 
 
-    private func parseDefField() throws(AMLError) -> AMLNameSpaceModifier {
+    private func parseDefField(_ regionName: AMLNameString, _ fields: AMLFieldList) -> AMLNameSpaceModifier {
         // FieldOp PkgLength NameString FieldFlags FieldList
-        let parser = try subParser()
-        let regionName = try parser.parseNameString()
-        let flags = try AMLFieldFlags(flags: parser.nextByte())
-        let fields = try parser.parseFieldList(fieldFlags: flags)
 
         let closure = {  (context: inout ACPI.AMLExecutionContext) throws (AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             var result: [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] = []
@@ -1028,15 +1030,12 @@ final class AMLParser {
         return AMLNameSpaceModifier(name: name, closure: closure)
     }
 
-    private func parseDefOpRegion() throws(AMLError) -> AMLNameSpaceModifier {
+    private func parseDefOpRegion(_ name: AMLNameString, _ byte: AMLByteData, _ offsetArg: AMLTermArg,
+                                  _ lengthArg: AMLTermArg) throws(AMLError) -> AMLNameSpaceModifier {
         // NameString RegionSpace RegionOffset RegionLen
-        let name = try parseNameString()
-        let byte = try nextByte()
         guard let region = AMLRegionSpace(rawValue: byte) else {
             throw AMLError.invalidData(reason: "Bad AMLRegionSpace: \(byte)")
         }
-        let offsetArg = try parseTermArg() // => Integer
-        let lengthArg = try parseTermArg() // => Integer
 
         let closure = {  (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let fullname = resolveNameTo(scope: context.scope, path: name)
@@ -1048,15 +1047,14 @@ final class AMLParser {
     }
 
 
-    private func parseDefPowerResource() throws(AMLError) -> AMLNameSpaceModifier {
-        let parser = try subParser()
-        let name = try parser.parseNameString()
-        parser.currentScope = resolveNameToCurrentScope(path: name)
+    private func parseDefPowerResource(_ name: AMLNameString, _ systemLevel: AMLByteData, _ resourceOrder: AMLWordData, _ termList: AMLTermList) -> AMLNameSpaceModifier {
 
-        let powerResource = try AMLDefPowerResource(name: name.shortName,
-                                                     systemLevel: parser.nextByte(),
-                                                     resourceOrder: parser.nextWord(),
-                                                     termList: parser.parseTermList())
+        let powerResource = AMLDefPowerResource(
+            name: name.shortName,
+            systemLevel: systemLevel,
+            resourceOrder: resourceOrder,
+            termList: termList
+        )
 
         let closure = {  (context: inout ACPI.AMLExecutionContext) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let fullname = resolveNameTo(scope: context.scope, path: name)
@@ -1067,16 +1065,17 @@ final class AMLParser {
     }
 
 
-    private func parseDefProcessor() throws(AMLError) -> AMLNameSpaceModifier {
-        let parser = try subParser()
-        let name = try parser.parseNameString()
-        parser.currentScope = resolveNameToCurrentScope(path: name)
+    private func parseDefProcessor(_ name: AMLNameString, _ procId: AMLByteData, _ pblkAddr: AMLDWordData,
+                                   _ pblkLen: AMLByteData, _ objects: AMLTermList) -> AMLNameSpaceModifier {
 
-        let processor = try AMLDefProcessor(name: name.shortName,
-                                            procId: parser.nextByte(),
-                                            pblkAddr: parser.nextDWord(),
-                                            pblkLen: parser.nextByte(),
-                                            objects: parser.parseTermList())
+        let processor = AMLDefProcessor(
+            name: name.shortName,
+            procId: procId,
+            pblkAddr: pblkAddr,
+            pblkLen: pblkLen,
+            objects: objects
+        )
+
         let closure = {  (context: inout ACPI.AMLExecutionContext) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let fullname = resolveNameTo(scope: context.scope, path: name)
             let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(processor))
@@ -1086,18 +1085,12 @@ final class AMLParser {
     }
 
 
-    private func parseDefThermalZone() throws(AMLError) -> AMLNameSpaceModifier {
-        let parser = try subParser()
-        let name = try parser.parseNameString()
-        let fqn = name.isFullPath ? name : resolveNameToCurrentScope(path: name)
-        // open a new scope.
-        parser.currentScope = fqn
-        let termList = try parser.parseTermList()
+    private func parseDefThermalZone(_ name: AMLNameString, _ termList: AMLTermList) -> AMLNameSpaceModifier {
+        let thermalZone = AMLThermalZone(name: name.shortName, termList: termList)
 
         let closure = {  (context: inout ACPI.AMLExecutionContext) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             // No need to store any subobject as they get added to the tree as named objects themselves.
             let fullname = resolveNameTo(scope: context.scope, path: name)
-            let thermalZone = AMLThermalZone(name: name.shortName, termList: termList)
             let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(thermalZone))
             return [(fullname, node, termList)]
         }
@@ -1105,20 +1098,8 @@ final class AMLParser {
     }
 
 
-    private func parseDefElse() throws(AMLError) -> AMLType1Opcode {
-        if byteStream.endOfStream() {
-            return .amlDefElse(nil)
-        }
-        let parser = try subParser(parsingMethod: isParsingMethod)
-        if parser.byteStream.endOfStream() {
-            return .amlDefElse(nil)
-        }
-        let termList = try parser.parseTermList()
-        return .amlDefElse(termList)
-    }
-
     private func parseDefIfElse() throws(AMLError) -> AMLType1Opcode {
-        let parser = try subParser(parsingMethod: isParsingMethod)
+        let parser = try subParser()
         let predicate = try parser.parseTermArg()
         let termList = try parser.parseTermList()
         var defElse: AMLTermList? = nil
@@ -1188,13 +1169,14 @@ final class AMLParser {
         return target
     }
 
-    private func parseDefCopyObject() throws(AMLError) -> AMLType2Opcode {
+    private func parseDefCopyObject(_ arg: AMLTermArg, _ name: AMLTarget?) throws(AMLError) -> AMLType2Opcode {
+        /*
         let arg = try parseTermArg()
         guard let symbol = try nextSymbol() else {
             throw AMLError.endOfStream(reason: "parseDefCopyObject: end of stream")
-        }
-        guard let name = try parseSimpleName(symbol: symbol) else {
-            throw AMLError.invalidSymbol(reason: "parseDefCopyObject expected a SimplName, not \(symbol)")
+        }*/
+        guard let name = name else {
+            throw AMLError.invalidSymbol(reason: "parseDefCopyObject expected a SimplName")
         }
         return .amlDefCopyObject(arg, name)
     }
@@ -1230,12 +1212,22 @@ final class AMLParser {
 
 
     // Lead byte could be opcode or char
-    private func parseSimpleName(symbol: ParsedSymbol) throws(AMLError) -> AMLTarget? {
-        if let char = symbol.currentChar {
+    private func parseSimpleName(symbol: ParsedSymbol? = nil) throws(AMLError) -> AMLTarget? {
+
+        let s: ParsedSymbol
+        if let symbol {
+            s = symbol
+        } else {
+            guard let symbol = try nextSymbol() else {
+                throw AMLError.endOfStream(reason: "parseSimpleName: end of stream")
+            }
+            s = symbol
+        }
+        if let char = s.currentChar {
             return .nameString(try parseNameStringWith(character: char))
         }
 
-        if let opcode = symbol.currentOpcode {
+        if let opcode = s.currentOpcode {
             switch opcode {
                 case .local0Op, .local1Op, .local2Op, .local3Op, .local4Op, .local5Op, .local6Op, .local7Op:
                     return try .localObj(AMLLocalObj(localOp: opcode))

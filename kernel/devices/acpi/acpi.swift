@@ -231,7 +231,7 @@ final class ACPI {
                 let byteStream = try AMLByteStream(buffer: amlBuffer)
                 let scope = AMLNameString("\\")
                 let parser = AMLParser(byteStream: byteStream, scope: scope,
-                                       globalObjects: ACPI.globalObjects, parsingMethod: true)
+                                       globalObjects: ACPI.globalObjects)
                 let method = AMLMethod(name: scope, flags: AMLMethodFlags(flags: 0), parser: parser)
                 var context = ACPI.AMLExecutionContext(scope: scope, args: [], isTopLevel: true)
                 try method.execute(context: &context)

@@ -996,7 +996,7 @@ struct AMLMethodFlags {
     // bit 4-7: SyncLevel (0x00-0x0f)
 
     let flags: AMLByteData
-    var argCount: Int { return Int(flags & 7) }
+    var argCount: UInt8 { return flags & 7 }
     var isSerialized: Bool { return flags.bit(3) }
     var syncLevel: Int { return Int(flags >> 4) }
 
