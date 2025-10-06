@@ -29,6 +29,7 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
         case objectReference(AMLObject, AMLInteger?)
         case nameString(AMLNameString)      // Used for objectReference
         case dataRegion(AMLDataRegion)
+        case externalObj(UInt8, UInt8)
     }
 
     static func ==(lhs: AMLObject, rhs: AMLObject) -> Bool {
@@ -131,6 +132,10 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
         self.object = .dataRegion(dataRegion)
     }
 
+    init(_ objectType: UInt8, _ argCount: UInt8) {
+        self.object = .externalObj(objectType, argCount)
+    }
+
     var isUninitialised: Bool {
         if case .uninitialised = self.object { return true } else { return false }
     }
@@ -152,6 +157,10 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
             case .integer, .string, .package, .buffer, .objectReference: return true
             default: return false
         }
+    }
+
+    var isExternal: Bool {
+        if case .externalObj = self.object { return true } else { return false}
     }
 
     var integerValue: AMLInteger? {
@@ -216,6 +225,13 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
         switch self.object {
             case .objectReference(let referencedObject, let index):
                 return (referencedObject, index)
+            default: return nil
+        }
+    }
+
+    var externalObject: (UInt8, UInt8)? {
+        switch self.object {
+            case .externalObj(let objectType, let argCount): return (objectType, argCount)
             default: return nil
         }
     }
@@ -401,6 +417,8 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
                 return "Namestring"
             case .dataRegion:
                 return "Data Region"
+            case .externalObj(let objectType, _):
+                return #sprintf("External Object(%u)", objectType)
         }
     }
 
@@ -459,6 +477,8 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
                 return 33
             case .dataRegion:
                 return 34
+            case .externalObj:
+                return 35
         }
     }
 
@@ -477,7 +497,7 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
             case .bufferField(let bufferField):
                 return try bufferField.readValue(context: &context)
 
-            default: throw AMLError.invalidData(reason: "Object is not a value")
+            default: throw AMLError.invalidData(reason: "Object of type \(self.description) is not a value, scope: \(context.scope)")
         }
     }
 

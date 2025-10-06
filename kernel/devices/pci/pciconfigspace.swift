@@ -173,8 +173,8 @@ func initPCI(mcfg: MCFG?) {
         _mcfg = mcfg
         #kprintf("PCI: Have MCFG with %d entries\n", mcfg.allocations.count)
         for entry in mcfg.allocations {
-            let busCount = (entry.endBus - entry.startBus) + 1
-            let size = UInt(busCount) * 32 * 8 * 4096
+            let busCount = UInt(entry.endBus - entry.startBus) + 1
+            let size = busCount * 32 * 8 * 4096
             let endAddress = entry.baseAddress + size - 1
             #kprintf("PCI: startBus: %2.2x endBus: %2.2x base: %p - %p\n",
                      entry.startBus, entry.endBus, entry.baseAddress.value, endAddress.value)

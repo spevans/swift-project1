@@ -13,7 +13,7 @@ struct AMLMethodInvocation {
     let args: AMLTermArgList
 
     init(method: AMLNameString, args: AMLTermArgList) throws(AMLError) {
-        guard args.count < 7 else {
+        guard args.count <= 7 else {
             throw AMLError.invalidData(reason: "More than 7 args")
         }
         self.method = method

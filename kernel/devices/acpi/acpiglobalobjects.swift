@@ -16,7 +16,7 @@ extension ACPI {
         // Use an array for the childnodes even though the lookups are on the name
         // segment as this keeps the order and the number of entries is small enough
         // that a linear scan is ok.
-        fileprivate(set) var childNodes: [ACPIObjectNode] // FIXME: Should probably be a Set
+        fileprivate(set) var childNodes: [String : ACPIObjectNode]
         private(set) var device: Device?
 
         var description: String {
@@ -25,7 +25,7 @@ extension ACPI {
                 result += " parent: \(p.name.description)"
             }
             result += " children ["
-            result += childNodes.map { $0.name.value }.joined(separator: ", ")
+            result += childNodes.keys.joined(separator: ", ")
             result += "]"
             return result
         }
@@ -36,7 +36,7 @@ extension ACPI {
             }
             self.name = name
             self.object = object
-            self.childNodes = []
+            self.childNodes = [:]
             self.parent = parent
         }
 
@@ -72,22 +72,73 @@ extension ACPI {
         }
 
 
-        fileprivate func addChildNode(_ node: ACPIObjectNode) -> Bool {
-            guard !childNodes.contains(where: { $0.name == node.name }) else {
-                #kprint("ACPI: Ignoring duplicate node \(self.fullname()).\(node.name.value)")
-                return false
+        fileprivate func addChildNode(_ newNode: ACPIObjectNode) -> Bool {
+            // If there is already a node there check that it is an ExternalObj placeholder
+
+            if let current = childNodes[newNode.name.value] {
+                // This is mostly for debugging. Check if the object is being overwritten
+                // with a more specific one. External Unknown -> External Known -> Not-external
+                let fromExternal: Bool
+                let fromType: AMLInteger
+                let toExternal: Bool
+                let toType: AMLInteger
+                if let currentExternal = current.object.externalObject {
+                    fromExternal = true
+                    fromType = AMLInteger(currentExternal.0)
+                } else {
+                    fromExternal = false
+                    fromType = current.object.objectType
+                }
+
+                if let newExternal = newNode.object.externalObject {
+                    toExternal = true
+                    toType = AMLInteger(newExternal.0)
+                } else {
+                    toExternal = false
+                    toType = newNode.object.objectType
+                }
+
+                switch (fromExternal, toExternal) {
+                    case (true, true):
+                        if toType == 0 || fromType == toType {
+                            // newNode is Unknown External or types match, do nothing
+                            return false
+                        }
+                    case (true, false):
+                        if fromType != 0 && fromType != toType {
+                            // currentNode is External, newNode is concrete type of another type
+                            #kprintf("acpi: addChild warning: %s from %s to %s\n",
+                                     newNode.name.value, current.object.description, newNode.object.description)
+                        }
+
+                    case (false, true):
+                        // From concrete object to external object, do nothing
+                        if toType != 0 && fromType != toType {
+                            // IF going a specific type and it doesnt match, print a warning
+                            #kprintf("acpi: addChild warning: %s from %s to %s\n",
+                                     newNode.name.value, current.object.description, newNode.object.description)
+                        }
+                        return false
+
+                    case (false, false):
+                        // From concrete object to concrete object of different type
+                        if fromType != toType {
+                            #kprintf("acpi: addChild warning: %s from %s to %s\n",
+                                     newNode.name.value, current.object.description, newNode.object.description)
+                            return false
+                        }
+                }
             }
-            childNodes.append(node)
-            node.parent = self
+            childNodes[newNode.name.value] = newNode
+            newNode.parent = self
             return true
         }
 
 
         func removeChildNode(_ name: AMLNameString) {
-            guard let index = childNodes.firstIndex(where: { $0.name == name}) else {
+            guard childNodes.removeValue(forKey: name.value) != nil else {
                 fatalError("Cant remove unknown child node: \(name)")
             }
-            childNodes.remove(at: index)
         }
 
 
@@ -110,7 +161,7 @@ extension ACPI {
 
 
         func childNode(named: String) -> ACPIObjectNode? {
-            return childNodes.first(where: { $0.name == AMLNameString(named) })
+            return childNodes[named]
         }
 
 
@@ -155,11 +206,11 @@ extension ACPI {
 
 
         private func findNode(named: String, parent: ACPIObjectNode) -> ACPIObjectNode? {
-            return parent.childNodes.first(where: { $0.name == AMLNameString(named) })
+            return parent.childNodes[named]
         }
 
 
-        func add(_ name: String, _ object: ACPIObjectNode) -> Bool {
+        func add(_ name: String, _ newNode: ACPIObjectNode) -> Bool {
 
             // Remove leading '\\'
             func removeRootChar(name: String) -> String {
@@ -183,21 +234,22 @@ extension ACPI {
                 if let node = findNode(named: part, parent: parent) {
                     parent = node
                 } else {
-                    #kprint("ACPI: Ignoring invalid path", name)
-                    return false
-/**
+                    guard newNode.object.externalObject != nil else {
+                        #kprint("ACPI: Ignoring invalid path", name, "for object of type:", newNode.object)
+                        return false
+                    }
                     // FIXME: Adding a missing part of the path directly is not the correct way as
                     // The missing part should probably generate its own subtree to add to. This
                     // occurs when eg parsing a Device and the methods in the device are added to the
-                    // global tree before the device itself. The device later over writes this object.
-                    let newNode = ACPIObjectNode(name: AMLNameString(part), object: AMLObject())
-                    parent.addChildNode(newNode)
-                    parent = newNode
-**/
+                    // global tree before the device itself. The device later overwrites this object.
+                    // Use an External UnknownObj as a placeholder
+                    let intermediateNode = ACPIObjectNode(name: AMLNameString(part), object: AMLObject.init(0, 0))
+                    _ = parent.addChildNode(intermediateNode)
+                    parent = intermediateNode
                 }
             }
 
-            return parent.addChildNode(object)
+            return parent.addChildNode(newNode)
         }
 
 
@@ -245,7 +297,8 @@ extension ACPI {
         func walkNode(name: String, node: ACPIObjectNode, _ body: (String, ACPIObjectNode) -> Bool) {
             let keepWalking = body(name, node)
             guard keepWalking else { return }
-            for child in node.childNodes {
+            for key in node.childNodes.keys.sorted() {
+                guard let child = node.childNodes[key] else { continue }
                 let fullname = (name == "\\") ? name + child.name.value :
                     name + String(AMLNameString.pathSeparatorChar) + child.name.value
                 walkNode(name: fullname, node: child, body)
@@ -255,7 +308,8 @@ extension ACPI {
         func walkNode( _ body: (String, ACPIObjectNode) -> Bool) {
             let keepWalking = body(self.fullname(), self)
             guard keepWalking else { return }
-            for child in self.childNodes {
+            for key in self.childNodes.keys.sorted() {
+                guard let child = self.childNodes[key] else { continue }
                 child.walkNode(body)
             }
         }

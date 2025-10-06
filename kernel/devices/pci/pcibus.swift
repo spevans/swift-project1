@@ -66,7 +66,7 @@ final class PCIBus: DeviceDriver {
         // Find child nodes that are devices and build a map of _ADR to node
         var adrNodeMap: [AMLInteger : ACPI.ACPIObjectNode] = [:]
         if let childACPINodes = self.device.acpiDeviceConfig?.node.childNodes {
-            for node in childACPINodes {
+            for node in childACPINodes.values {
                 if node.object.isDevice, let adr = try? node.addressResource() {
                     adrNodeMap[adr] = node
                 }

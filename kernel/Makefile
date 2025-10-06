@@ -11,7 +11,7 @@ KSWIFTC_FLAGS := -gnone -O -Xcc -mno-red-zone -Xcc -mcmodel=kernel				\
 	-Xcc -Wall -Xcc -Wextra -Xcc -std=gnu11	-Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2	\
 	-enable-experimental-feature FullTypedThrow 						\
 	-parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -warnings-as-errors	\
-	-Xfrontend -warn-long-function-bodies=60000 -DKERNEL -DACPI					\
+	-Xfrontend -warn-long-function-bodies=60000 -DKERNEL -DACPI				\
 	-target x86_64-unknown-none-elf -Xcc -ffreestanding -Xfrontend -disable-stack-protector	\
 	-enable-experimental-feature Embedded -Xfrontend -embedded-runtime-variant=kernel 	\
 	-Xfrontend -load-plugin-executable -Xfrontend $(PRINTF_MACROS)\#PrintfMacros

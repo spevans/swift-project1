@@ -147,7 +147,7 @@ enum AMLType2Opcode {
                 return try concatResource(operand1, operand2, target, &context)
                 
             case .amlDefCondRefOf(let name, let target):
-                guard let object = try? name.getObject(context: &context) else {
+                guard let object = try? name.getObject(context: &context), object.externalObject == nil else {
                     return AMLObject(0)
                 }
                 let reference = AMLObject(object)

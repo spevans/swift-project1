@@ -157,8 +157,6 @@ final class ACPI {
 
     static private(set) var globalObjects: ACPIObjectNode = ACPIObjectNode(name: AMLNameString("\\"),
                                                                            object: AMLObject())
-    static var methodArgumentCount: [AMLNameString: Int] = [:]
-
 
     private(set) var mcfg: MCFG?
     private(set) var facp: FACP?
@@ -415,7 +413,10 @@ extension ACPI {
         #kprint("ACPI: Finding devices")
         // Keep track of the devices allocated to each node so that the parent device
         // can be determined
-        var nameDeviceMap = [ "\\_SB" : system.deviceManager.masterBus.device]
+        var nameDeviceMap = [
+            "\\_SB" : system.deviceManager.masterBus.device,
+            "\\_TZ" : system.deviceManager.masterBus.device
+        ]
         ACPI.globalObjects.walkNode { (name, node) in
             guard node.object.isDevice else { return true }
             guard node.device == nil else { fatalError("\(name) already has a .device set") }

@@ -22,7 +22,8 @@ final class PNPDevice: BusDevice {
             return nil
         }
         guard let pnpName = acpiDeviceConfig.hid else {
-            #kprintf("%s has no ACPI DeviceConfig or _HID\n", device.deviceName)
+            #kprintf("%s has no ACPI DeviceConfig or _HID for %s\n", device.deviceName,
+                     acpiDeviceConfig.node.fullname())
             return nil
         }
         self.pnpName = pnpName

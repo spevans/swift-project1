@@ -375,7 +375,7 @@ final class AMLParser {
             return x
         }
 
-        let r = "\(symbol.currentOpcode?.description ?? "nil") is Invalid for termobj"
+        let r = "\(symbol.currentOpcode?.description ?? "nil") is Invalid for termobj in scope \(self.currentScope)"
         throw AMLError.invalidSymbol(reason: r)
     }
 
@@ -396,11 +396,12 @@ final class AMLParser {
 
         if let ch = symbol.currentChar, ch.charType != .nullChar {
             let name = try parseNameStringWith(character: ch)
-            // FIXME is this needed, should .readValue on the object just work correctly?
-            if try determineIfMethodOrName(name: name) {
-                return try AMLTermArg(.amlMethodInvocation(parseMethodInvocation(name: name)))
+
+            if let methodInvocation = try parseMethodInvocation(name: name) {
+                return AMLTermArg(.amlMethodInvocation(methodInvocation))
+            } else {
+                return AMLTermArg(name)
             }
-            return AMLTermArg(name)
         }
 
         if symbol.currentOpcode != nil {
@@ -436,7 +437,11 @@ final class AMLParser {
         // Check for method invocation first
         if let ch = symbol.currentChar, ch.charType != .nullChar {
             let name = try parseNameStringWith(character: ch)
-            return try .type2opcode(.amlMethodInvocation(parseMethodInvocation(name: name)))
+            if let methodInvocation = try parseMethodInvocation(name: name) {
+                return .type2opcode(.amlMethodInvocation(methodInvocation))
+            } else {
+                throw AMLError.invalidSymbol(reason: "Cant finr \(name.value) in \(currentScope.value)")
+            }
         }
 
         guard let opcode = symbol.currentOpcode else {
@@ -535,15 +540,13 @@ final class AMLParser {
             case .dataRegionOp:         return .namespaceModifier(try parseDefDataRegion())
             case .deviceOp:             return .namespaceModifier(try parseDefDevice())
             case .externalOp:
-                let name = try parseNameString().shortName
+                let fullName =  try parseNameString()
                 let objectType = try nextByte()
                 let argCount = try nextByte()
 
-                let fullname = resolveNameTo(scope: currentScope, path: name)
-                if objectType != 8 {
-                    #kprint("Ignoring External Objectype", objectType)
-                }
-                ACPI.methodArgumentCount[fullname] = Int(argCount)
+                let object = AMLObject(objectType, argCount)
+                let node = ACPI.ACPIObjectNode(name: fullName.shortName, parent: nil, object: object)
+                _ = ACPI.globalObjects.add(fullName.value, node)
                 return .type1opcode(.amlDefNoop)
 
             case .methodOp:             return .namespaceModifier(try parseDefMethod())
@@ -587,32 +590,21 @@ final class AMLParser {
     }
 
 
-    private func checkForMethodInvocation(symbol: ParsedSymbol) throws(AMLError) -> AMLMethodInvocation? {
-        if let ch = symbol.currentChar, ch.charType != .nullChar {
-            let name = try parseNameStringWith(character: ch)
-            return try parseMethodInvocation(name: name)
-        }
-        return nil
-    }
-
-
-    private func parseMethodInvocation(name: AMLNameString) throws(AMLError) -> AMLMethodInvocation {
+    private func parseMethodInvocation(name: AMLNameString) throws(AMLError) -> AMLMethodInvocation? {
         // TODO: Somehow validate the method at a later stage
 
-        let fullname = resolveNameTo(scope: currentScope, path: name)
+        guard let (node, _) = acpiGlobalObjects.getGlobalObject(currentScope: currentScope, name: name) else {
+            return nil
+        }
+
         let argCount: Int
-        // FIXME: This needs to walk up the tree
-        if let (_argCount, _) = walkUpFullPath(fullname, block: { name -> Int? in
-            return ACPI.methodArgumentCount[AMLNameString(name)]
-        }) {
-            argCount = _argCount
-        } else {
-            guard let (node, _) = acpiGlobalObjects.getGlobalObject(currentScope: currentScope, name: name),
-                  let method = node.object.methodValue else {
-                let r = "No such method \(name.value) in \(currentScope.value)"
-                throw AMLError.invalidMethod(reason: r)
-            }
+        // Check if node is a Method or External Method
+        if let method = node.object.methodValue {
             argCount = method.flags.argCount
+        } else if let externalObj = node.object.externalObject, externalObj.0 == 8 {
+            argCount = Int(externalObj.1)
+        } else {
+            return nil
         }
 
         var args: AMLTermArgList = []
@@ -686,17 +678,6 @@ final class AMLParser {
         return elements
     }
 
-
-    // FIXME, can this go?
-    private func determineIfMethodOrName(name: AMLNameString) throws(AMLError) -> Bool {
-        if let (obj, _) = acpiGlobalObjects.getGlobalObject(currentScope: currentScope,
-                                                            name: name),
-           obj.object.methodValue != nil {
-                return true
-        }
-        return false
-    }
-
     // MARK: Parse Def
     private func parseDefPackage() throws(AMLError) -> AMLDefPackage {
         let parser = try subParser()
@@ -720,12 +701,13 @@ final class AMLParser {
         let aliasObject = try parseNameString()
 
         let closure = { (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
-            let fullname = resolveNameTo(scope: context.scope, path: sourceObject)
-            guard let (node, _) = context.getObject(named: aliasObject) else {
+            let fullname = resolveNameTo(scope: context.scope, path: aliasObject)
+            guard let (node, _) = context.getObject(named: sourceObject) else {
                 #kprint("ACPI: Alias target", aliasObject, "does not exist")
                 return []
             }
-            return [(fullname, node, nil)]
+            let aliasNode = ACPI.ACPIObjectNode(name: fullname.shortName, object: node.object)
+            return [(fullname, aliasNode, nil)]
         }
         return AMLNameSpaceModifier(name: aliasObject, closure: closure)
     }
@@ -996,8 +978,9 @@ final class AMLParser {
             let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(method))
             return [(fullname, node, nil)]
         }
-        let fullname = resolveNameTo(scope: currentScope, path: name)
-        ACPI.methodArgumentCount[fullname] = flags.argCount
+
+        _ = self.acpiGlobalObjects.add(fullPath.value, ACPI.ACPIObjectNode(name: fullPath.shortName,
+                                                                       object: AMLObject(8, UInt8(flags.argCount))))
         return AMLNameSpaceModifier(name: name, closure: closure)
     }
 
