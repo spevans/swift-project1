@@ -12,7 +12,7 @@ final class MotherBoardResource: PNPDeviceDriver {
 
 
     init?(pnpDevice: PNPDevice) {
-        guard let crs = pnpDevice.device.acpiDeviceConfig?.crs else {
+        guard let crs = pnpDevice.device.acpiDeviceConfig?.crs() else {
             #kprint("\(pnpDevice.device): No valid resources found")
             return nil
         }

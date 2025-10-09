@@ -34,7 +34,7 @@ final class PNPDevice: BusDevice {
 
     func getResources() -> ISABus.Resources? {
         if resources == nil {
-            if let crs = device.acpiDeviceConfig?.crs {
+            if let crs = device.acpiDeviceConfig?.crs() {
                 resources = ISABus.Resources(crs)
             }
         }

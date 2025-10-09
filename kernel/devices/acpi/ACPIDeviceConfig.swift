@@ -14,8 +14,6 @@ final class ACPIDeviceConfig: CustomStringConvertible {
     let cids: [String]?
     let adr: UInt64?
     let uid: AMLObject?
-    let crs: [AMLResourceSetting]?
-    let prs: [AMLResourceSetting]?
     // Do not retrieve the PCIRoutingTable initally as it may change due to the \\_PIC setting
     // so just cache it when needed
     private var _prt: PCIRoutingTable?
@@ -31,8 +29,6 @@ final class ACPIDeviceConfig: CustomStringConvertible {
             self.cids = try node.compatibleIds()
             self.adr = try node.addressResource()
             self.uid = try node.uniqueId()
-            self.crs = try node.currentResourceSettings()
-            self.prs = try node.possibleResourceSettings()
         } catch {
             fatalError("ACPI: \(node.fullname()): error getting device config")
         }
@@ -61,6 +57,14 @@ final class ACPIDeviceConfig: CustomStringConvertible {
             return cids.contains(where: { $0 == hidOrCid})
         }
         return false
+    }
+
+    func crs() -> [AMLResourceSetting]? {
+        try? node.currentResourceSettings()
+    }
+
+    func prs() -> [AMLResourceSetting]? {
+        try? node.possibleResourceSettings()
     }
 
     func prt() -> PCIRoutingTable? {

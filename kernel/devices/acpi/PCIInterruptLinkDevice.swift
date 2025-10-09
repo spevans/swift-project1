@@ -41,7 +41,7 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
     // FIXME: Maybe select a better IRQ to use to balance them out better or make
     // .irq into a funtion to do lazy irq allocation
     override func initialise() -> Bool {
-        guard var crs = acpiConfig.crs else {
+        guard var crs = acpiConfig.crs() else {
             #kprint("PCIInterruptLinkDevice: Cant get resources")
             return false
         }
@@ -75,7 +75,7 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
 
     private func possibleInterrupts() -> (AMLResourceSetting, IRQSetting)? {
         let f = acpiConfig.node.fullname()
-        guard let prs = acpiConfig.prs else {
+        guard let prs = acpiConfig.prs() else {
             #kprintf("%s: No _PRS, cant get irqs\n", f)
             return nil
         }
