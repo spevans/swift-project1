@@ -21,6 +21,7 @@ class DisplayTests: XCTestCase {
         super.tearDown()
     }
 
+    #if swift(>=6.2) // For Span
     func testEDID() {
         let data: [UInt8] = [
             0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x30, 0x64, 0x25, 0x08, 0x01, 0x01, 0x01, 0x01,
@@ -37,4 +38,5 @@ class DisplayTests: XCTestCase {
         edid.dump()
         XCTAssertEqual(edid.manufacturerID, "123")
     }
+    #endif
 }
