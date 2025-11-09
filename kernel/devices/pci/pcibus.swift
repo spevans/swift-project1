@@ -136,7 +136,7 @@ final class PCIBus: DeviceDriver {
         }
     }
 
-
+    #if !TEST
     func devicesMatching(_ deviceMatches: Span<PCIDeviceMatch>, body: (PCIDevice) -> ()) {
         for device in self.devices {
             guard let pciDevice = device as? PCIDevice else { continue }
@@ -150,6 +150,7 @@ final class PCIBus: DeviceDriver {
             }
         }
     }
+    #endif
 
 
     func device(deviceFunction: PCIDeviceFunction, newParent: Device) -> PCIDevice? {
