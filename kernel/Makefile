@@ -7,7 +7,7 @@ SWIFT_MODULE := SwiftKernel
 SWIFT_OBJS := SwiftKernel.o
 SWIFT_SRCS := $(shell find `pwd` -name '*.swift' | egrep -v 'version.swift|/teststub/') init/version.swift
 
-KSWIFTC_FLAGS := -gnone -O -Xcc -mno-red-zone -Xcc -mcmodel=kernel				\
+KSWIFTC_FLAGS := -g -O -Xcc -mno-red-zone -Xcc -mcmodel=kernel				\
 	-Xcc -Wall -Xcc -Wextra -Xcc -std=gnu11	-Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2	\
 	-enable-experimental-feature FullTypedThrow 						\
 	-parse-as-library -import-objc-header $(TOPDIR)/include/kernel.h -warnings-as-errors	\
