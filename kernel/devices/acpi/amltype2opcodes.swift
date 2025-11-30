@@ -297,13 +297,22 @@ enum AMLType2Opcode {
             case .amlDefMatch(let searchPackage, let operand1, let match1, let operand2, let match2, let startIndex):
                 return try findObjectMatch(searchPackage, operand1, match1, operand2, match2, startIndex, &context)
                 
-            case .amlDefMid(let operand1, let operand2, _, _):
+            case .amlDefMid(let operand1, let operand2, let operand3, let target):
                 // Operand1 => Buffer | String, Operand2 => Integer, Operand3 => Integer
                 let object = try operand1.evaluate(context: &context)
                 let index = try operandAsInteger(operand: operand2, context: &context)
+                let length = try operandAsInteger(operand: operand3, context: &context)
                 #kprint("defmid: object: \(object) index: \(index)")
-                // dummy for now
-                throw AMLError.unimplemented("AMLDefMid")
+                let result: AMLObject
+                if let string = object.stringValue {
+                    result = AMLObject(string.subString(offset: index, length: length))
+                } else if let buffer = object.bufferValue {
+                    result = AMLObject(buffer.subBuffer(offset: index, length: length))
+                } else {
+                    throw AMLError.invalidData(reason: "\(object) is not a Buffer or String")
+                }
+                try target.updateValue(to: result, context: &context)
+                return result
                 
             case .amlDefMod(let operand1, let operand2, let target):
                 let dividend = try operandAsInteger(operand: operand1, context: &context)
@@ -773,7 +782,7 @@ struct AMLDefIndex {
         guard let bound = object.maxIndex else {
             throw AMLError.invalidData(reason: "Cannot take an index for a \(object)")
         }
-        guard index < bound else {
+        guard index <= bound else {
             throw AMLError.invalidIndex(index: index, bound: bound)
         }
         let objectReference = AMLObject(object, index: index)
@@ -891,11 +900,9 @@ private func loadDefinitionBlock(from block: AMLObject, context: inout ACPI.AMLE
         if let buffer = block.bufferValue {
             return buffer.asAMLBuffer()
         }
-        if let opRegion = block.operationRegionValue {
-            let regionSpace = try opRegion.getRegionSpace(context: &context)
-            if case .systemMemory(_) = regionSpace {
-                throw AMLError.unimplemented("Loading SSDT")
-            }
+        if block.operationRegionValue != nil {
+
+            throw AMLError.unimplemented("Loading SSDT")
         }
         return nil
     }

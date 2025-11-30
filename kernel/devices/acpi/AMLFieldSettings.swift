@@ -7,6 +7,7 @@
 //
 
 // FIXME, use accessField, extendedAccessField correctly
+// Shrink this down and hold bitOffset, bitWidth outside of this struct
 struct AMLFieldSettings: CustomStringConvertible {
     let bitOffset: UInt
     let bitWidth: UInt
@@ -72,21 +73,18 @@ enum AMLFieldAccessType: AMLByteData, CustomStringConvertible {
         self.init(rawValue: type)
     }
 
-    // Width in bytes
+    // Width in bits
     var accessWidth: Int {
         switch self {
-            case .AnyAcc:
-                return AMLInteger.bitWidth / 8
-            case .ByteAcc:
-                return 1
-            case .WordAcc:
-                return 2
-            case .DWordAcc:
-                return 4
-            case .QWordAcc:
+            // TODO: Could be optimised in case of Any and Buffer access
+            case .ByteAcc, .AnyAcc, .BufferAcc:
                 return 8
-            case .BufferAcc:
-                return 1
+            case .WordAcc:
+                return 16
+            case .DWordAcc:
+                return 32
+            case .QWordAcc:
+                return 64
         }
     }
 }
@@ -112,7 +110,7 @@ enum AMLExtendedAccessAttrib: AMLByteData {
     case attribRawProcess = 0x0F
 }
 
-enum AMLLockRule {
+enum AMLLockRule: CustomStringConvertible {
     case NoLock
     case Lock
 
@@ -123,14 +121,29 @@ enum AMLLockRule {
             self = .Lock
         }
     }
+
+    var description: String {
+        switch self {
+            case .NoLock: "NoLock"
+            case .Lock: "Lock"
+        }
+    }
 }
 
-enum AMLUpdateRule: AMLByteData {
+enum AMLUpdateRule: AMLByteData, CustomStringConvertible {
     case Preserve     = 0
     case WriteAsOnes  = 1
     case WriteAsZeros = 2
 
     init?(_ value: AMLByteData) {
         self.init(rawValue: BitArray8(value)[5...6])
+    }
+
+    var description: String {
+        switch self {
+            case .Preserve: "Preserve"
+            case .WriteAsOnes: "WriteAsOnes"
+            case .WriteAsZeros: "WriteAsZeros"
+        }
     }
 }

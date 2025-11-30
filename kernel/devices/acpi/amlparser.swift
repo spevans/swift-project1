@@ -440,7 +440,7 @@ final class AMLParser {
             if let methodInvocation = try parseMethodInvocation(name: name) {
                 return .type2opcode(.amlMethodInvocation(methodInvocation))
             } else {
-                throw AMLError.invalidSymbol(reason: "Cant finr \(name.value) in \(currentScope.value)")
+                throw AMLError.invalidSymbol(reason: "Cant find \(name.value) in \(currentScope.value)")
             }
         }
 
@@ -765,7 +765,13 @@ final class AMLParser {
             var result: [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] = []
             for (name, settings) in fields {
                 let fullname = resolveNameTo(scope: context.scope, path: name)
-                let object = AMLNamedField(name: name, indexField: indexName, dataField: dataName, fieldSettings: settings)
+                guard
+                    let (indexObject, _) = context.getObject(named: indexName),
+                    let (dataObject, _) = context.getObject(named: dataName) else {
+                    throw AMLError.invalidSymbol(reason: "Failed to find \(indexName.value) or \(dataName.value)")
+                }
+
+                let object = AMLNamedField(name: name, indexField: indexObject, dataField: dataObject, fieldSettings: settings)
                 let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(object))
                 result.append((fullname, node, nil))
             }
@@ -992,10 +998,17 @@ final class AMLParser {
         let flags = try AMLFieldFlags(flags: parser.nextByte())
         let fields = try parser.parseFieldList(fieldFlags: flags)
 
-        let closure = {  (context: inout ACPI.AMLExecutionContext) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
+        let closure = {  (context: inout ACPI.AMLExecutionContext) throws (AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             var result: [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] = []
+
+            let fullRegionName = resolveNameTo(scope: context.scope, path: regionName)
+            guard let (opRegion, _) = context.getObject(named: fullRegionName),
+                  let region = opRegion.object.operationRegionValue else {
+                throw AMLError.invalidSymbol(reason: fullRegionName.value)
+            }
             for (name, settings) in fields {
-                let field = AMLNamedField(name: name, regionName: regionName, fieldSettings: settings)
+
+                let field = AMLNamedField(name: name, opRegion: region, fieldSettings: settings)
                 let fullname = resolveNameTo(scope: context.scope, path: name)
                 let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(field))
                 result.append((fullname, node, nil))
@@ -1017,17 +1030,17 @@ final class AMLParser {
 
     private func parseDefOpRegion() throws(AMLError) -> AMLNameSpaceModifier {
         // NameString RegionSpace RegionOffset RegionLen
-        let name = try parseNameString().shortName
+        let name = try parseNameString()
         let byte = try nextByte()
         guard let region = AMLRegionSpace(rawValue: byte) else {
             throw AMLError.invalidData(reason: "Bad AMLRegionSpace: \(byte)")
         }
-        let offset = try parseTermArg() // => Integer
-        let length = try parseTermArg() // => Integer
+        let offsetArg = try parseTermArg() // => Integer
+        let lengthArg = try parseTermArg() // => Integer
 
-        let closure = {  (context: inout ACPI.AMLExecutionContext) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
+        let closure = {  (context: inout ACPI.AMLExecutionContext) throws(AMLError) -> [(AMLNameString, ACPI.ACPIObjectNode, AMLTermList?)] in
             let fullname = resolveNameTo(scope: context.scope, path: name)
-            let opRegion = AMLDefOpRegion(fullname: fullname, region: region, offset: offset, length: length)
+            let opRegion = try AMLDefOpRegion(fullname: fullname, regionType: region, offset: offsetArg, length: lengthArg)
             let node = ACPI.ACPIObjectNode(name: fullname.shortName, parent: nil, object: AMLObject(opRegion))
             return [(fullname, node, nil)]
         }

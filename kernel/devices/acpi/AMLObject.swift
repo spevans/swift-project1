@@ -38,6 +38,8 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
                 return lhsValue == rhsValue
             case (.string(let lhsValue), .string(let rhsValue)):
                 return lhsValue.data == rhsValue.data
+            case (.buffer(let lhsValue), .buffer(let rhsValue)):
+                return lhsValue == rhsValue
 
             default:
                 return false
@@ -350,13 +352,13 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
 
     func sizeof() -> AMLInteger? {
         switch self.object {
-            case .string(let string): return AMLInteger(string.data.count - 1)
+            case .string(let string): return AMLInteger(string.count)
             case .buffer(let buffer): return AMLInteger(buffer.count)
             case .package(let package): return AMLInteger(package.count)
             case .objectReference(let referencedObject, let index):
                 switch referencedObject.object {
                     case .string(let string):
-                        return index == nil ? AMLInteger(string.data.count) : 1
+                        return index == nil ? AMLInteger(string.count) : 1
                     case .buffer(let buffer):
                         return index == nil ? AMLInteger(buffer.count) : 1
                     case .package(let package):
@@ -379,12 +381,12 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
         switch self.object {
             case .uninitialised:
                 return "Uninitialised Object"
-            case .integer:
-                return "Integer"
-            case .string:
-                return "String"
-            case .buffer:
-                return "Buffer"
+            case .integer(let value):
+                return #sprintf("Integer(%d)", value)
+            case .string(let value):
+                return #sprintf("String('%s')", value.asString())
+            case .buffer(let value):
+                return #sprintf("Buffer[%d bytes]", value.count)
             case .package:
                 return "Package"
             case .fieldUnit:
@@ -511,7 +513,7 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
                 self.object = .string(newValue.stringValue!)
             case .buffer:
                 // FIXME: dont force unwrap
-                self.object = .buffer(newValue.bufferValue!)
+                self.object = try .buffer(AMLSharedBuffer(newValue.asBuffer()))
             case .package:
                 self.object = .package(newValue.packageValue!)
             case .fieldUnit(let fieldUnit):

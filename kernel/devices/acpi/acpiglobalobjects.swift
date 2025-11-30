@@ -174,10 +174,9 @@ extension ACPI {
 
         // Create an initial ACPI tree with default nodes
         static func createGlobalObjects() -> ACPIObjectNode {
-
             let parent = ACPIObjectNode(name: AMLNameString("\\"),
                                         object: AMLObject())
-
+            let darwin = AMLObject(try! AMLString("Darwin"))
             let children: [ACPIObjectNode] = [
                 ACPIObjectNode(name: AMLNameString("_OSI"),
                                object: AMLObject(AMLMethod(name: AMLNameString("_OSI"),
@@ -190,7 +189,7 @@ extension ACPI {
 
                 ACPIObjectNode(name: AMLNameString("_REV"), object: AMLObject(2)),
 
-                ACPIObjectNode(name: AMLNameString("_OS"), object: AMLObject(try! AMLString("Darwin"))),
+                ACPIObjectNode(name: AMLNameString("_OS"), object: darwin),
 
                 // Root namespaces
                 ACPIObjectNode(name: AMLNameString("_GPE"), object: AMLObject()),
@@ -270,6 +269,25 @@ extension ACPI {
                 }
             }
             return parent
+        }
+
+        func findEnclosingObject(of fullname: AMLNameString,
+                                 where body: (ACPIObjectNode) -> Bool) -> ACPIObjectNode? {
+            var result: ACPIObjectNode? = nil
+            var fullname = fullname.value
+            guard fullname.remove(at: fullname.startIndex) == "\\" else {
+                return nil
+            }
+            let parentSegs = fullname.components(separatedBy: AMLNameString.pathSeparatorChar)
+            var node = ACPI.globalObjects
+            for seg in parentSegs {
+                guard let child = node.childNodes[seg] else { break }
+                if body(child) {
+                    result = child
+                }
+                node = child
+            }
+            return result
         }
 
 

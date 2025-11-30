@@ -22,8 +22,13 @@ typealias AMLPkgLength = UInt
 typealias AMLByteBuffer = UnsafeRawBufferPointer
 
 
-struct AMLString {
+struct AMLString: CustomStringConvertible {
+    static private let maxStringLength = 1047576
     var data: AMLBuffer = [] // Holds a NULL terminated ASCII string
+
+    var count: Int { data.count - 1 }
+    var isEmpty: Bool { data.count == 1 && data[0] == 0 }
+    var description: String { self.asString() }
 
     init() {
         data = [0]
@@ -58,7 +63,7 @@ struct AMLString {
         data.append(0)
     }
 
-    init(buffer: AMLBuffer, maxLength: AMLInteger = AMLInteger.max) {
+    init(buffer: AMLBuffer, maxLength: AMLInteger = AMLInteger(AMLString.maxStringLength)) {
         data.reserveCapacity(buffer.count)
         let maxIdx = min(buffer.count, Int(maxLength))
         for idx in 0..<maxIdx {
@@ -71,9 +76,15 @@ struct AMLString {
         data.append(0)    // Final NULL terminator
     }
 
+    private init(buffer: consuming AMLBuffer) {
+        precondition(buffer.count > 0)
+        precondition(buffer.last == 0)
+        self.data = buffer
+    }
+
     init(integer: AMLInteger, radix: AMLInteger = 10) {
         let zeros = (radix == 10) ? 20 : 16
-        var result = Array<UInt8>(repeating: UInt8(ascii: "0"), count: zeros) // enought for base 16 or base 10
+        var result = Array<UInt8>(repeating: UInt8(ascii: "0"), count: zeros) // enough for base 16 or base 10
         result.append(0)
         let digits: StaticString = "0123456789ABCDEF"
         let digitsPtr = UnsafeRawPointer(digits.utf8Start)
@@ -91,16 +102,6 @@ struct AMLString {
             result[charIndex] = char
         } while value > 0
 
-/*
-        if (radix == 16) {
-            charIndex = result.index(before: charIndex)
-            result[charIndex] = UInt8(ascii: "x")
-            charIndex = result.index(before: charIndex)
-            result[charIndex] = UInt8(ascii: "0")
-        }
-
-        result.removeSubrange(0..<charIndex)
-*/
         self.data = result
     }
 
@@ -116,7 +117,7 @@ struct AMLString {
 
     func asAMLInteger() throws(AMLError) -> AMLInteger {
         let string = self.asString()
-        if string.hasPrefix("0x"), let result = AMLInteger(string.dropFirst(2)) {
+        if string.hasPrefix("0x"), let result = AMLInteger(string.dropFirst(2), radix: 16) {
             return result
         } else if let result = AMLInteger(string) {
             return result
@@ -127,13 +128,32 @@ struct AMLString {
     }
 
     func asAMLBuffer() -> AMLBuffer {
-        AMLBuffer(data.dropLast())  // Remove NULL terminator
+        // 19.6.136 If Data is a string, each ASCII string character is copied to one buffer byte,
+        // including the string null terminator. A null (zero-length) string will be converted
+        // to a zero-length buffer.
+        if data.isEmpty {
+            return AMLBuffer([])
+        }
+        return AMLBuffer(data)  // Remove NULL terminator
     }
 
     // FIXME: change to append(contentsOf:)
     mutating func append(other: AMLString) {
         data.removeLast() // Remove NULL terminator
         data.append(contentsOf: other.data)
+    }
+
+    func subString(offset: AMLInteger, length: AMLInteger) -> AMLString {
+        var result: AMLBuffer = []
+        let offset = Int(offset)
+        let strlen = self.data.count - 1
+        if offset < strlen {
+            let end = min(offset + Int(length), strlen)
+            result.reserveCapacity((end - offset) + 1)
+            result.append(contentsOf: self.data[offset..<end])
+        }
+        result.append(0)
+        return .init(buffer: result)
     }
 }
 
@@ -214,7 +234,8 @@ enum AMLError: Error, CustomStringConvertible {
 
     static func unimplemented(_ function: String = #function, line: Int = #line) -> AMLError {
         #kprint("line:", line, function, "is unimplemented")
-        return unimplementedError(reason: function)
+        fatalError(function)
+//        return unimplementedError(reason: function)
     }
 }
 
@@ -482,67 +503,171 @@ extension AMLBuffer {
 }
 
 
-struct AMLByteIterator: IteratorProtocol {
-    enum _Value {
+struct AMLBitStorage {
+    enum _Storage {
         case integer(AMLInteger)
         case buffer(AMLBuffer)
     }
 
-    typealias Element = AMLInteger
-    private var _value: _Value
-    private let accessWidth: Int    // 1,2,4
-    private var bitWidth: Int
-    private let lastIndex: Int
-    private var nextIndex = 0
+    private var storage = _Storage.integer(0)
+    private var bitOffset: Int = 0
 
-    init(_ object: AMLObject, bitWidth: Int, accessWidth: Int) throws(AMLError) {
-        if let integer = object.integerValue {
-            self._value = .integer(integer)
-            self.lastIndex = min(integer.bitWidth, (bitWidth + 7) / 8)
-        } else {
-            let buffer = try object.asBuffer()
-            self._value = .buffer(buffer)
-            self.lastIndex = min(buffer.endIndex, (bitWidth + 7) / 8)
+    mutating func append(_ newValue: AMLInteger, bitWidth: Int) {
+        precondition(bitWidth <= AMLInteger.bitWidth)
+        precondition(bitWidth > 0)
+
+        func appendToBuffer(_ buffer: inout AMLBuffer) {
+            var value = newValue
+            var bitWidth = bitWidth
+
+            if !bitOffset.isMultiple(of: 8) {
+                let shift = bitOffset % 8
+                let byte = UInt8(truncatingIfNeeded: value << shift) | buffer[buffer.endIndex - 1]
+                buffer[buffer.endIndex - 1] = byte
+                let remainder = 8 - shift
+                value >>= remainder
+                bitWidth -= remainder
+                self.bitOffset += remainder
+            }
+            assert(self.bitOffset.isMultiple(of: 8))
+            if bitWidth > 0 {
+                let bytes = (bitWidth + 7) / 8
+                for _ in 0..<bytes {
+                    buffer.append(UInt8(truncatingIfNeeded: value))
+                    value >>= 8
+                }
+                self.bitOffset += bitWidth
+            }
+            self.storage = .buffer(buffer)
         }
-        self.bitWidth = bitWidth
-        self.accessWidth = accessWidth
-    }
 
-    mutating func next() -> Element? {
-        if nextIndex >= lastIndex {
-            return nil
-        }
 
-        var result: Element = 0
-        var shift = 0
-        for _ in 0..<accessWidth {
-            if nextIndex < lastIndex {
-                let mask = bitWidth < 8 ? Element((1 << (bitWidth & 7)) - 1) : 0xff
-
-                let byte: UInt8
-                switch _value {
-                    case .integer(var integer):
-                        byte = UInt8(truncatingIfNeeded: integer)
-                        integer >>= 8
-                        _value = .integer(integer)
-
-                    case .buffer(let buffer):
-                        byte = buffer[nextIndex]
+        switch self.storage {
+            case .integer(var value):
+                if bitOffset + bitWidth < AMLInteger.bitWidth {
+                    value |= newValue << bitOffset
+                    bitOffset += bitWidth
+                    self.storage = .integer(value)
+                } else {
+                    // Promote to a buffer
+                    let bytes = (bitOffset + 7) / 8
+                    var buffer = AMLBuffer.init(unsafeUninitializedCapacity: 16,
+                                                initializingWith: {
+                        buffer, count in
+                        for idx in 0..<bytes {
+                            buffer[idx] = UInt8(truncatingIfNeeded: value)
+                            value >>= 8
+                        }
+                        count = bytes
+                    })
+                    appendToBuffer(&buffer)
                 }
 
-                result |= (Element(byte) & mask) << shift
-                nextIndex += 1
-                bitWidth &-= 8
-                shift &+= 8
-            }
+            case .buffer(var buffer):
+                appendToBuffer(&buffer)
         }
-        return result
+    }
+
+    mutating func result() -> AMLObject {
+        return switch self.storage {
+            case .integer(let integer): AMLObject(integer)
+            case .buffer(let buffer): AMLObject(buffer)
+        }
     }
 }
 
+
+struct AMLByteIterator {
+
+    private var dataWord: AMLInteger
+    private var bitsInDataWord: Int
+    private var buffer: AMLBuffer?
+    private var bufferIndex: Int = 0
+
+    private(set) var bitsRemaining: Int
+
+    // totalBits is the total to return, which can be greater than the number of bits
+    // in the input AMLInteger / AMLBuffer, effectively pads to zeor if needed
+    init(_ value: AMLInteger, totalBits: Int? = nil) {
+        self.dataWord = value
+        self.buffer = nil
+        self.bitsRemaining = totalBits ?? AMLInteger.bitWidth
+        self.bitsInDataWord = self.bitsRemaining
+    }
+
+    init(_ buffer: AMLBuffer, totalBits: Int? = nil) throws(AMLError) {
+        self.dataWord = 0
+        self.bitsInDataWord = 0
+        self.buffer = buffer
+        self.bitsRemaining = totalBits ?? buffer.count * 8
+    }
+
+
+    init(_ object: AMLObject, totalBits: Int? = nil) throws(AMLError) {
+        if let integer = object.integerValue {
+            self.init(integer, totalBits: totalBits)
+        } else {
+            let data = try object.asBuffer()
+            try self.init(data, totalBits: totalBits)
+        }
+    }
+
+    // Return nil if count bits are not available (but < count bits may be)
+    mutating func nextBits(_ count: Int) -> AMLInteger? {
+        precondition(count > 0)
+        precondition(count <= AMLInteger.bitWidth)
+        guard self.bitsRemaining >= count else {
+            return nil
+        }
+
+        // Take any bits form the dataWord cache, which may be enough
+        var result: AMLInteger = 0
+
+        let count1 = min(count, self.bitsInDataWord)
+        let count2 = count - count1
+        if count1 > 0 {
+            result = self.dataWord
+            self.dataWord >>= count1
+            self.bitsInDataWord -= count1
+            result &= AMLInteger(maskFromBitCount: count)
+        }
+        if count2 > 0 {
+            // Need some more bits to satisfy the top of the word
+            self.loadDataWord()
+            let upperBits = self.dataWord & AMLInteger(maskFromBitCount: count2)
+            result |= (upperBits << count1)
+            self.dataWord >>= count2
+            self.bitsInDataWord -= count2
+        }
+        self.bitsRemaining -= count
+        return result
+    }
+
+    mutating private func loadDataWord() {
+        precondition(self.bitsInDataWord == 0)
+        guard let buffer = self.buffer else {
+            self.dataWord = 0
+            self.bitsInDataWord = AMLInteger.bitWidth
+            return
+        }
+        // Clear contents
+        self.dataWord = 0
+        let byteCount = self.dataWord.bitWidth / 8
+        for idx in 0..<byteCount {
+            // Pretend the buffer is infinitly long and any unintialised elements are zero
+            if self.bufferIndex < buffer.endIndex {
+                self.dataWord |= (AMLInteger(buffer[self.bufferIndex]) << (idx * 8))
+            }
+            self.bufferIndex += 1
+            self.bitsInDataWord += 8
+        }
+    }
+}
+
+
 // This is used by buffer fields which need to share the same underlying buffer
 // FIXME: Could an AMLObject(AMLBuffer) be used instead?
-final class AMLSharedBuffer: RandomAccessCollection {
+final class AMLSharedBuffer: RandomAccessCollection, Equatable {
     typealias Index = Int
     typealias Element = UInt8
 
@@ -555,6 +680,10 @@ final class AMLSharedBuffer: RandomAccessCollection {
 
     init(_ bytes: AMLBuffer) {
         buffer = bytes
+    }
+
+    static func ==(lhs: AMLSharedBuffer, rhs: AMLSharedBuffer) -> Bool {
+        return lhs.buffer == rhs.buffer
     }
 
     func update(to newValue: AMLBuffer) {
@@ -603,6 +732,18 @@ final class AMLSharedBuffer: RandomAccessCollection {
     }
 
 
+    func subBuffer(offset: AMLInteger, length: AMLInteger) -> AMLSharedBuffer {
+        var result: AMLBuffer = []
+        let offset = Int(offset)
+        let length = Int(length)
+        if offset < self.count {
+            let end = Swift.min((offset + length), self.count)
+            result.reserveCapacity(length)
+            result.append(contentsOf: self[offset..<end])
+        }
+        return AMLSharedBuffer(result)
+    }
+
     // Bit
     func readBit(atBitIndex bitIndex: Int) -> AMLInteger {
         let byteIndex = Int(bitIndex / 8)
@@ -622,6 +763,7 @@ final class AMLSharedBuffer: RandomAccessCollection {
             default: fatalError("AMLSharedBuffer.writeBit: Attempting to set value to \(value) not 0 or 1")
         }
     }
+
 
     // Byte
     func readByte(atByteIndex index: Int) -> AMLByteData {
@@ -816,15 +958,13 @@ struct AMLNameString: Hashable, CustomStringConvertible {
     }
 
     func evaluate(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
-        guard let (node, fullPath) = context.getObject(named: self) else {
+        guard let (node, _) = context.getObject(named: self) else {
             fatalError("Cant find node: \(value)")
         }
 
         let namedObject = node
         if let fieldElement = node.object.fieldUnitValue {
-            let resolvedScope = AMLNameString(fullPath).removeLastSeg()
-            var tmpContext = context.withNewScope(resolvedScope)
-            return try fieldElement.readValue(context: &tmpContext)
+            return try fieldElement.readValue(context: &context)
         } else {
             return try namedObject.readValue(context: &context)
         }

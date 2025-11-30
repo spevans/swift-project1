@@ -19,14 +19,6 @@ func vaddrFromPaddr(_ addr: UInt) -> UInt {
     return addr
 }
 
-func testBundle() -> Bundle {
-    for bundle in Bundle.allBundles {
-        if let bundleId = bundle.bundleIdentifier, bundleId == "org.si.acpi-tests" {
-            return bundle
-        }
-    }
-    fatalError("Cant find test bundle")
-}
 
 func openOrQuit(filename: String) -> Data {
     guard let file = try? Data(contentsOf: URL(fileURLWithPath: filename)) else {
@@ -122,11 +114,19 @@ func mapIORegion(region: PhysRegion, cacheType: CPU.CacheType = .uncacheable) ->
     return MMIORegion(region)
 }
 
+func mapIORegion(region: PhysPageAlignedRegion, cacheType: CPU.CacheType = .uncacheable) -> MMIORegion {
+    return MMIORegion(region)
+}
+
 func mapRORegion(region: PhysPageAlignedRegion, cacheType: CPU.CacheType = .writeBack) -> MMIORegion {
     return MMIORegion(region)
 }
 
 func mapRORegion(region: PhysRegion) -> MMIORegion {
+    return MMIORegion(region)
+}
+
+func mapRWRegion(region: PhysRegion) -> MMIORegion {
     return MMIORegion(region)
 }
 

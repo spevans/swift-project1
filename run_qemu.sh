@@ -35,7 +35,7 @@ do
         ;;
     --xhci-test)
         # Test with a keyboard, hub and mouse
-        ARGS="$ARGS -device qemu-xhci,id=xhci -device usb-mouse,bus=xhci.0,port=1"
+        ARGS="$ARGS -usb -device qemu-xhci,id=xhci -device usb-mouse,bus=xhci.0,port=1"
         #ARGS="$ARGS -device qemu-xhci -device usb-mouse"
         ;;
 
@@ -47,7 +47,7 @@ done
 if [ "$ACCEL" != "" ]; then
     echo Using Acceleration $ACCEL
 fi
-CMD="qemu-system-x86_64 $DEBUG -accel $ACCEL -m $MEM $BOOT -usb  -D log -d int,cpu_reset,guest_errors,unimp -no-reboot $ARGS"
+CMD="qemu-system-x86_64 $DEBUG -accel $ACCEL -m $MEM $BOOT -D log -d int,cpu_reset,guest_errors,unimp -no-reboot $ARGS"
 echo $CMD
 $CMD
 

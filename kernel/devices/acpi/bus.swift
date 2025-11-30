@@ -6,6 +6,7 @@
 //  Copyright © 2020 Simon Evans. All rights reserved.
 //
 
+#if ACPI
 // PNP0C02 device
 final class MotherBoardResource: PNPDeviceDriver {
     private let resources: [AMLResourceSetting]
@@ -28,18 +29,24 @@ final class MotherBoardResource: PNPDeviceDriver {
         return result
     }
 }
-
+#endif
 
 final class MasterBus: CustomStringConvertible {
     let description = "MasterBus"
     let device: Device
 
     var resources: [MotherBoardResource] = []
+#if ACPI
     let acpiSystemBus: ACPI.ACPIObjectNode      // \_SB node
-
 
     init(acpiSystemBus: ACPI.ACPIObjectNode) {
         self.device = Device(parent: nil)
         self.acpiSystemBus = acpiSystemBus
     }
+#else
+
+    init() {
+        self.device = Device(parent: nil)
+    }
+#endif
 }

@@ -33,7 +33,6 @@ let package = Package(
                 path: "kernel",
                 exclude: ["arch",
                           "init",
-                          "devices/acpi",
                           "devices/usb",
                           "devices/devicemanager.swift",
                           "devices/apic.swift",
@@ -61,6 +60,7 @@ let package = Package(
                          ],
                 cSettings: [.define("TEST")],
                 swiftSettings: [.define("TEST"),
+                                .define("ACPI"),
                                 .unsafeFlags([
                                     "-Xfrontend", "-disable-availability-checking",
                                     "-import-objc-header", "include/kernel.h",
@@ -74,6 +74,8 @@ let package = Package(
             dependencies: [ "PrintfMacros", "Kernel" ],
             path: "Tests",
             sources: [
+                "ACPIAMLTypeTests.swift",
+                "ACPIReadWriteTests.swift",
                 "AddressTests.swift",
                 "DisplayTests.swift",
                 "KlibTests.swift",
@@ -85,7 +87,7 @@ let package = Package(
 //              "USBTests.swift",
             ],
             cSettings: [.define("TEST")],
-            swiftSettings: [.define("TEST")]
+            swiftSettings: [.define("TEST"), .define("ACPI"), .unsafeFlags(["-enable-bare-slash-regex"])]
 
         )
     ],

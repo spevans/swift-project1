@@ -55,7 +55,7 @@ struct ACPI_SDT: CustomStringConvertible {
     }
 }
 
-
+var ACPIDebug = false
 final class ACPI {
 
 
@@ -365,17 +365,22 @@ final class ACPI {
     }
 }
 
+#if !TEST
 extension ACPI {
     func startup() {
 
         func runMethod(_ node: ACPIObjectNode) -> Bool {
-            #kprint("ACPI: Running:", node.fullname())
+            if ACPIDebug {
+                #kprint("ACPI: Running:", node.fullname())
+            }
             guard let method = node.object.methodValue else {
                 #kprint(node.fullname(), " is not an _INI method")
                 return false
             }
             do {
-                #kprint("ACPI: calling", node.fullname())
+                if ACPIDebug {
+                    #kprint("ACPI: calling", node.fullname())
+                }
                 var context = ACPI.AMLExecutionContext(scope: AMLNameString(node.fullname()))
                 try method.execute(context: &context)
                 return true
@@ -432,7 +437,9 @@ extension ACPI {
             }
 
             if !status.present {
-                #kprint("ACPI: Ignoring not present device \(name)")
+                if ACPIDebug {
+                    #kprint("ACPI: Ignoring not present device \(name)")
+                }
                 return false
             }
 
@@ -459,3 +466,4 @@ extension ACPI {
         #kprint("ACPI: Found all devices")
     }
 }
+#endif

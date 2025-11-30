@@ -61,28 +61,19 @@ struct AMLDefIndexField {
 
 struct AMLNamedField {
 
-    enum RegionReference {
-        case regionSpace(OpRegionSpace)
+    enum _RegionSpace {
         case opRegion(AMLDefOpRegion)
-        case name(AMLNameString)
-        case indexDataField(AMLNameString, AMLNameString)
+        case indexDataField(ACPI.ACPIObjectNode, ACPI.ACPIObjectNode)
     }
 
-    let name: AMLNameString
-    let region: RegionReference
-    let fieldSettings: AMLFieldSettings
-    var isReadOnly: Bool { false }
+    private let name: AMLNameString
+    private let region: _RegionSpace
+    private let fieldSettings: AMLFieldSettings
 
 
     var description: String {
         return "\(self.name): bitOffset: \(fieldSettings.bitOffset) bitWidth: \(fieldSettings.bitWidth)"
             + " fieldFlags: \(fieldSettings.fieldFlags)"
-    }
-
-    init(name: AMLNameString, regionName: AMLNameString, fieldSettings: AMLFieldSettings) {
-        self.name = name
-        self.region = .name(regionName)
-        self.fieldSettings = fieldSettings
     }
 
     init(name: AMLNameString, opRegion: AMLDefOpRegion, fieldSettings: AMLFieldSettings) {
@@ -91,57 +82,82 @@ struct AMLNamedField {
         self.fieldSettings = fieldSettings
     }
 
-    init(name: AMLNameString, indexField: AMLNameString, dataField: AMLNameString, fieldSettings: AMLFieldSettings) {
+    init(name: AMLNameString, indexField: ACPI.ACPIObjectNode, dataField: ACPI.ACPIObjectNode, fieldSettings: AMLFieldSettings) {
         self.name = name
         self.region = .indexDataField(indexField, dataField)
         self.fieldSettings = fieldSettings
     }
 
-    func getRegionSpace(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> OpRegionSpace {
-        let space: OpRegionSpace
+    @inline(never)
+    func updateValue(to value: AMLObject, context: inout ACPI.AMLExecutionContext) throws(AMLError) {
+        if ACPIDebug {
+            #kprintf("acpi: Updating %s to %s\n", self.name.value, value.description)
+        }
 
-        switch region {
-            case let .regionSpace(opRegionSpace):
-                space = opRegionSpace
 
-            case let .opRegion(opRegion):
-                space = try opRegion.getRegionSpace(context: &context)
-                // region = .regionSpace(space)
-
-            case let .name(regionName):
-                guard let (opNode, _) = context.getObject(named: regionName),
-                      let opRegion = opNode.object.operationRegionValue else {
-                    fatalError("Cant find \(regionName) in \(context.scope)")
-                }
-                space = try opRegion.getRegionSpace(context: &context)
+        switch self.region {
+            case .opRegion(let opRegion):
+                try opRegion.write(value: value, fieldSettings: self.fieldSettings,
+                                   context: &context)
 
             case .indexDataField(let index, let data):
-                fatalError("implement IndexData Field \(index)/\(data)")
+                if ACPIDebug {
+                    #kprintf("acpi: IndexField(index: %s/%s data: %s/%s)\n",
+                             index.name.value, index.object.description,
+                             data.name.value, data.object.description)
+                }
+                guard let indexPort = index.object.fieldUnitValue,
+                      let dataPort = data.object.fieldUnitValue else {
+                    fatalError("\(index) or \(data) are not named fields")
+                }
+                if ACPIDebug {
+                    #kprintf("acpi: updating index/data %s/%s\n",
+                             indexPort.description, dataPort.description)
+                }
+                let bitOffset = Int(fieldSettings.bitOffset)
+                let port = AMLObject(AMLInteger(bitOffset / 8))
+                try indexPort.updateValue(to: port, context: &context)
+                try dataPort.updateValue(to: AMLObject(value), context: &context)
         }
-        return space
+//        if ACPIDebug {
+//            #kprintf("acpi: Updated %s\n", name.description)
+//        }
     }
 
 
-    func updateValue(to value: AMLObject, context: inout ACPI.AMLExecutionContext) throws(AMLError) {
-        let region = try getRegionSpace(context: &context)
-        let accessWidth = fieldSettings.fieldFlags.fieldAccessType.accessWidth
-        var iterator = try AMLByteIterator(value, bitWidth: Int(fieldSettings.bitWidth), accessWidth: accessWidth)
-
-        //print("\(self.name): writing 0x\(String(value, radix: 16)) to bitOffset: \(fieldSettings.bitOffset)")
-        var bitOffset = Int(fieldSettings.bitOffset)
-        while let value = iterator.next() {
-            region.write(bitOffset: bitOffset, width: accessWidth * 8, value: value, flags: fieldSettings.fieldFlags)
-            bitOffset += accessWidth
-        }
-    }
-
-
+    @inline(never)
     func readValue(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
-        let value = try getRegionSpace(context: &context).read(bitOffset: Int(fieldSettings.bitOffset),
-                                                               width: Int(fieldSettings.bitWidth),
-                                                               flags: fieldSettings.fieldFlags)
-        //print("\(self.name): read 0x\(String(value, radix: 16)) from bitOffset: \(fieldSettings.bitOffset)")
-        return AMLObject(value)
+
+        switch self.region {
+            case .opRegion(let opRegion):
+                let value = try opRegion.read(fieldSettings: self.fieldSettings,
+                                              context: &context)
+                if ACPIDebug {
+                    let bitWidth = fieldSettings.bitWidth
+                    let bitOffset = fieldSettings.bitOffset
+                    #kprintf("acpi: %s.readValue(0x%x/%u) => %s\n",
+                             name.value, bitOffset, bitWidth, value.description)
+                }
+                return value
+
+            case .indexDataField(let index, let data):
+                guard let indexPort = index.object.fieldUnitValue,
+                      let dataPort = data.object.fieldUnitValue else {
+                    fatalError("\(index) or \(data) are not named fields")
+                }
+                let bitOffset = fieldSettings.bitOffset
+
+                let port = AMLObject(AMLInteger(bitOffset / 8))
+                try indexPort.updateValue(to: port, context: &context)
+                let value = try dataPort.readValue(context: &context)
+                if ACPIDebug {
+                    let bitWidth = fieldSettings.bitWidth
+
+                    #kprintf("acpi: %s.readValue(port: 0x%x/%u) => 0x%x\n",
+                             name.value, bitOffset, bitWidth, value.description)
+                }
+                return value
+        }
     }
 }
 

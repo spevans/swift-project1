@@ -91,12 +91,18 @@ final class AMLMethod {
     }
 
     func execute(context: inout ACPI.AMLExecutionContext) throws(AMLError) {
+        if ACPIDebug {
+            #kprintf("acpi: Executing method %s\n", context.scope.value)
+        }
+
         if let handler = handler {
             context.returnValue = try handler(&context)
-            return
         } else {
             let termList = try self.termList()
             try context.execute(termList: termList)
+        }
+        if ACPIDebug {
+            #kprintf("acpi: Method %s finished\n", context.scope.value)
         }
     }
 
