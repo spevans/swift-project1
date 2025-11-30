@@ -61,6 +61,49 @@ struct BitmapAllocator8: BitmapAllocatorProtocol {
 }
 
 
+struct BitmapAllocator16: BitmapAllocatorProtocol {
+    typealias BitmapType = UInt16
+    private var bitmap: BitmapType
+
+
+    init() {
+        // Preallocate the entries upto bitWidth
+        bitmap = BitmapType.max
+    }
+
+    var entryCount: Int { BitmapType.bitWidth }
+
+    mutating func allocate() -> Int? {
+        let tzbc = bitmap.trailingZeroBitCount
+        guard tzbc < entryCount else { return nil }
+        bitmap &= ~(BitmapType(1) << tzbc)
+        return tzbc
+    }
+
+    mutating func free(entry: Int) {
+        let bit: BitmapType = 1 << BitmapType(entry)
+        precondition(bitmap & bit == 0)
+        bitmap |= bit
+    }
+
+    func hasSpace() -> Bool {
+        return bitmap != 0
+    }
+
+    func freeEntryCount() -> Int {
+        return bitmap.nonzeroBitCount
+    }
+
+    func dump() {
+        func padding(_ str: String) -> String {
+            return String(repeating: "0", count: BitmapType.bitWidth - str.count) + str
+        }
+        #kprint("0b\(padding(String(bitmap, radix: 2)))")
+    }
+}
+
+
+
 /// Bitmap using UInt32 to allocate upto 32 entries.
 struct BitmapAllocator32: BitmapAllocatorProtocol {
     typealias BitmapType = UInt32

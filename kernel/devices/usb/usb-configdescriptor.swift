@@ -58,7 +58,7 @@ extension USB {
                 + " bNumInterfaces: \(bNumInterfaces) bConfigurationValue: \(bConfigurationValue)"
                 + " iConfiguration: \(iConfiguration)"
                 + " bmAttributes: remoteWakup: \(attributes.remoteWakeup) selfPowered: \(attributes.selfPowered)"
-                + " bMaxPower: \(bMaxPower * 2)mA\n"
+                + " bMaxPower: \(UInt16(bMaxPower) * 2)mA\n"
             for interface in interfaces {
                 result += " +-- \(interface.description)\n"
             }
