@@ -9,11 +9,17 @@ concurrency/thread support on multiple CPUs.
 The code has been rewritten to work on Embedded Swift, originally it used
 a version of Swift with a modified runtime and standard library. Some small
 additions to Embedded Swift needed to be made, currently a separate toolchain
-is required. See [swift-kstdlib](https://github.com/spevans/swift-kstdlib/blob/kstdlib-20250720/KERNEL_LIB.md)
-for more details. Hopefully the changes will be upstreamed into the main Swift
-project at some point.
+is required. For more details see [swift-kstdlib](https://github.com/spevans/swift-kstdlib/blob/kstdlib-20251120/KERNEL_LIB.md)
+The required toolchain can be downloaded from https://github.com/spevans/swift-kstdlib/releases/tag/v20251120
+Hopefully the changes will be upstreamed into the main Swift project at some point.
 
 ## Current status
+
+30/11/2025
+
+- Update to kstdlib swift toolchain that fixes use of spare bits in pointers used for enum payload tags.
+- UEFI fixes to avoid using reserved memory types as these crash some firmwares.
+- ACPI fixes to OpRegion and correct mapping of memory according to UEFI cache attributes.
 
 29/09/2025
 
