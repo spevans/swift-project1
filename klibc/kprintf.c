@@ -16,7 +16,7 @@
 #endif
 
 
-void early_print_char(const char ch);
+void early_print_char(const uint8_t ch);
 void early_print_string(const char *text);
 typedef void (*print_char_func)(void *data, char ch);
 

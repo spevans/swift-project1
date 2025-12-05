@@ -2,7 +2,9 @@ TOPDIR := ..
 include $(TOPDIR)/Makedefs
 
 OBJS := misc.o string.o kprintf.o printf.o  \
-		x86_string.o x86_misc.o koops.o early_tty.o malloc.o
+		x86_string.o x86_misc.o koops.o early_tty.o malloc.o	\
+		../lib/font_8x16.o ../lib/font_16x32.o ../lib/font_vga8x16.o
+
 
 all: klibc.o
 

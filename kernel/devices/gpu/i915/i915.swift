@@ -342,18 +342,6 @@ final class I915: PCIDeviceDriver {
                     #kprintf("Invalid virtual address 0x%8.8x\n", virtAddress)
                 }
 
-            case "mapfont":
-                guard arguments.count == 1, let address = UInt32(arguments[1]) else {
-                    #kprint("mapfont <virtAddress>")
-                    return
-                }
-                if let newAddress = mapFont(at: address) {
-                    self.fontAddress = newAddress
-                    #kprintf("New font address: %p\n", self.fontAddress)
-                } else {
-                    #kprint("Failed to map font data")
-                }
-
             case "copyfont":
                 guard arguments.count == 2, let address = UInt32(arguments[1]), let physAddress = RawAddress(arguments[2]) else {
                     #kprint("copyfont <virtAddress> <physAddress>")

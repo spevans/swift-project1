@@ -10,45 +10,41 @@ class I915TTY {
     typealias GPUCoord = UInt16
 
     private let gpu: I915
-    private var font: Font
-
     private let width: UInt
     private let height: UInt
-    private let charsPerLine: TextCoord
-    private let totalLines: TextCoord
     private let textColour: RGBA32
     private let backgroundColour: RGBA32
+    private var charsPerLine: TextCoord = 0
+    private var totalLines: TextCoord = 0
     private var _cursorX: TextCoord = 0
     private var _cursorY: TextCoord = 0
-    private let fontAddress: UInt32
+    private var fontWidth: GPUCoord = 0
+    private var fontHeight: GPUCoord = 0
+    private var fontAddress: UInt32 = 0
 
 
     init?(gpu: I915, frameBufferInfo: FrameBufferInfo) {
         self.gpu = gpu
-        self.font = Font(
-            width: 8, height: 16, data: UnsafePointer<UInt8>(bitPattern: UInt(bitPattern: &fontdata_8x16))!
-        )
+
+
         self.width = UInt(frameBufferInfo.width)
         self.height = UInt(frameBufferInfo.height)
-        self.charsPerLine = TextCoord(width / UInt(font.width))
-        self.totalLines = TextCoord(height / UInt(font.height))
         self.textColour = 0xffffffff
         self.backgroundColour = 0xff000000
-
-        // FIXME: dont hardcode these values
-        guard let address = gpu.mapFont(at: 0x3000000) else {
-            #kprint("Failed to map font")
-            return nil
-        }
-        self.fontAddress = address
         gpu.xy_setup_blt(bgColour: self.backgroundColour, fgColour: self.textColour)
         gpu.miFlush()
+
+        guard self.setFont(Font.currentFont) else {
+            #kprint("i915: Failed to set font")
+            return nil
+        }
     }
 
     func addTTYDriver() {
         let driver = TTY.Driver(
-            charsPerLine: charsPerLine,
-            totalLines: totalLines,
+            name: "i915",
+            charsPerLine: { self.charsPerLine },
+            totalLines: { self.totalLines },
             printChar: { c, x, y in
                 self.printChar(c, x: x, y: y)
             },
@@ -58,10 +54,26 @@ class I915TTY {
             getCursorY: { self.cursorY },
             setCursorX: { self.cursorX = $0 },
             setCursorY: { self.cursorY = $0 },
-            doTimings: { self.doTimings() }
+            doTimings: { self.doTimings() },
+            setFont: { self.setFont($0) },
         )
 
         setTTYDriver(driver)
+    }
+
+    @discardableResult
+    func setFont(_ font: Font) -> Bool {
+        guard let address = gpu.mapFont(font, at: 0x3000000) else {
+            #kprint("Failed to get physical address of font")
+            return false
+        }
+
+        self.fontAddress = address
+        self.fontWidth = GPUCoord(font.width)
+        self.fontHeight = GPUCoord(font.height)
+        self.charsPerLine = TextCoord(width / UInt(font.width))
+        self.totalLines = TextCoord(height / UInt(font.height))
+        return true
     }
 
 
@@ -93,18 +105,19 @@ class I915TTY {
     func scrollUp() {
         let x2 = GPUCoord(self.width)
         let y2 = GPUCoord(self.height)
-        gpu.xy_src_copy_blt(x1: 0, y1: 0, x2: x2, y2: y2 - GPUCoord(font.height), sourceX1: 0, sourceY1: GPUCoord(font.height))
-        gpu.xy_color_blt(x1: 0, y1: y2 - GPUCoord(font.height) - 1, x2: x2, y2: y2, colour: backgroundColour)
+        gpu.xy_src_copy_blt(x1: 0, y1: 0, x2: x2, y2: y2 - self.fontHeight, sourceX1: 0, sourceY1: self.fontHeight)
+        gpu.xy_color_blt(x1: 0, y1: y2 - self.fontHeight - 1, x2: x2, y2: y2, colour: backgroundColour)
         gpu.miFlush()
     }
 
-    func printChar(_ character: CUnsignedChar, x: TextCoord, y: TextCoord) {
-        let x1 = GPUCoord(x) * GPUCoord(font.width)
-        let x2 = x1 + GPUCoord(font.width)
-        let y1 = GPUCoord(y) * GPUCoord(font.height)
-        let y2 = y1 + GPUCoord(font.height)
+    func printChar(_ character: UInt8, x: TextCoord, y: TextCoord) {
+        guard x < charsPerLine, y < totalLines else { return }
+        let x1 = GPUCoord(x) * self.fontWidth
+        let x2 = x1 + self.fontWidth
+        let y1 = GPUCoord(y) * self.fontHeight
+        let y2 = y1 + self.fontHeight
 
-        let chOffset = UInt32(character) * 16
+        let chOffset = UInt32(character) * UInt32(self.fontWidth / 8) * UInt32(self.fontHeight)
         let sourceAddress = self.fontAddress + chOffset
         gpu.xy_text_blt(x1: x1, y1: y1, x2: x2, y2: y2, sourceAddress: sourceAddress)
         gpu.miFlush()
@@ -123,12 +136,12 @@ class I915TTY {
 
         let oneLineCharTicks = benchmark {
             for x in 0..<charsPerLine {
-                printChar(UInt8(ascii: "X"), x: x, y: 30)
+                printChar(UInt8(ascii: "X"), x: x, y: 1)
             }
         }
 
         let oneCharTicks = benchmark {
-            printChar(UInt8(ascii: "A"), x: 10, y: 31)
+            printChar(UInt8(ascii: "A"), x: 10, y: 2)
         }
 
         let scrollUpTicks = benchmark {

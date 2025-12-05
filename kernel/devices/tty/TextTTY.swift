@@ -72,7 +72,7 @@ struct TextTTY {
 
 
     @inline(never)
-    func printChar(_ character: CUnsignedChar, x: TextCoord, y: TextCoord) {
+    func printChar(_ character: UInt8, x: TextCoord, y: TextCoord) {
         guard x < charsPerLine && y < totalLines else {
             return
         }

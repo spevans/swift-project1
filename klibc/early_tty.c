@@ -13,7 +13,6 @@
 #include "swift.h"
 #include "mm.h"
 #include "fbcon.h"
-#include "../lib/font_8x16.c"
 
 
 void init_serial();

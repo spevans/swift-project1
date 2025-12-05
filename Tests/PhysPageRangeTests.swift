@@ -18,4 +18,13 @@ class PhysPageAlignedRegionTests: XCTestCase {
         XCTAssertEqual(iterator.next()?.description, "0x81000 - 0x82fff [2 * 0x1000]")
         XCTAssertNil(iterator.next())
     }
+
+    func testUnalignedPageRegions() {
+        let size: UInt = (16 * 32 * 256) / 8
+        let fontPhys = PhysAddress(0x120d860)
+        let fontPages = PhysPageAlignedRegion(start: fontPhys, size: size)
+        XCTAssertEqual(fontPages.baseAddress, PhysAddress(0x120_d000))
+        XCTAssertEqual(fontPages.pageCount, 5)
+    }
+
 }

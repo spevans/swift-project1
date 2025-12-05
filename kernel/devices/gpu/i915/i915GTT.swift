@@ -106,24 +106,20 @@ extension I915 {
         }
     }
 
-    func mapFont(at newAddress: UInt32) -> UInt32? {
-        let fontAddress = VirtualAddress(bitPattern: &fontdata_8x16)
+    func mapFont(_ font: Font, at newAddress: UInt32) -> UInt32? {
+        let fontAddress = VirtualAddress(bitPattern: font.data)
         guard let fontPhys = virtualToPhys(address: fontAddress) else {
             #kprint("Failed to get physical address of font")
             return nil
         }
 
-        let fontPages = PhysPageAlignedRegion(start: fontPhys, size: 16 * 256)
+        let fontPages = PhysPageAlignedRegion(start: fontPhys, size: font.count)
         let offset = UInt32(fontPhys - fontPages.baseAddress)
-
-        #kprintf("fontAddress: %p font Physical Address: %p  offset into page: %x\n",
-                 fontAddress, fontPhys.value, offset)
-
-        var newAddress = newAddress & 0xffff_0000
+        var newAddress = newAddress & 0xffff_f000
         let result = newAddress + offset
+
         for page in fontPages {
             let gttPage = newAddress >> 12
-            #kprintf("Phys Page: %p  gttPage: %x @ %p\n", page.value, gttPage, newAddress)
             let pte = GTT_PTE(address: page, type: 3)
             gttMmioRegion.write(value: pte.rawValue, toByteOffset: Int(gttPage) * MemoryLayout<UInt32>.size)
             newAddress += 4096

@@ -5,12 +5,6 @@
 //  Created by Simon Evans on 03/08/2025.
 //
 
-// Expose the font as a global for now to avoid a one time initialiser function on the Framebuffer
-// This seems to be a bug as this whold structure should be a constant in .data
-private let _font = Font(
-    width: 8, height: 16, data: UnsafePointer<UInt8>(bitPattern: UInt(bitPattern: &fontdata_8x16))!
-)
-
 
 struct FrameBufferTTY: ~Copyable {
     private var font = Font()
@@ -84,30 +78,41 @@ struct FrameBufferTTY: ~Copyable {
     @inline(never)
     mutating func setFrameBuffer(_ frameBufferInfo: FrameBufferInfo) {
         // TODO: Deinit the old settings?
-        self.font = _font
+
         self.frameBufferInfo = frameBufferInfo
-        charsPerLine = TextCoord(frameBufferInfo.width / font.width)
-        totalLines = TextCoord(frameBufferInfo.height / font.height)
-        depthInBytes = Int(frameBufferInfo.depth) / 8
-        bytesPerTextLine = Int(frameBufferInfo.pxPerScanline) * Int(font.height) * depthInBytes
-        lastLineScrollArea = bytesPerTextLine * (Int(totalLines) - 1)
+        self.depthInBytes = Int(frameBufferInfo.depth) / 8
+        self.totalBytesPerScanLine = Int(frameBufferInfo.pxPerScanline) * depthInBytes
+        self.visibleBytesPerScanLine = Int(frameBufferInfo.width) * self.depthInBytes
+        self.colourMask = computeColourMask()
 
-        visibleBytesPerScanLine = Int(frameBufferInfo.width) * depthInBytes
-        totalBytesPerScanLine = Int(frameBufferInfo.pxPerScanline) * depthInBytes
-        fontBytesPerLineDepth = Int(font.width) * depthInBytes
-        colourMask = computeColourMask()
+        let font = Font.setCurrentFont(screenWidth: self.frameBufferInfo.width,
+                                       screenHeight: self.frameBufferInfo.height)
+        setFont(font)
 
-        let size = Int(frameBufferInfo.pxPerScanline)
-            * Int(frameBufferInfo.height) * depthInBytes
+        let size = UInt(frameBufferInfo.pxPerScanline)
+            * UInt(frameBufferInfo.height) * UInt(depthInBytes)
 
-        let physRegion = PhysRegion(start: frameBufferInfo.address, size: UInt(size))
+        let physRegion = PhysRegion(start: frameBufferInfo.address, size: size)
         let mmioRegion = mapIORegion(region: physRegion, cacheType: .writeCombining)
         let screenBase = UnsafeMutablePointer<UInt8>(bitPattern: mmioRegion.baseAddress.vaddr)!
-        screen = UnsafeMutableBufferPointer<UInt8>(start: screenBase,
-            count: size)
+        screen = UnsafeMutableBufferPointer<UInt8>(start: screenBase, count: Int(size))
 
-        textMemory = UnsafeMutableRawBufferPointer.allocate(byteCount: Int(charsPerLine * totalLines), alignment: 8)
-        textMemory?.initializeMemory(as: UInt8.self, repeating: blankChar)
+    }
+
+    mutating func setFont(_ font: Font) {
+        self.font = font
+        self.charsPerLine = TextCoord(frameBufferInfo.width / font.width)
+        self.totalLines = TextCoord(frameBufferInfo.height / font.height)
+
+        self.bytesPerTextLine = Int(frameBufferInfo.pxPerScanline) * Int(font.height) * self.depthInBytes
+        self.lastLineScrollArea = self.bytesPerTextLine * (Int(self.totalLines) - 1)
+        self.fontBytesPerLineDepth = Int(font.width) * depthInBytes
+
+        // Text memory is based on the total text characters so may need to be resized up
+        // Free the old memory and reallocate the buffer for now
+        self.textMemory?.deallocate()
+        self.textMemory = UnsafeMutableRawBufferPointer.allocate(byteCount: Int(charsPerLine * totalLines), alignment: 8)
+        self.textMemory?.initializeMemory(as: UInt8.self, repeating: blankChar)
     }
 
     mutating func updateMapping(_ frameBufferInfo: FrameBufferInfo) {
@@ -123,7 +128,7 @@ struct FrameBufferTTY: ~Copyable {
 
 
     @inline(never)
-    mutating func printChar(_ ch: CUnsignedChar, x: TextCoord, y: TextCoord) {
+    mutating func printChar(_ ch: UInt8, x: TextCoord, y: TextCoord) {
         guard x < charsPerLine && y < totalLines else {
             return
         }
@@ -141,17 +146,23 @@ struct FrameBufferTTY: ~Copyable {
 
         let data = font.characterData(ch).span
         let base = UnsafeMutableRawPointer(bitPattern: screenBase.address)!
+        let bytesPer8Pixels = self.depthInBytes &* 8
+
         while count > 0 {
-            let screenLine = base.advanced(by: pixelOffset)
-            let charByte = data[unchecked: fontByteOffset]
-            switch depthInBytes {
-                case 4: writeFontLine4(charByte, screenLine)
-                case 3: writeFontLine3(charByte, screenLine)
-                case 2: writeFontLine2(charByte, screenLine)
-                case 1: writeFontLine1(charByte, screenLine)
-                default: break
+            var screenLine = base.advanced(by: pixelOffset)
+            for _ in 0..<self.font.bytesPerFontLine {
+                // Write 8pixels of one line of the font
+                let charByte = data[unchecked: fontByteOffset]
+                switch depthInBytes {
+                    case 4: writeFontLine4(charByte, screenLine)
+                    case 3: writeFontLine3(charByte, screenLine)
+                    case 2: writeFontLine2(charByte, screenLine)
+                    case 1: writeFontLine1(charByte, screenLine)
+                    default: break
+                }
+                fontByteOffset &+= 1
+                screenLine = screenLine.advanced(by: bytesPer8Pixels)
             }
-            fontByteOffset &+= font.bytesPerFontLine
             pixelOffset &+= totalBytesPerScanLine
             count &-= 1
         }

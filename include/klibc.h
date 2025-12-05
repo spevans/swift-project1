@@ -66,13 +66,7 @@ int strcmp(const char * _Nonnull s1, const char * _Nonnull s2);
 char * _Nonnull strcpy(char * _Nonnull dest, const char * _Nonnull src);
 size_t strlen(const char * _Nonnull s);
 
-// early_tty.c
-typedef uint16_t text_coord;
-
 void serial_print_char(const char ch);
-void early_print_char(const char c);
-void early_print_string(const char * _Nonnull text);
-void early_print_string_len(const char * _Nonnull text, size_t len);
 int serial_printf(const char * _Nonnull fmt, ...) __attribute__ ((format (printf, 1, 2)));
 
 #endif  // __KLIBC_H__

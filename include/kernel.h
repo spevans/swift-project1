@@ -48,6 +48,8 @@ extern const void * _Nonnull kernmap_pml3;
 extern const void * _Nonnull kernmap_pml2;
 extern const void * _Nonnull kernmap_pml1;
 extern const void * _Nonnull fontdata_8x16;
+extern const void * _Nonnull fontdata_16x32;
+extern const void * _Nonnull fontdata_vga8x16;
 
 extern struct task_state_segment task_state_segment;
 
@@ -185,19 +187,6 @@ void serial_print_char(const char ch);
 unsigned int read_int_nest_count(void);
 void run_first_task(void);
 void set_interrupt_manager(const void * _Nonnull im);
-
-// early_tty interface for TTY.EarlyTTY driver
-typedef uint16_t text_coord;
-extern void (* _Nonnull etty_print_char)(text_coord x, text_coord y, const unsigned char ch);
-extern void (* _Nonnull etty_clear_screen)(void);
-extern void (* _Nonnull etty_scroll_up)(void);
-text_coord etty_chars_per_line(void);
-text_coord etty_total_lines(void);
-text_coord etty_get_cursor_x(void);
-text_coord etty_get_cursor_y(void);
-void etty_set_cursor_x(text_coord x);
-void etty_set_cursor_y(text_coord y);
-void early_print_string_len(const char * _Nonnull text, size_t len);
 
 // timer.asm
 uint64_t current_ticks(void);

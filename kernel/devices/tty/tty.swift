@@ -12,13 +12,19 @@
 
 
 // TODO: Add some for of ASCII table given all of the strings that need to be converted
-let TAB: CUnsignedChar = 0x09
-let NEWLINE: CUnsignedChar = 0x0A
-let SPACE: CUnsignedChar = 0x20
-typealias TextCoord = text_coord
+let TAB: UInt8 = 0x09
+let NEWLINE: UInt8 = 0x0A
+let SPACE: UInt8 = 0x20
+typealias TextCoord = UInt16
 
 
 internal struct _TTY: UnicodeOutputStream {
+
+    private func serialPrintChar(_ ch: UInt8) {
+        if let ch = CChar(exactly: ch) {
+            serial_print_char(ch)
+        }
+    }
 
     init() {}
 
@@ -26,7 +32,7 @@ internal struct _TTY: UnicodeOutputStream {
         if string.utf8CodeUnitCount == 0 { return }
         string.withUTF8Buffer { buffer in
             for ch in buffer {
-                tty.printChar(CChar(bitPattern: ch))
+                tty.printChar(ch)
             }
         }
     }
@@ -36,19 +42,21 @@ internal struct _TTY: UnicodeOutputStream {
         //precondition(string._guts.isASCII, "String must be ASCII")
         if string.isEmpty { return }
         for c in string.unicodeScalars {
-            tty.printChar(CChar(truncatingIfNeeded: c.value))
+            if c.isASCII, let ch = UInt8(exactly: c.value) {
+                tty.printChar(ch)
+            }
         }
     }
 
     mutating func write(_ unicodeScalar: UnicodeScalar) {
-        if let ch = Int32(exactly: unicodeScalar.value) {
-            tty.printChar(CChar(ch))
+        if let ch = UInt8(exactly: unicodeScalar.value) {
+            tty.printChar(ch)
         }
     }
 
     mutating func write(_ character: Character) {
         if let ch = character.asciiValue {
-            tty.printChar(CChar(ch))
+            serialPrintChar(ch)
         }
     }
 }
@@ -58,8 +66,10 @@ internal struct _Serial: UnicodeOutputStream {
     mutating func write(_ string: StaticString) {
         if string.utf8CodeUnitCount == 0 { return }
         string.withUTF8Buffer { buffer in
-            for ch in buffer {
-                serial_print_char(CChar(bitPattern: ch))
+            for byte in buffer {
+                if let ch = CChar(exactly: byte) {
+                    serial_print_char(ch)
+                }
             }
         }
     }
@@ -67,14 +77,14 @@ internal struct _Serial: UnicodeOutputStream {
     mutating func write(_ string: String) {
         if string.isEmpty { return }
         for c in string.unicodeScalars {
-            if c.isASCII {
-                serial_print_char(CChar(truncatingIfNeeded: c.value))
+            if c.isASCII, let ch = CChar(exactly: c.value) {
+                serial_print_char(ch)
             }
         }
     }
 
     mutating func write(_ unicodeScalar: UnicodeScalar) {
-        if unicodeScalar.isASCII, let ch = Int32(exactly: unicodeScalar.value) {
+        if unicodeScalar.isASCII, let ch = CChar(exactly: unicodeScalar.value) {
             serial_print_char(CChar(ch))
         }
     }
@@ -110,7 +120,7 @@ func initTTY(_ frame_buffer: UnsafePointer<frame_buffer>?) {
 }
 
 @_cdecl("early_print_char")
-func printChar(_ ch: CChar) {
+func printChar(_ ch: UInt8) {
     tty.printChar(ch)
 }
 
@@ -129,8 +139,9 @@ func setTTYDriver(_ driver: TTY.Driver) {
 enum TTY: ~Copyable {
 
     struct Driver {
-        let charsPerLine: TextCoord
-        let totalLines: TextCoord
+        let name: String
+        let charsPerLine: () -> TextCoord
+        let totalLines: () -> TextCoord
         let printChar: (_ ch: CUnsignedChar, _ x: TextCoord, _ y: TextCoord) -> ()
         let clearScreen: () -> ()
         let scrollUp: () -> ()
@@ -139,6 +150,7 @@ enum TTY: ~Copyable {
         let setCursorX: (_ x: TextCoord) -> ()
         let setCursorY: (_ x: TextCoord) -> ()
         let doTimings: () -> TTY.Timings
+        let setFont: (_ font: Font) -> ()
     }
 
 
@@ -146,6 +158,15 @@ enum TTY: ~Copyable {
     case text
     case framebuffer
     case driver(TTY.Driver)
+
+    var driverName: String {
+        return switch self {
+            case .none: "none"
+            case .text: "textTTY"
+            case .framebuffer: "framebufferTTY"
+            case .driver(let driver): driver.name
+        }
+    }
 
     // The cursorX and cursorY and managed by early_tty.c so they
     // can be kept in sync
@@ -222,7 +243,7 @@ enum TTY: ~Copyable {
     }
 
     @inline(never)
-    private func printChar(_ character: CUnsignedChar, x: TextCoord, y: TextCoord) {
+    private func printChar(_ character: UInt8, x: TextCoord, y: TextCoord) {
         switch self {
             case .none: return
             case .text:
@@ -239,7 +260,7 @@ enum TTY: ~Copyable {
             case .none: 0
             case .text: textTTY.charsPerLine
             case .framebuffer: framebufferTTY.charsPerLine
-            case .driver(let driver): driver.charsPerLine
+            case .driver(let driver): driver.charsPerLine()
         }
     }
 
@@ -248,19 +269,25 @@ enum TTY: ~Copyable {
             case .none: 0
             case .text: textTTY.totalLines
             case .framebuffer: framebufferTTY.totalLines
-            case .driver(let driver): driver.totalLines
+            case .driver(let driver): driver.totalLines()
         }
     }
 
     @inline(never)
-    mutating func printChar(_ character: CChar) {
+    mutating func printChar(_ character: UInt8) {
         switch self {
             case .none:
-                serial_print_char(character)
+                if let ch = CChar(exactly: character) {
+                    serial_print_char(ch)
+                }
                 return
             default: break
         }
+
         let ch = CUnsignedChar(character)
+        let charsPerLine = self.charsPerLine
+        let totalLines = self.totalLines
+
         var (x, y) = (cursorX, cursorY)
 
         if ch == NEWLINE {
@@ -417,15 +444,91 @@ enum TTY: ~Copyable {
 
             for ch in currentLine {
                 if let ch = ch.asciiValue {
-                    printChar(CChar(ch))
+                    printChar(UInt8(truncatingIfNeeded: ch))
                 }
             }
             while clearSpaces > 0 {
-                printChar(32)
+                printChar(SPACE)
                 clearSpaces -= 1
             }
         }
     }
+
+    func commands(_ arguments: [String]) {
+        let first = arguments.first ?? ""
+
+        func showInfo() {
+            #kprintf("tty: driver: '%s', %ux%u font: %s\n",
+                     self.driverName, self.charsPerLine, self.totalLines,
+                     Font.currentFont.description)
+        }
+
+        func fontList() {
+            let fonts: String = Font.fonts().joined(separator: ", ")
+            #kprint("Available fonts:", fonts)
+        }
+
+        switch first {
+            case "", "info":
+                showInfo()
+
+            case "help":
+                #kprint("tty help               Show this help")
+                #kprint("tty font <fontname>    Set new font")
+                #kprint("tty timings            Run TTY timing tests")
+                #kprint("tty fonttext           Show the character set")
+
+            case "timings":
+                scrollTimingTest()
+
+            case "fonttest":
+                for idx: UInt8 in 0...255 {
+                    if idx > 0, UInt16(idx).isMultiple(of: 32) {
+                        tty.printChar(NEWLINE)
+                    }
+                    let ch  = if idx == NEWLINE || idx == TAB { SPACE } else { idx }
+                    tty.printChar(ch)
+                }
+                tty.printChar(NEWLINE)
+
+            case "font":
+                switch self {
+                    case .none: return
+                    case .text:
+                        #kprintf("TTY driver '%s' does not support fonts\n",
+                                self.driverName)
+                        return
+                    default: break
+                }
+
+                if arguments.count < 2 {
+                    #kprint("missing fontname, '8x16', '16x32' or 'vga8x16'")
+                    fontList()
+                } else {
+                    guard Font.setCurrentFont(to: arguments[1]) else {
+                        #kprint("Unknown font:", arguments[1])
+                        fontList()
+                        return
+                    }
+                    useCurrentFont()
+                    showInfo()
+                }
+
+            default:
+                #kprint("Unknown command:", first)
+        }
+    }
+
+    func useCurrentFont() {
+        switch self {
+            case .none: return
+            case .text: return
+            case .driver(let driver): return driver.setFont(Font.currentFont)
+            case .framebuffer: framebufferTTY.setFont(Font.currentFont)
+        }
+        clearScreen()
+    }
+
 
     struct Timings {
         let charsPerLine: TextCoord

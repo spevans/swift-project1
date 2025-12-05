@@ -250,12 +250,12 @@ private let commands: [String: ShellCommand] = [
     "vmxoff":   ShellCommand(vmxOffCommand, "Disable VMX"),
     "vmxtest":  ShellCommand(vmxTestCommand, "Test VMX"),
     "hidinput": ShellCommand(hidInput, "Test HID input"),
-    "ttytests": ShellCommand( {_ in tty.scrollTimingTest() }, "Test TTY speed"),
     "cls"     : ShellCommand( { _ in tty.clearScreen() }, "Clear the screen"),
     "device":   ShellCommand(deviceDebug, "Debug Device"),
     "i915":     ShellCommand(testi915, "Test an i915 display"),
     "memory":   ShellCommand( { _ in system.showMemoryRanges() }, "Show memory ranges"),
     "mcfg":     ShellCommand(showMCFG, "Show ACPI MCFG table"),
+    "tty":      ShellCommand( { args in tty.commands(args) }, "Show TTY information"),
 //    "xhci":     ShellCommand(testXHCI, "Test XHCI Driver"),
 
 ]
