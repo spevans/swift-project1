@@ -250,8 +250,8 @@ final class HCD_XHCI: PCIDeviceDriver {
 
         let slotCtxOffset = allocator.contextSize   // Offset to Slot 1 (EP0)
         let slotContext = SlotContext(
-            routeString: 0, speed: usbDevice.speed,
-            interrupter: 0, rootHubPort: usbDevice.port
+            routeString: usbDevice.routeString, speed: usbDevice.speed,
+            interrupter: 0, rootHubPort: usbDevice.rootPort
         )
         // Set the Input Device Context
         for idx in 0...3 {

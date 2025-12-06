@@ -20,7 +20,9 @@ class USBDevice: BusDevice {
     private(set) var descriptor: USB.DeviceDescriptor?
 
     let bus: USBBus // FIXME, could this just be HCDRootHub?
-    let port: UInt8
+    let rootPort: UInt8     // The port of the HCD this is ultimatley connected to
+    let port: UInt8         // The port of the hub this is connected to, if no upstream hub then == rootPort
+    let routeString: UInt32 // The Route String to this device
     let speed: USB.Speed
 
     override var className: String { "USBDevice" }
@@ -45,11 +47,27 @@ class USBDevice: BusDevice {
         }
         // Contol Pipe
         self.maxPacketSize0 = speed.controlSize
+
+        // Walk up the USB tree to determine the rootPort and routeString
+        // for this device
+        var _rootPort = port
+        var _routeString: UInt32 = 0
+        var parentDevice = device.parent?.busDevice as? USBDevice
+        while let p = parentDevice, !(p is HCDRootHub) {
+            _rootPort = p.port
+            _routeString <<= 4
+            _routeString |= UInt32(_rootPort & 0xf)
+            parentDevice = p.device.parent?.busDevice as? USBDevice
+        }
+        self.rootPort = _rootPort
+        self.routeString = _routeString >> 4  // Remove the rootPort
+
         super.init(device: device,
                    busDeviceName: #sprintf("usbdev-%d.%u", self.bus.busId, self.address))
         self.hcdData = bus.hcdData?(self)
-        #kprintf("usb-device: port: %u rootPort: %u\n",
-                 self.port, self.rootPort())
+
+        #kprintf("usb-device: rootPort: %u port: %u routeString: %5.5x\n",
+                 self.rootPort, self.port, self.routeString)
     }
 
     func setDescriptor(_ descriptor: USB.DeviceDescriptor) {
@@ -57,8 +75,9 @@ class USBDevice: BusDevice {
     }
 
     override func info() -> String {
-        var result = #sprintf("port: %u rootPort: %u speed: %s",
-                 self.port, self.rootPort(), self.speed.description)
+        var result = #sprintf("rootPort: %u port: %u routeString: %5.5x speed: %s",
+                              self.rootPort, self.port, self.routeString,
+                              self.speed.description)
         if let descriptor = self.descriptor {
             result += "\n" + descriptor.description
         }
@@ -220,26 +239,6 @@ class USBDevice: BusDevice {
         }
         return true
     }
-
-    // Walk up the chain of hubs to find the root hub port that
-    // this device is plugged into. The may not be a hub between
-    // it and the root
-    func rootPort() -> UInt8 {
-        var otherDevice: Device? = self.device
-        repeat {
-            if let parentDevice = otherDevice?.parent?.busDevice as? HCDRootHub {
-                return parentDevice.port
-            }
-            otherDevice = otherDevice?.parent
-        } while otherDevice?.busDevice is USBDevice
-        fatalError("USBDEV: Failed to determine HCD for \(self.device.deviceName)")
-        /*
-        #kprintf("USBDEV: Failed to determine root HCD for: %s busDevice: %s parent Busdevice: %s\n",
-                 self.device.deviceName, self.device.busDevice?.className() ?? "nil",
-                 self.device.parent?.busDevice?.className() ?? "nil")
-        return self.port
-         */
-    }
 }
 
 
@@ -257,7 +256,7 @@ final class HCDRootHub: USBDevice {
 
     init?(device: Device, bus: USBBus, hcd: HCDDeviceFunctions) {
         self.hcd = hcd
-        super.init(device: device, bus: bus, port: 1,
+        super.init(device: device, bus: bus, port: 0,
                    speed: .fullSpeed, address: 1)
     }
 
@@ -269,10 +268,4 @@ final class HCDRootHub: USBDevice {
         let response = self.hcd.processURB(request, buffer)
         return response.status == .finished
     }
-
-    override func rootPort() -> UInt8 {
-        #kprint("rootPort() for HCDRootHub")
-        return 0
-    }
-
 }

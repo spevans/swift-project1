@@ -177,8 +177,9 @@ fileprivate extension HCD_XHCI {
             let slotContext: SlotContext
             if endpointDescriptor.endpoint == 0 {
                 // For EP0, used for Address Device command
-                slotContext = SlotContext(routeString: 0, speed: usbDevice.speed,
-                                          interrupter: 0, rootHubPort: usbDevice.port)
+                slotContext = SlotContext(routeString: usbDevice.routeString,
+                                          speed: usbDevice.speed,
+                                          interrupter: 0, rootHubPort: usbDevice.rootPort)
             } else {
 
                 if let hubDriver = usbDevice.device.deviceDriver as? USBHubDriver {
