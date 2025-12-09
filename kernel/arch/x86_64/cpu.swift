@@ -354,8 +354,15 @@ struct CPU {
         // 6: Weak Uncacheable (UC-)
         // 7: WriteThrough     (WT)
 
-        #kprint("Setting up new PAT Array")
+        #kprint("CPU: Setting up new PAT Array")
         var pats = ByteArray8(readMSR(0x277)).map { PATEntry(rawValue: $0)! }
+#if false
+        #kprint("CPU: Page Attribute Table:")
+        for (idx, entry) in pats.enumerated() {
+            #kprint("CPU: \(idx): \(entry)")
+        }
+#endif
+
         pats[CacheType.writeBack.patEntry] = PATEntry.writeBack
         pats[CacheType.writeCombining.patEntry] = PATEntry.writeCombining
         pats[CacheType.weakUncacheable.patEntry] = PATEntry.weakUncacheable
@@ -366,6 +373,7 @@ struct CPU {
         pats[CacheType.writeThrough.patEntry] = PATEntry.writeThrough
 
         writeMSR(0x277, UInt64(withBytes: pats.map { $0.rawValue }))
+#if false
         let newPat = ByteArray8(readMSR(0x277)).map { PATEntry(rawValue: $0)! }
         #kprint("CPU: Page Attribute Table:")
         for (idx, entry) in newPat.enumerated() {
@@ -373,6 +381,7 @@ struct CPU {
         }
         let msr: UInt64 = readMSR(0x277)
         #kprintf("PAT MSR: %16.16lx\n", msr)
+#endif
         // Disable PCIDE in CR4
         var cr4 = CPU.cr4
         cr4.pcide = false

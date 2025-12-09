@@ -54,11 +54,13 @@ private func IDTEntry(function: (@escaping @convention(c) () -> Void),
 
 
 func setupIDT() {
-    #kprint("IDT: Initialising..")
-
+    #kprint("cpu: Initialising IDT")
+#if false
     var currentIdtInfo = dt_info()
     sidt(&currentIdtInfo)
+
     #kprintf("IDT: Current: Info: %p/%u\n", UInt(bitPattern: currentIdtInfo.base), currentIdtInfo.limit)
+#endif
 
     idt.0 = IDTEntry(function: divide_by_zero_stub, gateType: .TRAP_GATE)
     idt.1 = IDTEntry(function: debug_exception_stub, gateType: .TRAP_GATE)
@@ -101,7 +103,6 @@ func setupIDT() {
     trap_dispatch_table.17 = alignmentCheckException
     trap_dispatch_table.18 = machineCheckException
     trap_dispatch_table.19 = simdException
-    lidt(&idtInfo)
 
     // 24 IRQ / GSI interrupts connected to IO-APICs
     idt.32 = IDTEntry(function: irq0_stub, gateType: .INTR_GATE)
@@ -203,12 +204,16 @@ func setupIDT() {
     idt.245 = IDTEntry(function: apic_int5_stub, gateType: .INTR_GATE)
     idt.246 = IDTEntry(function: apic_int6_stub, gateType: .INTR_GATE)
 
+    lidt(&idtInfo)
+
+#if false
     // Below is not needed except to validate that the setup worked ok
     // and test some exceptions
     sidt(&currentIdtInfo)
     #kprintf("IDT: New: Info: %p/%u\n", UInt(bitPattern: currentIdtInfo.base), currentIdtInfo.limit)
     #kprint("IDT: Testing Breakpoint:")
     test_breakpoint()
+#endif
 }
 
 func currentIDT() -> dt_info {

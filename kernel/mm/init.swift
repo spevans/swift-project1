@@ -95,19 +95,24 @@ func setupMM(bootParams: BootParams) {
     #kprintf("kernel: Highest Address: %#x kernel phys address: %lx\n",
         highestMemoryAddress.value, kernelPhysBase.value)
 
+#if false
     // Show status of MTRRs
     #kprint("Reading MTRR settings")
     let mtrrs = MTRRS()
     #kprint("MTRR: capabilities: \(mtrrs.capabilities)")
     #kprint("MTRR: control: \(mtrrs.control)")
+#endif
 
     // Enable No Execute so data mappings can be set XD (Execute Disable)
     _ = CPU.enableNXE(true)
     // Disable MTRRs
     disableMTRRsetupPAT()
+
+#if false
     let mtrrs2 = MTRRS()
     #kprint("MTRR: capabilities: \(mtrrs2.capabilities)")
     #kprint("MTRR: control: \(mtrrs2.control)")
+#endif
 
     setupKernelMap(bootParams: bootParams)
     setupInitialPhysicalMap(bootParams.memoryRanges)
@@ -116,7 +121,6 @@ func setupMM(bootParams: BootParams) {
     remapTTY(bootParams.frameBufferInfo)
 
     let pml4paddr = UInt64(kernelPhysAddress(initial_pml4_addr).value)
-    #kprintf("MM: Updating CR3 to %p\n", pml4paddr)
     setCR3(pml4paddr)
     CPU.enableWP(true)
     #kprintf("MM: CR3 Updated to %p\n", pml4paddr)
@@ -206,7 +210,6 @@ private func setupKernelMap(bootParams: BootParams) {
     func addKMapping(start: VirtualAddress, size: UInt, physStart: PhysAddress,
         readWrite: Bool, noExec: Bool) {
 
-        #kprintf("Adding kernel mapping start: %p phys: %p, size: 0x%lx\n", start, physStart.value, size)
         let pageCnt = pageSize.pageCountCovering(size: Int(size))
         var physAddress = physStart
         var addr = start
@@ -232,7 +235,7 @@ private func setupKernelMap(bootParams: BootParams) {
 
             var pageTable = pml2Page[kidx2].pageTable!
             if pageTable[kidx3].present {
-                #kprintf("Kernel mapping p: %p v: %p %u/%u/%u/%u is present!\n",
+                #kprintf("mm: Kernel mapping p: %p v: %p %u/%u/%u/%u is present!\n",
                     physAddress, addr, kidx0, kidx1, kidx2, kidx3);
                 stop()
             }
@@ -381,14 +384,17 @@ private func mapPhysicalMemory(_ ranges: [MemoryRange]) {
     let memoryRanges = ranges.filter {
         $0.start >= PhysAddress(16 * mb) && $0.type == .Conventional
     }
-    #kprint("Mapping Physical memory in ranges:")
+    #kprint("MM: Mapping Physical memory in ranges:")
     for range in memoryRanges {
         #kprint(range)
     }
 
     guard !memoryRanges.isEmpty else { return }
+#if false
     let maxAddress = memoryRanges.last!.endAddress
     #kprintf("MM: Mapping physical memory from %p - %p , freePageCount: %ld\n", memoryRanges[0].start.value, maxAddress.value, freePageCount())
+#endif
+
     let initial_pml4_addr = VirtualAddress(bitPattern: &initial_pml4)
     let pmlPage = PageMapLevel4Table(at: initial_pml4_addr)
 

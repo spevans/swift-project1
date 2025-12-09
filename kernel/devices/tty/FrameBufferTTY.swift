@@ -120,6 +120,7 @@ struct FrameBufferTTY: ~Copyable {
         let size = Int(frameBufferInfo.pxPerScanline)
             * Int(frameBufferInfo.height) * depthInBytes
         let physRegion = PhysRegion(start: frameBufferInfo.address, size: UInt(size))
+        #kprintf("tty: Remapping framebuffer @ %s\n", physRegion.description)
         let mmioRegion = mapIORegion(region: physRegion, cacheType: .writeCombining)
         let screenBase = UnsafeMutablePointer<UInt8>(bitPattern: mmioRegion.baseAddress.vaddr)!
         screen = UnsafeMutableBufferPointer<UInt8>(start: screenBase,

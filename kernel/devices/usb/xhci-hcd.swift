@@ -483,39 +483,6 @@ final class HCD_XHCI: PCIDeviceDriver {
     }
 }
 
-#if false
-func testXHCI(arguments: [String]) {
-    #kprint("Looking for XHCI devices...")
-    if system.deviceManager.getDeviceByName("xhci") != nil {
-        #kprint("i915 already initialised")
-        return
-    }
-    guard let rootPCIBus = pciHostBus else {
-        #kprint("No PCI bus found")
-        return
-    }
-
-    rootPCIBus.devicesMatching(classCode: .serialBusController,
-                               subClassCode: PCISerialBusControllerSubClass.usb.rawValue,
-                               progInterface: PCIUSBProgrammingInterface.xhci.rawValue) {
-        (pciDevice, deviceClass) in
-        guard !pciDevice.device.initialised else {
-            #kprint("Ignore initialised XHCI device")
-            return
-        }
-
-        #kprint("Found a device at ", pciDevice.description)
-        #kprint(pciDevice.info())
-        guard let driver = HCD_XHCI(pciDevice: pciDevice), driver.initialise() else {
-            #kprint("Failed to initialise XHCI driver")
-            return
-        }
-        #kprint("Added XHCI", pciDevice.description)
-    }
-    #kprint("Finished looking for XHCI devices")
-}
-#endif
-
 
 // USBHub functions
 extension HCD_XHCI {

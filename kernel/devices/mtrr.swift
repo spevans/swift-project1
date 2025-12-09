@@ -69,7 +69,8 @@ struct MTRR: CustomStringConvertible {
     private let physMaskBits: BitArray64
 
     var description: String {
-        return "base: \(asHex(base)) mask: \(asHex(mask)) valid: \(isValid) type: \(memoryType)"
+        #sprintf("base: 0x%16.16x mask: 0x%16.16x valid: %s type: %s",
+                 base, mask, isValid.description, memoryType.description)
     }
 
     var base: UInt64 { physBaseBits[12...63] << 12 }

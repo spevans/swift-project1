@@ -256,8 +256,6 @@ private let commands: [String: ShellCommand] = [
     "memory":   ShellCommand( { _ in system.showMemoryRanges() }, "Show memory ranges"),
     "mcfg":     ShellCommand(showMCFG, "Show ACPI MCFG table"),
     "tty":      ShellCommand( { args in tty.commands(args) }, "Show TTY information"),
-//    "xhci":     ShellCommand(testXHCI, "Test XHCI Driver"),
-
 ]
 
 
@@ -265,7 +263,6 @@ private let commands: [String: ShellCommand] = [
 func commandShell() {
     guard let kbd = system.deviceManager.keyboard else {
         #kprint("commandShell: No keyboard found")
-//        testXHCI(arguments: [])
         return
     }
 

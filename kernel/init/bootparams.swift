@@ -158,23 +158,22 @@ func parse(bootParamsAddr: VirtualAddress) -> BootParams {
     guard let signature = readSignature(bootParamsAddr) else {
         koops("bootparams: Cant find boot params signature")
     }
-    #kprint("bootparams: signature:", signature)
 
     if (signature == "BIOS") {
         #kprint("bootparams: Found BIOS boot params")
-        if let params = BiosBootParams(bootParamsAddr: bootParamsAddr) {
-            return .bios(params)
+        guard let params = BiosBootParams(bootParamsAddr: bootParamsAddr) else {
+            fatalError("bootparams: Invalid BIOS tables")
         }
+        return .bios(params)
     } else if (signature == "EFI") {
         #kprint("bootparams: Found EFI boot params")
-        if let params = EFIBootParams(bootParamsAddr: bootParamsAddr) {
-            return .efi(params)
+        guard let params = EFIBootParams(bootParamsAddr: bootParamsAddr) else {
+            fatalError("bootparams: Invalid EFI tables")
         }
+        return .efi(params)
     } else {
-        #kprint("bootparams: Found unknown boot params: \(signature)")
-        stop()
+        fatalError("bootparams: Found unknown boot params: \(signature)")
     }
-    koops("bootparams: BiosBootParams returned null")
 }
 
 

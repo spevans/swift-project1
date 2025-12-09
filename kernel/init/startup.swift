@@ -120,10 +120,13 @@ fileprivate func keyboardInput() {
     #kprint("TASK: keyboardInput task started")
     commandShell()
     #kprint("commandShell exited")
+
+#if false
     if system.deviceManager.keyboard == nil {
         #kprint("Devices:")
         system.deviceManager.dumpDeviceTree()
     }
+#endif
 
     #kprint("HLTing")
     while true {
