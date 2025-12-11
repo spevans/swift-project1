@@ -197,11 +197,25 @@ private func hidInput(arguments: [String]) {
         return
     }
     while true {
-        if let scalar = keyboard?.readKeyboard() {
-            if scalar == UnicodeScalar(27) { return }
-            #kprint("keyboard:", scalar)
+        if let event = keyboard?.readHidEvent() ?? mouse?.readHidEvent() {
+            switch event {
+                case .keyDown(let key):
+                    #kprint("Key down:", key.description)
+                case .keyUp(let key):
+                    #kprint("Key up:", key.description)
+                case .buttonDown(let button):
+                    #kprint("Button down:", button.description)
+                case .buttonUp(let button):
+                    #kprint("Button up:", button.description)
+                case .xAxisMovement(let value):
+                    #kprintf("X-Axis: %d\n", value)
+                case .yAxisMovement(let value):
+                    #kprintf("Y-Axis: %d\n", value)
+            }
+            if case .keyUp(.KEY_ESCAPE) = event { return }
+        } else {
+            sleep(milliseconds: 10)
         }
-        mouse?.readMouse()
     }
 }
 

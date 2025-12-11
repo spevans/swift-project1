@@ -90,19 +90,54 @@ private let keyMap: InlineArray<232, HIDEvent.Key> = [
    /* 0x43: */ .KEY_FN_10,
    /* 0x44: */ .KEY_FN_11,
    /* 0x45: */ .KEY_FN_12,
-   /* 0x46: */ .INVALID,
-   /* 0x47: */ .INVALID,
-   /* 0x48: */ .INVALID,
-   /* 0x49: */ .INVALID,
-   /* 0x4a: */ .INVALID,
-   /* 0x4b: */ .INVALID,
-   /* 0x4c: */ .INVALID,
-   /* 0x4d: */ .INVALID,
-   /* 0x4e: */ .INVALID,
+   /* 0x46: */ .KEY_FN_13,
+   /* 0x47: */ .KEY_FN_14,
+   /* 0x48: */ .KEY_FN_15,
+   /* 0x49: */ .KEY_INSERT,
+   /* 0x4a: */ .KEY_HOME,
+   /* 0x4b: */ .KEY_PAGE_UP,
+   /* 0x4c: */ .KEY_DELETE,
+   /* 0x4d: */ .KEY_END,
+   /* 0x4e: */ .KEY_PAGE_DOWN,
    /* 0x4f: */ .KEY_RIGHT_ARROW,
    /* 0x50: */ .KEY_LEFT_ARROW,
    /* 0x51: */ .KEY_DOWN_ARROW,
    /* 0x52: */ .KEY_UP_ARROW,
+   /* 0x53: */ .KEY_NUM_LOCK,
+   /* 0x54: */ .KEY_KEYPAD_DIVIDE,
+   /* 0x55: */ .KEY_KEYPAD_ASTERISK,
+   /* 0x56: */ .KEY_KEYPAD_MINUS,
+   /* 0x57: */ .KEY_KEYPAD_PLUS,
+   /* 0x58: */ .KEY_KEYPAD_ENTER,
+   /* 0x59: */ .KEY_KEYPAD_1,
+   /* 0x5A: */ .KEY_KEYPAD_2,
+   /* 0x5B: */ .KEY_KEYPAD_3,
+   /* 0x5C: */ .KEY_KEYPAD_4,
+   /* 0x5D: */ .KEY_KEYPAD_5,
+   /* 0x5E: */ .KEY_KEYPAD_6,
+   /* 0x5F: */ .KEY_KEYPAD_7,
+   /* 0x60: */ .KEY_KEYPAD_8,
+   /* 0x61: */ .KEY_KEYPAD_9,
+   /* 0x62: */ .KEY_KEYPAD_0,
+   /* 0x63: */ .KEY_KEYPAD_PERIOD,
+   /* 0x64: */ .INVALID,
+   /* 0x65: */ .INVALID,
+   /* 0x66: */ .INVALID,
+   /* 0x67: */ .INVALID,
+   /* 0x68: */ .KEY_KEYPAD_EQUALS,
+   /* 0x69: */ .KEY_FN_14,
+   /* 0x6a: */ .KEY_FN_15,
+   /* 0x6b: */ .KEY_FN_16,
+   /* 0x6c: */ .KEY_FN_17,
+   /* 0x6d: */ .KEY_FN_18,
+   /* 0x6e: */ .KEY_FN_19,
+   /* 0x6f: */ .KEY_FN_20,
+   /* 0x70: */ .KEY_FN_21,
+   /* 0x71: */ .KEY_FN_22,
+   /* 0x72: */ .KEY_FN_23,
+   /* 0x73: */ .KEY_FN_24,
+   /* 0x70: */ .INVALID,
+
                .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID,
                .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID,
                .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID,
@@ -116,11 +151,7 @@ private let keyMap: InlineArray<232, HIDEvent.Key> = [
                .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID,
                .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID,
                .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID,
-               .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID,
-               .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID,
-               .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID,
-               .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID, .INVALID,
-               .INVALID, .INVALID, .INVALID, .INVALID, .INVALID,
+               .INVALID, .INVALID, .INVALID,
    /* 0xE0: */ .KEY_LEFT_CTRL,
    /* 0xE1: */ .KEY_LEFT_SHIFT,
    /* 0xE2: */ .KEY_LEFT_ALT,
@@ -239,31 +270,30 @@ final class USBKeyboard: USBDeviceDriver {
         // 6 bytes, 6 keys that are currently pressed
         //precondition(keysSpan.count == 8)
         precondition(prevKeysSpan.count == 8)
+
+        func mapCode(_ keyCode: UInt8) -> HIDEvent.Key? {
+            if Int(keyCode) < keyMap.count {
+                let key = keyMap[Int(keyCode)]
+                if key != .INVALID {
+                    return key
+                }
+            }
+            #kprintf("usb-keyboard: Unknown keycode: 0x%2.2x\n", keyCode)
+            return nil
+        }
+
+
         for idx in 2..<8 {
             // Key that is down, see if it was already down in the previous input
             let newKeyCode = physBuffer[idx]
-            if !span(prevKeysSpan, contains: newKeyCode) {
-                if Int(newKeyCode) < keyMap.count {
-                    let key = keyMap[Int(newKeyCode)]
-                    if key != .INVALID {
-                        buffer.append(.keyDown(key))
-                    }
-                } else {
-                    #kprintf("usb: Unknown keycode: %2.2x\n", newKeyCode)
-                }
+            if !span(prevKeysSpan, contains: newKeyCode), let key = mapCode(newKeyCode) {
+                buffer.append(.keyDown(key))
             }
 
             // See if key that was previously down is now up.
             let oldKeyCode = prevKeysSpan[idx]
-            if !mmioRegion(physBuffer, contains: oldKeyCode) {
-                if Int(oldKeyCode) < keyMap.count {
-                    let key = keyMap[Int(oldKeyCode)]
-                    if key != HIDEvent.Key.INVALID {
-                        buffer.append(.keyUp(key))
-                    }
-                } else {
-                    #kprintf("usb: Unknown keycode: %2.2x\n", oldKeyCode)
-                }
+            if !mmioRegion(physBuffer, contains: oldKeyCode), let key = mapCode(oldKeyCode) {
+                buffer.append(.keyUp(key))
             }
         }
 //        #kprintf("usb-keyboard: Copying %d bytes to prevKeysSpan\n", min(byteCount, physBuffer.count))

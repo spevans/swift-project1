@@ -13,27 +13,25 @@
 final class PS2Keyboard: HID {
     let description = "PS2Keyboard"
     private var prevScanCode: UInt16 = 0
-    private var breakCode: UInt8 = 0
+    private var makeKey = true
 
-    enum E0_ScanCodes: UInt8 {
-        case Slash          = 0x4A
-        case PrintScreen    = 0x36
-        case RightAlt       = 0x6A
-        case LeftCtrl       = 0x20
-        case RightCtrl      = 0x14
-        case Break          = 0x3E
-        case Home           = 0x6C
-        case Up             = 0x75
-        case PageUp         = 0x7d
-        case Left           = 0x6b
-        case Right          = 0x74
-        case End            = 0x69
-        case Down           = 0x72
-        case PageDown       = 0x7A
-        case Insert         = 0x52
-        case Delete         = 0x71
-        case Pause          = 0x77
-    }
+    private let E0_ScanCodes: [UInt8: HIDEvent.Key] = [
+        0x11: .KEY_RIGHT_ALT,
+        0x14: .KEY_RIGHT_CTRL,
+        0x1F: .KEY_LEFT_GUI,
+        0x27: .KEY_RIGHT_GUI,
+        0x4A: .KEY_KEYPAD_DIVIDE,
+        0x5A: .KEY_KEYPAD_ENTER,
+        0x6B: .KEY_LEFT_ARROW,
+        0x6C: .KEY_HOME,
+        0x69: .KEY_END,
+        0x71: .KEY_DELETE,
+        0x72: .KEY_DOWN_ARROW,
+        0x74: .KEY_RIGHT_ARROW,
+        0x75: .KEY_UP_ARROW,
+        0x7A: .KEY_PAGE_DOWN,
+        0x7D: .KEY_PAGE_UP,
+    ]
 
     private let keyMap: [UInt8: HIDEvent.Key] = [
         1: .KEY_FN_9,
@@ -45,11 +43,11 @@ final class PS2Keyboard: HID {
         9: .KEY_FN_10,
         10: .KEY_FN_8,
         11: .KEY_FN_6,
-        131: .KEY_FN_7,
         12: .KEY_FN_4,
-        120: .KEY_FN_11,
         13: .KEY_TAB,
         14: .KEY_TILDE,
+        15: .KEY_KEYPAD_EQUALS,
+        17: .KEY_LEFT_ALT,
         18: .KEY_LEFT_SHIFT,
         20: .KEY_LEFT_CTRL,
         21: .KEY_Q,
@@ -103,11 +101,25 @@ final class PS2Keyboard: HID {
         91: .KEY_RIGHT_SQUARE_BRACKET,
         93: .KEY_BACK_SLASH,
         102: .KEY_BACKSPACE,
-        107: .KEY_LEFT_ARROW,
-        114: .KEY_DOWN_ARROW,
-        116: .KEY_RIGHT_ARROW,
-        117: .KEY_UP_ARROW,
+        105: .KEY_KEYPAD_1,
+        107: .KEY_KEYPAD_4,
+        108: .KEY_KEYPAD_7,
+        112: .KEY_KEYPAD_0,
+        113: .KEY_KEYPAD_PERIOD,
+        114: .KEY_KEYPAD_2,
+        115: .KEY_KEYPAD_5,
+        116: .KEY_KEYPAD_6,
+        117: .KEY_KEYPAD_8,
         118: .KEY_ESCAPE,
+        119: .KEY_FN_15,
+        120: .KEY_FN_11,
+        121: .KEY_KEYPAD_PLUS,
+        122: .KEY_KEYPAD_3,
+        123: .KEY_KEYPAD_MINUS,
+        124: .KEY_KEYPAD_ASTERISK,
+        125: .KEY_KEYPAD_9,
+        126: .KEY_FN_14,
+        131: .KEY_FN_7
     ]
 
 
@@ -126,39 +138,34 @@ final class PS2Keyboard: HID {
             //#serialPrintf("kbd: scanCode: %#02x\n", scanCode)
 
             if scanCode == 0xf0 {
-                breakCode = 0xff
+                makeKey = false
                 continue
             }
 
             if scanCode == 0xe0 || scanCode == 0xe1 {
                 prevScanCode = UInt16(scanCode)
             } else {
-                var keyCode = scanCode & 0x7f
-                let upCode = breakCode | (scanCode & 0x80)
-                breakCode = 0
+                let keyDown = makeKey
+                makeKey = true
                 if prevScanCode == 0xe0 {
-                    if keyCode != 0x2a && keyCode != 0x36 {
-                        if let key = E0_ScanCodes(rawValue: keyCode) {
-                            keyCode = key.rawValue
-                        } else {
-                            keyCode = 0
-                        }
+                    prevScanCode = 0
+                    if let key = E0_ScanCodes[scanCode] {
+                        return keyDown ? .keyDown(key) : .keyUp(key)
                     } else {
-                        keyCode = 0
+                        #kprintf("ps2: Unknown E0 code: %#02x\n", scanCode)
+                        continue
                     }
-                    prevScanCode = 0
-                } else if prevScanCode == 0xe1 && keyCode == 0x1d {
-                    keyCode = 0
+                // Special Handling for 0xE1, 0x14, 0x77
+                } else if prevScanCode == 0xe1 && scanCode == 0x14 {
                     prevScanCode = 0x100
-                } else if prevScanCode == 0x100 && keyCode == 0x45 {
-                    keyCode = E0_ScanCodes.Pause.rawValue
+                    continue
+                } else if prevScanCode == 0x100 && scanCode == 0x77 {
                     prevScanCode = 0
+                    return keyDown ? .keyDown(.KEY_PAUSE) : .keyUp(.KEY_PAUSE)
                 }
-                if keyCode != 0 {
-                    if let input = keyboardInput(keyCode: keyCode,
-                                                 keyDown: (upCode == 0)) {
-                        return input
-                    }
+                if let input = keyboardInput(keyCode: scanCode,
+                                             keyDown: keyDown) {
+                    return input
                 }
             }
         }

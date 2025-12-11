@@ -24,6 +24,11 @@ final class Keyboard {
         return true
     }
 
+    func readHidEvent() -> HIDEvent? {
+        return hid.readNextEvent()
+    }
+
+
     func readKeyboard() -> UnicodeScalar? {
         guard let event = hid.readNextEvent() else {
             return nil
@@ -151,7 +156,7 @@ final class Keyboard {
         .KEY_X: UnicodeScalar("X"),
         .KEY_Y: UnicodeScalar("Y"),
         .KEY_Z: UnicodeScalar("Z"),
-        .KEY_0: UnicodeScalar("("),
+        .KEY_0: UnicodeScalar(")"),
         .KEY_1: UnicodeScalar("!"),
         .KEY_2: UnicodeScalar("@"),
         .KEY_3: UnicodeScalar("#"),
