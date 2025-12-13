@@ -6,6 +6,7 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && ap
     binutils              \
     binutils-x86-64-linux-gnu \
     libgcc-12-dev         \
+    libpython3-dev        \
     libncurses-dev        \
     libsqlite3-dev        \
     libxml2-dev           \

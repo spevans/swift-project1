@@ -1,6 +1,6 @@
 #!/bin/bash
 
-KSTDLIB_DATE=2025-07-20
+KSTDLIB_DATE=2025-11-20
 
 ARCH=$(dpkg --print-architecture)
 if [ "$ARCH" == "amd64" ]; then
