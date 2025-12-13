@@ -69,9 +69,12 @@ enum AMLType1Opcode {
                 #kprint("NOTIFY:", string, v)
                 throw AMLError.unimplemented("Notify \(object) \(_value)")
 
-            case .amlDefRelease(let mutex):
+            case .amlDefRelease(let target):
                 // ReleaseOp MutexObject
-                throw AMLError.unimplemented("Release \(mutex))")
+                guard let mutex = try target.getObject(context: &context).mutexValue else {
+                    throw AMLError.invalidSymbol(reason: "Not a mutex")
+                }
+                mutex.release()
 
             case .amlDefReset(let object):
                 // ResetOp EventObject

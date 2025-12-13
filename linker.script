@@ -2,9 +2,10 @@ ENTRY(main)
 OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
 
 PAGE_SIZE = 0x1000;
-/* Needs to be bigger for DEBUG mode, can be 16 for non debug */
-/* FIXME: Needs to be more accurately sized in both modes once guard page is fixed */
-STACK_SIZE = 16 * PAGE_SIZE;
+/* FIXME: */
+/* Needs to be bigger for to parse ACPI due to recursion, that needs to be fixed to this can be smaller */
+/* For devtest PC 48 pages is OK for ACPI but insufficient for XHCI as it fails keyboard discovery (bug) */
+STACK_SIZE = 64 * PAGE_SIZE;
 
 PHDRS {
       text   PT_LOAD FLAGS(5);  /* R_E */

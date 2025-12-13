@@ -263,6 +263,20 @@ struct AMLDefMutex {
         self.name = name
         self.flags = flags
     }
+
+    // FIXME: Implement correct locking
+    func acquire(timeout: AMLWordData) -> Bool {
+        if ACPIDebug {
+            #kprintf("acpi: Acquiring mutex '%s'\n", name.value)
+        }
+        return false  //Acquired
+    }
+
+    func release() {
+        if ACPIDebug {
+            #kprintf("acpi: Releasing mutex '%s'\n", name.value)
+        }
+    }
 }
 
 

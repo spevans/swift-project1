@@ -118,11 +118,13 @@ enum AMLType2Opcode {
     
     func evaluate(context: inout ACPI.AMLExecutionContext) throws(AMLError) -> AMLObject {
         switch self {
-            case .amlDefAcquire(_, _):
-                // FIXME - implement
-                #kprint("Acquiring Mutex")
-                return AMLBoolean(false)   // NOT acquired
-                
+            case .amlDefAcquire(let target, let timeout):
+                guard let mutex = try target.getObject(context: &context).mutexValue else {
+                    throw AMLError.invalidSymbol(reason: "Not a mutex")
+                }
+                let acquired = mutex.acquire(timeout: timeout)
+                return AMLBoolean(acquired)
+
             case .amlDefAdd(let operand1, let operand2, let target):
                 let op1 = try operandAsInteger(operand: operand1, context: &context)
                 let op2 = try operandAsInteger(operand: operand2, context: &context)

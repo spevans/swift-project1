@@ -333,6 +333,14 @@ final class AMLObject: Equatable, CustomStringConvertible, CustomDebugStringConv
         }
     }
 
+    var mutexValue: AMLDefMutex? {
+        if case .mutex(let mutex) = self.object {
+            return mutex
+        } else {
+            return nil
+        }
+    }
+
     var operationRegionValue: AMLDefOpRegion? {
         if case .operationRegion(let region) = object {
             return region
