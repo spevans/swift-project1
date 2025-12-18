@@ -50,13 +50,11 @@ ISO_TMP=output/iso_tmp
 BOOT_IMG=$(ISO_TMP)/boot.img
 EFI_IMG=$(ISO_TMP)/boot/efi.img
 output/boot-cd.iso: output/boot-hd.img output/kernel.efi
-#	rm -rf $(ISO_TMP) $(ISO)
+	rm -rf $(ISO_TMP) $(ISO) #output/efi.img
 	mkdir -p $(ISO_TMP)/efi/boot $(ISO_TMP)/boot
 	cp output/boot-hd.img $(BOOT_IMG)
 	cp output/kernel.efi $(ISO_TMP)/efi/boot/bootx64.efi
-	dd if=/dev/zero of=$(EFI_IMG) bs=1024 count=30240
-	# mformat -i <img> should be enough but the version in the Docker image is too old
-	mformat -T 60480 -h 16 -s 63 -H 0 -i $(EFI_IMG)
+	$(MKFS_MSDOS) -C output/iso_tmp/boot/efi.img 30240
 	mmd -i $(EFI_IMG) ::efi
 	mmd -i $(EFI_IMG) ::efi/boot
 	mcopy -i $(EFI_IMG) output/kernel.efi ::efi/boot
@@ -64,14 +62,15 @@ output/boot-cd.iso: output/boot-hd.img output/kernel.efi
 	mcopy -i $(EFI_IMG) output/kernel.efi ::efi/boot/bootx64.efi
 	xorrisofs -J -joliet-long 			\
 		-isohybrid-mbr boot/isohdr.bin 		\
-		-isohybrid-gpt-basdat 			\
-		-isohybrid-apm-hfsplus			\
 		-b boot.img -c boot.cat			\
-		-boot-load-size 4			\
-		-boot-info-table -no-emul-boot		\
-		-eltorito-alt-boot -e boot/efi.img -no-emul-boot	\
+		-boot-load-size 4 			\
+		-boot-info-table -no-emul-boot 		\
+		-eltorito-alt-boot -e boot/efi.img	\
+		-no-emul-boot 				\
+		-isohybrid-gpt-basdat	 		\
+		-isohybrid-apm-hfsplus 			\
 		-o output/boot-cd.iso output/iso_tmp
-#	rm -r $(ISO_TMP)
+	rm -r $(ISO_TMP)
 
 clean:
 	rm -rf output/*

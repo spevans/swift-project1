@@ -92,7 +92,7 @@ and untar it in the home directory, the toolchain will be installed under `Libra
 Some extra tools need to be installed as well.
 
 ```
-brew install nasm x86_64-elf-binutils qemu xorriso mtools
+brew install nasm x86_64-elf-binutils qemu xorriso mtools dosfstools
 make
 ```
 

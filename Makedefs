@@ -16,6 +16,7 @@ ifeq ($(UNAME_S), Linux)
 	LD=x86_64-linux-gnu-ld
 	OBJCOPY=x86_64-linux-gnu-objcopy
     PRINTF_MACROS := $(TOPDIR)/macros/Printf/.build/$(BUILD_ARCH)-unknown-linux-gnu/release/PrintfMacros-tool
+    MKFS_MSDOS := /sbin/mkfs.msdos
  else
     SWIFTDIR := ~/Library/Developer/Toolchains/swift-LOCAL-2025-11-20-a.xctoolchain/usr
 	RUNNER= #docker run --platform linux/amd64  --rm -v $(CWD):$(CWD) -w $(CWD) -t  swift-kstdlib
@@ -23,6 +24,7 @@ ifeq ($(UNAME_S), Linux)
 	LD=x86_64-elf-ld
 	OBJCOPY=x86_64-elf-objcopy
     PRINTF_MACROS := $(TOPDIR)/macros/Printf/.build/$(BUILD_ARCH)-apple-macosx/release/PrintfMacros-tool
+    MKFS_MSDOS := mkfs.msdos
 endif
 
 # The path to the kernel-lib swift compiler
