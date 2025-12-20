@@ -63,7 +63,7 @@ final class DeviceManager {
     @discardableResult
     private func initPNPDevice(withName pnpName: String) -> Bool {
         var found = false
-        walkDeviceTree() { device in
+        walkDeviceTree(bus: masterBus.device) { device in
             if _initPnpDevice(device: device, isPCIHost: false, matchingId: pnpName) {
                 found = true
             }
@@ -95,12 +95,12 @@ final class DeviceManager {
 
     private func initPnpDevices() {
         #kprint("Initing other PNP devices")
-        walkDeviceTree() { device in
+        walkDeviceTree(bus: masterBus.device) { device in
             _ = _initPnpDevice(device: device, isPCIHost: false)
             return true
         }
         #kprint("Initialising PCI hosts")
-        walkDeviceTree() { device in
+        walkDeviceTree(bus: masterBus.device) { device in
             if _initPnpDevice(device: device, isPCIHost: true) {
                 #kprint("Found PCI Host:", device)
                 setPCIHostBus(device)
@@ -168,12 +168,13 @@ final class DeviceManager {
 
 
     func dumpDeviceTree() {
-        #kprint(masterBus)
+        #kprint(masterBus.device.deviceName, masterBus.description)
         dumpBus(masterBus.device, depth: 0)
     }
 
-    func walkDeviceTree(bus: Device? = nil, body: (Device) -> Bool) {
-        for device in (bus ?? masterBus.device).devices {
+    func walkDeviceTree(bus: Device, body: (Device) -> Bool) {
+
+        for device in bus.devices {
             if !body(device) {
                 return
             }
@@ -184,23 +185,39 @@ final class DeviceManager {
     }
 
 
-    func dumpPCIDevices(bus: Device? = nil) {
+    func dumpPCIDevices() {
+        guard let rootPCIBus = pciHostBus else {
+            #kprint("No PCI bus found")
+            return
+        }
         var devices: [PCIDevice] = []
-        walkDeviceTree(bus: bus) { device in
+        walkDeviceTree(bus: rootPCIBus.device) { device in
             if let d = device.busDevice as? PCIDevice {
                 devices.append(d)
             }
             return true
         }
         for device in devices.sorted(by: { $0.deviceFunction < $1.deviceFunction }) {
-            #kprintf("%s => %s [%s]\n", device.description, device.device.description, device.device.deviceDriver?.description ?? "")
+            #kprintf("%s => %s [%s]\n", device.device.description, device.description,
+                     device.device.deviceDriver?.description ?? "")
         }
     }
 
-    func dumpPNPDevices(bus: Device? = nil) {
-        walkDeviceTree(bus: bus) { device in
+    func dumpPNPDevices() {
+        walkDeviceTree(bus: masterBus.device) { device in
             if let d =  device.busDevice as? PNPDevice {
-                #kprint(d)
+                #kprintf("%s => %s [%s]\n", d.device.description, d.description,
+                         d.device.deviceDriver?.description ?? "")
+            }
+            return true
+        }
+    }
+
+    func dumpUSBDevices() {
+        walkDeviceTree(bus: masterBus.device) { device in
+            if let d = device.busDevice as? USBDevice {
+                #kprintf("%s => %s [%s]\n", d.device.description, d.description,
+                         d.device.deviceDriver?.description ?? "")
             }
             return true
         }
@@ -208,7 +225,7 @@ final class DeviceManager {
 
     func getDeviceByName(_ devname: String) -> Device? {
         var found: Device?
-        walkDeviceTree() { device in
+        walkDeviceTree(bus: masterBus.device) { device in
             if device.deviceName == devname {
                 found = device
                 return false    // stop searching

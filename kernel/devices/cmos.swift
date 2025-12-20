@@ -23,7 +23,7 @@ final class CMOSRTC: PNPDeviceDriver {
     }
 
     init?(pnpDevice: PNPDevice) {
-        super.init(driverName: "cmosrtc",pnpDevice: pnpDevice)
+        super.init(driverName: "cmosrtc", pnpDevice: pnpDevice)
     }
 
 

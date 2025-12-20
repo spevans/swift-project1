@@ -44,17 +44,17 @@ final class PCIDevice: BusDevice {
     }
 
     override func info() -> String {
-        var result = "PCI Device: \(deviceFunction)\n"
+        var result = "PCI Device: \(deviceFunction)"
         if pciIORegions.count > 0 {
             for barIdx in pciIORegions.indices {
-                result += "\tBAR\(barIdx) \(pciIORegions[barIdx].description)\n"
+                result += "\n\tBAR\(barIdx) \(pciIORegions[barIdx].description)"
             }
         }
         if let msi = msiCapability() {
-            result += #sprintf("\tMSI Capability: request vectors: %d\n", msi.messageControl.requestVectors)
+            result += #sprintf("\n\tMSI Capability: request vectors: %d\n", msi.messageControl.requestVectors)
         }
         if let msix = msixCapability() {
-            result += #sprintf("\tMSI-X Capability: Table BAR: %d, tableOffset: 0x%x maxTableSize: %d PBA_BAR: %d PBA_Offset: 0x%x\n",
+            result += #sprintf("\n\tMSI-X Capability: Table BAR: %d, tableOffset: 0x%x maxTableSize: %d PBA_BAR: %d PBA_Offset: 0x%x",
                                msix.tableBAR, msix.tableOffset,
                                msix.messageControl.tableSize,
                                msix.pendingBitArrayBAR, msix.pendingBitArrayOffset
@@ -128,7 +128,7 @@ final class PCIDevice: BusDevice {
 #if !ACPI
         return nil
 #else
-        guard let itr = bus.acpiDeviceConfig?.prt() else {
+        guard let itr = (bus.busDevice as? PNPDevice)?.prt() else {
             fatalError("PCI: \(bus) cant find an Interrupt Routing Table")
         }
 

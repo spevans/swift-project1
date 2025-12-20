@@ -452,14 +452,13 @@ extension ACPI {
                 }
                 parent = p.parent
             }
-            if parentDevice == nil { fatalError("Reached top of tree! for \(node.fullname())")}
+            guard let parentDevice else { fatalError("Reached top of tree! for \(node.fullname())")}
 
-            let config = ACPIDeviceConfig(node: node)
             // Only add devices with a valid _HID or _CID, this excludes subdevices
             // eg the ports on a USB Host Controller or display ports on a graphics
             // card.
-            if config.pnpName != nil {
-                let device = Device(parent: parentDevice, acpiDeviceConfig: config)
+            if let config = ACPIDeviceConfig(node: node) {
+                let device = Device(parent: parentDevice)
                 node.setDevice(device)
                 nameDeviceMap[name] = device
                 _ = PNPDevice(device: device, acpiDeviceConfig: config)

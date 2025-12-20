@@ -13,20 +13,18 @@ final class MotherBoardResource: PNPDeviceDriver {
 
 
     init?(pnpDevice: PNPDevice) {
-        guard let crs = pnpDevice.device.acpiDeviceConfig?.crs() else {
+        guard let crs = pnpDevice.crs() else {
             #kprint("\(pnpDevice.device): No valid resources found")
             return nil
         }
         self.resources = crs
         super.init(driverName: "motherboard", pnpDevice: pnpDevice)
+        #kprint("\(pnpDevice.device): Found \(resources.count) resources")
+        #kprint(pnpDevice.info())
     }
 
-    override func info() -> String {
-        var result = "Resources:"
-        for resource in resources {
-            result += "\n\t" + resource.description
-        }
-        return result
+    override func initialise() -> Bool {
+        true
     }
 }
 #endif
@@ -40,13 +38,13 @@ final class MasterBus: CustomStringConvertible {
     let acpiSystemBus: ACPI.ACPIObjectNode      // \_SB node
 
     init(acpiSystemBus: ACPI.ACPIObjectNode) {
-        self.device = Device(parent: nil)
+        self.device = Device()
         self.acpiSystemBus = acpiSystemBus
     }
 #else
 
     init() {
-        self.device = Device(parent: nil)
+        self.device = Device()
     }
 #endif
 }

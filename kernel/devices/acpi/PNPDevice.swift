@@ -10,10 +10,11 @@
 
 final class PNPDevice: BusDevice {
     private(set) var resources: ISABus.Resources?
+    private let acpiDeviceConfig: ACPIDeviceConfig
     let pnpName: String
     let isPCIHost: Bool
 
-    override var description: String {"PNP Device \(pnpName)" }
+    override var description: String { pnpName }
     override var className: String { "PNPDevice" }
 
     init?(device: Device, acpiDeviceConfig: ACPIDeviceConfig) {
@@ -26,41 +27,66 @@ final class PNPDevice: BusDevice {
                      acpiDeviceConfig.node.fullname())
             return nil
         }
+        self.acpiDeviceConfig = acpiDeviceConfig
         self.pnpName = pnpName
         self.isPCIHost = acpiDeviceConfig.isPCIHost
         super.init(device: device, busDeviceName: "acpi-" + pnpName)
     }
 
-
-    func getResources() -> ISABus.Resources? {
-        if resources == nil {
-            if let crs = device.acpiDeviceConfig?.crs() {
-                resources = ISABus.Resources(crs)
-            }
-        }
-        return resources
+    func acpiName() -> String {
+        self.acpiDeviceConfig.node.fullname()
     }
 
+    func acpiNode() -> ACPI.ACPIObjectNode {
+        self.acpiDeviceConfig.node
+    }
 
+    var uid: AMLObject? {
+        self.acpiDeviceConfig.uid
+    }
+
+    func crs() -> [AMLResourceSetting]? {
+        try? self.acpiDeviceConfig.node.currentResourceSettings()
+    }
+
+    func prs() -> [AMLResourceSetting]? {
+        try? self.acpiDeviceConfig.node.possibleResourceSettings()
+    }
+
+    func setResourceSettings(_ settings: [AMLResourceSetting]) throws(AMLError) {
+        try self.acpiDeviceConfig.node.setResourceSettings(settings)
+    }
+
+    func prt() -> PCIRoutingTable? {
+        self.acpiDeviceConfig.node.pciRoutingTable()
+    }
+
+    func getResources() -> ISABus.Resources? {
+        if self.resources == nil, let crs = self.crs() {
+            self.resources = ISABus.Resources(crs)
+        }
+        return self.resources
+    }
+
+    #if false
     func initialise() -> Bool {
         device.initialised = true
-        resources = getResources()
+        self.resources = getResources()
         device.enabled = true
         return true
     }
+    #endif
 
     func matchesId(_ pnpId: String) -> Bool {
-        if let config = device.acpiDeviceConfig {
-            return config.matches(hidOrCid: pnpId)
-        } else {
-            return false
-        }
+        return self.acpiDeviceConfig.matches(hidOrCid: pnpId)
     }
 
     override func info() -> String {
-        var result = "PNPDevice: \(pnpName)\n\tisPCIHost: \(isPCIHost)"
-        if let resources = self.resources {
-            result += "\n\tResources: \(resources)"
+        var result = "isPCIHost: \(isPCIHost)"
+        if let resources = self.crs() {
+            for resource in resources {
+                result += "\n\t\(resource.description)"
+            }
         }
         return result
     }
@@ -81,6 +107,8 @@ final class PNPDevice: BusDevice {
             case "PNP0103", // HPET System Timer
                 "PNP0C01":  // System Board
                 return HPET(pnpDevice: pnpDevice)
+            case "PNP0C02":
+                return MotherBoardResource(pnpDevice: pnpDevice)
             default:
                 return nil
         }

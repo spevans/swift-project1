@@ -13,7 +13,7 @@
 // keyscan codes
 
 
-enum PS2Device {
+enum PS2Device: CustomStringConvertible {
     case none
     case keyboard(PS2Keyboard)
     //case mouse(PS2Mouse)
@@ -224,16 +224,17 @@ final class KBD8042: PNPDeviceDriver {
     }
 
     init?(pnpDevice: PNPDevice) {
-        #kprint("kbd8042 init")
+        // FIXME, use this to check the interrupt (although its hardcoded tbh)
+        // And make this use an 8042 driver, with separate Keyboard and Mouse drivers
+        guard let resources = pnpDevice.getResources() else {
+            #kprint("i8042: Failed to get PNP resources")
+            return nil
+        }
+        #kprint("i8042:", pnpDevice.pnpName, resources)
         super.init(driverName: "kbd8042", pnpDevice: pnpDevice)
     }
 
     override func initialise() -> Bool {
-        guard let pnpDevice = device.busDevice as? PNPDevice, let resources = pnpDevice.getResources() else {
-            #kprint("i8042: Cant initialise PNPDevice")
-            return false
-        }
-        #kprint("i8042:", pnpDevice.pnpName, resources)
 
         // 1. Flush output buffer
         if flushOutput() == false { // No device
@@ -337,7 +338,7 @@ final class KBD8042: PNPDeviceDriver {
             system.deviceManager.setIrqHandler(handler, forInterrupt: IRQSetting(isaIrq: 12))
         }
         #kprint("i8042: kbd initialised")
-        pnpDevice.device.initialised = true
+        self.device.initialised = true
         system.deviceManager.keyboard = keyboard
 
         return true

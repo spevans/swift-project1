@@ -40,16 +40,16 @@ private func showCPUCommand(arguments: [String]) {
     CPU.getInfo()
 }
 
-private func dumpBusCommand(arguments: [String]) {
-    system.deviceManager.dumpDeviceTree()
-}
-
 private func dumpPCICommand(arguments: [String]) {
     system.deviceManager.dumpPCIDevices()
 }
 
 private func dumpPNPCommand(arguments: [String]) {
     system.deviceManager.dumpPNPDevices()
+}
+
+private func dumpUSBCommand(arguments: [String]) {
+    system.deviceManager.dumpUSBDevices()
 }
 
 private func dumpDevCommand(arguments: [String]) {
@@ -98,20 +98,22 @@ private func showDevCommand(arguments: [String]) {
         return
     }
     #kprint("Device:       ", devname)
-    if let acpi = device.acpiDeviceConfig {
-        #kprint("ACPI Node:    ", acpi.node.fullname())
-    }
     #kprint("Parent Device:", device.parent?.description ?? "none")
     #kprint("isBus:        ", device.isBus)
     #kprint("enabled:      ", device.enabled)
     #kprint("initialised:  ", device.initialised)
-    if let driver = device.deviceDriver {
-        #kprint("Driver:       ", driver.description)
-        #kprint("instance:     ", driver.instanceName)
-        #kprint(driver.info())
+    if let busDevice = device.busDevice {
+        #kprint("BusDevice:    ", busDevice.description)
+        #kprint("\tClass:    ", busDevice.className)
+        if let pnpDevice = busDevice as? PNPDevice {
+            #kprint("\tACPI Node:", pnpDevice.acpiName())
+        }
+        #kprintf("\t%s\n", busDevice.info())
     }
-    if let bus = device.busDevice {
-        #kprint("BusDevice:    ", bus.info())
+    if let driver = device.deviceDriver {
+        #kprint("\nDriver:", driver.description)
+        #kprint("instance:", driver.instanceName)
+        #kprintf("\t%s\n", driver.info())
     }
 }
 
@@ -248,11 +250,11 @@ private let commands: [String: ShellCommand] = [
     "echo":     ShellCommand(echoCommand, "echos the command arguments"),
     "date":     ShellCommand(dateCommand, "Show current CMOS time and date"),
     "showcpu":  ShellCommand(showCPUCommand, "Show the CPUID information"),
-    "dumpbus":  ShellCommand(dumpBusCommand, "Dump the Device Tree"),
-    "dumppci":  ShellCommand(dumpPCICommand, "List the PCI devices"),
-    "dumppnp":  ShellCommand(dumpPNPCommand, "List the PNP devices"),
     "dumpdev":  ShellCommand(dumpDevCommand, "Dump the known system devices"),
     "dumpacpi": ShellCommand(dumpACPICommand, "[node] Dump the ACPI tree from an optional node"),
+    "dumppci":  ShellCommand(dumpPCICommand, "List the PCI devices"),
+    "dumppnp":  ShellCommand(dumpPNPCommand, "List the PNP devices"),
+    "dumpusb":  ShellCommand(dumpUSBCommand, "List the USB devices"),
     "dumpmem":  ShellCommand(dumpMemCommand, "Dump memory contents: dumpmem <address> <count>"),
     "timer":    ShellCommand(timerCommand, "Show Timer configuration"),
     "showdev":  ShellCommand(showDevCommand, "Show device information, showdev <device>"),

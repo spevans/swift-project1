@@ -262,9 +262,9 @@ private enum OpRegionSpace: CustomStringConvertible {
     case oemDefined(UInt8)
 
     init(_ fullname: AMLNameString, _ region: AMLRegionSpace, _ offset: AMLInteger, _ length: AMLInteger) throws (AMLError) {
+        let rootIDs = ["PNP0A03", "PNP0A08"]
 
         func findPciRoot(for node: ACPI.ACPIObjectNode) throws(AMLError) -> ACPI.ACPIObjectNode {
-            let rootIDs = ["PNP0A03", "PNP0308"]
             var parent: ACPI.ACPIObjectNode? = node
             while let p = parent {
                 if let hid = try p.hardwareId(), rootIDs.contains(hid) {
@@ -284,7 +284,6 @@ private enum OpRegionSpace: CustomStringConvertible {
 
         func isPCIRoot(node: ACPI.ACPIObjectNode) -> Bool {
             guard node.object.isDevice else { return false }
-            let rootIDs = ["PNP0A03", "PNP0308"]
             if let hid = try? node.hardwareId(), rootIDs.contains(hid) {
                 return true
             }
@@ -308,11 +307,11 @@ private enum OpRegionSpace: CustomStringConvertible {
             case .pciConfig:
                 var addressNode: ACPI.ACPIObjectNode? = nil
                 guard let pciRoot = ACPI.globalObjects.findEnclosingObject(of: fullname, where: {
-                    if isPCIRoot(node: $0) { return true }
                     // Find the highest node below PCI root with an _ADR
                     if let node = $0.childNode(named: "_ADR") {
                         addressNode = node
                     }
+                    if isPCIRoot(node: $0) { return true }
                     return false
                 }) else {
                     throw AMLError.error(reason: "Cannot find Root PCI containing \(fullname)")
@@ -325,14 +324,15 @@ private enum OpRegionSpace: CustomStringConvertible {
                 let bbn = try pciRoot.baseBusNumber() ?? 0
                 // Find the PCI address for the device
                 guard let address = try addressNode?.amlObject().integerValue else {
-                    fatalError("ACPI: Cant determine PCI_Region for \(region)")
+                    fatalError("ACPI: Failed to get _ADR for PCI_Config for node \(fullname.value)")
                 }
 
                 let configSpace = pciConfigSpace(busId: bbn,
                                                  device: UInt8(truncatingIfNeeded: address >> 16),
                                                  function: UInt8(truncatingIfNeeded: address))
-                #kprintf("ACPI: %s: Using %s for PCI_Region\n",
-                         fullname.value, configSpace.description)
+                if ACPIDebug {
+                    #kprintf("ACPI: %s: Using %s for PCI_Region\n", fullname.value, configSpace.description)
+                }
                 self = .pciConfig(PCIConfigRegionSpace(config: configSpace, offset: offset, length: length))
 
             case .embeddedControl:

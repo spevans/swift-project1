@@ -81,20 +81,25 @@ extension ISABus {
 
             for resource in resources {
                 switch resource {
-                case let .ioPortSetting(ioPort): ioPorts.append(ioPort.ioPorts())
-                    case let .irqSetting(irq): interrupts.append(contentsOf: irq.interrupts())
-                case let .extendedIrqSetting(irq): interrupts.append(contentsOf: irq.interrupts())
-                case let .dmaSetting(dma): dmaChannels.append(contentsOf: dma.channels())
-                case let .fixedMemoryRangeDescriptor(fixedRange): guard fixedRange.rangeLength > 0 else {
+                    case .ioPortSetting(let ioPort): ioPorts.append(ioPort.ioPorts())
+                    case .irqSetting(let irq): interrupts.append(contentsOf: irq.interrupts())
+                    case .extendedIrqSetting(let irq): interrupts.append(contentsOf: irq.interrupts())
+                    case .dmaSetting(let dma): dmaChannels.append(contentsOf: dma.channels())
+                    case .fixedMemoryRangeDescriptor(let fixedRange): guard fixedRange.rangeLength > 0 else {
                         #kprint("Ignoring AMLFixedMemoryRangeDescriptor with base: 0x\(String(fixedRange.baseAddress, radix: 16)) length of 0 ")
                         continue
                     }
-                    let range = fixedRange.baseAddress..<(fixedRange.baseAddress + (fixedRange.rangeLength - 1))
-                    fixedMemoryRanges.append((range, fixedRange.writeable))
-                case let .dwordAddressSpaceDescriptor(spaceDescriptor):
-                    // FIXME
-                    #kprint("Ignoring:", spaceDescriptor)
-                default: fatalError("Cant convert \(resource) to an ISABus.Resource")
+                        let range = fixedRange.baseAddress..<(fixedRange.baseAddress + (fixedRange.rangeLength - 1))
+                        fixedMemoryRanges.append((range, fixedRange.writeable))
+                    case .dwordAddressSpaceDescriptor(let descriptor):
+                        // FIXME
+                        #kprint("isa: Ignoring:", descriptor)
+                    case .memoryRangeDescriptor(let descriptor):
+                        #kprint("isa: Ignoring:", descriptor)
+                    case .wordAddressSpaceDescriptor(let descriptor):
+                        #kprint("isa: Ignoring:", descriptor)
+                    case .qwordAddressSpaceDescriptor(let descriptor):
+                        #kprint("isa: Ignoring:", descriptor)
                 }
             }
 

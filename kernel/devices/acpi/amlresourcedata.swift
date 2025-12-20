@@ -19,15 +19,15 @@ enum AMLResourceSetting: CustomStringConvertible, Equatable {
 
     var description: String {
         switch self {
-        case let .irqSetting(irq): return irq.description
-        case let .extendedIrqSetting(irq): return irq.description
-        case let .dmaSetting(dma): return dma.description
-        case let .ioPortSetting(ioPort): return ioPort.description
-        case let .memoryRangeDescriptor(memoryRange): return memoryRange.description
-        case let .fixedMemoryRangeDescriptor(memoryRange): return memoryRange.description
-        case let .wordAddressSpaceDescriptor(descriptor): return descriptor.description
-        case let .dwordAddressSpaceDescriptor(descriptor): return descriptor.description
-        case let .qwordAddressSpaceDescriptor(descriptor): return descriptor.description
+            case .irqSetting(let irq): return irq.description
+            case .extendedIrqSetting(let irq): return irq.description
+            case .dmaSetting(let dma): return dma.description
+            case .ioPortSetting(let ioPort): return ioPort.description
+            case .memoryRangeDescriptor(let memoryRange): return memoryRange.description
+            case .fixedMemoryRangeDescriptor(let memoryRange): return memoryRange.description
+            case .wordAddressSpaceDescriptor(let descriptor): return descriptor.description
+            case .dwordAddressSpaceDescriptor(let descriptor): return descriptor.description
+            case .qwordAddressSpaceDescriptor(let descriptor): return descriptor.description
         }
     }
 
@@ -171,7 +171,7 @@ struct AMLDmaSetting: CustomStringConvertible, Equatable {
     let channelMask: BitArray8
     let flags: BitArray8
     var description: String {
-        "DMA mask: \(channelMask.rawValue.binary(separators: true)) \(flags.rawValue.binary(separators: true))"
+        #sprintf("DMA mask: %02X, flags: %02X", channelMask.rawValue, flags.rawValue)
     }
 
     init(_ buffer: AMLBuffer) {
@@ -211,7 +211,9 @@ struct AMLIOPortSetting: CustomStringConvertible, Equatable {
     let baseAlignment: UInt8
     let rangeLength: UInt8
     var description: String {
-        "IOPort: 0x\(minimumBaseAddress.hex())"
+        #sprintf("ioport: 0x%x/0x%x 16Bit: %s baseAlign: %d",
+                 minimumBaseAddress, rangeLength,
+                 decodes16Bit, baseAlignment)
     }
 
     init(_ buffer: AMLBuffer) {
@@ -258,7 +260,9 @@ struct AMLMemoryRangeDescriptor: CustomStringConvertible, Equatable {
     let baseAlignment: UInt32
     let rangeLength: UInt32
     var description: String {
-        "MemoryRange: 0x\(minimumBaseAddress.hex())"
+        #sprintf("MemortRange: 0x%08x-0x%08x/0x%08x, %s",
+                 minimumBaseAddress, maximumBaseAddress,
+                 rangeLength, writeable ? "RW" : "RO")
     }
 
     init(_ buffer: AMLBuffer) {
@@ -301,7 +305,6 @@ struct AMLMemoryRangeDescriptor: CustomStringConvertible, Equatable {
         buffer.append(rLength[3])
         return buffer
     }
-
 }
 
 
@@ -310,7 +313,8 @@ struct AMLFixedMemoryRangeDescriptor: CustomStringConvertible, Equatable {
     let baseAddress: UInt32
     let rangeLength: UInt32
     var description: String {
-        "FixedMemory: 0x\(baseAddress.hex())"
+        #sprintf("FixedMemory: 0x%08x/0x%08x, %s",
+                 baseAddress, rangeLength, writeable ? "RW" : "RO")
     }
 
     init(_ buffer: AMLBuffer) {
@@ -407,14 +411,13 @@ struct AMLWordAddressSpaceDescriptor: CustomStringConvertible, Equatable {
     }
 
     var description: String {
-        switch self.resourceType {
-        case .memoryRange:
-            return "Word Memory [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
-        case .ioRange:
-            return "Word IO [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
-        case .busNumberRange:
-            return "Word Bus [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
+        let region = switch self.resourceType {
+            case .memoryRange: "Memory"
+            case .ioRange: "IO"
+            case .busNumberRange: "Bus"
         }
+        return #sprintf("Word %s 0x%4.4x-0x%4.4x/0x%4.4x", region,
+                        addressRangeMinimum, addressRangeMaximum, addressLength)
     }
 
     let resourceType: ResourceType
@@ -489,14 +492,13 @@ struct AMLDWordAddressSpaceDescriptor: CustomStringConvertible, Equatable {
     }
 
     var description: String {
-        switch self.resourceType {
-        case .memoryRange:
-            return "DWord Memory [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
-        case .ioRange:
-            return "DWord IO [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
-        case .busNumberRange:
-            return "DWord Bus [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
+        let region = switch self.resourceType {
+            case .memoryRange: "Memory"
+            case .ioRange: "IO"
+            case .busNumberRange: "Bus"
         }
+        return #sprintf("DWord %s 0x%8.8x-0x%8.8x/0x%8.8x", region,
+                        addressRangeMinimum, addressRangeMaximum, addressLength)
     }
 
     let resourceType: ResourceType
@@ -593,14 +595,13 @@ struct AMLQWordAddressSpaceDescriptor: CustomStringConvertible, Equatable {
     }
 
     var description: String {
-        switch self.resourceType {
-        case .memoryRange:
-            return "QWord Memory [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
-        case .ioRange:
-            return "QWord IO [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
-        case .busNumberRange:
-            return "QWord Bus [0x\(addressRangeMinimum.hex())-0x\(addressRangeMaximum.hex())]"
+        let region = switch self.resourceType {
+            case .memoryRange: "Memory"
+            case .ioRange: "IO"
+            case .busNumberRange: "Bus"
         }
+        return #sprintf("QWord %s 0x%16.16x-0x%16.16x/0x%16.16x", region,
+                        addressRangeMinimum, addressRangeMaximum, addressLength)
     }
 
     let resourceType: ResourceType
@@ -720,13 +721,13 @@ func decodeResourceData(_ buffer: AMLBuffer) -> [AMLResourceSetting] {
                 case .qwordAddressSpaceDescriptor:
                     setting = .qwordAddressSpaceDescriptor(AMLQWordAddressSpaceDescriptor(buf))
 
-                default: fatalError("Cant decode type: \(type)")
+                default: fatalError("Failed to decode type: \(type)")
             }
         } else {
             // Small Type
             let itemName = header[3...6]
             guard let type = AMLSmallItemName(rawValue: itemName) else {
-                fatalError("Invalid AMLSmallItemnName: \(itemName)")
+                fatalError("Invalid AMLSmallItemName: \(itemName)")
             }
             length = Int(header[0...2])
             let buf = AMLBuffer(buffer[idx..<idx + length])
@@ -751,7 +752,7 @@ func decodeResourceData(_ buffer: AMLBuffer) -> [AMLResourceSetting] {
                     }
                     return settings
 
-                default: fatalError("Cant decode type: \(type)")
+                default: fatalError("Failed to decode type: \(type)")
             }
         }
         settings.append(setting)

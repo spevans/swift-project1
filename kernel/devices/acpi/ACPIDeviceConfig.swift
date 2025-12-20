@@ -8,24 +8,23 @@
 //
 
 
-final class ACPIDeviceConfig: CustomStringConvertible {
+struct ACPIDeviceConfig: CustomStringConvertible {
     let node: ACPI.ACPIObjectNode
     let hid: String?
     let cids: [String]?
     let adr: UInt64?
     let uid: AMLObject?
-    // Do not retrieve the PCIRoutingTable initally as it may change due to the \\_PIC setting
-    // so just cache it when needed
-    private var _prt: PCIRoutingTable?
 
-
-    init(node: ACPI.ACPIObjectNode) {
+    init?(node: ACPI.ACPIObjectNode) {
         guard node.object.isDevice else {
             fatalError("ACPI: \(node.fullname()) is not a AMLDefDevice")
         }
         do {
+            guard let _hid = try node.hardwareId() else {
+                return nil
+            }
             self.node = node
-            self.hid = try node.hardwareId()
+            self.hid = _hid
             self.cids = try node.compatibleIds()
             self.adr = try node.addressResource()
             self.uid = try node.uniqueId()
@@ -65,13 +64,5 @@ final class ACPIDeviceConfig: CustomStringConvertible {
 
     func prs() -> [AMLResourceSetting]? {
         try? node.possibleResourceSettings()
-    }
-
-    func prt() -> PCIRoutingTable? {
-        if _prt == nil {
-            // This may still be nil if there is no routing table
-            _prt = node.pciRoutingTable()
-        }
-        return _prt
     }
 }

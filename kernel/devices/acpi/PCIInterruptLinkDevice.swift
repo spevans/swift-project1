@@ -9,7 +9,6 @@
 //
 
 final class PCIInterruptLinkDevice: PNPDeviceDriver {
-    private let acpiConfig: ACPIDeviceConfig
     private(set) var irq: IRQSetting?  // The IRQ signaled by this device
 
     override func info() -> String {
@@ -19,7 +18,7 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
 
 
     init?(pnpDevice: PNPDevice) {
-        guard let uid = pnpDevice.device.acpiDeviceConfig?.uid else {
+        guard let uid = pnpDevice.uid else {
             #kprint("PCIInterruptLinkDevice: cant get _UID")
             return nil
         }
@@ -29,35 +28,31 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
             return nil
         }
 
-        guard let _acpiConfig = pnpDevice.device.acpiDeviceConfig else {
-            #kprint("\(pnpDevice.pnpName) has no ACPIDeviceConfig")
-            return nil
-        }
-        acpiConfig = _acpiConfig
         super.init(driverName: "pci-int-link", pnpDevice: pnpDevice)
         self.setInstanceName(to: "pciint\(uidValue)")
     }
 
     // FIXME: Maybe select a better IRQ to use to balance them out better or make
-    // .irq into a funtion to do lazy irq allocation
+    // .irq into a function to do lazy irq allocation
     override func initialise() -> Bool {
-        guard var crs = acpiConfig.crs() else {
+        let pnpDevice = self.device.busDevice as! PNPDevice
+        guard var crs = pnpDevice.crs() else {
             #kprint("PCIInterruptLinkDevice: Cant get resources")
             return false
         }
-        let f = acpiConfig.node.fullname()
+        let f = pnpDevice.acpiName()
         let resources = ISABus.Resources(crs)
 
         if let cirq = resources.interrupts.first {
             if cirq.irq == 0 {  // Ignore IRQ0
                 #kprintf("%s: Need to set an IRQ\n", f)
-                guard let (resource, interrupt) = possibleInterrupts() else {
+                guard let (resource, interrupt) = possibleInterrupts(pnpDevice) else {
                     #kprintf("%s: Cannot set interrupt\n", f)
                     return false
                 }
                 crs[0] = resource
                 do {
-                    try acpiConfig.node.setResourceSettings(crs)
+                    try pnpDevice.setResourceSettings(crs)
                 } catch {
                     #kprintf("%s: Cannot set _SRS: %s\n", f, error.description)
                     return false
@@ -73,9 +68,9 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
         return true
     }
 
-    private func possibleInterrupts() -> (AMLResourceSetting, IRQSetting)? {
-        let f = acpiConfig.node.fullname()
-        guard let prs = acpiConfig.prs() else {
+    private func possibleInterrupts(_ pnpDevice: PNPDevice) -> (AMLResourceSetting, IRQSetting)? {
+        let f = pnpDevice.acpiName()
+        guard let prs = pnpDevice.prs() else {
             #kprintf("%s: No _PRS, cant get irqs\n", f)
             return nil
         }

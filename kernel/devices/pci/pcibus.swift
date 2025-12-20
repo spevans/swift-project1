@@ -21,7 +21,7 @@ final class PCIBus: DeviceDriver {
         // Get the Bus number
         // FIXME: Add method to walk up the tree finding a given node by name
         var busId: UInt8 = 0
-        var p: ACPI.ACPIObjectNode? = pnpDevice.device.acpiDeviceConfig?.node
+        var p: ACPI.ACPIObjectNode? = pnpDevice.acpiNode()
         while let _node = p {
             if let bbnValue = try? _node.baseBusNumber() {
                 #kprint("Found _BBN node on parent:", _node.fullname())
@@ -31,14 +31,9 @@ final class PCIBus: DeviceDriver {
             p = _node.parent
         }
         self.busId = busId
-
-        guard pnpDevice.device.acpiDeviceConfig != nil else {
-            #kprint("PCI: PCIBus: busId: \(asHex(busId)) \(pnpDevice.device) has no ACPI config")
-            return nil
-        }
         super.init(driverName: "pcibus", device: pnpDevice.device)
         self.setInstanceName(to: "pcibus\(busId)")
-        #kprint("PCIBus.init:", self.description)
+        #kprint("PCIBus.init:", pnpDevice.device.description, self.description, pnpDevice.description)
     }
 #endif
 
@@ -65,7 +60,8 @@ final class PCIBus: DeviceDriver {
 #if ACPI
         // Find child nodes that are devices and build a map of _ADR to node
         var adrNodeMap: [AMLInteger : ACPI.ACPIObjectNode] = [:]
-        if let childACPINodes = self.device.acpiDeviceConfig?.node.childNodes {
+        if let pnpDevice = self.device.busDevice as? PNPDevice {
+            let childACPINodes = pnpDevice.acpiNode().childNodes
             for node in childACPINodes.values {
                 if node.object.isDevice, let adr = try? node.addressResource() {
                     adrNodeMap[adr] = node

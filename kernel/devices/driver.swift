@@ -23,7 +23,7 @@ class DeviceDriver: CustomStringConvertible {
     }
 
     func info() -> String {
-        return "Driver does not override info() method."
+        #sprintf("%s: Driver does not override info() method.", self.driverName)
     }
 
     func debug(arguments: [String]) {

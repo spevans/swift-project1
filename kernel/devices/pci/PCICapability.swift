@@ -267,7 +267,7 @@ enum PCICapability {
         }
 
         var description: String {
-            #sprintf("MSI-X: enabled: %s mask: %s  tabOffset: 0x%8.8x pbaOffset: %8.8x\n",
+            #sprintf("MSI-X: enabled: %s mask: %s  tabOffset: 0x%8.8x pbaOffset: %8.8x",
                      messageControl.enabled,
                      messageControl.functionMask,
                      tableOffsetBIR, pbaOffsetBIR)
