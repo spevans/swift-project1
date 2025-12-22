@@ -8,7 +8,7 @@
 
 #if ACPI
 // PNP0C02 device
-final class MotherBoardResource: PNPDeviceDriver {
+final class MotherBoardResource: DeviceDriver {
     private let resources: [AMLResourceSetting]
 
 
@@ -18,7 +18,7 @@ final class MotherBoardResource: PNPDeviceDriver {
             return nil
         }
         self.resources = crs
-        super.init(driverName: "motherboard", pnpDevice: pnpDevice)
+        super.init(driverName: "motherboard", device: pnpDevice.device)
         #kprint("\(pnpDevice.device): Found \(resources.count) resources")
         #kprint(pnpDevice.info())
     }

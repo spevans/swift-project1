@@ -68,15 +68,6 @@ final class PNPDevice: BusDevice {
         return self.resources
     }
 
-    #if false
-    func initialise() -> Bool {
-        device.initialised = true
-        self.resources = getResources()
-        device.enabled = true
-        return true
-    }
-    #endif
-
     func matchesId(_ pnpId: String) -> Bool {
         return self.acpiDeviceConfig.matches(hidOrCid: pnpId)
     }
@@ -114,11 +105,4 @@ final class PNPDevice: BusDevice {
         }
     }
     #endif
-}
-
-
-class PNPDeviceDriver: DeviceDriver {
-    init?(driverName: String, pnpDevice: PNPDevice) {
-        super.init(driverName: driverName, device: pnpDevice.device)
-    }
 }

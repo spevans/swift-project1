@@ -31,7 +31,7 @@ private let pciIds: InlineArray<_, PCIDeviceMatch> = [
     .init(vendor: 0x8086, deviceId: 0x0a2e, function: 0),
 ]
 
-final class I915: PCIDeviceDriver {
+final class I915: DeviceDriver {
     private let pciDevice: PCIDevice       // The device (upstream) side of the bridge
 
     let mmioRegion: MMIORegion
@@ -107,7 +107,7 @@ final class I915: PCIDeviceDriver {
         let ringBufferPhysRegion = PhysRegion(start: rbPhysAddress, size: rbLength)
         ringBufferMmioRegion = mapIORegion(region: ringBufferPhysRegion, cacheType: .uncacheable)
 
-        super.init(driverName: "i915", pciDevice: pciDevice)
+        super.init(driverName: "i915", device: pciDevice.device)
         if let frameBufferInfo = system.frameBufferInfo {
             #kprintf("EFI Frame buffer baseAddress: %p size: 0x%x\n", frameBufferInfo.address, frameBufferInfo.size)
             height = Int(frameBufferInfo.height)

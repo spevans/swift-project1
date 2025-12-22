@@ -8,7 +8,8 @@
 //  PCI Link Devices (LNKA..LNKD) used for PCI interrupts (INT #A .. INT #D)
 //
 
-final class PCIInterruptLinkDevice: PNPDeviceDriver {
+final class PCIInterruptLinkDevice: DeviceDriver {
+    let pnpDevice: PNPDevice
     private(set) var irq: IRQSetting?  // The IRQ signaled by this device
 
     override func info() -> String {
@@ -28,25 +29,25 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
             return nil
         }
 
-        super.init(driverName: "pci-int-link", pnpDevice: pnpDevice)
+        self.pnpDevice = pnpDevice
+        super.init(driverName: "pci-int-link", device: pnpDevice.device)
         self.setInstanceName(to: "pciint\(uidValue)")
     }
 
     // FIXME: Maybe select a better IRQ to use to balance them out better or make
     // .irq into a function to do lazy irq allocation
     override func initialise() -> Bool {
-        let pnpDevice = self.device.busDevice as! PNPDevice
-        guard var crs = pnpDevice.crs() else {
+        guard var crs = self.pnpDevice.crs() else {
             #kprint("PCIInterruptLinkDevice: Cant get resources")
             return false
         }
-        let f = pnpDevice.acpiName()
+        let f = self.pnpDevice.acpiName()
         let resources = ISABus.Resources(crs)
 
         if let cirq = resources.interrupts.first {
             if cirq.irq == 0 {  // Ignore IRQ0
                 #kprintf("%s: Need to set an IRQ\n", f)
-                guard let (resource, interrupt) = possibleInterrupts(pnpDevice) else {
+                guard let (resource, interrupt) = possibleInterrupts() else {
                     #kprintf("%s: Cannot set interrupt\n", f)
                     return false
                 }
@@ -68,8 +69,8 @@ final class PCIInterruptLinkDevice: PNPDeviceDriver {
         return true
     }
 
-    private func possibleInterrupts(_ pnpDevice: PNPDevice) -> (AMLResourceSetting, IRQSetting)? {
-        let f = pnpDevice.acpiName()
+    private func possibleInterrupts() -> (AMLResourceSetting, IRQSetting)? {
+        let f = self.pnpDevice.acpiName()
         guard let prs = pnpDevice.prs() else {
             #kprintf("%s: No _PRS, cant get irqs\n", f)
             return nil

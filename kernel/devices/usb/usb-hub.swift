@@ -25,7 +25,8 @@ internal func _usbhubDebug(_ items: String...) {
 }
 
 
-final class USBHubDriver: USBDeviceDriver {
+final class USBHubDriver: DeviceDriver {
+    private let usbDevice: USBDevice
     private let responseBuffer: MMIOSubRegion
     private(set) var hubDescriptor = USB.HUBDescriptor(ports: 0)
     private(set) var multiTT: Bool = false
@@ -33,8 +34,9 @@ final class USBHubDriver: USBDeviceDriver {
 
 
     init?(usbDevice: USBDevice, interface: USB.InterfaceDescriptor? = nil) {
+        self.usbDevice = usbDevice
         self.responseBuffer = usbDevice.bus.allocateBuffer(length: 32)
-        super.init(driverName: "usb-hub", usbDevice: usbDevice)
+        super.init(driverName: "usb-hub", device: usbDevice.device)
         self.setInstanceName(to: "usb-hub-\(usbDevice.bus.busId)-\(usbDevice.address)")
         device.setDriver(self)
     }

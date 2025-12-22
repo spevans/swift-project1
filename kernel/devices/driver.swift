@@ -27,7 +27,7 @@ class DeviceDriver: CustomStringConvertible {
     }
 
     func debug(arguments: [String]) {
-        #kprintf("Device: %s does not support debug commands\n", device.description)
+        #kprintf("%s: Driver: does not support debug commands\n", self.driverName)
     }
 
     func setInstanceName(to newName: String) {

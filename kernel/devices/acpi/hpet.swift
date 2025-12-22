@@ -115,7 +115,7 @@ final class HPETTimer: Timer {
 // TODO: atomic
 private var hpetNumber = 1
 
-final class HPET: PNPDeviceDriver {
+final class HPET: DeviceDriver {
     private let hpet: HPETTable
     private var mmioRegion: MMIORegion = MMIORegion.invalidRegion()
     private(set) var irq = IRQSetting(isaIrq: 2)
@@ -128,7 +128,7 @@ final class HPET: PNPDeviceDriver {
             return nil
         }
         self.hpet = _hpet
-        super.init(driverName: "hpet", pnpDevice: pnpDevice)
+        super.init(driverName: "hpet", device: pnpDevice.device)
         self.setInstanceName(to: #sprintf("hpet%d", hpetNumber))
         hpetNumber += 1
     }

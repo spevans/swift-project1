@@ -8,12 +8,23 @@
 // QEMU Firmware Configuration (fw_cfg) Device
 // https://github.com/qemu/qemu/blob/master/docs/specs/fw_cfg.txt
 
-final class QEMUFWCFG: PNPDeviceDriver {
+final class QEMUFWCFG: DeviceDriver {
     private var baseIOPort: UInt16 = 0
     private var hasDMAInterface = false
 
     init?(pnpDevice: PNPDevice) {
-        super.init(driverName: "QEMU_FWCFG", pnpDevice: pnpDevice)
+        guard let resources = pnpDevice.getResources() else {
+            #kprint("QEMU: Cannot get ACPI resources")
+            return nil
+        }
+        #kprint(pnpDevice.device, "Resources:", resources)
+        guard let ioPorts = resources.ioPorts.first, ioPorts.count > 6,
+              let basePort = ioPorts.first else {
+            #kprint("QEMU: port range is to small:", resources.ioPorts.count)
+            return nil
+        }
+        self.baseIOPort = basePort
+        super.init(driverName: "QEMU_FWCFG", device: pnpDevice.device)
     }
 
     override func info() -> String {
@@ -21,17 +32,6 @@ final class QEMUFWCFG: PNPDeviceDriver {
     }
 
     override func initialise() -> Bool {
-        guard let pnpDevice = device.busDevice as? PNPDevice, let resources = pnpDevice.getResources() else {
-            #kprint("QEMU: Cannot get ACPI resources")
-            return false
-        }
-        #kprint(pnpDevice.device, "Resources:", resources)
-        guard let ioPorts = resources.ioPorts.first, ioPorts.count > 6,
-              let basePort = ioPorts.first else {
-            #kprint("QEMU: port range is to small:", resources.ioPorts.count)
-            return false
-        }
-        baseIOPort = basePort
         let signature = readSignature()
         guard signature == "QEMU" else {
             #kprint("QEMU: Invalid signature", signature)
@@ -52,12 +52,12 @@ final class QEMUFWCFG: PNPDeviceDriver {
 
 
     func setIndex(_ index: UInt16) {
-        let ioport = baseIOPort
+        let ioport = self.baseIOPort
         outw(ioport, index)
     }
 
     func readData() -> UInt8 {
-        return inb(baseIOPort + 1)
+        return inb(self.baseIOPort + 1)
     }
 
     private func readSignature() -> String {

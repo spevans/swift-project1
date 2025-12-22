@@ -37,7 +37,7 @@ enum PS2Device: CustomStringConvertible {
 }
 
 
-final class KBD8042: PNPDeviceDriver {
+final class KBD8042: DeviceDriver {
     // Constants
     static private let DATA_PORT:        UInt16 = 0x60
     static private let STATUS_REGISTER:  UInt16 = 0x64
@@ -231,7 +231,7 @@ final class KBD8042: PNPDeviceDriver {
             return nil
         }
         #kprint("i8042:", pnpDevice.pnpName, resources)
-        super.init(driverName: "kbd8042", pnpDevice: pnpDevice)
+        super.init(driverName: "kbd8042", device: pnpDevice.device)
     }
 
     override func initialise() -> Bool {

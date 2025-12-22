@@ -25,12 +25,13 @@ internal func _uhciDebug(_ items: String...) {
 
 private var uhciNumber = 0
 
-final class HCD_UHCI: PCIDeviceDriver {
+final class HCD_UHCI: DeviceDriver {
     static private let GLOBAL_RESET_TRIES = 5
 
     let allocator: UHCIAllocator
     var enabled = true
 
+    private let pciDevice: PCIDevice
     fileprivate let ioBasePort: UInt16
     private var addressAllocator = BitmapAllocator128()
     private var controlQH = PhysQueueHead(mmioSubRegion: MMIOSubRegion(baseAddress: PhysAddress(0), count: 0))
@@ -68,9 +69,10 @@ final class HCD_UHCI: PCIDeviceDriver {
         addr = addressAllocator.allocate()
         assert(addr == 1)
 
+        self.pciDevice = pciDevice
         ioBasePort = pciIOBar.portAddress
         allocator = UHCIAllocator()
-        super.init(driverName: "uhci", pciDevice: pciDevice)
+        super.init(driverName: "uhci", device: pciDevice.device)
         device.setDriver(self)
         self.setInstanceName(to: "uhci\(uhciNumber)")
         uhciNumber += 1
@@ -78,11 +80,10 @@ final class HCD_UHCI: PCIDeviceDriver {
 
 
     override func initialise() -> Bool {
-        guard let pciDevice = self.device.busDevice as? PCIDevice else { return false }
-        var deviceFunction = pciDevice.deviceFunction
+        var deviceFunction = self.pciDevice.deviceFunction
 
         // Find the Interrupt
-        guard let interrupt = pciDevice.findInterrupt() else {
+        guard let interrupt = self.pciDevice.findInterrupt() else {
             #kprintf("UHCI: %s: Failed to find interrupt\n", device.deviceName)
             return false
         }

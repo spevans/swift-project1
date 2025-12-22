@@ -10,7 +10,8 @@
 
 private var _xhciNumber = 0
 
-final class HCD_XHCI: PCIDeviceDriver {
+final class HCD_XHCI: DeviceDriver {
+    private let pciDevice: PCIDevice
     private var interruptHandler: InterruptHandler?
     private let mmioRegion: MMIORegion
     private let capabilities: CapabilityRegisters
@@ -52,16 +53,17 @@ final class HCD_XHCI: PCIDeviceDriver {
             #kprintf("xhci: %s: Failed to find interrupt\n", pciDevice.device.deviceName)
             return nil
         }
+        guard let pciIO = pciDevice.ioRegionFor(barIdx: 0), pciIO.bar.isMemory else {
+            #kprint("xhci: No IO region for BAR0 or not memory")
+            return nil
+        }
+
+        self.pciDevice = pciDevice
         self.primaryIRQ = interrupt
 
         var deviceFunction = pciDevice.deviceFunction
         #kprintf("xhci: Assigned IRQ: %d\n", interrupt.irq)
         deviceFunction.interruptLine = UInt8(interrupt.irq)
-
-        guard let pciIO = pciDevice.ioRegionFor(barIdx: 0), pciIO.bar.isMemory else {
-            #kprint("xhci: No IO region for BAR0 or not memory")
-            return nil
-        }
 
         #kprint("xhci: BAR0:", pciIO)
         let region = PhysRegion(start: PhysAddress(RawAddress(pciIO.baseAddress)), size: UInt(pciIO.size))
@@ -109,7 +111,7 @@ final class HCD_XHCI: PCIDeviceDriver {
 
         // Allocator for other buffers and device contexts that get allocated later
         self.allocator = XHCIAllocator(capabilities)
-        super.init(driverName: "xhci", pciDevice: pciDevice)
+        super.init(driverName: "xhci", device: pciDevice.device)
         let handler = InterruptHandler(name: "xhci-hcd", handler: xhciInterrupt)
         self.interruptHandler = handler
         system.deviceManager.setIrqHandler(handler, forInterrupt: interrupt)
@@ -118,8 +120,7 @@ final class HCD_XHCI: PCIDeviceDriver {
 
 
     override func initialise() -> Bool {
-        guard let pciDevice = device.busDevice as? PCIDevice else { return false }
-        var deviceFunction = pciDevice.deviceFunction
+        var deviceFunction = self.pciDevice.deviceFunction
 
         var pciCommand = deviceFunction.command
         pciCommand.ioSpace = false

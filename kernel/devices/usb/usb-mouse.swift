@@ -23,7 +23,8 @@ final class MouseHID: HID {
 }
 
 
-final class USBMouse: USBDeviceDriver {
+final class USBMouse: DeviceDriver {
+    private let usbDevice: USBDevice
     private let interface: USB.InterfaceDescriptor
     private var intrPipe: USBPipe?
     private var physBuffer: MMIOSubRegion?
@@ -33,8 +34,9 @@ final class USBMouse: USBDeviceDriver {
 
     init?(device: Device, usbDevice: USBDevice, interface: USB.InterfaceDescriptor) {
         #kprint("USB-HID: Creating USBMouse")
+        self.usbDevice = usbDevice
         self.interface = interface
-        super.init(driverName: "usb-mouse", usbDevice: usbDevice)
+        super.init(driverName: "usb-mouse", device: usbDevice.device)
     }
 
     override func initialise() -> Bool {

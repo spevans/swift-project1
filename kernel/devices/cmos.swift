@@ -9,12 +9,12 @@
  */
 
 
-final class CMOSRTC: PNPDeviceDriver {
+final class CMOSRTC: DeviceDriver {
 
-    private var addressPort: UInt16 = 0
-    private var dataPort: UInt16 = 0
-    private var irq: IRQSetting?
-    private var centuryIndex: UInt8 = 0
+    private let addressPort: UInt16
+    private let dataPort: UInt16
+    private let irq: IRQSetting?
+    private let centuryIndex: UInt8
 
 
     override func info() -> String {
@@ -23,33 +23,33 @@ final class CMOSRTC: PNPDeviceDriver {
     }
 
     init?(pnpDevice: PNPDevice) {
-        super.init(driverName: "cmosrtc", pnpDevice: pnpDevice)
-    }
-
-
-    override func initialise() -> Bool {
-        guard let pnpDevice = device.busDevice as? PNPDevice, let resources = pnpDevice.getResources() else {
-            return false
+        guard let resources = pnpDevice.getResources() else {
+            return nil
         }
 
         #kprint("CMOS: init:", resources)
         guard let ports = resources.ioPorts.first, ports.count > 1 else {
             #kprint("CMOS: Requires at least 2 IO ports:", resources)
-            return false
+            return nil
         }
 
         let idx = ports.startIndex
-        addressPort = ports[ports.index(idx, offsetBy: 0)]
-        dataPort = ports[ports.index(idx, offsetBy: 1)]
+        self.addressPort = ports[ports.index(idx, offsetBy: 0)]
+        self.dataPort = ports[ports.index(idx, offsetBy: 1)]
 
         // Might be nil if no interrupt is specified in ACPI.
-        irq = resources.interrupts.first
+        self.irq = resources.interrupts.first
 
         if let century = system.deviceManager.acpiTables.facp?.rtcCenturyIndex, century < 64 {
-            centuryIndex = century
+            self.centuryIndex = century
         } else {
-            centuryIndex = 0
+            self.centuryIndex = 0
         }
+        super.init(driverName: "cmosrtc", device: pnpDevice.device)
+    }
+
+
+    override func initialise() -> Bool {
         device.initialised = true
         system.deviceManager.rtc = self
         self.setInstanceName(to: "cmos0")

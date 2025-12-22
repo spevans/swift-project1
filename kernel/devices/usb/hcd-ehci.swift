@@ -9,7 +9,7 @@
  */
 
 
-final class HCD_EHCI: PCIDeviceDriver {
+final class HCD_EHCI: DeviceDriver {
     private let pciDevice: PCIDevice       // The device (upstream) side of the bridge
     let mmioRegion: MMIORegion
 
@@ -43,7 +43,7 @@ final class HCD_EHCI: PCIDeviceDriver {
 
         mmioRegion = mapIORegion(region: region)
         #kprint("EHCI: region:", region, "mmioRegion:", mmioRegion)
-        super.init(driverName: "ehci", pciDevice: pciDevice)
+        super.init(driverName: "ehci", device: pciDevice.device)
         self.setInstanceName(to: "ehci0")
     }
 

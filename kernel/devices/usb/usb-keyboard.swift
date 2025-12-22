@@ -162,7 +162,8 @@ private let keyMap: InlineArray<232, HIDEvent.Key> = [
    /* 0xE7: */ .KEY_RIGHT_GUI,
 ]
 
-final class USBKeyboard: USBDeviceDriver {
+final class USBKeyboard: DeviceDriver {
+    private let usbDevice: USBDevice
     private let interface: USB.InterfaceDescriptor
     private var prevModifierKeys = UInt8(0)
     private var prevKeys: InlineArray<8, UInt8> = .init(repeating: 0)
@@ -175,9 +176,10 @@ final class USBKeyboard: USBDeviceDriver {
 
     init?(device: Device, usbDevice: USBDevice, interface: USB.InterfaceDescriptor) {
         #kprint("USB-HID: Creating USBKeyboard")
+        self.usbDevice = usbDevice
         self.interface = interface
         self.buffer.reserveCapacity(32)
-        super.init(driverName: "usb-kbd", usbDevice: usbDevice)
+        super.init(driverName: "usb-kbd", device: usbDevice.device)
         self.setInstanceName(to: "usb-kbd0")
     }
 

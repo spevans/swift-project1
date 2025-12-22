@@ -25,12 +25,12 @@ final class PIT8254Timer: Timer {
 }
 
 
-final class PIT8254: PNPDeviceDriver {
+final class PIT8254: DeviceDriver {
     private let oscillator = 1193182         // Base frequency
-    private var channel0Port: UInt16 = 0
-    private var channel2Port: UInt16 = 0
-    private var commandPort: UInt16 = 0
-    private(set) var irq = IRQSetting(isaIrq: 0)
+    private let channel0Port: UInt16
+    private let channel2Port: UInt16
+    private let commandPort: UInt16
+    let irq: IRQSetting
 
     // Raw Value is the I/O port
     enum TimerChannel: UInt16 {
@@ -135,7 +135,22 @@ final class PIT8254: PNPDeviceDriver {
 
 
     init?(pnpDevice: PNPDevice) {
-        super.init(driverName: "pit8254", pnpDevice: pnpDevice)
+        guard let resources = pnpDevice.getResources() else {
+            return nil
+        }
+        #kprint("PIT8254: init:", resources)
+        guard let ports = resources.ioPorts.first, ports.count > 3 else {
+            #kprint("PIT8254: Requires 4 IO ports and 1 IRQ")
+            return nil
+        }
+
+        let idx = ports.startIndex
+        self.channel0Port = ports[ports.index(idx, offsetBy: 0)]
+        self.channel2Port = ports[ports.index(idx, offsetBy: 2)]
+        self.commandPort = ports[ports.index(idx, offsetBy: 3)]
+        self.irq = resources.interrupts.first ?? IRQSetting(isaIrq: 0)   // Default IRQ = 0
+        #kprint("PIT8254: IRQ\(self.irq)")
+        super.init(driverName: "pit8254", device: pnpDevice.device)
     }
 
 
@@ -145,22 +160,7 @@ final class PIT8254: PNPDeviceDriver {
             #kprint("PIT8254: System already has a timer")
             return false
         }
-        guard let pnpDevice = device.busDevice as? PNPDevice, let resources = pnpDevice.getResources() else {
-            return false
-        }
-        #kprint("PIT8254: init:", resources)
 
-        guard let ports = resources.ioPorts.first, ports.count > 3 else {
-            #kprint("PIT8254: Requires 4 IO ports and 1 IRQ")
-            return false
-        }
-
-        let idx = ports.startIndex
-        channel0Port = ports[ports.index(idx, offsetBy: 0)]
-        channel2Port = ports[ports.index(idx, offsetBy: 2)]
-        commandPort = ports[ports.index(idx, offsetBy: 3)]
-        irq = resources.interrupts.first ?? IRQSetting(isaIrq: 0)   // Default IRQ = 0
-        #kprint("PIT8254: IRQ\(irq)")
         let timer = PIT8254Timer(pit: self, irq: irq)
         system.deviceManager.timer = timer
         device.initialised = true
@@ -196,23 +196,23 @@ final class PIT8254: PNPDeviceDriver {
 
     private func mapChannelToSelect(_ channel: TimerChannel) -> ChannelSelect {
         switch(channel) {
-        case .CHANNEL_0: return ChannelSelect.CHANNEL0
-        case .CHANNEL_2: return ChannelSelect.CHANNEL2
+            case .CHANNEL_0: return ChannelSelect.CHANNEL0
+            case .CHANNEL_2: return ChannelSelect.CHANNEL2
         }
     }
 
 
     private func mapChannelToPort(_ channel: TimerChannel) -> UInt16 {
         switch(channel) {
-        case .CHANNEL_0: return channel0Port
-        case .CHANNEL_2: return channel2Port
+            case .CHANNEL_0: return channel0Port
+            case .CHANNEL_2: return channel2Port
         }
     }
 
 
     private func getCount(_ channel: TimerChannel) -> UInt16 {
         let latchCmd = channel.channelSelect.rawValue
-        outb(commandPort, latchCmd)
+        outb(self.commandPort, latchCmd)
         let lsb = inb(channel.rawValue)
         let msb = inb(channel.rawValue)
 

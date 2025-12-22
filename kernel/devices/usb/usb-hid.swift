@@ -1,5 +1,5 @@
 /*
- * kernel/devices/usb/uhci-hid.swift
+ * kernel/devices/usb/usb-hid.swift
  *
  * Created by Simon Evans on 09/11/2020.
  * Copyright © 2020 Simon Evans. All rights reserved.

@@ -327,13 +327,6 @@ final class PCIDevice: BusDevice {
 }
 
 
-class PCIDeviceDriver: DeviceDriver {
-    init?(driverName: String, pciDevice: PCIDevice) {
-        super.init(driverName: driverName, device: pciDevice.device)
-    }
-}
-
-
 struct PCI_BAR: Equatable {
     let rawValue: UInt32
     var baseAddress: UInt32 { rawValue & ~0b111 }
