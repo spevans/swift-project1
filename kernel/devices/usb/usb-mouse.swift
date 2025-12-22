@@ -32,11 +32,13 @@ final class USBMouse: DeviceDriver {
     private var eventBuffer = CircularBuffer<HIDEvent?>(item: nil, capacity: 32)
 
 
-    init?(device: Device, usbDevice: USBDevice, interface: USB.InterfaceDescriptor) {
+    init?(usbDevice: USBDevice, interface: USB.InterfaceDescriptor) {
         #kprint("USB-HID: Creating USBMouse")
         self.usbDevice = usbDevice
         self.interface = interface
-        super.init(driverName: "usb-mouse", device: usbDevice.device)
+        let device = Device(parent: usbDevice, className: "USBHIDDevice", busDeviceName: "USBMouse")
+        super.init(driverName: "usb-mouse", device: device)
+        self.setInstanceName(to: "usb-mouse0")
     }
 
     override func initialise() -> Bool {
@@ -61,7 +63,6 @@ final class USBMouse: DeviceDriver {
             #kprint("USB-MOU: Cannot set idleRequest")
             return false
         }
-        self.setInstanceName(to: "usb-mouse0")
 
         let urb = USB.Request(
             usbDevice: self.usbDevice,

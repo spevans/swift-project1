@@ -174,12 +174,13 @@ final class USBKeyboard: DeviceDriver {
     private var intrPipe: USBPipe?
     private var physBuffer: MMIOSubRegion?
 
-    init?(device: Device, usbDevice: USBDevice, interface: USB.InterfaceDescriptor) {
+    init?(usbDevice: USBDevice, interface: USB.InterfaceDescriptor) {
         #kprint("USB-HID: Creating USBKeyboard")
         self.usbDevice = usbDevice
         self.interface = interface
         self.buffer.reserveCapacity(32)
-        super.init(driverName: "usb-kbd", device: usbDevice.device)
+        let device = Device(parent: usbDevice, className: "USBHIDDevice", busDeviceName: "USBKeyboard")
+        super.init(driverName: "usb-kbd", device: device)
         self.setInstanceName(to: "usb-kbd0")
     }
 

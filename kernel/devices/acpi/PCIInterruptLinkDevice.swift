@@ -30,7 +30,7 @@ final class PCIInterruptLinkDevice: DeviceDriver {
         }
 
         self.pnpDevice = pnpDevice
-        super.init(driverName: "pci-int-link", device: pnpDevice.device)
+        super.init(driverName: "pci-int-link", device: pnpDevice)
         self.setInstanceName(to: "pciint\(uidValue)")
     }
 

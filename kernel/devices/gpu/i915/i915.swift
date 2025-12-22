@@ -107,7 +107,7 @@ final class I915: DeviceDriver {
         let ringBufferPhysRegion = PhysRegion(start: rbPhysAddress, size: rbLength)
         ringBufferMmioRegion = mapIORegion(region: ringBufferPhysRegion, cacheType: .uncacheable)
 
-        super.init(driverName: "i915", device: pciDevice.device)
+        super.init(driverName: "i915", device: pciDevice)
         if let frameBufferInfo = system.frameBufferInfo {
             #kprintf("EFI Frame buffer baseAddress: %p size: 0x%x\n", frameBufferInfo.address, frameBufferInfo.size)
             height = Int(frameBufferInfo.height)
@@ -119,7 +119,6 @@ final class I915: DeviceDriver {
                 #kprint("Failed to add i915 TTY driver")
             }
         }
-        device.setDriver(self)
         self.setInstanceName(to: "intel-gpu0")
     }
 

@@ -182,7 +182,7 @@ fileprivate extension HCD_XHCI {
                                           interrupter: 0, rootHubPort: usbDevice.rootPort)
             } else {
 
-                if let hubDriver = usbDevice.device.deviceDriver as? USBHubDriver {
+                if let hubDriver = usbDevice.deviceDriver as? USBHubDriver {
                     // Configure endpoint as a Hub
                     // TODO: Get settings
                     #kprintf("xhci-pipe: Configuring endpoint as hub, ports: %d\n",

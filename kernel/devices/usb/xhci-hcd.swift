@@ -50,7 +50,7 @@ final class HCD_XHCI: DeviceDriver {
 
         // Find the Interrupt
         guard let interrupt = pciDevice.requestMSI(vectorStart: 0x60) else {
-            #kprintf("xhci: %s: Failed to find interrupt\n", pciDevice.device.deviceName)
+            #kprintf("xhci: %s: Failed to find interrupt\n", pciDevice.deviceName)
             return nil
         }
         guard let pciIO = pciDevice.ioRegionFor(barIdx: 0), pciIO.bar.isMemory else {
@@ -111,11 +111,10 @@ final class HCD_XHCI: DeviceDriver {
 
         // Allocator for other buffers and device contexts that get allocated later
         self.allocator = XHCIAllocator(capabilities)
-        super.init(driverName: "xhci", device: pciDevice.device)
+        super.init(driverName: "xhci", device: pciDevice)
         let handler = InterruptHandler(name: "xhci-hcd", handler: xhciInterrupt)
         self.interruptHandler = handler
         system.deviceManager.setIrqHandler(handler, forInterrupt: interrupt)
-        device.setDriver(self)
     }
 
 
@@ -206,7 +205,7 @@ final class HCD_XHCI: DeviceDriver {
 
         #kprint("xhci: Enabled Interrupts")
         //        deviceFunction.interruptLine = UInt8(interrupt.irq)
-        #kprint("xhci: Found HCD:", device.deviceName)
+        #kprint("xhci: Found HCD:", self.pciDevice.deviceName)
 
         let busId = system.deviceManager.usb!.nextBusId()
         let usbBus = USBBus(
@@ -223,7 +222,7 @@ final class HCD_XHCI: DeviceDriver {
         )
 
         guard let rootHubDevice = HCDRootHub(
-            device: Device(parent: self.device),
+            parent: self.pciDevice,
             bus: usbBus,
             hcd: HCDRootHub.HCDDeviceFunctions(
                 processURB: { self.processURB($0, into: $1) }

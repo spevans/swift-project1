@@ -8,29 +8,26 @@
 //  Device representing hardware identified by a _HID or _CID ACPI name,
 //  non-PCI, usually ISA or ACPI devices.
 
-final class PNPDevice: BusDevice {
+final class PNPDevice: Device {
     private(set) var resources: ISABus.Resources?
     private let acpiDeviceConfig: ACPIDeviceConfig
     let pnpName: String
     let isPCIHost: Bool
 
-    override var description: String { pnpName }
-    override var className: String { "PNPDevice" }
+    override var description: String {
+        pnpName
+    }
 
-    init?(device: Device, acpiDeviceConfig: ACPIDeviceConfig) {
-        guard device.busDevice == nil else {
-            #kprint("Device \(device) already has a busDevice")
-            return nil
-        }
+    init?(parent: Device, acpiDeviceConfig: ACPIDeviceConfig) {
         guard let pnpName = acpiDeviceConfig.hid else {
-            #kprintf("%s has no ACPI DeviceConfig or _HID for %s\n", device.deviceName,
+            #kprintf("%s has no ACPI DeviceConfig or _HID\n",
                      acpiDeviceConfig.node.fullname())
             return nil
         }
         self.acpiDeviceConfig = acpiDeviceConfig
         self.pnpName = pnpName
         self.isPCIHost = acpiDeviceConfig.isPCIHost
-        super.init(device: device, busDeviceName: "acpi-" + pnpName)
+        super.init(parent: parent, className: "PNPDevice", busDeviceName: "acpi-" + pnpName)
     }
 
     func acpiName() -> String {
@@ -84,7 +81,7 @@ final class PNPDevice: BusDevice {
 
     #if !TEST
     static func initPnpDevice(_ pnpDevice: PNPDevice) -> DeviceDriver? {
-        guard pnpDevice.device.deviceDriver == nil else { return nil }
+        guard pnpDevice.deviceDriver == nil else { return nil }
         switch pnpDevice.pnpName {
             case "PNP0100": return PIT8254(pnpDevice: pnpDevice)
             case "PNP0303": return KBD8042(pnpDevice: pnpDevice)

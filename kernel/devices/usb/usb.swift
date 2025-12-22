@@ -92,7 +92,7 @@ final class USB {
             ]
             rootPCIBus.devicesMatching(deviceMatch.span) { pciDevice in
                 #kprint("USB: Found a USB HCD", pciDevice, " progIf:", progIf)
-                guard !pciDevice.device.initialised else { return }
+                guard !pciDevice.initialised else { return }
 
                 guard pciDevice.initialise() else { return }
                 switch progIf {

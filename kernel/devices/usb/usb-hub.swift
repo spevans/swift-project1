@@ -36,9 +36,8 @@ final class USBHubDriver: DeviceDriver {
     init?(usbDevice: USBDevice, interface: USB.InterfaceDescriptor? = nil) {
         self.usbDevice = usbDevice
         self.responseBuffer = usbDevice.bus.allocateBuffer(length: 32)
-        super.init(driverName: "usb-hub", device: usbDevice.device)
+        super.init(driverName: "usb-hub", device: usbDevice)
         self.setInstanceName(to: "usb-hub-\(usbDevice.bus.busId)-\(usbDevice.address)")
-        device.setDriver(self)
     }
 
     deinit {
@@ -91,8 +90,7 @@ final class USBHubDriver: DeviceDriver {
             }
 
             #usbhubDebug("\(self)/\(portIdx) New Device speed: \(connectedSpeed)")
-            let d = Device(parent: self.device)
-            guard let newDevice = USBDevice(device: d, bus: usbDevice.bus,
+            guard let newDevice = USBDevice(parent: self.usbDevice, bus: usbDevice.bus,
                                             port: UInt8(portIdx),
                                             speed: connectedSpeed) else {
                 #kprint("usb-hub: Failed to create USBDevice")

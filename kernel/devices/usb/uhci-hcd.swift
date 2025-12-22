@@ -72,8 +72,7 @@ final class HCD_UHCI: DeviceDriver {
         self.pciDevice = pciDevice
         ioBasePort = pciIOBar.portAddress
         allocator = UHCIAllocator()
-        super.init(driverName: "uhci", device: pciDevice.device)
-        device.setDriver(self)
+        super.init(driverName: "uhci", device: pciDevice)
         self.setInstanceName(to: "uhci\(uhciNumber)")
         uhciNumber += 1
     }
@@ -84,7 +83,7 @@ final class HCD_UHCI: DeviceDriver {
 
         // Find the Interrupt
         guard let interrupt = self.pciDevice.findInterrupt() else {
-            #kprintf("UHCI: %s: Failed to find interrupt\n", device.deviceName)
+            #kprintf("UHCI: %s: Failed to find interrupt\n", self.instanceName)
             return false
         }
         deviceFunction.interruptLine = UInt8(interrupt.irq)
@@ -109,7 +108,7 @@ final class HCD_UHCI: DeviceDriver {
             statusRegister = status
         }
         hcdReset()
-        #uhciDebug("UHCI: \(device.deviceName): statusRegister after HCD Reset:", self.statusRegister)
+        #uhciDebug("UHCI: \(self.instanceName): statusRegister after HCD Reset:", self.statusRegister)
         // Restore SOF
         self.startOfFrame = savedSOF
 
@@ -152,7 +151,7 @@ final class HCD_UHCI: DeviceDriver {
         )
 
         guard let rootHubDevice = HCDRootHub(
-            device: Device(parent: self.device),
+            parent: self.pciDevice,
             bus: usbBus,
             hcd: HCDRootHub.HCDDeviceFunctions(
                 processURB: { self.processURB($0, into: $1) }
@@ -296,13 +295,13 @@ final class HCD_UHCI: DeviceDriver {
         previousFLEntries.reserveCapacity(16)
 
         let frameList = allocator.frameListPage
-        #kprint("UHCI: \(device.deviceName): Dumping frame list at:", frameList)
+        #kprint("UHCI: \(self.instanceName): Dumping frame list at:", frameList)
 
         for idx in 0..<frameList.count {
             let entry = frameList[idx]
             let address = frameList.physicalAddress + (4 * UInt32(idx))
             if previousFLEntries.contains(entry.address) { continue }
-            #kprintf("UHCI: %s: FL%3d: [0x%8.8x] %s\n", device.deviceName, idx, address, entry.description)
+            #kprintf("UHCI: %s: FL%3d: [0x%8.8x] %s\n", self.instanceName, idx, address, entry.description)
 
             var nextAddress = entry.framePointer
             var maxDepth = 32
@@ -312,12 +311,12 @@ final class HCD_UHCI: DeviceDriver {
                 let region = allocator.fromPhysical(address: address)
                 if isQH {
                     let qh = PhysQueueHead(mmioSubRegion: region)
-                    #kprintf("UHCI: %s\t [0x%8.8x] QH %s", device.deviceName, address, qh.dump(allocator: allocator))
+                    #kprintf("UHCI: %s\t [0x%8.8x] QH %s", self.instanceName, address, qh.dump(allocator: allocator))
                     isQH = qh.headLinkPointer.isQueueHead
                     nextAddress = qh.headLinkPointer.nextQHAddress
                 } else {
                     let td = PhysTransferDescriptor(mmioSubRegion: region).getTD()
-                    #kprintf("UHCI: %s\t [0x%8.8x] TD %s\n", device.deviceName, address, td.description)
+                    #kprintf("UHCI: %s\t [0x%8.8x] TD %s\n", self.instanceName, address, td.description)
                     isQH = td.linkPointer.isQueueHead
                     nextAddress = td.linkPointer.address == 0 ? nil : td.linkPointer.physAddress
                 }
@@ -352,7 +351,7 @@ final class HCD_UHCI: DeviceDriver {
             }
             sleep(milliseconds: 1)
         }
-        #uhciDebug(device.deviceName, "did not reset")
+        #uhciDebug(self.instanceName, "did not reset")
     }
 
     // USBBus functions
@@ -515,7 +514,7 @@ final class HCD_UHCI: DeviceDriver {
 
     func reset(port: Int) -> Bool {
         precondition(port < portCount)
-        #uhciDebug("\(device.deviceName): Reseting port: \(port)")
+        #uhciDebug("\(self.instanceName): Reseting port: \(port)")
 
         var mask = PortStatusControl(rawValue: 0)
         mask.portEnabled = true
@@ -528,7 +527,7 @@ final class HCD_UHCI: DeviceDriver {
         status.portReset = true
         portControl(port: port, data: status)
         sleep(milliseconds: 50)
-        #uhciDebug(device.deviceName + " port status0, ", portStatus(port: port))
+        #uhciDebug(self.instanceName + " port status0, ", portStatus(port: port))
 
         // Clear Port Reset Bit
         mask = PortStatusControl(rawValue: 0xfcb1)
@@ -536,7 +535,7 @@ final class HCD_UHCI: DeviceDriver {
         status = PortStatusControl(rawValue: status.rawValue & mask.rawValue)
         portControl(port: port, data: status)
         sleep(milliseconds: 1)
-        #uhciDebug(device.deviceName + " port status1, ", portStatus(port: port))
+        #uhciDebug(self.instanceName + " port status1, ", portStatus(port: port))
 
         // CSC bit must be clear before the enable bit is set
         status = portStatus(port: port)
@@ -557,13 +556,13 @@ final class HCD_UHCI: DeviceDriver {
 
         status = portStatus(port: port)
         let resetOK = status.portEnabled
-        #uhciDebug(device.deviceName + " Port \(port) Final status: \(status) reset", resetOK ? "OK" : "Failed")
+        #uhciDebug(self.instanceName + " Port \(port) Final status: \(status) reset", resetOK ? "OK" : "Failed")
         return resetOK
     }
 
     func portStatus(_ port: Int) -> USBHubDriver.PortStatus {
         let status = portStatus(port: port)
-        #kprintf("USB-UHCI: %s: port: %d connected: %s\n", device.deviceName, port + 1, status.currentConnectStatus)
+        #kprintf("USB-UHCI: %s: port: %d connected: %s\n", self.instanceName, port + 1, status.currentConnectStatus)
 
         let speed = status.lowSpeedDeviceAttached ? USB.Speed.lowSpeed : USB.Speed.fullSpeed
         return USBHubDriver.PortStatus(
@@ -671,16 +670,16 @@ final class HCD_UHCI: DeviceDriver {
 
 
     func registerDump() {
-        #uhciDebug(device.deviceName + " **** START registerDump")
-        #uhciDebug(device.deviceName + " cmdRegister:", self.cmdRegister)
-        #uhciDebug(device.deviceName + " statusRegister:", self.statusRegister)
-        #uhciDebug(device.deviceName + " interruptEnableRegister:", self.interruptEnableRegister)
-        #uhciDebug(device.deviceName + " FrameNumberRegister: 0x\(String(self.frameNumberRegister, radix: 16))")
-        #uhciDebug(device.deviceName + " FrameListBaseAddress: 0x\(String(self.frameListBaseAddress, radix: 16))")
-        #uhciDebug(device.deviceName + " startOfFrame:", self.startOfFrame)
-        #uhciDebug(device.deviceName + " Port0:", portStatus(port: 0))
-        #uhciDebug(device.deviceName + " Port1:", portStatus(port: 1))
-        #uhciDebug(device.deviceName + " **** END registerDump")
+        #uhciDebug(self.instanceName + " **** START registerDump")
+        #uhciDebug(self.instanceName + " cmdRegister:", self.cmdRegister)
+        #uhciDebug(self.instanceName + " statusRegister:", self.statusRegister)
+        #uhciDebug(self.instanceName + " interruptEnableRegister:", self.interruptEnableRegister)
+        #uhciDebug(self.instanceName + " FrameNumberRegister: 0x\(String(self.frameNumberRegister, radix: 16))")
+        #uhciDebug(self.instanceName + " FrameListBaseAddress: 0x\(String(self.frameListBaseAddress, radix: 16))")
+        #uhciDebug(self.instanceName + " startOfFrame:", self.startOfFrame)
+        #uhciDebug(self.instanceName + " Port0:", portStatus(port: 0))
+        #uhciDebug(self.instanceName + " Port1:", portStatus(port: 1))
+        #uhciDebug(self.instanceName + " **** END registerDump")
     }
 }
 

@@ -12,7 +12,7 @@ class HCDData {
     init() {}
 }
 
-class USBDevice: BusDevice {
+class USBDevice: Device {
     fileprivate(set) var address: UInt8 = 0 // Default Start Address when not assigned
     private(set) var maxPacketSize0: Int
     private(set) var hcdData: HCDData?   // FIXME, could be an enum but need to fix pointers in enum bug
@@ -24,18 +24,16 @@ class USBDevice: BusDevice {
     let port: UInt8         // The port of the hub this is connected to, if no upstream hub then == rootPort
     let routeString: UInt32 // The Route String to this device
     let speed: USB.Speed
-
-    override var className: String { "USBDevice" }
     var isLowSpeedDevice: Bool { speed == .lowSpeed }
 
 
     override var description: String {
-        #sprintf("Device %d.%u isUSBDevice: %s isHCDRootHub: %s",
-                 bus.busId, address, self.device.busDevice  is USBDevice, self is HCDRootHub)
+        #sprintf("USB %d.%u isHCDRootHub: %s",
+                 bus.busId, address, self is HCDRootHub)
     }
 
 
-    init?(device: Device, bus: USBBus, port: UInt8, speed: USB.Speed,
+    init?(parent: Device, bus: USBBus, port: UInt8, speed: USB.Speed,
           address: UInt8? = nil) {
         self.bus = bus
         self.port = port
@@ -52,18 +50,20 @@ class USBDevice: BusDevice {
         // for this device
         var _rootPort = port
         var _routeString: UInt32 = 0
-        var parentDevice = device.parent?.busDevice as? USBDevice
+        var parentDevice = parent as? USBDevice
         while let p = parentDevice, !(p is HCDRootHub) {
             _rootPort = p.port
             _routeString <<= 4
             _routeString |= UInt32(_rootPort & 0xf)
-            parentDevice = p.device.parent?.busDevice as? USBDevice
+            parentDevice = p.parent as? USBDevice
         }
         self.rootPort = _rootPort
         self.routeString = _routeString >> 4  // Remove the rootPort
 
-        super.init(device: device,
-                   busDeviceName: #sprintf("usbdev-%d.%u", self.bus.busId, self.address))
+        super.init(parent: parent,
+                   className: (parent is HCDRootHub) ? "USBDevice" : "HCDRootHub",
+                   busDeviceName: #sprintf("usbdev-%d.%u", self.bus.busId, self.address)
+        )
         self.hcdData = bus.hcdData?(self)
 
         #kprintf("usb-device: rootPort: %u port: %u routeString: %5.5x\n",
@@ -147,14 +147,14 @@ class USBDevice: BusDevice {
 
 
     func setAddress(_ newAddress: UInt8) -> Bool {
-        #kprintf("%s: Setting address to: %d\n", device.deviceName, newAddress)
+        #kprintf("%s: Setting address to: %d\n", self.deviceName, newAddress)
         let request = USB.ControlRequest.setAddress(address: newAddress)
         if sendControlRequest(request: request) {
             self.updateAddress(newAddress)
             sleep(milliseconds: 10) // Device may require some time before address takes effect
             return true
         }
-        #kprintf("%s: Failed to setAddress to %d\n", device.deviceName, newAddress)
+        #kprintf("%s: Failed to setAddress to %d\n", self.deviceName, newAddress)
         return false
     }
 
@@ -246,17 +246,15 @@ class USBDevice: BusDevice {
 // as well.
 final class HCDRootHub: USBDevice {
 
-    override var className: String { "HCDRootHub" }
-
     struct HCDDeviceFunctions {
         let processURB: (USB.ControlRequest, MMIOSubRegion?) -> USB.Response
     }
 
     private let hcd: HCDDeviceFunctions
 
-    init?(device: Device, bus: USBBus, hcd: HCDDeviceFunctions) {
+    init?(parent: Device, bus: USBBus, hcd: HCDDeviceFunctions) {
         self.hcd = hcd
-        super.init(device: device, bus: bus, port: 0,
+        super.init(parent: parent, bus: bus, port: 0,
                    speed: .fullSpeed, address: 1)
     }
 

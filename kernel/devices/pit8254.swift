@@ -150,7 +150,7 @@ final class PIT8254: DeviceDriver {
         self.commandPort = ports[ports.index(idx, offsetBy: 3)]
         self.irq = resources.interrupts.first ?? IRQSetting(isaIrq: 0)   // Default IRQ = 0
         #kprint("PIT8254: IRQ\(self.irq)")
-        super.init(driverName: "pit8254", device: pnpDevice.device)
+        super.init(driverName: "pit8254", device: pnpDevice)
     }
 
 
@@ -163,7 +163,6 @@ final class PIT8254: DeviceDriver {
 
         let timer = PIT8254Timer(pit: self, irq: irq)
         system.deviceManager.timer = timer
-        device.initialised = true
         self.setInstanceName(to: "pit0")
         return true
     }

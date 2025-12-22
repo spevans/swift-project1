@@ -231,7 +231,7 @@ final class KBD8042: DeviceDriver {
             return nil
         }
         #kprint("i8042:", pnpDevice.pnpName, resources)
-        super.init(driverName: "kbd8042", device: pnpDevice.device)
+        super.init(driverName: "kbd8042", device: pnpDevice)
     }
 
     override func initialise() -> Bool {
@@ -338,7 +338,6 @@ final class KBD8042: DeviceDriver {
             system.deviceManager.setIrqHandler(handler, forInterrupt: IRQSetting(isaIrq: 12))
         }
         #kprint("i8042: kbd initialised")
-        self.device.initialised = true
         system.deviceManager.keyboard = keyboard
 
         return true

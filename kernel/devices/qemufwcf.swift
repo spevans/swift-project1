@@ -17,14 +17,14 @@ final class QEMUFWCFG: DeviceDriver {
             #kprint("QEMU: Cannot get ACPI resources")
             return nil
         }
-        #kprint(pnpDevice.device, "Resources:", resources)
+        #kprint(pnpDevice, "Resources:", resources)
         guard let ioPorts = resources.ioPorts.first, ioPorts.count > 6,
               let basePort = ioPorts.first else {
             #kprint("QEMU: port range is to small:", resources.ioPorts.count)
             return nil
         }
         self.baseIOPort = basePort
-        super.init(driverName: "QEMU_FWCFG", device: pnpDevice.device)
+        super.init(driverName: "QEMU_FWCFG", device: pnpDevice)
     }
 
     override func info() -> String {
@@ -46,7 +46,6 @@ final class QEMUFWCFG: DeviceDriver {
         }
         hasDMAInterface = (features & 2) != 0
         #kprint("QEMU: DMA interface available")
-        device.initialised = true
         return true
     }
 

@@ -78,7 +78,7 @@ final class DeviceManager {
             return false
         }
 
-        guard let pnpDevice = device.busDevice as? PNPDevice else {
+        guard let pnpDevice = device as? PNPDevice else {
             return false
         }
 
@@ -89,7 +89,6 @@ final class DeviceManager {
             #kprint("\(driver) initialisation failed")
             return false
         }
-        device.setDriver(driver)
         return true
     }
 
@@ -124,7 +123,7 @@ final class DeviceManager {
             #kprint("USB initialised, looking at rest of devices")
 
             rootPCIBus.devicesMatching() { (device: PCIDevice, deviceClass: PCIDeviceClass) in
-                guard !device.device.initialised else {
+                guard !device.initialised else {
                     // TODO: initialise PCI devices
                     return
                 }
@@ -148,18 +147,14 @@ final class DeviceManager {
     private func dumpBus(_ bus: Device, depth: Int) {
         let spaces = String(repeating: " ", count: depth * 6)
         for device in bus.devices {
-            let busName = if let busdev = device.busDevice {
-                " busdev: " + busdev.busDeviceName
-            } else {
-                ""
-            }
             let driverName = if let driver = device.deviceDriver {
                 #sprintf(" driver: %s instance: %s",
                          driver.driverName, driver.instanceName)
             } else {
                 ""
             }
-            #kprint("\(spaces)+--- \(device)\(busName)\(driverName)")
+            #kprintf("%s+---- %s busdev: %s%s\n", spaces, device.deviceName,
+                     device.busDeviceName, driverName)
             if device.isBus {
                 dumpBus(device, depth: depth + 1)
             }
@@ -191,23 +186,23 @@ final class DeviceManager {
             return
         }
         var devices: [PCIDevice] = []
-        walkDeviceTree(bus: rootPCIBus.device) { device in
-            if let d = device.busDevice as? PCIDevice {
+        walkDeviceTree(bus: rootPCIBus.busDevice) { device in
+            if let d = device as? PCIDevice {
                 devices.append(d)
             }
             return true
         }
         for device in devices.sorted(by: { $0.deviceFunction < $1.deviceFunction }) {
-            #kprintf("%s => %s [%s]\n", device.device.description, device.description,
-                     device.device.deviceDriver?.description ?? "")
+            #kprintf("%s => %s [%s]\n", device.deviceName, device.description,
+                     device.deviceDriver?.description ?? "")
         }
     }
 
     func dumpPNPDevices() {
         walkDeviceTree(bus: masterBus.device) { device in
-            if let d =  device.busDevice as? PNPDevice {
-                #kprintf("%s => %s [%s]\n", d.device.description, d.description,
-                         d.device.deviceDriver?.description ?? "")
+            if let d = device as? PNPDevice {
+                #kprintf("%s => %s [%s]\n", d.deviceName, d.description,
+                         d.deviceDriver?.description ?? "")
             }
             return true
         }
@@ -215,9 +210,9 @@ final class DeviceManager {
 
     func dumpUSBDevices() {
         walkDeviceTree(bus: masterBus.device) { device in
-            if let d = device.busDevice as? USBDevice {
-                #kprintf("%s => %s [%s]\n", d.device.description, d.description,
-                         d.device.deviceDriver?.description ?? "")
+            if let d = device as? USBDevice {
+                #kprintf("%s => %s [%s]\n", d.deviceName, d.description,
+                         d.deviceDriver?.description ?? "")
             }
             return true
         }

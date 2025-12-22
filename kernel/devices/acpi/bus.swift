@@ -14,12 +14,12 @@ final class MotherBoardResource: DeviceDriver {
 
     init?(pnpDevice: PNPDevice) {
         guard let crs = pnpDevice.crs() else {
-            #kprint("\(pnpDevice.device): No valid resources found")
+            #kprint("\(pnpDevice): No valid resources found")
             return nil
         }
         self.resources = crs
-        super.init(driverName: "motherboard", device: pnpDevice.device)
-        #kprint("\(pnpDevice.device): Found \(resources.count) resources")
+        super.init(driverName: "motherboard", device: pnpDevice)
+        #kprint("\(pnpDevice): Found \(resources.count) resources")
         #kprint(pnpDevice.info())
     }
 

@@ -15,17 +15,15 @@ final class ISABus: DeviceDriver {
 
 
     init?(pciDevice: PCIDevice) {
-        let device = pciDevice.device
-        #kprint("Initialising ISABus on PCI:", device)
-        super.init(driverName: "isabus", device: device)
+        #kprint("Initialising ISABus on PCI:", pciDevice)
+        super.init(driverName: "isabus", device: pciDevice)
         self.setInstanceName(to: "isa0")
     }
 
 #if ACPI
     init?(pnpDevice: PNPDevice) {
-        let device = pnpDevice.device
-        #kprint("Initialising ISABus on PNP:", device)
-        super.init(driverName: "isabus", device: device)
+        #kprint("Initialising ISABus on PNP:", pnpDevice)
+        super.init(driverName: "isabus", device: pnpDevice)
         self.setInstanceName(to: "isa0")
     }
 #endif

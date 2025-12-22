@@ -128,7 +128,7 @@ final class HPET: DeviceDriver {
             return nil
         }
         self.hpet = _hpet
-        super.init(driverName: "hpet", device: pnpDevice.device)
+        super.init(driverName: "hpet", device: pnpDevice)
         self.setInstanceName(to: #sprintf("hpet%d", hpetNumber))
         hpetNumber += 1
     }

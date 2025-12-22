@@ -458,10 +458,10 @@ extension ACPI {
             // eg the ports on a USB Host Controller or display ports on a graphics
             // card.
             if let config = ACPIDeviceConfig(node: node) {
-                let device = Device(parent: parentDevice)
-                node.setDevice(device)
-                nameDeviceMap[name] = device
-                _ = PNPDevice(device: device, acpiDeviceConfig: config)
+                if let device = PNPDevice(parent: parentDevice, acpiDeviceConfig: config) {
+                    node.setDevice(device)
+                    nameDeviceMap[name] = device
+                }
             }
             return true
         }

@@ -97,19 +97,16 @@ private func showDevCommand(arguments: [String]) {
         #kprint("Error: No such device:", devname)
         return
     }
-    #kprint("Device:       ", devname)
-    #kprint("Parent Device:", device.parent?.description ?? "none")
+    #kprint("Device:       ", device.deviceName)
+    #kprint("Parent Device:", device.parent?.deviceName ?? "none")
+    #kprint("Class:        ", device.className)
     #kprint("isBus:        ", device.isBus)
     #kprint("enabled:      ", device.enabled)
     #kprint("initialised:  ", device.initialised)
-    if let busDevice = device.busDevice {
-        #kprint("BusDevice:    ", busDevice.description)
-        #kprint("\tClass:    ", busDevice.className)
-        if let pnpDevice = busDevice as? PNPDevice {
-            #kprint("\tACPI Node:", pnpDevice.acpiName())
-        }
-        #kprintf("\t%s\n", busDevice.info())
+    if let pnpDevice = device as? PNPDevice {
+        #kprint("\tACPI Node:", pnpDevice.acpiName())
     }
+    #kprintf("\t%s\n", device.info())
     if let driver = device.deviceDriver {
         #kprint("\nDriver:", driver.description)
         #kprint("instance:", driver.instanceName)

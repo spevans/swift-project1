@@ -9,12 +9,10 @@
  */
 
 
-final class PCIDevice: BusDevice {
+final class PCIDevice: Device {
 
     private(set) var deviceFunction: PCIDeviceFunction
     private(set) var pciIORegions: [PCI_IO_Region] = []
-
-    override var className: String { "PCIDevice" }
 
     override var description: String {
         #sprintf("PCI %2.2X:%2.2X/%u: %4.4X:%4.4X",
@@ -26,20 +24,20 @@ final class PCIDevice: BusDevice {
     }
 
 
-    init?(device: Device, deviceFunction: PCIDeviceFunction) {
+    init?(parent: Device, deviceFunction: PCIDeviceFunction) {
         guard deviceFunction.vendor != 0xffff else { return nil } // Invalid device
         self.deviceFunction = deviceFunction
         let name = #sprintf("pci%2.2X:%2.2X.%u", deviceFunction.busId,
                             deviceFunction.device,
                             deviceFunction.function)
-        super.init(device: device, busDeviceName: name)
+        super.init(parent: parent, className: "PCIDevice", busDeviceName: name)
     }
 
     func initialise() -> Bool {
         // FIXME: Should the caller be calling it directly, and should this only be called
         // by the device driver?
         self.pciIORegions = self.decodeIORegions()
-        self.device.enabled = true
+        self.enabled = true
         return true
     }
 
@@ -88,7 +86,7 @@ final class PCIDevice: BusDevice {
     }
 
     func parentPCIDevice(device: Device) -> PCIDevice? {
-        return device.parent?.busDevice as? PCIDevice
+        return device.parent as? PCIDevice
 
     }
 
@@ -114,7 +112,7 @@ final class PCIDevice: BusDevice {
             return nil
         }
         var slot = self.deviceFunction.slot
-        guard var bus = self.device.parent else {
+        guard var bus = self.parent else {
             fatalError("PCIDevice \(self) has no parent so cant find interrupr")
         }
 
@@ -122,13 +120,13 @@ final class PCIDevice: BusDevice {
               bridge == .isa {   // FIXME, add , !bus.isRootBridge test
             pin = pin.swizzle(slot: slot)
             slot = parent.deviceFunction.slot
-            bus = parent.device
+            bus = parent
         }
 
 #if !ACPI
         return nil
 #else
-        guard let itr = (bus.busDevice as? PNPDevice)?.prt() else {
+        guard let itr = (bus as? PNPDevice)?.prt() else {
             fatalError("PCI: \(bus) cant find an Interrupt Routing Table")
         }
 

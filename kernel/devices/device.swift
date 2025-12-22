@@ -5,22 +5,6 @@
 //  Copyright © 2020 Simon Evans. All rights reserved.
 //
 
-class BusDevice: CustomStringConvertible {
-    var description: String { "Generic BusDevice" }
-    var className: String { "BusDevice" }
-    let device: Device
-    var busDeviceName: String
-
-    init(device: Device, busDeviceName: String) {
-        self.device = device
-        self.busDeviceName = busDeviceName
-        device.setBusDevice(self)
-    }
-
-    func info() -> String {
-        return description
-    }
-}
 
 private var _nextDeviceId = 0
 private func nextDeviceId() -> Int {
@@ -28,42 +12,40 @@ private func nextDeviceId() -> Int {
 }
 
 
-final class Device: CustomStringConvertible {
+class Device: CustomStringConvertible {
 
     private(set) var deviceDriver: DeviceDriver?
-    private(set) var busDevice: BusDevice?
     /*unowned*/ let parent: Device?
     private(set) var devices: [Device] = []
+    let className: String
     let deviceName: String
+
+    var busDeviceName: String
+    // FIXME, need to decide what these should actually represent or if even needed
     var enabled = false
     var initialised = false
 
     var isBus: Bool { devices.count > 0 }
     var description: String { deviceName }
 
-    init(parent: Device) {
+    init(parent: Device, className: String, busDeviceName: String) {
         self.parent = parent
+        self.className = className
         self.deviceName = "dev\(nextDeviceId())"
+        self.busDeviceName = busDeviceName
+
         parent.devices.append(self)
     }
 
     init() {
         self.parent = nil
+        self.className = "GenericDevice"
         self.deviceName = "dev\(nextDeviceId())"
+        self.busDeviceName = "MasterBus"
     }
 
-    #if false
-    func initialise() -> Bool {
-        self.initialised = true
-        return false
-    }
-    #endif
-
-    func setBusDevice(_ device: BusDevice) {
-        if let busDevice = self.busDevice {
-            fatalError("busDevice already set to \(busDevice)")
-        }
-        self.busDevice = device
+    func info() -> String {
+        #sprintf("%s: Driver does not override info() method.", self.deviceName)
     }
 
     func setDriver(_ driver: DeviceDriver) {

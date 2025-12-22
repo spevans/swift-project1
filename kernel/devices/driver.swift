@@ -10,12 +10,13 @@
 class DeviceDriver: CustomStringConvertible {
     let driverName: String
     private(set) var instanceName = ""
-    let device: Device
     var description: String { driverName }
+    // Note the device itself is not held in this as it is usually a subsclass of Device
+    // so is better to hold the correct subclass to avoid lots of as! casting
 
     init(driverName: String, device: Device) {
         self.driverName = driverName
-        self.device = device
+        device.setDriver(self)
     }
 
     func initialise() -> Bool {
