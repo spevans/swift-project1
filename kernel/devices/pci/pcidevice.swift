@@ -31,15 +31,9 @@ final class PCIDevice: Device {
                             deviceFunction.device,
                             deviceFunction.function)
         super.init(parent: parent, className: "PCIDevice", busDeviceName: name)
+        self.pciIORegions = self.decodeIORegions()
     }
 
-    func initialise() -> Bool {
-        // FIXME: Should the caller be calling it directly, and should this only be called
-        // by the device driver?
-        self.pciIORegions = self.decodeIORegions()
-        self.enabled = true
-        return true
-    }
 
     override func info() -> String {
         var result = "PCI Device: \(deviceFunction)"

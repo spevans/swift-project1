@@ -102,7 +102,6 @@ private func showDevCommand(arguments: [String]) {
     #kprint("Class:        ", device.className)
     #kprint("isBus:        ", device.isBus)
     #kprint("enabled:      ", device.enabled)
-    #kprint("initialised:  ", device.initialised)
     if let pnpDevice = device as? PNPDevice {
         #kprint("\tACPI Node:", pnpDevice.acpiName())
     }
@@ -111,6 +110,8 @@ private func showDevCommand(arguments: [String]) {
         #kprint("\nDriver:", driver.description)
         #kprint("instance:", driver.instanceName)
         #kprintf("\t%s\n", driver.info())
+    } else {
+        #kprint("\nDriver: none")
     }
 }
 

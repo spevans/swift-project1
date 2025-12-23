@@ -9,7 +9,7 @@
 // https://github.com/qemu/qemu/blob/master/docs/specs/fw_cfg.txt
 
 final class QEMUFWCFG: DeviceDriver {
-    private var baseIOPort: UInt16 = 0
+    private let baseIOPort: UInt16
     private var hasDMAInterface = false
 
     init?(pnpDevice: PNPDevice) {
@@ -25,13 +25,13 @@ final class QEMUFWCFG: DeviceDriver {
         }
         self.baseIOPort = basePort
         super.init(driverName: "QEMU_FWCFG", device: pnpDevice)
+        guard self.initialise() else {
+            return nil
+        }
     }
 
-    override func info() -> String {
-        return #sprintf("baseIOPort: %x hasDMA: %s", baseIOPort, hasDMAInterface)
-    }
 
-    override func initialise() -> Bool {
+    private func initialise() -> Bool {
         let signature = readSignature()
         guard signature == "QEMU" else {
             #kprint("QEMU: Invalid signature", signature)
@@ -49,13 +49,17 @@ final class QEMUFWCFG: DeviceDriver {
         return true
     }
 
+    override func info() -> String {
+        return #sprintf("baseIOPort: %x hasDMA: %s", baseIOPort, hasDMAInterface)
+    }
 
-    func setIndex(_ index: UInt16) {
+
+    private func setIndex(_ index: UInt16) {
         let ioport = self.baseIOPort
         outw(ioport, index)
     }
 
-    func readData() -> UInt8 {
+    private func readData() -> UInt8 {
         return inb(self.baseIOPort + 1)
     }
 

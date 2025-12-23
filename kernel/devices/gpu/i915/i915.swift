@@ -122,10 +122,6 @@ final class I915: DeviceDriver {
         self.setInstanceName(to: "intel-gpu0")
     }
 
-    override func initialise() -> Bool {
-        return true
-    }
-
 
     private func showInfo() {
 
@@ -406,7 +402,7 @@ func testi915(arguments: [String]) {
     }
     rootPCIBus.devicesMatching(pciIds.span) { pciDevice in
         #kprint("Found a device at ", pciDevice.description)
-        guard let driver = I915(pciDevice: pciDevice), driver.initialise() else {
+        guard I915(pciDevice: pciDevice) != nil else {
             #kprint("Failed to initialise driver")
             return
         }

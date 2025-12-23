@@ -28,9 +28,6 @@ final class ISABus: DeviceDriver {
     }
 #endif
 
-    override func initialise() -> Bool {
-        return true
-    }
 }
 
 #if ACPI

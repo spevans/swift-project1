@@ -16,9 +16,10 @@ final class HCD_EHCI: DeviceDriver {
 
     init?(pciDevice: PCIDevice) {
 
-        guard pciDevice.deviceFunction.deviceClass == PCIDeviceClass(classCode: .serialBusController,
-                                                                    subClassCode: PCISerialBusControllerSubClass.usb.rawValue,
-                                                                    progInterface: PCIUSBProgrammingInterface.ehci.rawValue) else {
+        guard pciDevice.deviceFunction.deviceClass ==
+                PCIDeviceClass(classCode: .serialBusController,
+                               subClassCode: PCISerialBusControllerSubClass.usb.rawValue,
+                               progInterface: PCIUSBProgrammingInterface.ehci.rawValue) else {
             #kprint("EHCI: \(pciDevice) is not a EHCI Device")
             return nil
         }
@@ -41,14 +42,16 @@ final class HCD_EHCI: DeviceDriver {
         self.pciDevice = pciDevice
         let region = PhysRegion(start: PhysAddress(RawAddress(ioRegion.baseAddress)), size: UInt(ioRegion.size))
 
-        mmioRegion = mapIORegion(region: region)
+        self.mmioRegion = mapIORegion(region: region)
         #kprint("EHCI: region:", region, "mmioRegion:", mmioRegion)
         super.init(driverName: "ehci", device: pciDevice)
+        guard self.initialise() else {
+            return nil
+        }
         self.setInstanceName(to: "ehci0")
     }
 
-
-    override func initialise() -> Bool {
+    private func initialise() -> Bool {
 
         var deviceFunction = pciDevice.deviceFunction
         var pciCommand = deviceFunction.command

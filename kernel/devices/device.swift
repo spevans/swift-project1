@@ -23,7 +23,6 @@ class Device: CustomStringConvertible {
     var busDeviceName: String
     // FIXME, need to decide what these should actually represent or if even needed
     var enabled = false
-    var initialised = false
 
     var isBus: Bool { devices.count > 0 }
     var description: String { deviceName }

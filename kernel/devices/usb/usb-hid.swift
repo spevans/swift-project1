@@ -51,6 +51,9 @@ final class USBHIDDriver {
             #kprint("USB-HID: interface is not a HID")
             return nil
         }
+        guard self.initialise() else {
+            return nil
+        }
     }
 
     func initialise() -> Bool {
@@ -95,12 +98,10 @@ final class USBHIDDriver {
                 }
 
                 if let usbKeyboard = USBKeyboard(usbDevice: usbDevice, interface: interface) {
-                    if usbKeyboard.initialise() {
-                        let keyboard = Keyboard(hid: usbKeyboard.hid())
-                        #kprint("USB-HID Adding keyboard")
-                        system.deviceManager.keyboard = keyboard
-                        break
-                    }
+                    let keyboard = Keyboard(hid: usbKeyboard.hid())
+                    #kprint("USB-HID Adding keyboard")
+                    system.deviceManager.keyboard = keyboard
+                    break
                 }
                 #kprint("USB-HID Cannot initialise keyboard")
 
@@ -108,12 +109,10 @@ final class USBHIDDriver {
                 #kprint("USB-HID: Found mouse")
 
                 if let usbMouse = USBMouse(usbDevice: usbDevice, interface: interface) {
-                    if usbMouse.initialise() {
-                        let mouse = Mouse(hid: usbMouse.hid())
-                        #kprint("USB-HID Adding mouse")
-                        system.deviceManager.mouse = mouse
-                        break
-                    }
+                    let mouse = Mouse(hid: usbMouse.hid())
+                    #kprint("USB-HID Adding mouse")
+                    system.deviceManager.mouse = mouse
+                    break
                 }
                 #kprint("USB-HID Cannot initialise mouse")
 

@@ -26,44 +26,44 @@ final class MouseHID: HID {
 final class USBMouse: DeviceDriver {
     private let usbDevice: USBDevice
     private let interface: USB.InterfaceDescriptor
-    private var intrPipe: USBPipe?
-    private var physBuffer: MMIOSubRegion?
+    private let intrPipe: USBPipe
+    private let physBuffer: MMIOSubRegion
     private var prevEvent = MouseEvent()
     private var eventBuffer = CircularBuffer<HIDEvent?>(item: nil, capacity: 32)
 
 
     init?(usbDevice: USBDevice, interface: USB.InterfaceDescriptor) {
         #kprint("USB-HID: Creating USBMouse")
-        self.usbDevice = usbDevice
-        self.interface = interface
-        let device = Device(parent: usbDevice, className: "USBHIDDevice", busDeviceName: "USBMouse")
-        super.init(driverName: "usb-mouse", device: device)
-        self.setInstanceName(to: "usb-mouse0")
-    }
-
-    override func initialise() -> Bool {
         // Check the interface is valid
-        // Find the INTR endpoint
         guard let intrEndpoint = interface.endpointMatching(transferType: .interrupt) else {
-            #kprint("USB-MOU: Cant find an interrupt endpoint")
-            return false
-        }
-        // Create a pipe for the interrupt endpoint and add it to the active queues
-        guard let _intrPipe = usbDevice.allocatePipe(intrEndpoint) else {
-            #kprint("Cannot allocate Interupt pipe")
-            return false
+            #kprint("USB-MOU: Failed to find an interrupt endpoint")
+            return nil
         }
 
-        self.intrPipe = _intrPipe
-        physBuffer = _intrPipe.allocateBuffer(length: Int(intrEndpoint.maxPacketSize))
-
+        // Set idle
         let idleRequest = USBHIDDriver.setIdleRequest(for: interface, idleMs: 0)
         #kprint("USB-MOU: setIdle to 0")
         guard usbDevice.sendControlRequest(request: idleRequest) else {
-            #kprint("USB-MOU: Cannot set idleRequest")
-            return false
+            #kprint("USB-MOU: Failed to set idleRequest")
+            return nil
         }
 
+        // Find the INTR endpoint
+        guard let _intrPipe = usbDevice.allocatePipe(intrEndpoint) else {
+            #kprint("Failed to allocate Interupt pipe")
+            return nil
+        }
+        self.intrPipe = _intrPipe
+
+        // Create a pipe for the interrupt endpoint and add it to the active queues
+        self.physBuffer = _intrPipe.allocateBuffer(length: Int(intrEndpoint.maxPacketSize))
+
+        self.usbDevice = usbDevice
+        self.interface = interface
+        let device = Device(parent: usbDevice, className: "USBHIDDevice",
+                            busDeviceName: "USBMouse")
+        super.init(driverName: "usb-mouse", device: device)
+        self.setInstanceName(to: "usb-mouse0")
         let urb = USB.Request(
             usbDevice: self.usbDevice,
             transferType: .interrupt,
@@ -75,13 +75,10 @@ final class USBMouse: DeviceDriver {
             bytesToTransfer: Int(intrEndpoint.maxPacketSize)
         )
         usbDevice.bus.submitURB(urb)
-        return true
     }
 
     deinit {
-        if let intrPipe, let physBuffer  {
-            intrPipe.freeBuffer(physBuffer)
-        }
+        self.intrPipe.freeBuffer(self.physBuffer)
     }
 
     func hid() -> HID {
@@ -104,7 +101,7 @@ final class USBMouse: DeviceDriver {
 
     private func irqHandler(_ request: USB.Request, response: USB.Response) {
 
-        if let physBuffer, response.bytesTransferred >= 3, let event = MouseEvent(data: physBuffer) {
+        if response.bytesTransferred >= 3, let event = MouseEvent(data: physBuffer) {
 
             if event.leftButton != prevEvent.leftButton {
                 eventBuffer.add(event.leftButton ? .buttonDown(.BUTTON_1) : .buttonUp(.BUTTON_1))

@@ -73,12 +73,15 @@ final class HCD_UHCI: DeviceDriver {
         ioBasePort = pciIOBar.portAddress
         allocator = UHCIAllocator()
         super.init(driverName: "uhci", device: pciDevice)
+        guard self.initialise() else {
+            return nil
+        }
         self.setInstanceName(to: "uhci\(uhciNumber)")
         uhciNumber += 1
     }
 
 
-    override func initialise() -> Bool {
+    private func initialise() -> Bool {
         var deviceFunction = self.pciDevice.deviceFunction
 
         // Find the Interrupt
@@ -562,7 +565,7 @@ final class HCD_UHCI: DeviceDriver {
 
     func portStatus(_ port: Int) -> USBHubDriver.PortStatus {
         let status = portStatus(port: port)
-        #kprintf("USB-UHCI: %s: port: %d connected: %s\n", self.instanceName, port + 1, status.currentConnectStatus)
+        #kprintf("USB-UHCI: port: %d connected: %s\n", port + 1, status.currentConnectStatus)
 
         let speed = status.lowSpeedDeviceAttached ? USB.Speed.lowSpeed : USB.Speed.fullSpeed
         return USBHubDriver.PortStatus(

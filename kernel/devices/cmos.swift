@@ -47,13 +47,7 @@ final class CMOSRTC: DeviceDriver {
         }
         super.init(driverName: "cmosrtc", device: pnpDevice)
         self.setInstanceName(to: "cmos0")
-        pnpDevice.initialised = true
-    }
-
-
-    override func initialise() -> Bool {
         system.deviceManager.rtc = self
-        return true
     }
 
 

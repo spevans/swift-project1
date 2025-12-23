@@ -165,48 +165,48 @@ private let keyMap: InlineArray<232, HIDEvent.Key> = [
 final class USBKeyboard: DeviceDriver {
     private let usbDevice: USBDevice
     private let interface: USB.InterfaceDescriptor
+    private let intrPipe: USBPipe
+    private var physBuffer: MMIOSubRegion
     private var prevModifierKeys = UInt8(0)
     private var prevKeys: InlineArray<8, UInt8> = .init(repeating: 0)
     private var keys: InlineArray<8, UInt8> = .init(repeating: 0)
     // FIXME: This is accessed by the irqHandler so should NOT be a heap allocated collection
     private var buffer: [HIDEvent] = []
 
-    private var intrPipe: USBPipe?
-    private var physBuffer: MMIOSubRegion?
 
     init?(usbDevice: USBDevice, interface: USB.InterfaceDescriptor) {
         #kprint("USB-HID: Creating USBKeyboard")
-        self.usbDevice = usbDevice
-        self.interface = interface
-        self.buffer.reserveCapacity(32)
-        let device = Device(parent: usbDevice, className: "USBHIDDevice", busDeviceName: "USBKeyboard")
-        super.init(driverName: "usb-kbd", device: device)
-        self.setInstanceName(to: "usb-kbd0")
-    }
-
-    override func initialise() -> Bool {
-
         // Check the interface is valid
-        // Find the INTR endpoint
         guard let intrEndpoint = interface.endpointMatching(transferType: .interrupt) else {
-            #kprint("USB-KBD: Cant find an interrupt endpoint")
-            return false
+            #kprint("USB-KBD: Failed to find an interrupt endpoint")
+            return nil
         }
-        // Create a pipe for the interrupt endpoint and add it to the active queues
-        guard let _intrPipe = usbDevice.allocatePipe(intrEndpoint) else {
-            #kprint("Cannot allocate Interupt pipe")
-            return false
-        }
-        self.intrPipe = _intrPipe
-        physBuffer = _intrPipe.allocateBuffer(length: Int(intrEndpoint.maxPacketSize))
 
+        // Set idle
         let idleRequest = USBHIDDriver.setIdleRequest(for: interface, idleMs: 33)
         #kprint("USB-KBD: keyboard setIdle to 33")
         guard usbDevice.sendControlRequest(request: idleRequest) else {
-            #kprint("USB-HID: keyboard  Cant set idleRequest")
-            return false
+            #kprint("USB-KBD: Failed to set idleRequest")
+            return nil
         }
 
+        // Find the INTR endpoint
+        guard let _intrPipe = usbDevice.allocatePipe(intrEndpoint) else {
+            #kprint("Cannot allocate Interupt pipe")
+            return nil
+        }
+        self.intrPipe = _intrPipe
+
+        // Create a pipe for the interrupt endpoint and add it to the active queues
+        self.physBuffer = _intrPipe.allocateBuffer(length: Int(intrEndpoint.maxPacketSize))
+
+        self.usbDevice = usbDevice
+        self.interface = interface
+        self.buffer.reserveCapacity(32)
+        let device = Device(parent: usbDevice, className: "USBHIDDevice",
+                            busDeviceName: "USBKeyboard")
+        super.init(driverName: "usb-kbd", device: device)
+        self.setInstanceName(to: "usb-kbd0")
         let urb = USB.Request(
             usbDevice: self.usbDevice,
             transferType: .interrupt,
@@ -218,14 +218,10 @@ final class USBKeyboard: DeviceDriver {
             bytesToTransfer: Int(intrEndpoint.maxPacketSize)
         )
         usbDevice.bus.submitURB(urb)
-
-        return true
     }
 
     deinit {
-        if let intrPipe, let physBuffer  {
-            intrPipe.freeBuffer(physBuffer)
-        }
+        self.intrPipe.freeBuffer(self.physBuffer)
     }
 
     func hid() -> HID {
@@ -247,7 +243,6 @@ final class USBKeyboard: DeviceDriver {
     private func irqHandler(_ request: USB.Request, response: USB.Response) {
 //        #kprintf("USB-KBD: IRQ status: %s bytes: %d\n", response.status.description, response.bytesTransferred)
 
-        guard var physBuffer = physBuffer else { return }
         let byteCount = response.bytesTransferred
 //        #kprintf("usb-keyboard, byteCount: %d physBuffer.count: %d\n", byteCount, physBuffer.count)
 

@@ -35,7 +35,7 @@ do
         ;;
     --xhci-test)
         # Test with a keyboard, hub and mouse
-        ARGS="$ARGS -usb -device qemu-xhci,id=xhci -device usb-mouse,bus=xhci.0,port=1"
+        ARGS="$ARGS -usb -device qemu-xhci,id=xhci -device usb-mouse,bus=xhci.0,port=1 -device usb-kbd,bus=xhci.0,port=2"
         #ARGS="$ARGS -device qemu-xhci -device usb-mouse"
         ;;
 

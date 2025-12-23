@@ -37,14 +37,17 @@ final class USBHubDriver: DeviceDriver {
         self.usbDevice = usbDevice
         self.responseBuffer = usbDevice.bus.allocateBuffer(length: 32)
         super.init(driverName: "usb-hub", device: usbDevice)
+        guard self.initialise() else {
+            return nil
+        }
         self.setInstanceName(to: "usb-hub-\(usbDevice.bus.busId)-\(usbDevice.address)")
     }
 
     deinit {
-        usbDevice.bus.freeBuffer(responseBuffer)
+        self.usbDevice.bus.freeBuffer(self.responseBuffer)
     }
 
-    override func initialise() -> Bool {
+    private func initialise() -> Bool {
         if let _hubDescriptor = getHubDescriptor() {
             self.hubDescriptor = _hubDescriptor
         }  else {
@@ -176,7 +179,7 @@ final class USBHubDriver: DeviceDriver {
                     switch interface.interfaceClass {
                         case .hid:
                             #usbhubDebug("\(usbDevice.description) Found a HID Device, interface: \(interface)")
-                            guard let driver = USBHIDDriver(device: usbDevice, interface: interface), driver.initialise() else {
+                            guard USBHIDDriver(device: usbDevice, interface: interface) != nil else {
                                 #usbhubDebug("\(usbDevice.description) Cannot create HID Driver for device")
                                 continue
                             }
@@ -189,11 +192,9 @@ final class USBHubDriver: DeviceDriver {
             case .hub:
                 #kprint("USB: Found a hub")
                 if let driver = USBHubDriver(usbDevice: usbDevice) {
-                    if driver.initialise() {
-                        driver.enumerate()
-                    } else {
-                        #kprint("Cannot initialise hub")
-                    }
+                    driver.enumerate()
+                } else {
+                    #kprint("Failed to initialise hub")
                 }
 
             default:

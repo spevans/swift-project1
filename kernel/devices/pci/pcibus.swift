@@ -58,7 +58,7 @@ final class PCIBus: DeviceDriver {
         devices.append(device)
     }
 
-    override func initialise() -> Bool {
+    func enumerate() {
         #kprint("PCIBus.initialiseDevice:", self)
 
 #if ACPI
@@ -97,7 +97,9 @@ final class PCIBus: DeviceDriver {
             }
             addDevice(pciDevice)
             // Should a PCI bus be initialised here?
-            _ = pciDevice.deviceDriver?.initialise()
+            if let pciBus = pciDevice.deviceDriver as? PCIBus {
+                pciBus.enumerate()
+            }
         }
 
         devices.sort {
@@ -106,7 +108,6 @@ final class PCIBus: DeviceDriver {
             }
             return dev0.deviceFunction < dev1.deviceFunction
         }
-        return true
     }
 
     // FIXME: Can this be removed and rolled into the function below?
@@ -159,7 +160,7 @@ final class PCIBus: DeviceDriver {
         if let busClass = deviceFunction.deviceClass?.bridgeSubClass {
             switch busClass {
                 case .isa:
-                    guard let driver = ISABus(pciDevice: newDevice), driver.initialise() else {
+                    guard ISABus(pciDevice: newDevice) != nil else {
                         #kprint("PCI: Cant create ISA BUS")
                         return newDevice
                     }

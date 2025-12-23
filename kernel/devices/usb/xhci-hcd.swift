@@ -12,7 +12,6 @@ private var _xhciNumber = 0
 
 final class HCD_XHCI: DeviceDriver {
     private let pciDevice: PCIDevice
-    private var interruptHandler: InterruptHandler?
     private let mmioRegion: MMIORegion
     private let capabilities: CapabilityRegisters
     private var operationRegs: OperationRegisters
@@ -22,7 +21,7 @@ final class HCD_XHCI: DeviceDriver {
     private var lastCommandCompletion: EventTRB.CommandCompletion?
     private var deviceData: InlineArray<128, XHCIDeviceData?> = .init(repeating: nil)
 
-    var eventRing0: EventRing
+    private var eventRing0: EventRing
     let allocator: XHCIAllocator
     let doorbells: DoorbellRegisters
 
@@ -40,11 +39,6 @@ final class HCD_XHCI: DeviceDriver {
 
         guard pciDevice.deviceFunction.generalDevice != nil else {
             #kprint("xhci: Not a PCI generalDevice")
-            return nil
-        }
-
-        guard pciDevice.initialise() else {
-            #kprint("xhci: Failed to initialise PCI device")
             return nil
         }
 
@@ -113,12 +107,15 @@ final class HCD_XHCI: DeviceDriver {
         self.allocator = XHCIAllocator(capabilities)
         super.init(driverName: "xhci", device: pciDevice)
         let handler = InterruptHandler(name: "xhci-hcd", handler: xhciInterrupt)
-        self.interruptHandler = handler
         system.deviceManager.setIrqHandler(handler, forInterrupt: interrupt)
+        guard self.initialise() else {
+            system.deviceManager.removeIrqHandler(handler, forInterrupt: interrupt)
+            return nil
+        }
     }
 
 
-    override func initialise() -> Bool {
+    private func initialise() -> Bool {
         var deviceFunction = self.pciDevice.deviceFunction
 
         var pciCommand = deviceFunction.command

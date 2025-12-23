@@ -139,6 +139,10 @@ final class PIT8254: DeviceDriver {
             return nil
         }
         #kprint("PIT8254: init:", resources)
+        guard system.deviceManager.timer == nil else {
+            #kprint("PIT8254: System already has a timer")
+            return nil
+        }
         guard let ports = resources.ioPorts.first, ports.count > 3 else {
             #kprint("PIT8254: Requires 4 IO ports and 1 IRQ")
             return nil
@@ -151,20 +155,10 @@ final class PIT8254: DeviceDriver {
         self.irq = resources.interrupts.first ?? IRQSetting(isaIrq: 0)   // Default IRQ = 0
         #kprint("PIT8254: IRQ\(self.irq)")
         super.init(driverName: "pit8254", device: pnpDevice)
-    }
-
-
-    // FIXME, Nothing to do currently, maybe read status to check for presence of device?
-    override func initialise() -> Bool {
-        guard system.deviceManager.timer == nil else {
-            #kprint("PIT8254: System already has a timer")
-            return false
-        }
-
+        self.setInstanceName(to: "pit0")
         let timer = PIT8254Timer(pit: self, irq: irq)
         system.deviceManager.timer = timer
-        self.setInstanceName(to: "pit0")
-        return true
+        // FIXME, Nothing to do currently, maybe read status to check for presence of device?
     }
 
 

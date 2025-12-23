@@ -69,8 +69,7 @@ final class USB {
     }
 
     func addRootDevice(_ rootHubDevice: HCDRootHub) -> Bool {
-        guard let rootHubDriver = USBHubDriver(usbDevice: rootHubDevice),
-        rootHubDriver.initialise() else {
+        guard let rootHubDriver = USBHubDriver(usbDevice: rootHubDevice) else {
             #kprint("USB: Failed to add roothub")
             return false
         }
@@ -92,24 +91,19 @@ final class USB {
             ]
             rootPCIBus.devicesMatching(deviceMatch.span) { pciDevice in
                 #kprint("USB: Found a USB HCD", pciDevice, " progIf:", progIf)
-                guard !pciDevice.initialised else { return }
+                guard pciDevice.deviceDriver == nil else { return }
 
-                guard pciDevice.initialise() else { return }
                 switch progIf {
+                        // FIXME, get the HCDRootDebive from the driver and add it to the
+                        // USB core here
                     case .uhci:
-                        if let driver = HCD_UHCI(pciDevice: pciDevice) {
-                            _ = driver.initialise()
-                        }
+                        _ = HCD_UHCI(pciDevice: pciDevice)
 
                     case .ehci:
-                        if let driver = HCD_EHCI(pciDevice: pciDevice) {
-                            _ = driver.initialise()
-                        }
+                        _ = HCD_EHCI(pciDevice: pciDevice)
 
                     case .xhci:
-                            if let driver = HCD_XHCI(pciDevice: pciDevice) {
-                            _ = driver.initialise()
-                        }
+                        _ = HCD_XHCI(pciDevice: pciDevice)
 
                     default: break
                 }

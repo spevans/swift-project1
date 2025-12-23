@@ -84,10 +84,11 @@ final class DeviceManager {
 
         guard isPCIHost == pnpDevice.isPCIHost else { return false }
         if let matchingId = matchingId, !pnpDevice.matchesId(matchingId) { return false }
-        guard let driver = PNPDevice.initPnpDevice(pnpDevice) else { return false }
-        guard driver.initialise() else {
-            #kprint("\(driver) initialisation failed")
+        guard let driver = PNPDevice.initPnpDevice(pnpDevice) else {
             return false
+        }
+        if let pciBus = driver as? PCIBus {
+            pciBus.enumerate()
         }
         return true
     }
@@ -123,7 +124,7 @@ final class DeviceManager {
             #kprint("USB initialised, looking at rest of devices")
 
             rootPCIBus.devicesMatching() { (device: PCIDevice, deviceClass: PCIDeviceClass) in
-                guard !device.initialised else {
+                guard device.deviceDriver == nil else {
                     // TODO: initialise PCI devices
                     return
                 }
@@ -137,6 +138,10 @@ final class DeviceManager {
 
     func setIrqHandler(_ handler: InterruptHandler, forInterrupt: IRQSetting) {
         interruptManager.setIrqHandler(handler, forInterrupt: forInterrupt)
+    }
+
+    func removeIrqHandler(_ handler: InterruptHandler, forInterrupt: IRQSetting) {
+        interruptManager.removeIrqHandler(handler, forInterrupt: forInterrupt)
     }
 
     func enableIRQs(){

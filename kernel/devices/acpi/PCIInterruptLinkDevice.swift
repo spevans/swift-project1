@@ -31,12 +31,15 @@ final class PCIInterruptLinkDevice: DeviceDriver {
 
         self.pnpDevice = pnpDevice
         super.init(driverName: "pci-int-link", device: pnpDevice)
+        guard self.initialise() else {
+            return nil
+        }
         self.setInstanceName(to: "pciint\(uidValue)")
     }
 
     // FIXME: Maybe select a better IRQ to use to balance them out better or make
     // .irq into a function to do lazy irq allocation
-    override func initialise() -> Bool {
+    private func initialise() -> Bool {
         guard var crs = self.pnpDevice.crs() else {
             #kprint("PCIInterruptLinkDevice: Cant get resources")
             return false

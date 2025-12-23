@@ -117,30 +117,29 @@ private var hpetNumber = 1
 
 final class HPET: DeviceDriver {
     private let hpet: HPETTable
-    private var mmioRegion: MMIORegion = MMIORegion.invalidRegion()
+    private let mmioRegion: MMIORegion
     private(set) var irq = IRQSetting(isaIrq: 2)
 
     override var description: String { return hpet.description }
 
+    // FIXME: This should look at the avaialble IRQs from ACPI as it may specify the
+    // IRQs 0 & 8 instead of the CMOS clock using them
     init?(pnpDevice: PNPDevice) {
         guard let _hpet = system.systemTables.acpiTables.hpet else {
             #kprint("HPET: No HPET ACPI table found")
             return nil
         }
+        let region = PhysRegion(start: _hpet.gas.physicalAddress, size: 0x400)
         self.hpet = _hpet
+        self.mmioRegion = mapIORegion(region: region)
         super.init(driverName: "hpet", device: pnpDevice)
         self.setInstanceName(to: #sprintf("hpet%d", hpetNumber))
+        if self.legacyReplacementRoute {
+            self.irq = IRQSetting(isaIrq: 0)
+        }
         hpetNumber += 1
-    }
-
-    override func initialise() -> Bool {
-        let gas = hpet.gas
-        let region = PhysRegion(start: gas.physicalAddress, size: 0x400)
-        mmioRegion = mapIORegion(region: region)
-        self.irq = legacyReplacementRoute ? IRQSetting(isaIrq: 0) : IRQSetting(isaIrq: 2)
         let timer = HPETTimer(hpet: self, irq: irq)
         system.deviceManager.timer = timer
-        return true
     }
 
 

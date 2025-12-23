@@ -22,11 +22,8 @@ final class MotherBoardResource: DeviceDriver {
         #kprint("\(pnpDevice): Found \(resources.count) resources")
         #kprint(pnpDevice.info())
     }
-
-    override func initialise() -> Bool {
-        true
-    }
 }
+
 #endif
 
 final class MasterBus: CustomStringConvertible {

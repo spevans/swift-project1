@@ -232,9 +232,14 @@ final class KBD8042: DeviceDriver {
         }
         #kprint("i8042:", pnpDevice.pnpName, resources)
         super.init(driverName: "kbd8042", device: pnpDevice)
+        // FIXME: This driver should just drive the i8042 as a bus and
+        // have seperate keyboard and mouse drivers
+        guard self.initialise() else {
+            return nil
+        }
     }
 
-    override func initialise() -> Bool {
+    private func initialise() -> Bool {
 
         // 1. Flush output buffer
         if flushOutput() == false { // No device
