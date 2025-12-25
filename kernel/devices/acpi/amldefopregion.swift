@@ -1,9 +1,12 @@
-//
-//  kernel/devices/acpi/amldefopregion.swift
-//  Kernel
-//
-//  Created by Simon Evans on 14/11/2025.
-//
+/*
+ * kernel/devices/acpi/amldefopregion.swift
+ *
+ * Created by Simon Evans on 14/11/2025.
+ * Copyright © 2025 Simon Evans. All rights reserved.
+ *
+ * ACPI Operation Region.
+ *
+ */
 
 
 final class AMLDefOpRegion {
@@ -12,10 +15,13 @@ final class AMLDefOpRegion {
     private let regionType: AMLRegionSpace
     private let offsetArg: AMLTermArg
     private let lengthArg: AMLTermArg
+    private var offset: AMLInteger = 0
+    private var length: AMLInteger = 0
 
 
     var description: String {
-        return "OpRegion: " + fullname.value
+        #sprintf("OpRegion: %s: %s offset: %0x08x-%0x08x",
+                 fullname.value, regionType.description, offset, offset + length - 1)
     }
 
     init(fullname: AMLNameString, regionType: AMLRegionSpace, offset: AMLTermArg, length: AMLTermArg) throws (AMLError) {
@@ -34,6 +40,8 @@ final class AMLDefOpRegion {
               let length = try self.lengthArg.evaluate(context: &context).integerValue else {
             throw AMLError.invalidData(reason: "OpRegion \(self.fullname) offset/length do not evaluate to integers")
         }
+        self.offset = offset
+        self.length = length
         let region = try OpRegionSpace(self.fullname, self.regionType, offset, length)
         if ACPIDebug {
             #kprintf("acpi: Setting up OpRegion %s, type: %s, offset: 0x%x length: 0x%x\n", fullname.value,
@@ -43,11 +51,11 @@ final class AMLDefOpRegion {
     }
 
 
-    private func read(_ regionSpace: OpRegionSpace, atIndex index: AMLInteger, _ flags: AMLFieldFlags) throws(AMLError) -> AMLInteger {
+    private func read(_ regionSpace: borrowing OpRegionSpace, atIndex index: AMLInteger, _ flags: AMLFieldFlags) throws(AMLError) -> AMLInteger {
 
-        let byteCount = flags.fieldAccessType.accessWidth / 8
-        guard index < AMLInteger(regionSpace.length / byteCount) else {
-            throw AMLError.invalidIndex(index: index, bound: AMLInteger(regionSpace.length))
+        let byteCount = AMLInteger(flags.fieldAccessType.accessWidth / 8)
+        guard index < (self.length / byteCount) else {
+            throw AMLError.invalidIndex(index: index, bound: self.length)
         }
         let index = Int(index)
 
@@ -60,11 +68,11 @@ final class AMLDefOpRegion {
     }
 
     @inline(never)
-    private func write(_ regionSpace: OpRegionSpace, atIndex index: AMLInteger,
+    private func write(_ regionSpace: borrowing OpRegionSpace, atIndex index: AMLInteger,
                        value: AMLInteger, _ flags: AMLFieldFlags) throws(AMLError) {
-        let byteCount = flags.fieldAccessType.accessWidth / 8
-        guard index < AMLInteger(regionSpace.length / byteCount) else {
-            throw AMLError.invalidIndex(index: index, bound: AMLInteger(regionSpace.length))
+        let byteCount = AMLInteger(flags.fieldAccessType.accessWidth / 8)
+        guard index < (self.length / byteCount) else {
+            throw AMLError.invalidIndex(index: index, bound: self.length)
         }
         let index = Int(index)
 
@@ -98,11 +106,12 @@ final class AMLDefOpRegion {
         precondition(fieldBitWidth >= 1)
 
         let accessWidth = flags.fieldAccessType.accessWidth
+        let totalWidth = self.length * AMLInteger(accessWidth)
         if ACPIDebug {
             #kprintf("acpi: accessWidth: %d region length: %d totalWidth: %d ",
-                     accessWidth, regionSpace.length, regionSpace.length * accessWidth)
+                     accessWidth, self.length, totalWidth)
         }
-        precondition((bitOffset + fieldBitWidth) <= (regionSpace.length * accessWidth))
+        precondition((bitOffset + fieldBitWidth) <= totalWidth)
         var storage = AMLBitStorage()
 
         // Read an unaligned start if needed, upto accessWidth
@@ -213,7 +222,7 @@ final class AMLDefOpRegion {
 
         // Checking
         if bitsRemaining != iterator.bitsRemaining {
-            fatalError("Iterator has \(iterator.bitsRemaining) bits remaineing, expected(\(bitsRemaining))")
+            fatalError("Iterator has \(iterator.bitsRemaining) bits remaining, expected(\(bitsRemaining))")
         }
 
         // Possible non-access width tail
@@ -248,13 +257,13 @@ final class AMLDefOpRegion {
 //#if !TEST
 // FIXME: This should be in a containing struct that can hold all of the
 // AMLFieldSettings except the bitOffset/bitWidth which are per field
-private enum OpRegionSpace: CustomStringConvertible {
+private enum OpRegionSpace: ~Copyable {
     case systemMemory(SystemMemorySpace)
     case systemIO(SystemIO)
     case pciConfig(PCIConfigRegionSpace)
-    case embeddedControl(EmbeddedControlRegionSpace)
+    case embeddedControl
     case smbus
-    case systemCMOS(SystemCMOS)
+    case systemCMOS
     case pciBarTarget
     case ipmi
     case generalPurposeIO
@@ -279,7 +288,7 @@ private enum OpRegionSpace: CustomStringConvertible {
                 }
                 parent = p.parent
             }
-            throw AMLError.error(reason: "Cannot find Root PCI containing \(node.fullname())")
+            throw AMLError.error(reason: "Failed to find containing Root PCI")
         }
 
         func isPCIRoot(node: ACPI.ACPIObjectNode) -> Bool {
@@ -299,7 +308,7 @@ private enum OpRegionSpace: CustomStringConvertible {
 
         switch region {
             case .systemMemory:
-                self = .systemMemory(SystemMemorySpace(offset: offset, length: length))
+                self = .systemMemory(try SystemMemorySpace(offset: offset, length: length))
 
             case .systemIO:
                 self = .systemIO(try SystemIO(port: offset, length: length))
@@ -324,40 +333,29 @@ private enum OpRegionSpace: CustomStringConvertible {
                 let bbn = try pciRoot.baseBusNumber() ?? 0
                 // Find the PCI address for the device
                 guard let address = try addressNode?.amlObject().integerValue else {
-                    fatalError("ACPI: Failed to get _ADR for PCI_Config for node \(fullname.value)")
+                    throw AMLError.invalidSymbol(reason: "Failed to get _ADR for PCI_Config")
                 }
 
                 let configSpace = pciConfigSpace(busId: bbn,
                                                  device: UInt8(truncatingIfNeeded: address >> 16),
                                                  function: UInt8(truncatingIfNeeded: address))
                 if ACPIDebug {
-                    #kprintf("ACPI: %s: Using %s for PCI_Region\n", fullname.value, configSpace.description)
+                    #kprintf("acpi: %s: Using %s for PCI_Region\n", fullname.value, configSpace.description)
                 }
                 self = .pciConfig(PCIConfigRegionSpace(config: configSpace, offset: offset, length: length))
 
-            case .embeddedControl:
-                self = .embeddedControl(EmbeddedControlRegionSpace(offset: offset, length: length))
-
-            case .systemCMOS:
-                self = .systemCMOS(SystemCMOS(offset: offset, length: length))
-
-            case .smbus: fallthrough
-            case .pciBarTarget: fallthrough
-            case .ipmi: fallthrough
-            case .generalPurposeIO: fallthrough
-            case .genericSerialBus: fallthrough
-            case .oemDefined:
-                fatalError("\(region) region not implemented")
+            default:
+                throw AMLError.unimplementedError(reason: "OpRegionSpace: \(region.description) not implemented")
         }
     }
 
 
     var regionType: UInt8 {
         switch self {
-            case .systemMemory(_): return 0x00
-            case .systemIO(_): return 0x01
-            case .pciConfig(_): return 0x02
-            case .embeddedControl(_): return 0x03
+            case .systemMemory: return 0x00
+            case .systemIO: return 0x01
+            case .pciConfig: return 0x02
+            case .embeddedControl: return 0x03
             case .smbus: return 0x04
             case .systemCMOS: return 0x05
             case .pciBarTarget: return 0x06
@@ -370,10 +368,10 @@ private enum OpRegionSpace: CustomStringConvertible {
 
     var description: String {
         return switch self {
-            case .systemMemory(let region): region.description
-            case .systemIO(let region): region.description
-            case .pciConfig(let region): region.description
-            case .embeddedControl(let region): region.description
+            case .systemMemory: "SystemMemory"
+            case .systemIO: "SystemIO"
+            case .pciConfig: "PCIConfig"
+            case .embeddedControl: "EmbeddedControl"
             case .smbus: "SMBus"
             case .systemCMOS: "SystemCMOS"
             case .pciBarTarget: "PCIBarTarget"
@@ -385,123 +383,51 @@ private enum OpRegionSpace: CustomStringConvertible {
     }
 
 
-    var length: Int {
-        return switch self {
-            case .systemMemory(let region): region.length
-            case .systemIO(let region): region.length
-            case .pciConfig(let region): region.length
-            case .embeddedControl(let region): Int(region.length)
-            case .smbus: 0
-            case .systemCMOS(let region): Int(region.length)
-            case .pciBarTarget: 0
-            case .ipmi: 0
-            case .generalPurposeIO: 0
-            case .genericSerialBus: 0
-            case .oemDefined: 0
-        }
-    }
-
-
     func read<T: FixedWidthInteger & UnsignedInteger>(atIndex index: Int) -> T {
         return switch self {
             case .systemMemory(let region): region.read(atIndex: index)
             case .systemIO(let region): region.read(atIndex: index)
             case .pciConfig(let region): region.read(atIndex: index)
-            case .embeddedControl(let region): region.read(atIndex: index)
-            case .smbus: fatalError("OpRegionSpace.read() not implemented for smbus")
-            case .systemCMOS(let region): region.read(atIndex: index)
-            case .pciBarTarget: fatalError("OpRegionSpace.read() not implemented for pciBarTarget")
-            case .ipmi: fatalError("OpRegionSpace.read() not implemented for ipmp")
-            case .generalPurposeIO: fatalError("OpRegionSpace.read() not implemented for generalPurposeIO")
-            case .genericSerialBus: fatalError("OpRegionSpace.read() not implemented for genericSerialBus")
-            case .oemDefined: fatalError("OpRegionSpace.read() not implemented for oemDefined")
+            // This should never be reached as the OpRegionSpace will never be created
+            default: fatalError("acpi: OpRegionSpace.read() not implemented for \(self.description)")
         }
     }
 
 
     func write<T: FixedWidthInteger & UnsignedInteger>(atIndex index: Int, value: T) {
         switch self {
-            case .systemMemory(let region):
-                region.write(atIndex: index, value: value)
-            case .systemIO(let region):
-                region.write(atIndex: index, value: value)
-            case .pciConfig(let region):
-                region.write(atIndex: index, value: value)
-            case .embeddedControl(let region):
-                region.write(atIndex: index, value: value)
-            case .smbus: fatalError("OpRegionSpace.read() not implemented for smbus")
-            case .systemCMOS(let region):
-                region.write(atIndex: index, value: value)
-            case .pciBarTarget: fatalError("OpRegionSpace.read() not implemented for pciBarTarget")
-            case .ipmi: fatalError("OpRegionSpace.read() not implemented for ipmp")
-            case .generalPurposeIO: fatalError("OpRegionSpace.read() not implemented for generalPurposeIO")
-            case .genericSerialBus: fatalError("OpRegionSpace.read() not implemented for genericSerialBus")
-            case .oemDefined: fatalError("OpRegionSpace.read() not implemented for oemDefined")
+            case .systemMemory(let region): region.write(atIndex: index, value: value)
+            case .systemIO(let region): region.write(atIndex: index, value: value)
+            case .pciConfig(let region): region.write(atIndex: index, value: value)
+            // This should never be reached as the OpRegionSpace will never be created
+            default: fatalError("acpi: OpRegionSpace.write() not implemented for \(self.description)")
         }
     }
 
 }
 
-struct EmbeddedControlRegionSpace: CustomStringConvertible {
-    let offset: AMLInteger
-    let length: AMLInteger
 
-    var description: String {
-        return "EmbeddedControlRegionSpace"
-    }
-
-    func read<T: FixedWidthInteger & UnsignedInteger>(atIndex: Int) -> T {
-        fatalError("EmbeddedControlRegionSpace.read not implemented")
-    }
-
-    func write<T: FixedWidthInteger & UnsignedInteger>(atIndex: Int, value: T) {
-        fatalError("EmbeddedControlRegionSpace.write not implemented")
-    }
-}
-
-
-struct SystemCMOS: CustomStringConvertible {
-    let offset: AMLInteger
-    let length: AMLInteger
-
-    var description: String {
-        #sprintf("SystemCMOS: @ 0x%x/%x", offset, length)
-    }
-
-    func read<T: FixedWidthInteger & UnsignedInteger>(atIndex index: Int) -> T {
-        fatalError("Implement SystemCMOS.read")
-    }
-
-    func write<T: FixedWidthInteger & UnsignedInteger>(atIndex index: Int, value: T) {
-        fatalError("Implement SystemCMOS.write")
-    }
-}
-
-
-final class SystemMemorySpace: CustomStringConvertible {
-    let offset: UInt
-    let length: Int
+private struct SystemMemorySpace: ~Copyable {
     private let mmioRegion: MMIORegion
 
-    var description: String {
-        return "SystemMemory: offset: 0x\(String(offset, radix: 16)), length: \(length)"
-    }
-
-    init(offset: AMLInteger, length: AMLInteger) {
+    init(offset: AMLInteger, length: AMLInteger) throws(AMLError) {
         precondition(length > 0)
-        self.offset = UInt(offset)
-        self.length = Int(length)
+        let offset = UInt(offset)
+        let length = Int(length)
         let size = UInt(length)
-        let physAddress = PhysAddress(self.offset)
+        let physAddress = PhysAddress(offset)
         let region = PhysRegion(start: physAddress, size: size)
 
         if ACPIDebug {
             #kprintf("acpi: Adding system memory space: %s\n", region.description)
         }
-        guard var memoryRange = findMemoryRangeContaining(physAddress: physAddress) else {
-            fatalError("Failed to find memory range covering \(region)")
-        }
-        if memoryRange.type == .Hole {
+
+        let memoryRange: MemoryRange
+        if let _memoryRange = findMemoryRangeContaining(physAddress: physAddress),
+           _memoryRange.type != .Hole {
+            memoryRange = _memoryRange
+        } else {
+            #kprint("acpi: No memory range covering \(region), adding one")
             // Need to add in memory range to cover the region
             let region = PhysPageAlignedRegion(start: physAddress, size: size)
             #kprintf("acpi: Adding system memory space: %s\n", region.description)
@@ -511,7 +437,7 @@ final class SystemMemorySpace: CustomStringConvertible {
             addMemoryRange(memoryRange)
         }
         guard let (readWrite, cacheType) = memoryRange.pageSettings() else {
-            fatalError("Failed to get page settings for memory range \(memoryRange)")
+            throw AMLError.error(reason: "Failed to get page settings for memory range \(memoryRange)")
         }
 
         if ACPIDebug {
@@ -538,13 +464,8 @@ final class SystemMemorySpace: CustomStringConvertible {
 }
 
 
-struct SystemIO: CustomStringConvertible {
+private struct SystemIO {
     let port: UInt16
-    let length: Int
-
-    var description: String {
-        return "SystemIO: port: 0x\(String(port, radix: 16)), length: \(length)"
-    }
 
 
     init(port: AMLInteger, length: AMLInteger) throws(AMLError) {
@@ -555,7 +476,6 @@ struct SystemIO: CustomStringConvertible {
             throw AMLError.invalidData(reason: error)
         }
         self.port = UInt16(port)
-        self.length = Int(length)
     }
 
 
@@ -587,14 +507,10 @@ struct SystemIO: CustomStringConvertible {
 }
 
 
-struct PCIConfigRegionSpace: CustomStringConvertible {
+private struct PCIConfigRegionSpace {
     let config: PCIConfigSpace
     let offset: UInt
-    let length: Int
 
-    var description: String {
-        return "PCIConfigSpace: offset: 0x\(String(offset, radix: 16)), length: \(length)"
-    }
 
     // PCI Config space should already be mapped for MMIO by the PCI subsystem
     init(config: PCIConfigSpace, offset: AMLInteger, length: AMLInteger) {
@@ -603,9 +519,7 @@ struct PCIConfigRegionSpace: CustomStringConvertible {
 
         self.config = config
         self.offset = UInt(offset)
-        self.length = Int(length)
     }
-
 
     func read<T: FixedWidthInteger & UnsignedInteger>(atIndex index: Int) -> T {
         let bytes = T.bitWidth / 8
