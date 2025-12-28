@@ -48,6 +48,7 @@ class USBPipe {
     func freeBuffer(_ buffer: MMIOSubRegion) {}
     func submitURB(_ urb: USB.Request) {}
     func pollPipe(_ error: Bool) -> Status { .cancelled }
+    func updateMaxPacketSize(to maxPacketSize: Int) {}
 }
 
 
@@ -103,7 +104,9 @@ final class USB {
                         _ = HCD_EHCI(pciDevice: pciDevice)
 
                     case .xhci:
+                        XHCIDebug = true
                         _ = HCD_XHCI(pciDevice: pciDevice)
+                        XHCIDebug = false
 
                     default: break
                 }

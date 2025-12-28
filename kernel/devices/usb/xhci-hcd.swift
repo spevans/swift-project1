@@ -9,6 +9,7 @@
  */
 
 private var _xhciNumber = 0
+var XHCIDebug = false
 
 final class HCD_XHCI: DeviceDriver {
     private let pciDevice: PCIDevice
@@ -56,48 +57,52 @@ final class HCD_XHCI: DeviceDriver {
         self.primaryIRQ = interrupt
 
         var deviceFunction = pciDevice.deviceFunction
-        #kprintf("xhci: Assigned IRQ: %d\n", interrupt.irq)
         deviceFunction.interruptLine = UInt8(interrupt.irq)
 
-        #kprint("xhci: BAR0:", pciIO)
         let region = PhysRegion(start: PhysAddress(RawAddress(pciIO.baseAddress)), size: UInt(pciIO.size))
         self.mmioRegion = mapIORegion(region: region, cacheType: .uncacheable)
 
         // Capability Registers
         self.capabilities = CapabilityRegisters(mmioRegion)
-        #kprintf("xhci: Register Region:\t%s\n\tCapability:\t0x00000000/0x%x\n", region.description, UInt(capabilities.capLength))
+
+        if XHCIDebug {
+            #kprintf("xhci: Assigned IRQ: %d BAR0: %s\n", interrupt.irq, pciIO.description)
+            #kprintf("xhci: Register Region:\t%s\n\tCapability:\t0x00000000/0x%x\n", region.description, UInt(capabilities.capLength))
+        }
 
         // Operational Registers
         let opRegOffset = (capabilities.capLength + 3) & ~3  // Round to DWORD aligned
         let opRegSize = 0x400 + (capabilities.maxPorts * 0x10)
         let opRegRegion = mmioRegion.mmioSubRegion(offset: opRegOffset, count: opRegSize)
         self.operationRegs = OperationRegisters(mmioRegion: opRegRegion)
-        #kprintf("\tOperation:\t0x%8.8x/0x%x\n", UInt(opRegOffset), UInt(opRegSize))
 
         // Runtime Registers
         let runtimeRegRegion = mmioRegion.mmioSubRegion(offset: Int(capabilities.rtsOff), count: capabilities.runtimeRegisterSize)
         self.runtimeRegs = RuntimeRegisters(mmioRegion: runtimeRegRegion)
-        #kprintf("\tRuntime:\t0x%8.8x/0x%x\n", UInt(capabilities.rtsOff), UInt(capabilities.runtimeRegisterSize))
 
         // Doorbell Registers
         let doorbellRegOffset = Int(capabilities.doorbellOffset)
         let doorbellRegSize = (capabilities.maxSlots + 1) * MemoryLayout<UInt32>.size
         let doorbellRegion = mmioRegion.mmioSubRegion(offset: doorbellRegOffset, count: doorbellRegSize)
         self.doorbells = DoorbellRegisters(doorbellRegion)
-        #kprintf("\tDoorbells:\t0x%8.8x/0x%x\n", UInt(doorbellRegOffset), UInt(doorbellRegSize))
 
-        #kprintf("xhci: maxSlots: %d maxIntrs: %d maxPorts: %d scratchPadRestore: %s maxScratchPadBuffers: %d\n",
-                 capabilities.maxSlots,
-                 capabilities.maxIntrs,
-                 capabilities.maxPorts,
-                 capabilities.scratchPadRestore,
-                 capabilities.maxScratchPadBuffers
-        )
-        #kprintf("xhci: PageSize: %d 64Address: %s contextSize: %d\n",
-                 operationRegs.pageSize,
-                 capabilities.has64BitAddressing,
-                 capabilities.contextSize)
+        if XHCIDebug {
+            #kprintf("\tOperation:\t0x%8.8x/0x%x\n", UInt(opRegOffset), UInt(opRegSize))
+            #kprintf("\tRuntime:\t0x%8.8x/0x%x\n", UInt(capabilities.rtsOff), UInt(capabilities.runtimeRegisterSize))
+            #kprintf("\tDoorbells:\t0x%8.8x/0x%x\n", UInt(doorbellRegOffset), UInt(doorbellRegSize))
 
+            #kprintf("xhci: maxSlots: %d maxIntrs: %d maxPorts: %d scratchPadRestore: %s maxScratchPadBuffers: %d\n",
+                     capabilities.maxSlots,
+                     capabilities.maxIntrs,
+                     capabilities.maxPorts,
+                     capabilities.scratchPadRestore,
+                     capabilities.maxScratchPadBuffers
+            )
+            #kprintf("xhci: PageSize: %d 64Address: %s contextSize: %d\n",
+                     operationRegs.pageSize,
+                     capabilities.has64BitAddressing,
+                     capabilities.contextSize)
+        }
         // Create Event Ring for the primary interrupter
         let interrupter0mmio = mmioRegion.mmioSubRegion(offset: Int(capabilities.rtsOff) + 0x20, count: 0x20)
         self.eventRing0 = EventRing(interrupter: interrupter0mmio)
@@ -155,7 +160,7 @@ final class HCD_XHCI: DeviceDriver {
             timeout -= 1
         }
         guard sts.bit(0) else {
-            #kprint("xhchi: Reset failed, HCHaled not set")
+            #kprint("xhchi: Reset failed, HCHalted not set")
             return false
         }
 
@@ -211,7 +216,9 @@ final class HCD_XHCI: DeviceDriver {
             allocateBuffer: { self.allocator.allocPhysBuffer(length: $0) },
             freeBuffer: { self.allocator.freePhysBuffer($0) },
             allocatePipe: {
-                #kprint("USBBus.allocatePipe() called")
+                if XHCIDebug {
+                    #kprint("USBBus.allocatePipe() called")
+                }
                 return self.allocatePipe(device: $0, endpointDescriptor: $1)
             },
             setAddress: { usbDevice in self.setAddress(on: usbDevice) },
@@ -228,7 +235,9 @@ final class HCD_XHCI: DeviceDriver {
             #kprint("xhci: Failed to create root hub device")
             return false
         }
-        #kprint("xhci: created rootHubDevice")
+        if XHCIDebug {
+            #kprint("xhci: created rootHubDevice")
+        }
         let instance = atomic_inc(&_xhciNumber)
         self.setInstanceName(to: "xhci-hcd\(instance)")
         return system.deviceManager.usb!.addRootDevice(rootHubDevice)
@@ -258,7 +267,9 @@ final class HCD_XHCI: DeviceDriver {
 
         // Send an Address Device command and SET_ADDRESS to the device
         let trb = CommandTRB.addressDevice(deviceData.slotId, inputContext.baseAddress, blockSetAddress: false)
-        #kprint("xhci: setting address")
+        if XHCIDebug {
+            #kprint("xhci: setting address")
+        }
         guard let _ = writeCommandTRB(trb) else {
             #kprint("Failed to send command TRB")
             return nil
@@ -266,8 +277,10 @@ final class HCD_XHCI: DeviceDriver {
 
         // Read back the Device Context
         let deviceContext = deviceData.deviceContext
-        #kprintf("inputContext: %p   deviceContext address: %p\n",
-                 inputContext.baseAddress.value, deviceContext.baseAddress.value)
+        if XHCIDebug {
+            #kprintf("inputContext: %p  deviceContext address: %p\n",
+                     inputContext.baseAddress.value, deviceContext.baseAddress.value)
+        }
         var contextData: InlineArray<4, UInt32> = [0, 0, 0, 0]
         // Read from slot 0
         for idx in 0...3 {
@@ -276,7 +289,9 @@ final class HCD_XHCI: DeviceDriver {
         }
 
         let context = SlotContext(dwords: contextData)
-        #kprintf("xhci-setAddress slotState: %d address: %u\n", context.slotState, context.address)
+        if XHCIDebug {
+            #kprintf("xhci-setAddress slotState: %d address: %u\n", context.slotState, context.address)
+        }
         usbDevice.updateAddress(context.address)
         return context.address
     }
@@ -306,7 +321,6 @@ final class HCD_XHCI: DeviceDriver {
         handleEvents()
 //            eventRing0.clearInterrupterPending() -- Only needed on PCI INTx IRQ not MSI
 
-//        #kprint("*** xhci-irq: EOI")
         return true
     }
 
@@ -361,13 +375,17 @@ final class HCD_XHCI: DeviceDriver {
             }
         }
         eventRing0.updateDequeuePointer()
-//        #kprintf("xhci-hcd: Got %d events\n", eventCount)
+        if XHCIDebug {
+            #kprintf("xhci-hcd: Got %d events\n", eventCount)
+        }
     }
 
 
     func enableSlot() -> (UInt8, MMIORegion) {
         // Get slot ID from HCD and allocate a device context for it
-        #kprint("xhci: enabling slot")
+        if XHCIDebug {
+            #kprint("xhci: enabling slot")
+        }
         guard let commandCompletion = writeCommandTRB(CommandTRB.enableSlot()) else {
             fatalError("No enableSlot result")
         }
@@ -422,12 +440,8 @@ final class HCD_XHCI: DeviceDriver {
 
             return commandCompletion
         }
-#if false
-        fatalError("xhci: Timedout waiting for event")
-#else
         #kprint("xhci: Timedout waiting for event")
         return nil
-#endif
     }
 
 
@@ -463,6 +477,16 @@ final class HCD_XHCI: DeviceDriver {
         switch command {
             case "noop":
                 noopTest()
+
+            case "debug":
+                if arguments.count > 1 {
+                    if arguments[1] == "on" {
+                        XHCIDebug = true
+                    } else if arguments[1] == "off" {
+                        XHCIDebug = false
+                    }
+                }
+                #kprintf("xhci: XHCIDebug is %s\n", XHCIDebug ? "on" : "off")
 
             default:
                 #kprintf("Invalid command '%s'\n", command)
@@ -557,19 +581,25 @@ extension HCD_XHCI {
                         return okResponse
 
                     case (.SET_FEATURE, .PORT_RESET):
-                        #kprintf("xhci: Setting port(%u) reset\n", port)
+                        if XHCIDebug {
+                            #kprintf("xhci: Setting port(%u) reset\n", port)
+                        }
                         portsc |= (1 << 4)
                         operationRegs.portSC(port: port, newValue: portsc)
                         return okResponse
 
                     case (.CLEAR_FEATURE, .C_PORT_CONNECTION):
-                        #kprintf("xhci: Clearing port(%u) connection change\n", port)
+                        if XHCIDebug {
+                            #kprintf("xhci: Clearing port(%u) connection change\n", port)
+                        }
                         portsc |= (1 << 17)
                         operationRegs.portSC(port: port, newValue: portsc)
                         return okResponse
 
                     case (.CLEAR_FEATURE, .C_PORT_RESET):
-                        #kprintf("xhci: Clearing port(%u) reset change\n", port)
+                        if XHCIDebug {
+                            #kprintf("xhci: Clearing port(%u) reset change\n", port)
+                        }
                         portsc |= (1 << 21)
                         operationRegs.portSC(port: port, newValue: portsc)
                         return okResponse
@@ -589,7 +619,9 @@ extension HCD_XHCI {
 
 
     func reset(port: UInt8) -> Bool {
-        #kprintf("xhci: Resetting port %u\n", port)
+        if XHCIDebug {
+            #kprintf("xhci: Resetting port %u\n", port)
+        }
         var portsc = operationRegs.portSC(port: port)
         portsc |= (1 << 4)
         operationRegs.portSC(port: port, newValue: portsc)
@@ -597,24 +629,6 @@ extension HCD_XHCI {
     }
 
     private func portStatus(port: UInt8) -> USBHubDriver.PortStatus {
-        #if false
-        // Ignore usb3 ports on macbook for now
-        guard port != 3, port < 10 else {
-            return USBHubDriver.PortStatus(
-                deviceAttached: false,
-                isEnabled: false,
-                isSuspended: false,
-                isOverCurrent: false,
-                isInReset: false,
-                isPowered: false,
-                speed: .unknown,
-                currentConnectChange: false,
-                portEnabledChange: false,
-                suspendChange: false,
-                overCurrentIndicatorChanged: false,
-                resetComplete: false,
-            )}
-        #endif
         let status = operationRegs.portSC(port: port)
 
         let psiv = status.bits(10...13)
@@ -633,10 +647,11 @@ extension HCD_XHCI {
 
         let portProtocol = self.capabilities.supportedProtocol(port: port)
         if let portProtocol {
-       //     #kprintf("xhci: portStatus(%u)\n", port)
             for speedId in portProtocol.speedIds {
                 if speedId.psiv == psiv {
-                    #kprint("xhci: Found psiv:", speedId)
+                    if XHCIDebug {
+                        #kprint("xhci: Found psiv:", speedId)
+                    }
                     break
                 }
             }

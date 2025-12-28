@@ -74,16 +74,14 @@ extension HCD_XHCI {
         }
 
         // 6.4.1.1 - Normal TRB
-        static func normal(data: DataBuffer, tdSize: Int,
+        static func normal(_ data: DataBuffer, tdSize: Int,
                            interrupter: Int, blockInterrupt: Bool,
                            interruptOnComplete: Bool, chain: Bool,
                            noSnoop: Bool, interruptOnShortPacket: Bool,
                            evaluateNextTrb: Bool) -> TransferTRB {
 
-            let dword2 = UInt32(interrupter) << 22
-            | UInt32(tdSize & 0xf) << 17
-            | data.count
-
+            let tdSize = UInt32(min(tdSize, 31))    // Only 5 bits
+            let dword2 = UInt32(interrupter) << 22 | tdSize << 17 | data.count
             let dword3 = UInt32(blockInterrupt ? 1 << 9 : 0)
             | UInt32(data.isData ? 1 << 8 : 0)
             | UInt32(interruptOnComplete ? 1 << 5 : 0)
@@ -115,13 +113,15 @@ extension HCD_XHCI {
         // 6.4.1.2.2 Data Stage TRB
         static func dataStage(_ data: DataBuffer, tdSize: Int, interrupter: Int,
                              readData: Bool, interruptOnComplete: Bool,
-                             chain: Bool, interruptOnShort: Bool,
+                             chain: Bool, interruptOnShortPacket: Bool,
                              evaluateNextTRB: Bool) -> TransferTRB {
-            let dword2 = UInt32(interrupter << 22) | data.count
+            let tdSize = UInt32(min(tdSize, 31))    // Only 5 bits
+            let dword2 = UInt32(interrupter << 22) | tdSize << 17 | data.count
             let dword3 = UInt32(readData ? 1 << 16 : 0)
             | UInt32(data.isData ? 1 << 6 : 0)
             | UInt32(interruptOnComplete ? 1 << 5 : 0)
             | UInt32(chain ? 1 << 4 : 0)
+            | UInt32(interruptOnShortPacket ? 1 << 2 : 0)
             | UInt32(evaluateNextTRB ? 1 << 1 : 0)
 
             return TransferTRB.init(.dataStage, data.rawValue, dword2, dword3)
@@ -265,7 +265,7 @@ extension HCD_XHCI {
 
 
         // 6.4.2.1 Transfer Event TRB
-        struct Transfer {
+        struct Transfer: CustomStringConvertible {
             let dwords: InlineArray<4, UInt32>
 
             var trbPointer: UInt64? { edFlag ? nil : UInt64(dwords[0]) | UInt64(dwords[1]) << 32 }
@@ -278,6 +278,17 @@ extension HCD_XHCI {
             var trbType: TRBType? { TRBType(rawValue: trbTypeValue) }
             var endpointId: Int { dwords[3].bits(16...20) }
             var slotId: UInt8 { UInt8(dwords[3].bits(24...31)) }
+
+            var description: String {
+                #sprintf("cc: %d trbp: %p ed: %p ttlen: %u trbt: %d ep: %d sl: %u",
+                         completionCode,
+                         trbPointer ?? 0,
+                         eventData ?? 0,
+                         trbTransferLength,
+                         trbTypeValue,
+                         endpointId,
+                         slotId)
+            }
 
             init(dwords: InlineArray<4, UInt32>) {
                 self.dwords = dwords
@@ -480,6 +491,17 @@ extension HCD_XHCI {
                 UInt32(addr.value >> 32),
                 0,
                 UInt32(slotId) << 24 | UInt32(deconfigure ? 1 << 9 : 0)
+            ])
+        }
+
+        // Section 6.4.3.6
+        static func evaluateContext(_ slotId: UInt8,
+                                    _ addr: PhysAddress) -> CommandTRB {
+            .init(.evaluateContext, dwords: [
+                UInt32(truncatingIfNeeded: addr.value),
+                UInt32(addr.value >> 32),
+                0,
+                UInt32(slotId) << 24
             ])
         }
     }

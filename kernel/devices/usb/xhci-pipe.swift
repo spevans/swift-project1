@@ -7,7 +7,8 @@
 
 extension HCD_XHCI {
 
-    // Section 4.5.2
+    // Section 4.5.2 - The initialisers set the fields of an Input Slot Context data structure
+    // when it is used for a specific command
     struct SlotContext {
         private(set) var dwords: InlineArray<4, UInt32>
 
@@ -53,7 +54,7 @@ extension HCD_XHCI {
                        0]
         }
 
-        // Evaluate Context Command
+        // Evaluate Context Command - Section 6.4.3.6
         init(maxExitLatency: Int, interrupter: Int) {
             dwords = [0, UInt32(maxExitLatency), UInt32(interrupter) << 22, 0]
         }
@@ -95,7 +96,9 @@ extension HCD_XHCI {
         }
         let pipe = XHCIPipe(usbDevice: device, endpointDescriptor: endpointDescriptor, deviceData)
         if let pipe {
-            #kprintf("xhci-pipe: Adding new pipe for epId: %d pipeIdx: %d\n", pipe.epContextSlot, pipeIdx)
+            if XHCIDebug {
+                #kprintf("xhci-pipe: Adding new pipe for epId: %d pipeIdx: %d\n", pipe.epContextSlot, pipeIdx)
+            }
             deviceData.pipes[pipe.epContextSlot] = pipe
         }
         return pipe
@@ -107,19 +110,22 @@ fileprivate extension HCD_XHCI {
         private let deviceData: XHCIDeviceData
         private var urb: USB.Request?
         private var transferRing: ProducerRing<TransferTRB>
+        private var inputContext: MMIORegion
         let epContextSlot: Int
 
 
         init?(usbDevice: USBDevice, endpointDescriptor: USB.EndpointDescriptor,
               _ deviceData: XHCIDeviceData) {
             self.deviceData = deviceData
-//            self.transferRing = MMIORegion(allocIOPage())
             self.transferRing = ProducerRing()
 
             let direction = endpointDescriptor.direction == .hostToDevice ? 0 : 1
             self.epContextSlot = Int(endpointDescriptor.endpoint) == 0 ? 1 : (Int(endpointDescriptor.endpoint) * 2) + direction
-            #kprintf("xhci-pipe: direction: %d endpointDescriptor.endpoint: %d epContextSlot: %d\n",
-                     direction, Int(endpointDescriptor.endpoint), epContextSlot)
+            if XHCIDebug {
+                #kprintf("xhci-pipe: direction: %d endpointDescriptor.endpoint: %d epContextSlot: %d\n",
+                         direction, Int(endpointDescriptor.endpoint), epContextSlot)
+            }
+            self.inputContext = deviceData.inputDeviceContext()
 
             super.init(endpointDescriptor: endpointDescriptor)
 
@@ -144,11 +150,12 @@ fileprivate extension HCD_XHCI {
              *
              */
 
-            #kprint("xhci-pipe: opening pipe for endpoint:", endpointDescriptor)
-            if endpointDescriptor.endpoint == 0 {
-                #kprint("xhci-pipe: Allocating control endpoint")
+            if XHCIDebug {
+                #kprint("xhci-pipe: opening pipe for endpoint:", endpointDescriptor)
+                if endpointDescriptor.endpoint == 0 {
+                    #kprint("xhci-pipe: Allocating control endpoint")
+                }
             }
-
 
             /*
              * Configure the input device context. This context is composed of 33 contexts.
@@ -168,9 +175,8 @@ fileprivate extension HCD_XHCI {
 
             // Input Device Context - Data sent to the xHC
             // Set Add for input context and EP context to enable slot context and Control EP0
-            let inputContext = deviceData.inputDeviceContext()
             let value = UInt32(1 << self.epContextSlot) | 1
-            inputContext.write(value: value, toByteOffset: 4)
+            self.inputContext.write(value: value, toByteOffset: 4)
 
             // Configure the slot context
             let slotCtxOffset = contextSize
@@ -185,8 +191,10 @@ fileprivate extension HCD_XHCI {
                 if let hubDriver = usbDevice.deviceDriver as? USBHubDriver {
                     // Configure endpoint as a Hub
                     // TODO: Get settings
-                    #kprintf("xhci-pipe: Configuring endpoint as hub, ports: %d\n",
-                             hubDriver.ports)
+                    if XHCIDebug {
+                        #kprintf("xhci-pipe: Configuring endpoint as hub, ports: %d\n",
+                                 hubDriver.ports)
+                    }
                     slotContext = SlotContext(contextEntries: self.epContextSlot + 1,
                                               numberOfHubPorts: UInt8(hubDriver.ports),
                                               ttThinkTime: hubDriver.hubDescriptor.ttThinkTime,
@@ -199,14 +207,16 @@ fileprivate extension HCD_XHCI {
 
             for idx in 0...3 {
                 let offset = slotCtxOffset + (idx * 4)
-                inputContext.write(value: slotContext.dwords[idx], toByteOffset: offset)
+                self.inputContext.write(value: slotContext.dwords[idx], toByteOffset: offset)
             }
 
-            #kprintf("xhci-pipe: contextSize: %d contextSlot: %d slotCtxOffet: %d\n",
-                     contextSize, contextSize, slotCtxOffset)
-            #kprintf("xhci-pipe: slotContext: %8.8x/%8.8x/%8.8x/%8.8x\n",
-                     slotContext.dwords[0], slotContext.dwords[1],
-                     slotContext.dwords[2], slotContext.dwords[3])
+            if XHCIDebug {
+                #kprintf("xhci-pipe: contextSize: %d contextSlot: %d slotCtxOffet: %d\n",
+                         contextSize, contextSize, slotCtxOffset)
+                #kprintf("xhci-pipe: slotContext: %8.8x/%8.8x/%8.8x/%8.8x\n",
+                         slotContext.dwords[0], slotContext.dwords[1],
+                         slotContext.dwords[2], slotContext.dwords[3])
+            }
 
             // Configure the endpoint context
             let epCtxOffset = (epContextSlot + 1) * contextSize // +1 to skip over input context
@@ -217,7 +227,7 @@ fileprivate extension HCD_XHCI {
                                             dequeueCycleState: true)
             for idx in 0...3 {
                 let offset = epCtxOffset + (idx * 4)
-                inputContext.write(value: epContext.dwords[idx], toByteOffset: offset)
+                self.inputContext.write(value: epContext.dwords[idx], toByteOffset: offset)
             }
 
             let slotId = deviceData.slotId
@@ -225,47 +235,29 @@ fileprivate extension HCD_XHCI {
                 // Call set address but do not allow an address to be set for now as
                 // some devices need to remain unaddressed while getting the initial
                 // device descriptor.
-                CommandTRB.addressDevice(slotId, inputContext.baseAddress, blockSetAddress: true)
+                CommandTRB.addressDevice(slotId, self.inputContext.baseAddress, blockSetAddress: true)
             } else {
-                CommandTRB.configureEndpoint(slotId, inputContext.baseAddress)
+                CommandTRB.configureEndpoint(slotId, self.inputContext.baseAddress)
             }
 
-            if endpointDescriptor.endpoint == 0 {
-                #kprintf("xhci: configuring context slot for EP0 slot: %x address: %p\n",
-                         slotId, inputContext.baseAddress)
-            } else {
-                #kprintf("xhci: configuring endpoint %d address: %p\n",
-                         endpointDescriptor.endpoint, inputContext.baseAddress)
+            if XHCIDebug {
+                if endpointDescriptor.endpoint == 0 {
+                    #kprintf("xhci-pipe: configuring context slot for EP0 slot: %x address: %p\n",
+                             slotId, self.inputContext.baseAddress)
+                } else {
+                    #kprintf("xhci-pipe: configuring endpoint %d address: %p\n",
+                             endpointDescriptor.endpoint, inputContext.baseAddress)
+                }
             }
 
             guard let commandCompletion = deviceData.hcd.writeCommandTRB(commandTrb),
                   commandCompletion.slotId == deviceData.slotId else {
-                fatalError("Failed to send command TRB or returned slotId is wrong")
+                fatalError("xhci-pipe: Failed to send command TRB or returned slotId is wrong")
             }
-            //#kprintf("xhci: Got slotId %d\n", result.slotId)
-
-            #if false
-            // Write a NO-OP as a test
-            let noopTRB = TransferTRB.noop(interrupter: 0, interruptOnComplete: true, chain: false, evaluateNextTRB: false)
-
-            #kprint("xhci-pipe: writing noopTRB")
-//            _ = writeTRB(noopTRB)
-            transferRing.addTRB(noopTRB)
-            #kprint("xhci-pipe: ringing doorbell")
-            deviceData.hcd.doorbells.ring(Int(deviceData.slotId), taskId: 0,
-                                          target: UInt8(self.epContextSlot))
-
-            if let event = waitForEventTRB(timeout: 100) {
-                #kprint("xhci-pipe: Got event")
-                EventRing.dumpTRB(event)
-            } else {
-                fatalError("xhci-pipe: No event received")
-            }
-            #endif
         }
 
         deinit {
-            // TODO: - free transfer ring
+            // TODO: - free transfer ring andinput device context
         }
 
         override func allocateBuffer(length: Int) -> MMIOSubRegion {
@@ -276,6 +268,51 @@ fileprivate extension HCD_XHCI {
             deviceData.hcd.allocator.freePhysBuffer(buffer)
         }
 
+        override func updateMaxPacketSize(to maxPacketSize: Int) {
+            // Configure the endpoint context
+            if XHCIDebug {
+                #kprintf("xhci-pipe: Updating current packet size on ep: %u to be %d\n", self.endpointDescriptor.endpoint, maxPacketSize)
+            }
+            let contextSize = deviceData.hcd.allocator.contextSize   // Either 32 or 64 bytes
+
+            guard endpointDescriptor.endpoint == 0 else {
+                fatalError("Trying to set maxPacketSize on a non-control endpoint")
+            }
+            let epCtxOffset = (self.epContextSlot + 1) * contextSize // +1 to skip over input context
+            if XHCIDebug {
+                // Readback the current packet size (should be 8) as a test for now
+                let curPacketSize: UInt16 = self.inputContext.read(fromByteOffset: epCtxOffset + 6)
+                #kprintf("xhci-pipe: Read Current max packet size from offset: %d, value is: %u\n", epCtxOffset, curPacketSize)
+                guard curPacketSize == 8 else {
+                    fatalError("xhci-pipe: Was expecting current Packet size to be 8")
+                }
+            }
+            // Update the maxPacketSize field in the endpoint context
+            self.inputContext.write(value: UInt16(maxPacketSize), toByteOffset: epCtxOffset + 6)
+
+
+            let value = UInt32(1 << self.epContextSlot) | 1
+            self.inputContext.write(value: value, toByteOffset: 4)
+
+
+            // Use maxExitLatency of 0 for now as there are no power managed devices
+            let slotContext = SlotContext(maxExitLatency: 0, interrupter: 0)
+            let slotCtxOffset = contextSize
+            for idx in 0...3 {
+                let offset = slotCtxOffset + (idx * 4)
+                self.inputContext.write(value: slotContext.dwords[idx], toByteOffset: offset)
+            }
+            let trb = CommandTRB.evaluateContext(self.deviceData.slotId,
+                                                 self.inputContext.baseAddress)
+            if XHCIDebug {
+                #kprint("xhci-pipe: Sending Evaluate context command")
+            }
+            guard let commandCompletion = deviceData.hcd.writeCommandTRB(trb),
+                  commandCompletion.slotId == deviceData.slotId else {
+                fatalError("xhci-pipe: Failed to send command TRB or returned slotId is wrong")
+            }
+        }
+
         override func submitURB(_ urb: USB.Request) {
             guard self.urb == nil else {
                 fatalError("xhci-pipe: Endpoint already processing URB")
@@ -284,7 +321,9 @@ fileprivate extension HCD_XHCI {
             self.urb = urb
             switch endpointDescriptor.transferType {
                 case .control:
-                    #kprintf("xhci-pipe: submitting URB on control endpoint: %d\n", self.epContextSlot)
+                    if XHCIDebug {
+                        #kprintf("xhci-pipe: submitting URB on control endpoint: %d\n", self.epContextSlot)
+                    }
                     self.submitControlURB(urb)
 
                 case .interrupt:
@@ -292,7 +331,7 @@ fileprivate extension HCD_XHCI {
                     self.submitInterruptURB(urb)
 
                 case .bulk, .isochronous:
-                    fatalError("Cannot process URBs for bulk/ISO yet")
+                    fatalError("xhci-pipe: Failed to process URBs for bulk/ISO yet")
             }
         }
 
@@ -300,27 +339,77 @@ fileprivate extension HCD_XHCI {
         // Called in interrupt context
         private var gotEvent = false
         fileprivate func processEventTRB(_ trb: EventTRB.Transfer) {
+            if false {
+                #kprintf("\n**xhci-pipe: event: cc: %d trbp: %p ed: %p ttlen: %u trbt: %d ep: %d sl: %u",
+                         trb.completionCode,
+                         trb.trbPointer ?? 0,
+                         trb.eventData ?? 0,
+                         trb.trbTransferLength,
+                         trb.trbTypeValue,
+                         trb.endpointId,
+                         trb.slotId)
+                if trb.completionCode != 1 {
+                    #kprintf("\n**xhci-pipe, completionCode: %d remaining bytes: %d\n",
+                             Int(trb.completionCode), Int(trb.trbTransferLength))
+                }
+            }
             guard let urb = self.urb else {
-                #kprint("xhci-pipe: Got transfer event when no URB is active")
+                #kprintf("\n**xhci-pipe: Got transfer event %d when no URB is active\n", trb.completionCode)
                 return
             }
             gotEvent = true
             self.urb = nil
-//            #kprintf("xhci-pipe, completionCode: %d remaining bytes: %d\n",
-//                     Int(trb.completionCode), Int(trb.trbTransferLength))
 
             let bytesTransferred = urb.bytesToTransfer - Int(trb.trbTransferLength)
+//            #kprintf("xhci-pipe: bytesToTransfer: %d trbTransferLength: %d bytesTransferred: %d\n",
+//                     urb.bytesToTransfer, Int(trb.trbTransferLength), bytesTransferred)
             let status: USBPipe.Status = switch trb.completionCode {
-                case 13:
-//                    #kprintf("xhci-pipe: short packet wanted: %d remaining: %d got: %d\n",
-//                             urb.bytesToTransfer, Int(trb.trbTransferLength), bytesTransferred)
+                case 1: .finished
+
+                case 6: .stalled
+
+                case 0:
+                    #kprint("xhci-pipe: Invalid completion code")
                     fallthrough
 
-                case 1: .finished
+                case 2:
+                    #kprint("xhci-pipe: databuffer error")
+                    fallthrough
+
+                case 3:
+                    #kprint("xhci-pipe: babble detected")
+                    fallthrough
+
+                case 4:
+                    #kprint("xhci-pipe: transaction error")
+                    fallthrough
+
+                case 5:
+                    #kprint("xhci-pipe: TRB error")
+                    fallthrough
+
+                case 7:
+                    #kprint("xhci-pipe: resource error")
+                    fallthrough
+
+                case 8:
+                    #kprint("xhci-pipe: bandwidth error")
+                    fallthrough
+
+                case 13:
+                    if XHCIDebug {
+                        #kprintf("\n**xhci-pipe: short packet wanted: %d remaining: %d got: %d\n",
+                                 urb.bytesToTransfer, Int(trb.trbTransferLength), bytesTransferred)
+                    }
+                    fallthrough
 
                 default: .timedout
             }
             let response = USB.Response(status: status, bytesTransferred: bytesTransferred)
+            if false {
+                #kprintf("\n**xhci-pipe: Calling completion whith status: %s bytes xfer: %d\n",
+                         status.description, bytesTransferred)
+            }
             urb.completionHandler(urb, response)
         }
 
@@ -329,67 +418,104 @@ fileprivate extension HCD_XHCI {
             // FIXME: Should just have the ControlRequest directly in the USB.Request
             guard let setup = urb.setupRequest,
                   let setupRequest = USB.ControlRequest(from: setup) else {
-                #kprint("xhci-pipe: invalid setup request packet")
+                #kprint("\n**xhci-pipe: invalid setup request packet")
                 let response = USB.Response(status: .stalled, bytesTransferred: 0)
                 urb.completionHandler(urb, response)
                 return
             }
 
             let trt: Int
-            let dataBuffer: TransferTRB.DataBuffer?
-            if let buffer = urb.buffer {
-                if urb.direction == .hostToDevice {
-                    // OUT data stage
-                    trt = 2
-                    if buffer.count <= 8 {
-                        var inlineBuffer: InlineArray<8, UInt8> = .init(repeating: 0)
-                        for idx in buffer.indices {
-                            inlineBuffer[idx] = buffer[idx]
-                        }
-                        // TODO: should we always use buffer.count or urb.bytesToTransfer
-                        dataBuffer = .data(inlineBuffer, UInt32(buffer.count))
-                    } else {
-                        dataBuffer = .address(buffer.baseAddress, UInt32(buffer.count))
-                    }
-                } else {
-                    // IN data stage
-                    trt = 3
-                    dataBuffer = .address(buffer.baseAddress, UInt32(buffer.count))
-                }
-            } else {
+            if urb.buffer == nil {
                 // No data stage
                 trt = 0
-                dataBuffer = nil
+            } else {
+                // OUT data stage = 2 IN data stage = 3
+                trt = urb.direction == .hostToDevice ? 2 : 3
             }
+
 
             // Write the first TRB with the cyclebit toggled to what it should be so the
             // xHC will not start executing the TRB until all three are inplace
             // Save the trRingOffset so that the setupTRB can be updated with the cyclebit set
             // correctly.
-//            let setupRingOffset = trRingOffset
             let setupTrb = TransferTRB.setupStage(request: setupRequest, interrupter: 0,
                                                   interruptOnComplete: false, trt: trt)
 
-//            #kprint("xhci-pipe: writing setupTRB")
             transferRing.addTRB(setupTrb, enable: false)
 
-            if let dataBuffer {
-                let dataTrb = TransferTRB.dataStage(dataBuffer, tdSize: 0, interrupter: 0,
+            var useDataTRB = true   // First TRB is Data, rest are Normal
+            if let buffer = urb.buffer {
+                let maxPacketSize0 = urb.usbDevice.maxPacketSize0
+                if XHCIDebug {
+                    #kprint("xhci-pipe: Adding data TRBs for \(urb.bytesToTransfer) bytes, dir: \(urb.direction)")
+                }
+                var bytesLeft = Int(urb.bytesToTransfer)
+                if buffer.count < Int(urb.bytesToTransfer) {
+                    fatalError("xhci-pipe: buffer.count\(buffer.count) is too small for urb.bytesToTransfer\(urb.bytesToTransfer)")
+                }
+                var bufferIndex: Int = 0
+                var totalTDs = (bytesLeft - 1) / Int(maxPacketSize0)  // Round down so last TD has 0
+                while bytesLeft > 0 {
+                    let dataBuffer: TransferTRB.DataBuffer
+                    let length = min(bytesLeft, Int(maxPacketSize0))
+                    bytesLeft -= length
+
+                    if urb.direction == .hostToDevice {
+                        // OUT data stage
+                        if length <= 8 {
+                            var inlineBuffer: InlineArray<8, UInt8> = .init(repeating: 0)
+                            for idx in 0..<length {
+                                inlineBuffer[idx] = buffer[bufferIndex + idx]
+                            }
+                            dataBuffer = .data(inlineBuffer, UInt32(length))
+                        } else {
+                            dataBuffer = .address(buffer.baseAddress + bufferIndex, UInt32(length))
+                        }
+                    } else {
+                        // IN data stage
+                        dataBuffer = .address(buffer.baseAddress + bufferIndex, UInt32(length))
+                    }
+                    let chain = bytesLeft > 0
+                    let trb: TransferTRB
+                    if useDataTRB {
+                        trb = TransferTRB.dataStage(dataBuffer, tdSize: totalTDs, interrupter: 0,
                                                     readData: trt == 3,
-                                                    interruptOnComplete: false,
-                                                    chain: false, interruptOnShort: false,
+                                                    interruptOnComplete: false, //!chain,
+                                                    chain: chain,
+                                                    interruptOnShortPacket: false,
                                                     evaluateNextTRB: true)
-//                #kprint("xhci-pipe: writing dataTRB")
-                transferRing.addTRB(dataTrb)
+                    } else {
+                        trb = TransferTRB.normal(dataBuffer, tdSize: totalTDs, interrupter: 0,
+                                                 blockInterrupt: false,
+                                                 interruptOnComplete: false, //!chain,
+                                                 chain: chain, noSnoop: false,
+                                                 interruptOnShortPacket: false,
+                                                 evaluateNextTrb: true)
+                    }
+                    let addr = transferRing.addTRB(trb)
+                    if XHCIDebug {
+                        #kprintf("xhci-pipe: Added %s TRB @ %p of address: %p length: %d tdSize: %d chain: %s 0x%8.8x 0x%8.8x 0x%8.8x 0x%8.8x\n",
+                                 useDataTRB ? "DATA  " : "NORMAL", addr.value,
+                                 buffer.baseAddress + bufferIndex, length, totalTDs, bytesLeft > 0,
+                                 trb.dwords[0], trb.dwords[1], trb.dwords[2], trb.dwords[3])
+                    }
+                    useDataTRB = false
+                    bufferIndex += length
+                    totalTDs -= 1
+                }
             }
+
 
             let statusTrb = TransferTRB.statusStage(interrupter: 0, readData: trt != 3,
                                                     interruptOnComplete: true,
                                                     chain: false, evaluateNextTRB: false)
-//            #kprint("xhci-pipe: writing statusTRB")
-            transferRing.addTRB(statusTrb)
-
+            let addr = transferRing.addTRB(statusTrb)
             gotEvent = false
+            if XHCIDebug {
+                #kprintf("xhci-pipe: Added status TRB @ %p\n", addr.value)
+                #kprint("xhci-pipe: enabling TRB and ringing doorbell")
+            }
+            memoryBarrier()
             transferRing.enableTRB()
             deviceData.hcd.doorbells.ring(Int(deviceData.slotId), taskId: 0,
                                           target: UInt8(self.epContextSlot))
@@ -399,17 +525,15 @@ fileprivate extension HCD_XHCI {
                 sleep(milliseconds: 1)
                 count -= 1
             }
+            if !gotEvent { #kprint("xhci-pipe: timedout waiting for urb") }
             // Needs to be atomic exchange
             guard let urb = self.urb else { return }
             self.urb = nil
             gotEvent = true
-            #if false
-            fatalError("xhci-pipe: timeout!")
-            #else
+            #kprint("xhci-pipe: timeout!")
             let status = USBPipe.Status.timedout
             let response = USB.Response(status: status, bytesTransferred: 0)
             urb.completionHandler(urb, response)
-            #endif
         }
 
 
@@ -418,18 +542,19 @@ fileprivate extension HCD_XHCI {
             let dataBuffer: TransferTRB.DataBuffer
             if self.endpointDescriptor.direction == .hostToDevice, urb.bytesToTransfer <= 8 {
                 var inlineBuffer: InlineArray<8, UInt8> = .init(repeating: 0)
-                for idx in buffer.indices {
+                for idx in 0..<urb.bytesToTransfer {
                     inlineBuffer[idx] = buffer[idx]
                 }
-                // TODO: should we always use buffer.count or urb.bytesToTransfer
-                dataBuffer = .data(inlineBuffer, UInt32(buffer.count))
+                // FIXME: always Use urb.bytesToTransfer and allow for multiple
+                dataBuffer = .data(inlineBuffer, UInt32(urb.bytesToTransfer))
             } else {
                 dataBuffer = .address(buffer.baseAddress, UInt32(urb.bytesToTransfer))
             }
-            let trb = TransferTRB.normal(data: dataBuffer, tdSize: 0, interrupter: 0, blockInterrupt: false,
+            let trb = TransferTRB.normal(dataBuffer, tdSize: 0, interrupter: 0, blockInterrupt: false,
                                          interruptOnComplete: true, chain: false, noSnoop: true,
                                          interruptOnShortPacket: true, evaluateNextTrb: false)
             transferRing.addTRB(trb)
+//            #kprintf("xhci-pipe: Added Interrupt TRB @ %p\n", addr.value)
             deviceData.hcd.doorbells.ring(Int(deviceData.slotId), taskId: 0,
                                           target: UInt8(self.epContextSlot))
         }
@@ -453,7 +578,9 @@ class XHCIDeviceData: HCDData {
         // Do the device setup
         (self.slotId, self.deviceContext) = hcd.enableSlot()
 
-        #kprintf("xhci-pipe: enableSlot returned slotId %d\n", self.slotId)
+        if XHCIDebug {
+            #kprintf("xhci-pipe: enableSlot returned slotId %d\n", self.slotId)
+        }
         super.init()
         hcd.addDeviceData(self, forSlot: Int(self.slotId))
     }
@@ -474,7 +601,9 @@ class XHCIDeviceData: HCDData {
     }
 
     func processTRB(_ trb: HCD_XHCI.EventTRB.Transfer, endpointId: Int) -> Bool {
-//        #kprintf("xhci-pipe: processing TRB for endpoint: %d\n", endpointId)
+        if false {
+            #kprintf("xhci-pipe: processing TRB for endpoint: %d\n", endpointId)
+        }
         guard let pipe = self.pipes[endpointId] else { return false }
         pipe.processEventTRB(trb)
         return true

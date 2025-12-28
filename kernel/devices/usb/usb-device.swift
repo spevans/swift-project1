@@ -142,6 +142,17 @@ class USBDevice: Device {
         while lastStatus == nil {
             sleep(milliseconds: 10)
         }
+
+        if lastStatus == .finished {
+            #kprint("USB-DEV sendControlRequestReadData returned finished")
+            if let buffer {
+                #kprintf("Dumping %u bytes\n", request.wLength)
+                let dump = buffer.dump(maxBytes: Int(request.wLength))
+                #kprint(dump)
+            }
+        }
+
+
         return lastStatus == .finished
     }
 
@@ -187,7 +198,8 @@ class USBDevice: Device {
                     (.highSpeed, 64),
                     (.superSpeed_gen1_x1, 64), (.superSpeed_gen1_x2, 64),
                     (.superSpeed_gen2_x1, 64), (.superSpeed_gen2_x2, 64):
-                    maxPacketSize0 = Int(descriptor.bMaxPacketSize0)
+                    self.maxPacketSize0 = Int(descriptor.bMaxPacketSize0)
+                    self.getControlPipe()?.updateMaxPacketSize(to: self.maxPacketSize0)
                 default: #kprintf("Invalid bMaxPackageSize0 %d for speed %s\n", descriptor.bMaxPacketSize0, speed.description)
             }
         }

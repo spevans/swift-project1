@@ -34,7 +34,8 @@ extension HCD_XHCI {
         }
 
         // TODO: Shrink the size of the generated code
-        mutating func addTRB(_ trb: some ProducerTRB, chain: Bool = false, enable: Bool = true) {
+        @discardableResult
+        mutating func addTRB(_ trb: some ProducerTRB, chain: Bool = false, enable: Bool = true) -> PhysAddress {
             let trRingOffset = slotIndex * trbSize
 
 //            #kprintf("xhci-pipe: Adding TRB: 0x%8.8x  0x%8.8x  0x%8.8x  0x%8.8x @ %d %p\n",
@@ -75,6 +76,7 @@ extension HCD_XHCI {
                 self.slotIndex = 0
                 self.cycle.toggle()
             }
+            return trbRing.baseAddress + UInt(trRingOffset)
         }
 
         // Enable a TRB that was previously added with the `enable` flag `false`
@@ -150,8 +152,10 @@ extension HCD_XHCI {
         mutating func nextTRB() -> EventTRB? {
             let eventRingOffset = self.slotIndex * self.trbSize
             let dword3: UInt32 = ringSegment.read(fromByteOffset: eventRingOffset + 0xC)
-//            #kprintf("xhci-ring: nextEventTRB, ringSegment: %p, slotIndex: %d  cycle: %s currentCycle: %s\n",
-//                     ringSegment.baseAddress, self.slotIndex, dword3 & 1 == 1, self.cycle)
+            if false {
+                #kprintf("xhci-ring: nextEventTRB, ringSegment: %p, slotIndex: %d  cycle: %s currentCycle: %s\n",
+                         ringSegment.baseAddress, self.slotIndex, dword3 & 1 == 1, self.cycle)
+            }
             guard dword3 & 1 == (self.cycle ? 1 : 0) else {
                 return nil
             }
@@ -161,10 +165,14 @@ extension HCD_XHCI {
                 ringSegment.read(fromByteOffset: eventRingOffset + 0x8),
                 dword3
             ]
-//            #kprintf("xhci-event: Found EventTRB @ offset %d\n", eventRingOffset)
+            if false {
+                #kprintf("xhci-event: Found EventTRB @ offset %d\n", eventRingOffset)
+            }
             self.slotIndex += 1
             if self.slotIndex > self.maxSlotIndex {
-//                #kprint("xhci-ring: event ring wrap around")
+                if XHCIDebug {
+                    #kprint("xhci-ring: event ring wrap around")
+                }
                 self.slotIndex = 0
                 self.cycle.toggle()
             }
@@ -182,8 +190,10 @@ extension HCD_XHCI {
             let eventRingOffset = self.slotIndex * self.trbSize
             let erdp = ringSegmentAddr + UInt64(eventRingOffset)
             let newErdp = erdp | 8
-//            #kprintf("xhci: eventRingOffset: %d setting event dequeue to %p\n",
-//                     eventRingOffset, newErdp)
+            if XHCIDebug {
+                #kprintf("xhci: eventRingOffset: %d setting event dequeue to %p\n",
+                         eventRingOffset, newErdp)
+            }
             setInterrupter(eventRingDequeuePointer: newErdp)
             self.unAckedEvents = 0
         }
@@ -246,7 +256,9 @@ extension HCD_XHCI {
         func interrupterPending() -> Bool {
             let imanOffset = 0
             let value: UInt32 = interrupter.read(fromByteOffset: imanOffset)
-            #kprintf("xhci: interrupterPending -> 0x%8.8x\n", value)
+            if XHCIDebug {
+                #kprintf("xhci: interrupterPending -> 0x%8.8x\n", value)
+            }
             return value.bit(0)
         }
     }

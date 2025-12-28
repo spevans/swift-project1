@@ -36,7 +36,9 @@ extension HCD_XHCI {
                 allocatedPages.append(page)
                 let spIndex = MMIORegion(page)
 
-                #kprintf("xhci: Setting up %d scratch Pad buffers", self.maxScratchPadBuffers)
+                if XHCIDebug {
+                    #kprintf("xhci: Setting up %d scratch Pad buffers", self.maxScratchPadBuffers)
+                }
                 for bufferIdx in 0..<self.maxScratchPadBuffers {
                     let page = allocIOPage()
                     allocatedPages.append(page)
@@ -47,7 +49,9 @@ extension HCD_XHCI {
                 }
                 let address = spIndex.baseAddress.value
                 self.deviceContextIndex.write(value: address, toByteOffset: 0)
-                #kprintf("xhci: Setting up scratch pad index at %p\n", address)
+                if XHCIDebug {
+                    #kprintf("xhci: Setting up scratch pad index at %p\n", address)
+                }
                 self.scratchPadIndex = spIndex
             } else {
                 self.scratchPadIndex = nil

@@ -47,16 +47,17 @@ extension HCD_XHCI {
             hcsParams2 = mmioRegion.read(fromByteOffset: 0x08)
             hcsParams3 = mmioRegion.read(fromByteOffset: 0x0c)
 
-            #kprintf("xhci: hcsParams: %8.8x %8.8x %8.8x\n", hcsParams1, hcsParams2, hcsParams3)
 
             hccParams1 = mmioRegion.read(fromByteOffset: 0x10)
             doorbellOffset = mmioRegion.read(fromByteOffset: 0x14)
             rtsOff = mmioRegion.read(fromByteOffset: 0x18)
 
-
-            #kprintf("xhci: Capabilities length: %d bytes  HCI Version: 0x%x %d.%d\n",
-                     capVersion & 0xff,
-                     hciVersion, hciVersion >> 8, hciVersion & 0xff)
+            if XHCIDebug {
+                #kprintf("xhci: hcsParams: %8.8x %8.8x %8.8x\n", hcsParams1, hcsParams2, hcsParams3)
+                #kprintf("xhci: Capabilities length: %d bytes  HCI Version: 0x%x %d.%d\n",
+                         capVersion & 0xff,
+                         hciVersion, hciVersion >> 8, hciVersion & 0xff)
+            }
 
             var _hccParams2: UInt32? = nil
             var _hccDesc = "not supported"
@@ -90,7 +91,9 @@ extension HCD_XHCI {
                 self.portMap = [:]
                 return
             }
-            #kprintf("xhci: Extended capabilities at 0x%x\n", xECPOffset)
+            if XHCIDebug {
+                #kprintf("xhci: Extended capabilities at 0x%x\n", xECPOffset)
+            }
 
 
             // TODO: Look for overlapping port ranges
@@ -108,8 +111,10 @@ extension HCD_XHCI {
                 let nextPtr = UInt(capReg.bits(8...15)) * 4
                 let regionSize = mmioRegion.regionSize - exOffset
 
-                #kprintf("xhci: Extended Capability: %d\t0x%8.8x ID: %d nextPtr: 0x%x\t capspecific: 0x%4.4x regionSize: 0x%x\n",
-                         count, capReg, capId, nextPtr, UInt(capReg.bits(16...31)), UInt(regionSize))
+                if XHCIDebug {
+                    #kprintf("xhci: Extended Capability: %d\t0x%8.8x ID: %d nextPtr: 0x%x\t capspecific: 0x%4.4x regionSize: 0x%x\n",
+                             count, capReg, capId, nextPtr, UInt(capReg.bits(16...31)), UInt(regionSize))
+                }
 
                 let subRegion = mmioRegion.mmioSubRegion(offset: exOffset, count: regionSize)
 
@@ -118,8 +123,9 @@ extension HCD_XHCI {
                     case 0x1:
                         let cap = ExtendedCapability.LegacySupport(from: subRegion)
                         self.legacySupport = cap
-                        #kprint("xhci: Found Legacy Support:")
-                        #kprint("xhci:", cap.description)
+                        if XHCIDebug {
+                            #kprint("xhci: Found Legacy Support:", cap.description)
+                        }
 
                     case 0x2:
                         let cap = ExtendedCapability.SupportedProtocol(from: subRegion)
@@ -144,12 +150,15 @@ extension HCD_XHCI {
                             }
                             portConfiguration[Int(portIdx)] = true
                         }
-                        #kprintf("Adding to portmap %u-%u, %s\n", portRange.lowerBound,
-                                 portRange.upperBound, cap.description)
+                        if XHCIDebug {
+                            #kprintf("xhci: Adding to portmap %u-%u, %s\n", portRange.lowerBound,
+                                     portRange.upperBound, cap.description)
+                        }
                         _portMap[portRange] = cap
 
+
                     default:
-                        #kprintf("Unhandled Extended Capability %d\n", capReg)
+                        #kprintf("xhci: Unhandled Extended Capability %d\n", capReg)
 
                 }
                 if nextPtr == 0 {
@@ -159,14 +168,13 @@ extension HCD_XHCI {
                 exOffset += Int(nextPtr)
             }
             self.portMap = _portMap
-            #kprintf("Have %d portMaps\n", portMap.count)
-
-            #kprintf("xhci: ERST Max: %d has64Bit: %s\n", maxEventRingSegmentTable, has64BitAddressing)
-
-            #kprintf("xhci: hccParams1: 0x%8.8x doorbell: 0x%8.8x rtsOffset: 0x%8.8x\n",
-                     hccParams1, doorbellOffset, rtsOff)
-            #kprintf("xhci: hccParams2: %s   vtiooffset: %s\n", _hccDesc, _vtioDesc)
-
+            if XHCIDebug {
+                #kprintf("xhci: Have %d portMaps\n", portMap.count)
+                #kprintf("xhci: ERST Max: %d has64Bit: %s\n", maxEventRingSegmentTable, has64BitAddressing)
+                #kprintf("xhci: hccParams1: 0x%8.8x doorbell: 0x%8.8x rtsOffset: 0x%8.8x\n",
+                         hccParams1, doorbellOffset, rtsOff)
+                #kprintf("xhci: hccParams2: %s   vtiooffset: %s\n", _hccDesc, _vtioDesc)
+            }
         }
 
         func supportedProtocol(port: UInt8) -> ExtendedCapability.SupportedProtocol? {
@@ -538,7 +546,9 @@ extension HCD_XHCI {
         func interrupterPending(_ interrupter: Int) -> Bool {
             let imanOffset = 0x20 + (32 * interrupter)
             let value: UInt32 = mmioRegion.read(fromByteOffset: imanOffset)
-            #kprintf("xhci: interrupterPending(%d) -> 0x%8.8x\n", interrupter, value)
+            if XHCIDebug {
+                #kprintf("xhci: interrupterPending(%d) -> 0x%8.8x\n", interrupter, value)
+            }
             return value.bit(0)
         }
     }
