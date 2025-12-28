@@ -1,13 +1,13 @@
-//
-//  kernel/devices/PNPDevice.swift
-//  project1
-//
-//  Created by Simon Evans on 07/06/2021.
-//  Copyright © 2021 Simon Evans. All rights reserved.
-//
-//  Device representing hardware identified by a _HID or _CID ACPI name,
-//  non-PCI, usually ISA or ACPI devices.
-
+/*
+ * kernel/devices/acpi/PNPDevice.swift
+ *
+ * Created by Simon Evans on 07/06/2021.
+ * Copyright © 2021 Simon Evans. All rights reserved.
+ *
+ * Device representing hardware identified by a _HID or _CID ACPI name,
+ * non-PCI, usually ISA or ACPI devices.
+ *
+ */
 final class PNPDevice: Device {
     private(set) var resources: ISABus.Resources?
     private let acpiDeviceConfig: ACPIDeviceConfig
@@ -69,8 +69,13 @@ final class PNPDevice: Device {
         return self.acpiDeviceConfig.matches(hidOrCid: pnpId)
     }
 
+    func matchesIds(_ pnpIds: Set<String>) -> String? {
+        return self.acpiDeviceConfig.matches(hidOrCids: pnpIds)
+    }
+
     override func info() -> String {
         var result = "isPCIHost: \(isPCIHost)"
+
         if let resources = self.crs() {
             for resource in resources {
                 result += "\n\t\(resource.description)"
@@ -84,8 +89,6 @@ final class PNPDevice: Device {
         guard pnpDevice.deviceDriver == nil else { return nil }
         switch pnpDevice.pnpName {
             case "PNP0100": return PIT8254(pnpDevice: pnpDevice)
-            case "PNP0303": return KBD8042(pnpDevice: pnpDevice)
-            case "PNP030B": return KBD8042(pnpDevice: pnpDevice)
             case "PNP0B00": return CMOSRTC(pnpDevice: pnpDevice)
             case "PNP0C0F": return PCIInterruptLinkDevice(pnpDevice: pnpDevice)
             case "QEMU0002": return QEMUFWCFG(pnpDevice: pnpDevice)

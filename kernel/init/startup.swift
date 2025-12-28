@@ -96,6 +96,10 @@ func benchmark(_ function: () -> ()) -> UInt64 {
 fileprivate func mainLoop() {
     #kprint("TASK: mainLoop task started")
     system.deviceManager.enableIRQs()
+
+    // Should be in an __init section which can iterate though all early init functions
+    init8042()
+
     system.deviceManager.initialiseDevices()
 
     let now = current_ticks()

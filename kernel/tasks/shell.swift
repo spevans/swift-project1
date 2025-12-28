@@ -212,6 +212,8 @@ private func hidInput(arguments: [String]) {
                     #kprintf("X-Axis: %d\n", value)
                 case .yAxisMovement(let value):
                     #kprintf("Y-Axis: %d\n", value)
+                case .zAxisMovement(let value):
+                    #kprintf("Z-Axis: %d\n", value)
             }
             if case .keyUp(.KEY_ESCAPE) = event { return }
         } else {

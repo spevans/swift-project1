@@ -1,12 +1,12 @@
-//
-//  ACPIDeviceConfig.swift
-//
-//  Created by Simon Evans on 17/10/2024.
-//  Copyright © 2024 Simon Evans. All rights reserved.
-//
-//  All devices found by ACPI enumeration
-//
-
+/*
+ * kernel/devices/acpi/ACPIDeviceConfig.swift
+ *
+ * Created by Simon Evans on 17/10/2024.
+ * Copyright © 2024 Simon Evans. All rights reserved.
+ *
+ * All devices found by ACPI enumeration
+ *
+ */
 
 struct ACPIDeviceConfig: CustomStringConvertible {
     let node: ACPI.ACPIObjectNode
@@ -56,6 +56,20 @@ struct ACPIDeviceConfig: CustomStringConvertible {
             return cids.contains(where: { $0 == hidOrCid})
         }
         return false
+    }
+
+    func matches(hidOrCids: Set<String>) -> String? {
+        if let hid = self.hid, hidOrCids.contains(where: { $0 == hid}) {
+            return hid
+        }
+        if let cids = self.cids {
+            for cid in cids {
+                if hidOrCids.contains(where: { $0 == cid }) {
+                    return cid
+                }
+            }
+        }
+        return nil
     }
 
     func crs() -> [AMLResourceSetting]? {

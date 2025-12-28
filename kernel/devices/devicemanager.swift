@@ -1,11 +1,10 @@
-//
-//  kernel/devices/devicemanager.swift
-//  acpi
-//
-//  Created by Simon Evans on 07/12/2017.
-//  Copyright © 2017 Simon Evans. All rights reserved.
-//
-
+/*
+ * kernel/devices/devicemanager.swift
+ *
+ * Created by Simon Evans on 07/12/2017.
+ * Copyright © 2017 Simon Evans. All rights reserved.
+ *
+ */
 
 
 private(set) var interruptManager = InterruptManager()
@@ -234,5 +233,16 @@ final class DeviceManager {
             return true
         }
         return found
+    }
+
+    func registerPNPDriver(pnpIds: Set<String>, initialiser: (PNPDevice) -> DeviceDriver?) {
+        walkDeviceTree(bus: self.masterBus.device) { device in
+            if device.deviceDriver == nil, let pnpDevice = device as? PNPDevice,
+               let match = pnpDevice.matchesIds(pnpIds) {
+                #kprint("PNP: Found registerd driver for", match)
+                _ = initialiser(pnpDevice)
+            }
+            return true
+        }
     }
 }

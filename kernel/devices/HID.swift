@@ -1,11 +1,10 @@
-//
-//  HID.swift
-//  project1
-//
-//  Created by Simon Evans on 13/05/2025.
-//  Copyright © 2025 Simon Evans. All rights reserved.
-//
-
+/*
+ * kernel/devices/HID.swift
+ *
+ * Created by Simon Evans on 13/05/2025.
+ * Copyright © 2025 Simon Evans. All rights reserved.
+ *
+ */
 enum HIDEvent {
 
     enum Key: CustomStringConvertible {
@@ -93,6 +92,7 @@ enum HIDEvent {
         case KEY_KEYPAD_PLUS
         case KEY_KEYPAD_ENTER
         case KEY_KEYPAD_PERIOD
+        case KEY_PRINT_SCREEN
         case KEY_PAUSE
         case KEY_INSERT
         case KEY_DELETE
@@ -211,6 +211,7 @@ enum HIDEvent {
                 case .KEY_KEYPAD_PLUS: "KEY_KEYPAD_PLUS"
                 case .KEY_KEYPAD_ENTER: "KEY_KEYPAD_ENTER"
                 case .KEY_KEYPAD_PERIOD: "KEY_KEYPAD_PERIOD"
+                case .KEY_PRINT_SCREEN: "KEY_PRINT_SCREEN"
                 case .KEY_PAUSE: "KEY_PAUSE"
                 case .KEY_INSERT: "KEY_INSERT"
                 case .KEY_DELETE: "KEY_DELETE"
@@ -268,6 +269,7 @@ enum HIDEvent {
     case buttonUp(Button)
     case xAxisMovement(Int16)
     case yAxisMovement(Int16)
+    case zAxisMovement(Int16)
 }
 
 class HID {

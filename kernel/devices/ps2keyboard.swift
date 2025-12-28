@@ -10,13 +10,28 @@
  */
 
 
-final class PS2Keyboard: HID {
-    let description = "PS2Keyboard"
+private var PS2KeyboardDebug = false
+
+final class PS2KeyboardHID: HID {
+    private let keyboard: PS2Keyboard
+
+    init(keyboard: PS2Keyboard) {
+        self.keyboard = keyboard
+    }
+
+    override func readNextEvent() -> HIDEvent? {
+        return keyboard.readNextEvent()
+    }
+}
+
+final class PS2Keyboard: DeviceDriver {
+  //  override var description: String { "PS2Keyboard" }
     private var prevScanCode: UInt16 = 0
     private var makeKey = true
 
     private let E0_ScanCodes: [UInt8: HIDEvent.Key] = [
         0x11: .KEY_RIGHT_ALT,
+        0x12: .KEY_PRINT_SCREEN,         // Actually E0,12,E0,7C
         0x14: .KEY_RIGHT_CTRL,
         0x1F: .KEY_LEFT_GUI,
         0x27: .KEY_RIGHT_GUI,
@@ -30,6 +45,7 @@ final class PS2Keyboard: HID {
         0x74: .KEY_RIGHT_ARROW,
         0x75: .KEY_UP_ARROW,
         0x7A: .KEY_PAGE_DOWN,
+        0x7C: .KEY_PRINT_SCREEN,        // Actually E0,12,E0,7C
         0x7D: .KEY_PAGE_UP,
     ]
 
@@ -122,21 +138,82 @@ final class PS2Keyboard: HID {
         131: .KEY_FN_7
     ]
 
-
-    private var inputBuffer: CircularBuffer<UInt8>
-
-    init(buffer: CircularBuffer<UInt8>) {
-        inputBuffer = buffer
-        #kprint("kbd: initialised")
+    enum PS2KeyboardCommand: UInt8 {
+        case SetLeds            = 0xED
+        case Echo               = 0xEE
+        case ScanCodeSet        = 0xF0  // Used for both get and set
+        case SendID             = 0xF2
+        case SetTypematic       = 0xF3
+        case EnableScanning     = 0xF4
+        case DisableScanning    = 0xF5
+        case SetDefaultParams   = 0xF6
+        case ResendLastByte     = 0xFE
+        case ResetAndSelfTest   = 0xFF
     }
 
-    func initialise() -> Bool { true }
+
+    enum PS2KeyboardResponse: UInt8 {
+        case OverRun            = 0x00
+        case SelfTestOK         = 0xAA
+        case EchoResponse       = 0xEE
+        case KeyBreak           = 0xF0
+        case Ack                = 0xFA
+        case SelfTestFailed     = 0xFC
+        case Resend             = 0xFE
+        case KeyError           = 0xFF
+    }
 
 
-    override func readNextEvent() -> HIDEvent? {
+    private let device: PS2Device
+    private var inputBuffer = CircularBuffer<UInt8>(item: 0, capacity: 16)
+
+    init(device: PS2Device) {
+        self.device = device
+        super.init(driverName: "ps2kbd", device: device)
+        self.setInstanceName(to: "ps2kbd0")
+
+        let hid = PS2KeyboardHID(keyboard: self)
+        #if !TEST
+        system.deviceManager.keyboard = Keyboard(hid: hid)
+        #endif
+
+        if PS2KeyboardDebug {
+            #kprint("ps2keyboard: sending ResetAndSelfTest")
+        }
+        if let resp = self.device.sendCommandGetResponse(PS2KeyboardCommand.ResetAndSelfTest.rawValue) {
+            if PS2KeyboardDebug {
+                #kprintf("ps2keyboard: Reset: %2x\n", resp)
+            }
+        } else {
+            #kprint("ps2keyboard: Reset failed")
+        }
+
+        if PS2KeyboardDebug {
+            #kprint("ps2keyboard: Sending ScanCodeSet")
+        }
+        if let resp = self.device.sendCommandGetResponse(PS2KeyboardCommand.ScanCodeSet.rawValue,
+                                                         data: 0) {
+            if PS2KeyboardDebug {
+                #kprintf("ps2keyboard: Current scan code set: %d\n", resp)
+            }
+            if resp != 2 {
+                _ = self.device.sendCommand(PS2KeyboardCommand.ScanCodeSet.rawValue, data: 2)
+            }
+        } else {
+            #kprint("ps2keyboard: Failed to get scan code set")
+        }
+        device.setReceivedData(to: { self.inputBuffer.add($0) })
+        #kprint("ps2keyboard: Initialised")
+    }
+
+    deinit {
+        self.device.setReceivedData(to: nil)
+    }
+
+
+    var havePrintScreen = false
+    func readNextEvent() -> HIDEvent? {
         while let scanCode = inputBuffer.remove() {
-            //#serialPrintf("kbd: scanCode: %#02x\n", scanCode)
-
             if scanCode == 0xf0 {
                 makeKey = false
                 continue
@@ -150,12 +227,24 @@ final class PS2Keyboard: HID {
                 if prevScanCode == 0xe0 {
                     prevScanCode = 0
                     if let key = E0_ScanCodes[scanCode] {
+                        if key == .KEY_PRINT_SCREEN {
+                            // Special handling for E0,12,E0,7C PrintScreen
+                            if !havePrintScreen {
+                                havePrintScreen = true
+                                continue
+                            } else {
+                                havePrintScreen = false
+                                return keyDown ? .keyDown(key) : .keyUp(key)
+                            }
+                        } else {
+                            havePrintScreen = false
+                        }
                         return keyDown ? .keyDown(key) : .keyUp(key)
                     } else {
                         #kprintf("ps2: Unknown E0 code: %#02x\n", scanCode)
                         continue
                     }
-                // Special Handling for 0xE1, 0x14, 0x77
+                    // Special Handling for 0xE1, 0x14, 0x77 Pause
                 } else if prevScanCode == 0xe1 && scanCode == 0x14 {
                     prevScanCode = 0x100
                     continue
@@ -173,8 +262,7 @@ final class PS2Keyboard: HID {
     }
 
 
-    private func keyboardInput(keyCode: UInt8, keyDown: Bool)
-    -> HIDEvent? {
+    private func keyboardInput(keyCode: UInt8, keyDown: Bool) -> HIDEvent? {
         guard let key = keyMap[keyCode] else {
             #kprintf("ps2: Unknown keycode: %d\n", keyCode)
             return nil
