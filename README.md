@@ -15,6 +15,12 @@ Hopefully the changes will be upstreamed into the main Swift project at some poi
 
 ## Current status
 
+31/12/2025
+
+- USB XHCI fixes to improve device enumeration.
+- Fix booting from a USB flash drive.
+- Add a large font and automatically use it on high-resolution displays.
+
 30/11/2025
 
 - Update to kstdlib swift toolchain that fixes use of spare bits in pointers used for enum payload tags.
