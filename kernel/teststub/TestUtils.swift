@@ -196,3 +196,6 @@ public typealias ExceptionRegisters = UnsafeMutablePointer<exception_regs>
 func sti() {
     print("Enabling interrupts")
 }
+
+
+func sleep(milliseconds: Int) {}

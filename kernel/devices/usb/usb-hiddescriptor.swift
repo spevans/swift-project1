@@ -28,17 +28,24 @@ extension USB {
         }
 
 
-        init(from iterator: inout MMIOSubRegion.Iterator) throws(ParsingError) {
-            // Validate the initial bytes
-            guard let lengthByte = iterator.next(), let descriptorByte = iterator.next() else { throw ParsingError.packetTooShort }
-            guard Int(lengthByte) == MemoryLayout<usb_hid_descriptor>.size else { throw ParsingError.invalidLengthByte }
-            guard descriptorByte == USB.DescriptorType.HID.rawValue else { throw ParsingError.invalidDescriptor(descriptorByte) }
+        init(from iterator: inout MMIOSubRegion.Iterator, length: UInt8? = nil) throws(ParsingError) {
+
+            let bLength: UInt8
+            if let length {
+                bLength = length
+            } else {
+                // Validate the initial bytes
+                guard let lengthByte = iterator.next(), let descriptorByte = iterator.next() else { throw ParsingError.packetTooShort }
+                guard descriptorByte == USB.DescriptorType.HID.rawValue else { throw ParsingError.invalidDescriptor(descriptorByte) }
+                bLength = lengthByte
+            }
+            guard Int(bLength) == MemoryLayout<usb_hid_descriptor>.size else { throw ParsingError.invalidLengthByte }
 
             var _descriptor = usb_hid_descriptor()
             try withUnsafeMutableBytes(of: &_descriptor) { (buffer: UnsafeMutableRawBufferPointer) throws(ParsingError) -> () in
                 assert(MemoryLayout<usb_hid_descriptor>.size == buffer.count)
-                buffer[0] = lengthByte
-                buffer[1] = descriptorByte
+                buffer[0] = bLength
+                buffer[1] = USB.DescriptorType.HID.rawValue
 
                 for idx in 2..<buffer.count {
                     guard let byte = iterator.next() else { throw ParsingError.packetTooShort }

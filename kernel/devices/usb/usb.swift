@@ -79,6 +79,7 @@ final class USB {
         return true
     }
 
+    #if !TEST
     func initialiseDevices(rootPCIBus: PCIBus) {
         // Initialse the Host controllers. EHCI needs to be initialised
         // before UHCI due to the companion controller setup.
@@ -113,6 +114,7 @@ final class USB {
             }
         }
     }
+    #endif
 }
 
 

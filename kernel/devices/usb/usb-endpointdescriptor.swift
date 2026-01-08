@@ -62,6 +62,7 @@ extension USB {
         }
 
         private let descriptor: usb_standard_endpoint_descriptor
+        private(set) var companion: EndpointCompanionDescriptor? = nil
 
         var bEndpointAddress: UInt8 { descriptor.bEndpointAddress }
         var bmAttributes: UInt8 { descriptor.bmAttributes }
@@ -94,31 +95,49 @@ extension USB {
             bInterval: bInterval)
         }
 
+        // Dummy descriptor for the InterfaceDescriptor
+        init() {
+            self.init(controlEndPoint: 0, maxPacketSize: 0, bInterval: 0)
+        }
 
         // For Control Endpoints
         init(controlEndPoint: UInt8, maxPacketSize: UInt16, bInterval: UInt8) {
             precondition(controlEndPoint < 16)
             precondition(maxPacketSize < 2047)
             descriptor = usb_standard_endpoint_descriptor(
-            bLength: UInt8(MemoryLayout<usb_standard_endpoint_descriptor>.size),
-            bDescriptorType: USB.DescriptorType.ENDPOINT.rawValue,
-            bEndpointAddress: controlEndPoint,
-            bmAttributes: 0,
-            wMaxPacketSize: maxPacketSize,
-            bInterval: bInterval)
+                bLength: UInt8(MemoryLayout<usb_standard_endpoint_descriptor>.size),
+                bDescriptorType: USB.DescriptorType.ENDPOINT.rawValue,
+                bEndpointAddress: controlEndPoint,
+                bmAttributes: 0,
+                wMaxPacketSize: maxPacketSize,
+                bInterval: bInterval
+            )
         }
 
-        init(from iterator: inout MMIOSubRegion.Iterator) throws(ParsingError) {
-            // Validate the initial bytes
-            guard let lengthByte = iterator.next(), let descriptorByte = iterator.next() else { throw ParsingError.packetTooShort }
-            guard Int(lengthByte) == MemoryLayout<usb_standard_endpoint_descriptor>.size else { throw ParsingError.invalidLengthByte }
-            guard descriptorByte == USB.DescriptorType.ENDPOINT.rawValue else { throw ParsingError.invalidDescriptor(descriptorByte) }
+        init(from iterator: inout MMIOSubRegion.Iterator, length: UInt8? = nil) throws(ParsingError) {
+
+            let bLength: UInt8
+            if let length {
+                bLength = length
+            } else {
+                // Validate the initial bytes
+                guard let lengthByte = iterator.next(), let descriptorByte = iterator.next() else {
+                    throw ParsingError.packetTooShort
+                }
+                guard descriptorByte == USB.DescriptorType.ENDPOINT.rawValue else {
+                    throw ParsingError.invalidDescriptor(descriptorByte)
+                }
+                bLength = lengthByte
+            }
+            guard Int(bLength) == MemoryLayout<usb_standard_endpoint_descriptor>.size else {
+                throw ParsingError.invalidLengthByte
+            }
 
             var _descriptor = usb_standard_endpoint_descriptor()
             try withUnsafeMutableBytes(of: &_descriptor) { (buffer: UnsafeMutableRawBufferPointer) throws(ParsingError) -> () in
                 assert(MemoryLayout<usb_standard_endpoint_descriptor>.size == buffer.count)
-                buffer[0] = lengthByte
-                buffer[1] = descriptorByte
+                buffer[0] = bLength
+                buffer[1] = USB.DescriptorType.ENDPOINT.rawValue
 
                 for idx in 2..<buffer.count {
                     guard let byte = iterator.next() else { throw ParsingError.packetTooShort }
@@ -127,6 +146,13 @@ extension USB {
             }
 
             descriptor = _descriptor
+        }
+
+        mutating func addEndpointCompanion(_ companion: EndpointCompanionDescriptor) throws(ParsingError) {
+            guard self.companion == nil else {
+                throw ParsingError.garbageAtEnd
+            }
+            self.companion = companion
         }
 
         // Used by XHCI, Table 6-9
@@ -140,6 +166,47 @@ extension USB {
                 case (.bulk, .deviceToHost): 6
                 case (.interrupt, .deviceToHost): 7
             }
+        }
+    }
+
+    // 9.6.7 SuperSpeed Endpoint Companion Descriptor
+    // Used by SuperSpeed USB3 devices
+    struct EndpointCompanionDescriptor {
+        let bLength: UInt8
+        let bDescriptorType: UInt8
+        let bMaxBurst: UInt8
+        let bmAttributes: UInt8
+        let wBytesPerInterval: UInt16
+
+        init(from iterator: inout MMIOSubRegion.Iterator, length: UInt8? = nil) throws(ParsingError) {
+
+            let bLength: UInt8
+            if let length {
+                bLength = length
+            } else {
+                // Validate the initial bytes
+                guard let lengthByte = iterator.next(), let descriptorByte = iterator.next() else {
+                    throw ParsingError.packetTooShort
+                }
+                guard descriptorByte == USB.DescriptorType.ENDPOINT_COMPANION.rawValue else {
+                    throw ParsingError.invalidDescriptor(descriptorByte)
+                }
+                bLength = lengthByte
+            }
+            guard Int(bLength) == 6 else {
+                throw ParsingError.invalidLengthByte
+            }
+
+            guard let bMaxBurst = iterator.next(),let bmAttributes = iterator.next(), let wBytesPerIntervalLow = iterator.next(), let wBytesPerIntervalHigh = iterator.next() else {
+                throw ParsingError.packetTooShort
+            }
+
+            self.bLength = bLength
+            self.bDescriptorType = USB.DescriptorType.ENDPOINT_COMPANION.rawValue
+
+            self.bMaxBurst = bMaxBurst
+            self.bmAttributes = bmAttributes
+            self.wBytesPerInterval = UInt16(wBytesPerIntervalHigh) << 8 | UInt16(wBytesPerIntervalLow)
         }
     }
 }

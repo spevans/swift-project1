@@ -93,14 +93,18 @@ final class USBHIDDriver {
         switch interfaceProtocol {
             case .keyboard:
                 #kprint("USB-HID: Found keyboard")
+                #if !TEST
                 if system.deviceManager.keyboard != nil {
                     #kprint("USB-HID: Device manager already has a keyboard!")
                 }
+                #endif
 
                 if let usbKeyboard = USBKeyboard(usbDevice: usbDevice, interface: interface) {
                     let keyboard = Keyboard(hid: usbKeyboard.hid())
                     #kprint("USB-HID Adding keyboard")
+                    #if !TEST
                     system.deviceManager.keyboard = keyboard
+                    #endif
                     break
                 }
                 #kprint("USB-HID Cannot initialise keyboard")
@@ -111,7 +115,9 @@ final class USBHIDDriver {
                 if let usbMouse = USBMouse(usbDevice: usbDevice, interface: interface) {
                     let mouse = Mouse(hid: usbMouse.hid())
                     #kprint("USB-HID Adding mouse")
+                    #if !TEST
                     system.deviceManager.mouse = mouse
+                    #endif
                     break
                 }
                 #kprint("USB-HID Cannot initialise mouse")
