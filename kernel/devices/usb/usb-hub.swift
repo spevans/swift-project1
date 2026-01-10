@@ -206,6 +206,11 @@ final class USBHubDriver: DeviceDriver {
 
     private func getHubDescriptor() -> USB.HUBDescriptor? {
 
+        if self.usbDevice.speed.protocolMajor >= 3 {
+            #kprint("USBHUB: getHubDescriptor: Device supports Enhanced Hub Descriptor")
+            return self.getEnhanchedHubDescriptor()
+        }
+
         let length: UInt16 = 9 // 9 bytes for the minimal response, upto 7 ports. // + 32x2x8bits for ports bitmaps (255 ports max + 1 reserved bit)
         let descriptorIndex = 0
         let request = USB.ControlRequest.classSpecificRequest(
@@ -217,13 +222,13 @@ final class USBHubDriver: DeviceDriver {
         )
 
         guard usbDevice.sendControlRequestReadData(request: request, into: responseBuffer) else {
-            #kprint("USBHUB: getHubConfig: Cannot get HUB descriptor")
+            #kprint("USBHUB: getHubDescriptor: Cannot get HUB descriptor")
             return nil
         }
         let numPorts = Int(responseBuffer[2])
         if numPorts <= 7 && length == UInt16(responseBuffer[0]) {
             // Got the whole descriptor so just decode it
-            return try? USB.HUBDescriptor(from: responseBuffer)
+            return try? USB.HUBDescriptor(hubFrom: responseBuffer)
         }
         #kprintf("USBHUB: Got descr1 nports: %d bDescLength: %u\n", numPorts, responseBuffer[0])
         let newLength = 9 + (2 * (numPorts / 8))
@@ -235,10 +240,28 @@ final class USBHubDriver: DeviceDriver {
             wLength: UInt16(newLength)
         )
         guard usbDevice.sendControlRequestReadData(request: request2, into: responseBuffer) else {
-            #kprint("USBHUB: getHubConfig: Cannot get HUB descriptor2")
+            #kprint("USBHUB: getHubDescriptor: Cannot get HUB descriptor")
             return nil
         }
-        return try? USB.HUBDescriptor(from: responseBuffer)
+        return try? USB.HUBDescriptor(hubFrom: responseBuffer)
+    }
+
+    private func getEnhanchedHubDescriptor() -> USB.HUBDescriptor? {
+        let length = UInt16(MemoryLayout<usb_enhanced_ss_hub_descriptor>.size)
+        let descriptorIndex = 0
+        let request = USB.ControlRequest.classSpecificRequest(
+            direction: .deviceToHost,
+            recipient: .device,
+            bRequest: USB.ControlRequest.RequestCode.GET_DESCRIPTOR.rawValue,
+            wValue: UInt16(USB.DescriptorType.SUPER_SPEED_HUB.rawValue) << 8 | UInt16(descriptorIndex),
+            wLength: length
+        )
+
+        guard usbDevice.sendControlRequestReadData(request: request, into: responseBuffer) else {
+            #kprint("USBHUB: getEnhanchedHubDescriptor: Cannot get HUB descriptor")
+            return nil
+        }
+        return try? USB.HUBDescriptor(SSHubFrom: responseBuffer)
     }
 
     private func getHubStatus() -> Bool {

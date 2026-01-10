@@ -10,25 +10,72 @@
 
 extension USB {
 
+    // This covers the USB2 HubDescriptor and the USB3 Enhanced SuperSpeed Hub Descriptor
     struct HUBDescriptor: CustomStringConvertible {
-        private let descriptor: usb_hub_descriptor
 
-        var bDescLength: UInt8 { descriptor.bDescLength }
-        var bDescriptorType: UInt8 { descriptor.bDescriptorType }
-        var bNbrPorts: UInt8 { descriptor.bNbrPorts }
-        var wHubCharacteristics: UInt16 { descriptor.wHubCharacteristics }
-        var bPwrOn2PwrGood: UInt8 { descriptor.bPwrOn2PwrGood }
-        var bHubContrCurrent: UInt8 { descriptor.bHubContrCurrent }
+        enum LogicalPowerSwitching {
+            case ganged
+            case individual
+            case reserved
+
+            init(rawValue: UInt16) {
+                switch rawValue & 0b11 {
+                    case 0b00: self = .ganged
+                    case 0b01: self = .individual
+                    default: self = .reserved
+                }
+            }
+        }
+
+        enum OverCurrentProtection {
+            case global
+            case individual
+            case none
+
+            init (rawValue: UInt16) {
+                switch rawValue & 0b11 {
+                    case 0b00: self = .global
+                    case 0b01: self = .individual
+                    default: self = .none
+                }
+            }
+        }
+
+
+        let bDescLength: UInt8
+        let bDescriptorType: UInt8
+        let bNbrPorts: UInt8
+        let wHubCharacteristics: UInt16
+        let bPwrOn2PwrGood: UInt8
+        let bHubContrCurrent: UInt8
+        let bHubHdrDecLat: UInt8
+        let wHubDelay: UInt16
         let deviceRemovable: [Bool] // FIXME: Should be a BitArray
+        let isSuperSpeedHub: Bool
+        let description: String
+
         // Ignore PortPwrCtrlMask has it should be all ones
 
         // wHubCharacteristics
-        var ttThinkTime: Int { bDescriptorType.bits(5...6) }
+        let powerSwitchMode: LogicalPowerSwitching
+        let isCompoundDevice: Bool
+        let overCurrentProtection: OverCurrentProtection
+        let ttThinkTime: Int
+        let hasPortIndicators: Bool
 
-        let description: String
         func descriptorAsBuffer(wLength: UInt16, into buffer: inout MMIOSubRegion) -> Int {
+            let descriptor = usb_hub_descriptor(
+                bDescLength: 9,
+                bDescriptorType: USB.DescriptorType.HUB.rawValue,
+                bNbrPorts: self.bNbrPorts,
+                wHubCharacteristics: self.wHubCharacteristics,
+                bPwrOn2PwrGood: self.bPwrOn2PwrGood,
+                bHubContrCurrent: self.bHubContrCurrent,
+                deviceRemoveable: 0,    // FIXME, compute this
+                powerPwrCtrlMask: 0xff
+            )
             let length = min(Int(descriptor.bDescLength), buffer.count)
-            withUnsafeBytes(of: self.descriptor) {
+            withUnsafeBytes(of: descriptor) {
                 for idx in 0..<length {
                     buffer[idx] = $0[idx]
                 }
@@ -36,36 +83,44 @@ extension USB {
             return length
         }
 
-        // Used by Root Hubs
+        // Used by USB2 Root Hubs
         init(ports: UInt8) {
-//            precondition(ports < 8) // For simplicity
-            descriptor = usb_hub_descriptor(
-                bDescLength: 9,
-                bDescriptorType: USB.DescriptorType.HUB.rawValue,
-                bNbrPorts: ports,
-                wHubCharacteristics: 0xa,
-                bPwrOn2PwrGood: 10,
-                bHubContrCurrent: 0,
-                deviceRemoveable: 0,
-                powerPwrCtrlMask: 0xff
-            )
-            deviceRemovable = .init(repeating: false, count: Int(ports))
-            description = "Root Hub"
+            self.bDescLength = 9
+            self.bDescriptorType = USB.DescriptorType.HUB.rawValue
+            self.bNbrPorts = ports
+            self.wHubCharacteristics = 0xa
+            self.bPwrOn2PwrGood = 10
+            self.bHubContrCurrent = 0
+//            self.powerPwrCtrlMask = 0xff
+            self.bHubHdrDecLat = 0
+            self.wHubDelay = 0
+
+            self.deviceRemovable = .init(repeating: false, count: Int(ports))
+            self.isSuperSpeedHub = false
+            self.description = "Root Hub"
+            self.powerSwitchMode = .individual
+            self.isCompoundDevice = false
+            self.overCurrentProtection = .individual
+            self.ttThinkTime = 0
+            self.hasPortIndicators = false
         }
 
-        init(from buffer: MMIOSubRegion) throws(ParsingError) {
+        // USB2 Hub Descriptor
+        init(hubFrom buffer: MMIOSubRegion) throws(ParsingError) {
             var iterator = buffer.makeIterator()
             // Validate the initial bytes
-            guard let lengthByte = iterator.next(), let descriptorByte = iterator.next() else { throw ParsingError.packetTooShort
+            guard let lengthByte = iterator.next(), let descriptorByte = iterator.next() else {
+                throw ParsingError.packetTooShort
             }
-            guard Int(lengthByte) >= MemoryLayout<usb_standard_endpoint_descriptor>.size else { throw ParsingError.invalidLengthByte
+            guard Int(lengthByte) >= MemoryLayout<usb_standard_endpoint_descriptor>.size else {
+                throw ParsingError.invalidLengthByte
             }
             guard descriptorByte == USB.DescriptorType.HUB.rawValue else {
                 throw ParsingError.invalidDescriptor(descriptorByte)
             }
 
-            var _descriptor = usb_hub_descriptor()
-            try withUnsafeMutableBytes(of: &_descriptor) { (buffer: UnsafeMutableRawBufferPointer)
+            var descriptor = usb_hub_descriptor()
+            try withUnsafeMutableBytes(of: &descriptor) { (buffer: UnsafeMutableRawBufferPointer)
                 throws(ParsingError) -> () in
                 assert(MemoryLayout<usb_standard_endpoint_descriptor>.size == buffer.count)
                 buffer[0] = lengthByte
@@ -76,7 +131,20 @@ extension USB {
                     buffer[idx] = byte
                 }
             }
-            descriptor = _descriptor
+            self.bDescLength = descriptor.bDescLength
+            self.bDescriptorType = descriptor.bDescriptorType
+            self.bNbrPorts = descriptor.bNbrPorts
+            self.wHubCharacteristics = descriptor.wHubCharacteristics
+            self.bPwrOn2PwrGood = descriptor.bPwrOn2PwrGood
+            self.bHubContrCurrent = descriptor.bHubContrCurrent
+            self.bHubHdrDecLat = 0  // Enhanced Hub only
+            self.wHubDelay = 0      // Enhanced Hub only
+
+            self.powerSwitchMode = LogicalPowerSwitching(rawValue: wHubCharacteristics)
+            self.isCompoundDevice = wHubCharacteristics.bit(2)
+            self.overCurrentProtection = OverCurrentProtection(rawValue: wHubCharacteristics >> 3)
+            self.ttThinkTime = (Int((wHubCharacteristics >> 5) & 0b11) + 1) * 8
+            self.hasPortIndicators = wHubCharacteristics.bit(7)
 
             let variableByteCount = (descriptor.bNbrPorts + 8) / 8  // +8 not +7 as bit 0 is reserved so need to account for an extra bit
             var _deviceRemovable: [Bool] = []
@@ -99,13 +167,53 @@ extension USB {
                 }
                 firstByte = false
             }
-            deviceRemovable = _deviceRemovable
+            self.deviceRemovable = _deviceRemovable
 
             // Validate the size of the PortPwrCtrlMask
             for _ in 0..<variableByteCount {
                 guard iterator.next() != nil else { throw ParsingError.packetTooShort }
             }
-            description = "Normal Hub"
+            self.isSuperSpeedHub = false
+            self.description = "USB2.0 Hub"
+        }
+
+        // USB3 Enhanced SuperSpeed Hub Descriptor
+        init(SSHubFrom buffer: MMIOSubRegion) throws(ParsingError) {
+            let pkSize = MemoryLayout<usb_enhanced_ss_hub_descriptor>.size
+            guard buffer.count >= pkSize else {
+                throw ParsingError.packetTooShort
+            }
+            guard Int(buffer[0]) == pkSize else {
+                throw ParsingError.invalidLengthByte
+            }
+            guard Int(buffer[1]) == USB.DescriptorType.SUPER_SPEED_HUB.rawValue else {
+                throw ParsingError.invalidDescriptor(buffer[1])
+            }
+
+            var descriptor = usb_enhanced_ss_hub_descriptor()
+            buffer.loadBytes(into: &descriptor)
+
+            self.bDescLength = descriptor.bDescLength
+            self.bDescriptorType = descriptor.bDescriptorType
+            self.bNbrPorts = descriptor.bNbrPorts
+            self.wHubCharacteristics = descriptor.wHubCharacteristics
+            self.bPwrOn2PwrGood = descriptor.bPwrOn2PwrGood
+            self.bHubContrCurrent = descriptor.bHubContrCurrent
+            self.bHubHdrDecLat = descriptor.bHubHdrDecLat
+            self.wHubDelay = descriptor.wHubDelay
+            var _removable: [Bool] = .init(repeating: false, count: 16)
+            for i in 0..<16 {
+                _removable[i] = descriptor.deviceRemoveable.bit(i)
+            }
+            self.deviceRemovable = _removable
+            self.isSuperSpeedHub = true
+            self.description = "USB3.0 Hub"
+
+            self.powerSwitchMode = HUBDescriptor.LogicalPowerSwitching.init(rawValue: wHubCharacteristics)
+            self.isCompoundDevice = wHubCharacteristics.bit(2)
+            self.overCurrentProtection = HUBDescriptor.OverCurrentProtection.init(rawValue: wHubCharacteristics >> 3)
+            self.ttThinkTime = 0
+            self.hasPortIndicators = false
         }
     }
 }

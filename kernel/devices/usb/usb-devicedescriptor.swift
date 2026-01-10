@@ -73,5 +73,11 @@ extension USB {
             }
             descriptor = _descriptor
         }
+
+        // Dummy descriptor with all values 0. Used so that USBDevice does not have
+        // to hold a DeviceDescriptor?
+        init() {
+            self.descriptor = usb_standard_device_descriptor()
+        }
     }
 }

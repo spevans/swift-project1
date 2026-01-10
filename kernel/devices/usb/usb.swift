@@ -8,6 +8,7 @@
  *
  */
 
+var USBTrace = false
 
 class USBPipe {
     enum Status: CustomStringConvertible {

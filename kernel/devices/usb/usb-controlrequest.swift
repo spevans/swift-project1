@@ -20,8 +20,11 @@ extension USB {
         case DEVICE_QUALIFIER = 6
         case OTHER_SPEED_CONFIGURATION = 7
         case INTERFACE_POWER = 8
+        case BINARY_OBJECT_STORE = 0x0f
+        case DEVICE_CAPABILITY = 0x10
         case HID = 0x21
         case HUB = 0x29
+        case SUPER_SPEED_HUB = 0x2A
         case ENDPOINT_COMPANION = 0x30
     }
 
@@ -355,6 +358,17 @@ extension USB {
                 wValue: wValue,
                 wIndex: recipient.zeroInterfaceOrEndpoint(direction: direction),
                 wLength: wLength
+            ))
+        }
+
+        static func getStringDescriptor(at index: UInt8, langId: UInt16, length: UInt16) -> ControlRequest {
+            let descriptorType = DescriptorType.STRING
+            return ControlRequest(request: usb_control_request(
+                bmRequestType: BMRequestType(direction: .deviceToHost, requestType: .standard, recipient: .device).rawValue,
+                bRequest: RequestCode.GET_DESCRIPTOR.rawValue,
+                wValue: UInt16(descriptorType.rawValue) << 8 | UInt16(index),
+                wIndex: langId,
+                wLength: length
             ))
         }
     }

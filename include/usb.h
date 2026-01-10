@@ -101,6 +101,18 @@ struct usb_hub_descriptor {
     uint8_t powerPwrCtrlMask;
 } __attribute__((packed));
 
+struct usb_enhanced_ss_hub_descriptor {
+    uint8_t bDescLength;
+    uint8_t bDescriptorType;
+    uint8_t bNbrPorts;
+    uint16_t wHubCharacteristics;
+    uint8_t bPwrOn2PwrGood;
+    uint8_t bHubContrCurrent;
+    uint8_t bHubHdrDecLat;
+    uint16_t wHubDelay;
+    uint16_t deviceRemoveable;
+} __attribute__((packed));
+
 struct usb_control_request {
     uint8_t bmRequestType;
     uint8_t bRequest;
