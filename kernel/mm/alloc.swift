@@ -62,7 +62,11 @@ public func freePages(at address: VirtualAddress, count: Int) {
 
 
 func alloc(pages: Int) -> PhysPageAlignedRegion {
-    return alloc(pages: pages, fromList: &freePageListHead)
+    guard let page = alloc(pages: pages, fromList: &freePageListHead) else {
+        #kprintf("No more free memory pages for allocation of: %d pages\n", pages)
+        stop()
+    }
+    return page
 }
 
 
@@ -73,7 +77,12 @@ func freePages(pages: PhysPageAlignedRegion) {
 
 // FIXME, these needs to take a `count` argument to allocate contiguous pages
 func allocIOPage() -> PhysPageAlignedRegion {
-    return alloc(pages: 1, fromList: &ioPagesListHead)
+    let pages = 1
+    guard let page = alloc(pages: pages, fromList: &ioPagesListHead) else {
+        #kprintf("No more free IO pages for allocation of: %d pages\n", pages)
+        stop()
+    }
+    return page
 }
 
 // TODO - check the pages returned are valid for IO
@@ -116,7 +125,7 @@ func addPagesToFreePageList(pages: PhysPageAlignedRegion) {
     let (_, upper) = splitRange(pages, at: PhysAddress(0x100000))
     guard let above1MB = upper else { return }
 
-    let (_ioRange, _ramRange) = splitRange(above1MB, at: PhysAddress(0x200000))
+    let (_ioRange, _ramRange) = splitRange(above1MB, at: PhysAddress(0x300000))
     if let ioRange = _ioRange {
         _ = remapAsIORegion(region: ioRange, cacheType: .uncacheable)
         addPages(ioRange, toList: &ioPagesListHead)
@@ -160,7 +169,7 @@ private func freePageCount(onList list: FreePageListEntryPtr?) -> Int {
 }
 
 
-private func alloc(pages: Int, fromList list: inout FreePageListEntryPtr?) -> PhysPageAlignedRegion {
+private func alloc(pages: Int, fromList list: inout FreePageListEntryPtr?) -> PhysPageAlignedRegion? {
     precondition(pages > 0)
 
     var head = list
@@ -191,7 +200,5 @@ private func alloc(pages: Int, fromList list: inout FreePageListEntryPtr?) -> Ph
         prev = ptr
         head = entry.next
     }
-
-    #kprintf("No more free pages for allocation of: %d pages\n", pages)
-    stop()
+    return nil
 }
