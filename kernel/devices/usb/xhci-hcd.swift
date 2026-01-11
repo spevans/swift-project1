@@ -255,10 +255,9 @@ final class HCD_XHCI: DeviceDriver {
         // Configure the EP0 inputContext, used for Address Device command
 
         let slotCtxOffset = allocator.contextSize   // Offset to Slot 1 (EP0)
-        let slotContext = SlotContext(
-            routeString: usbDevice.routeString, speed: usbDevice.speed,
-            interrupter: 0, rootHubPort: usbDevice.rootPort
-        )
+        // For EP0, used for Address Device command
+        let slotContext = SlotContext(for: usbDevice)
+
         // Set the Input Device Context
         for idx in 0...3 {
             let offset = slotCtxOffset + (idx * 4)
@@ -375,9 +374,6 @@ final class HCD_XHCI: DeviceDriver {
             }
         }
         eventRing0.updateDequeuePointer()
-        if XHCIDebug {
-            #kprintf("xhci-hcd: Got %d events\n", eventCount)
-        }
     }
 
 
@@ -578,13 +574,15 @@ extension HCD_XHCI {
 
                 switch (requestCode, feature) {
                     case (.SET_FEATURE, .PORT_POWER):
+                        portsc |= HCD_XHCI.PORTSC_PP
+                        operationRegs.portSC(port: port, newValue: portsc)
                         return okResponse
 
                     case (.SET_FEATURE, .PORT_RESET):
                         if XHCIDebug {
                             #kprintf("xhci: Setting port(%u) reset\n", port)
                         }
-                        portsc |= (1 << 4)
+                        portsc |= HCD_XHCI.PORTSC_PR
                         operationRegs.portSC(port: port, newValue: portsc)
                         return okResponse
 
@@ -592,7 +590,7 @@ extension HCD_XHCI {
                         if XHCIDebug {
                             #kprintf("xhci: Clearing port(%u) connection change\n", port)
                         }
-                        portsc |= (1 << 17)
+                        portsc |= HCD_XHCI.PORTSC_CSC
                         operationRegs.portSC(port: port, newValue: portsc)
                         return okResponse
 
@@ -600,7 +598,7 @@ extension HCD_XHCI {
                         if XHCIDebug {
                             #kprintf("xhci: Clearing port(%u) reset change\n", port)
                         }
-                        portsc |= (1 << 21)
+                        portsc |= HCD_XHCI.PORTSC_PRC
                         operationRegs.portSC(port: port, newValue: portsc)
                         return okResponse
 
@@ -644,6 +642,10 @@ extension HCD_XHCI {
             default: .unknown
         }
 
+        if XHCIDebug {
+            #kprintf("xhci-hcd: portStatus(%u): 0x%4.4x psiv: %4.4b speed: %s\n",
+                     port, status, UInt(psiv), speed.description)
+        }
 
         let portProtocol = self.capabilities.supportedProtocol(port: port)
         if let portProtocol {

@@ -165,9 +165,6 @@ extension HCD_XHCI {
                 ringSegment.read(fromByteOffset: eventRingOffset + 0x8),
                 dword3
             ]
-            if false {
-                #kprintf("xhci-event: Found EventTRB @ offset %d\n", eventRingOffset)
-            }
             self.slotIndex += 1
             if self.slotIndex > self.maxSlotIndex {
                 if XHCIDebug {
@@ -190,10 +187,6 @@ extension HCD_XHCI {
             let eventRingOffset = self.slotIndex * self.trbSize
             let erdp = ringSegmentAddr + UInt64(eventRingOffset)
             let newErdp = erdp | 8
-            if XHCIDebug {
-                #kprintf("xhci: eventRingOffset: %d setting event dequeue to %p\n",
-                         eventRingOffset, newErdp)
-            }
             setInterrupter(eventRingDequeuePointer: newErdp)
             self.unAckedEvents = 0
         }

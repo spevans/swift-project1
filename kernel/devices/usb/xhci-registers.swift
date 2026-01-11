@@ -8,6 +8,28 @@
 
 extension HCD_XHCI {
 
+    // Table 5-27: Port Status and Control Register Bit Definitions (PORTSC)
+    static let PORTSC_CCS: UInt32 = 0x0000_0001 // ROS - current connect status
+    static let PORTSC_PED: UInt32 = 0x0000_0002 // RW1CS - port enabled / disbled
+    static let PORTSC_OCA: UInt32 = 0x0000_0008 // RO - over-current active
+    static let PORTSC_PR:  UInt32 = 0x0000_0010 // RW1S - port reset
+    static let PORTSC_PP:  UInt32 = 0x0000_0200 // RWS - port power
+    static let PORTSC_LWS: UInt32 = 0x0001_0000 // RW - port link state write strobe
+    static let PORTSC_CSC: UInt32 = 0x0002_0000 // RW1CS - connect status change
+    static let PORTSC_PEC: UInt32 = 0x0004_0000 // RW1CS - port enabled / disabled change
+    static let PORTSC_WRC: UInt32 = 0x0008_0000 // RW1CS - warm port reset change (USB3 only)
+    static let PORTSC_OCC: UInt32 = 0x0010_0000 // RW1CS - over current change
+    static let PORTSC_PRC: UInt32 = 0x0020_0000 // RW1CS - port reset change
+    static let PORTSC_PLC: UInt32 = 0x0040_0000 // RW1CS - port link state change
+    static let PORTSC_CEC: UInt32 = 0x0080_0000 // RW1CS - port config error chagne (USB3 only)
+    static let PORTSC_CAS: UInt32 = 0x0100_0000 // RO - cold attach status
+    static let PORTSC_WCE: UInt32 = 0x0200_0000 // RWS - wake on connect enable
+    static let PORTSC_WDE: UInt32 = 0x0400_0000 // RWS - wake on disconnect enable
+    static let PORTSC_WOE: UInt32 = 0x0800_0000 // RWS - wake on over-current enable
+    static let PORTSC_DR:  UInt32 = 0x4000_0000 // RO - device removable
+    static let PORTSC_WPR: UInt32 = 0x8000_0000 // RW1S - warm port reset
+
+
     struct CapabilityRegisters: ~Copyable {
         let capVersion: UInt32
         let hcsParams1: UInt32

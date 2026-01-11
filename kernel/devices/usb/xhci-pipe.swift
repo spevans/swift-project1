@@ -19,26 +19,51 @@ extension HCD_XHCI {
             self.dwords = dwords
         }
 
-        // Address Device Command
-        init(routeString: UInt32, speed: USB.Speed, interrupter: Int, rootHubPort: UInt8) {
-            dwords = [ routeString | (speed.slotContextSpeed << 20) | UInt32(1 << 27),
-                       UInt32(rootHubPort) << 16,
-                       UInt32(interrupter) << 22,
-                       0
-                       ]
+        // 6.2.2.1 Address Device Command Usage
+        // Create a slotContext for the Address Device Command taking into account
+        // LowSpeed/FullSpeed devices on a HighSpeed hub.
+        init(for usbDevice: USBDevice) {
+            var parentPortNumber: UInt8 = 0
+            var parentHubSlotId: UInt8 = 0
+            let mtt: Bool = false   // TODO: Enable MTT interface on parent hub
+
+            // For LS/FS device, walk up the tree to find the first HS Hub (if any)
+            // and use this to determine the parent port settings
+
+            if usbDevice.speed == .lowSpeed || usbDevice.speed == .fullSpeed {
+                parentPortNumber = usbDevice.port
+                var parent: Device? = usbDevice.parent
+                var foundParent = false
+                while let p = parent as? USBDevice, !(p is HCDRootHub) {
+                    if p.speed == .highSpeed {
+                        guard let parentDeviceData = p.hcdData as? XHCIDeviceData else {
+                            fatalError("XHCI: Parent of device does not have XHCIDeviceData")
+                        }
+                        parentHubSlotId = parentDeviceData.slotId
+                        foundParent = true
+                        break
+                    } else {
+                        parent = p.parent
+                        parentPortNumber = p.port
+                    }
+                }
+                if !foundParent {
+                    // Reset this as it should only be zero is a HS hub was found upstream
+                    parentPortNumber = 0
+                }
+            }
+
+            let contextEntries: UInt32 = 1
+            let interrupter: UInt32 = 0
+            self.dwords = [
+                (contextEntries << 27) | UInt32(mtt ? 1 : 0)  << 25 | (usbDevice.speed.slotContextSpeed << 20) | usbDevice.routeString ,
+                UInt32(usbDevice.rootPort) << 16,
+                (interrupter) << 22 | UInt32(parentPortNumber) << 8 | UInt32(parentHubSlotId),
+                0
+            ]
         }
 
-        // Address Device Command via HighSpeed Hub
-        init(routeString: UInt32, speed: USB.Speed,
-             interrupter: Int, rootHubPort: UInt8,
-             parentPortNumber: UInt8, parentHubSlotId: UInt8) {
-            dwords = [ UInt32(1 << 27) | UInt32(1 << 26) | routeString | (speed.slotContextSpeed << 20),
-                       UInt32(rootHubPort) << 16,
-                       UInt32(parentHubSlotId) | UInt32(parentPortNumber) << 8
-                       | UInt32(interrupter) << 22,
-                       0]
-        }
-
+        // 6.2.2.2 Configure Endpoint Command Usage
         // Configure Endpoint Command
         init(contextEntry: Int) {
             dwords = [ UInt32(contextEntry << 27), 0, 0, 0]
@@ -64,15 +89,46 @@ extension HCD_XHCI {
     struct EndpointContext {
         private(set) var dwords: InlineArray<4, UInt32> = [0, 0, 0, 0]
 
-        init(endpoint: USB.EndpointDescriptor, dequeuePointer: PhysAddress,
+        init(endpoint: USB.EndpointDescriptor,
+             speed: USB.Speed,
+             dequeuePointer: PhysAddress,
              dequeueCycleState: Bool) {
-            let maxPacketSize = UInt32(endpoint.maxPacketSize) << 16
+
+            // DWord 0
+            // Compute the interval in multiples of 125us. Section 6.2.3.6 Interval
+            // bInterval is UInt8
+            let interval: UInt32
+            switch (speed, endpoint.transferType) {
+                case (_, .control), (_, .bulk), (.lowSpeed, .isochronous):
+                    interval = 0
+
+                case (.fullSpeed, .interrupt), (.lowSpeed, .interrupt):
+                    // input 1-255, output 3-10
+                    interval = UInt32(max(endpoint.bInterval, 1).highestBitSet + 2)
+
+                case (.fullSpeed, .isochronous):
+                    // input 1-16 (1-32768ms) output 3-18
+                    interval = UInt32(min(max(endpoint.bInterval, 1), 16) + 2)
+
+                case (_, .interrupt), (_, .isochronous):
+                    // input 1-16 (125-4095us) output 0-15
+                    interval = UInt32(min(max(endpoint.bInterval, 1), 16) - 1)
+            }
+
+            // FIXME for SS Bulk endpoints
+            let maxPStreams: UInt32 = 0
+            let lsa: UInt32 = 0
+            let dword0 = (interval << 16) | (lsa << 15) | (maxPStreams << 10)
+
+            // DWord 1
+            let maxPacketSize = endpoint.maxPacketSize
             let cErr: UInt32 = endpoint.transferType == .isochronous ? 0 : 3 << 1
             let epType = endpoint.endpointType << 3
+            let dword1 = UInt32(maxPacketSize) << 16 | epType | cErr
+
             let dcs: UInt32 = dequeueCycleState ? 1 : 0
 
-            dwords = [0,
-                      maxPacketSize | epType | cErr,
+            dwords = [dword0, dword1,
                       UInt32(truncatingIfNeeded: dequeuePointer.value & ~0xf) | dcs,
                       UInt32(truncatingIfNeeded: dequeuePointer.value >> 32)]
         }
@@ -90,7 +146,7 @@ extension HCD_XHCI {
         let direction = endpointDescriptor.direction == .hostToDevice ? 0 : 1
         let ep = Int(endpointDescriptor.endpoint)
         let pipeIdx = ep == 0 ? 1 : (ep * 2) + direction
-        guard deviceData.pipes[pipeIdx] == nil else {
+        guard deviceData.pipes[pipeIdx - 1] == nil else {
             #kprintf("xhci-pipe: Pipe already active for endpoint %u\n", endpointDescriptor.endpoint)
             return nil
         }
@@ -99,7 +155,7 @@ extension HCD_XHCI {
             if XHCIDebug {
                 #kprintf("xhci-pipe: Adding new pipe for epId: %d pipeIdx: %d\n", pipe.epContextSlot, pipeIdx)
             }
-            deviceData.pipes[pipe.epContextSlot] = pipe
+            deviceData.pipes[pipe.epContextSlot - 1] = pipe
         }
         return pipe
     }
@@ -111,7 +167,7 @@ fileprivate extension HCD_XHCI {
         private var urb: USB.Request?
         private var transferRing: ProducerRing<TransferTRB>
         private var inputContext: MMIORegion
-        let epContextSlot: Int
+        let epContextSlot: Int  // 1 - 31
 
 
         init?(usbDevice: USBDevice, endpointDescriptor: USB.EndpointDescriptor,
@@ -160,15 +216,15 @@ fileprivate extension HCD_XHCI {
             /*
              * Configure the input device context. This context is composed of 33 contexts.
              *
-             * Context 0 is the input control context, 2x32 bits 2 bits per remaining
+             * The first context the input control context, 2x32 bits 2 bits per remaining
              * contexts.
              * 1 bit to add the context and one to remove it.
-             *
-             * Context 1 is the slot context which is always setup
-             * Context 2 is EP context for the control endpoint (EP0) regardless of direction
-             * Context 3-4  are EP contexts for endpoint 1 3=OUT direction 4=IN direction
+             * This control context is followed by:
+             * Device Context 0 is the slot context which is always setup
+             * Device Context 1 is EP context for the control endpoint (EP0) regardless of direction
+             * Device Context 2-3  are EP contexts for endpoint 1 2=OUT direction 3=IN direction
              *     ...
-             * Context 31-32 are for endpoint 15 31=OUT direction 32=IN direction
+             * Device Context 30-31 are for endpoint 15 30=OUT direction 31=IN direction
              */
 
             let contextSize = deviceData.hcd.allocator.contextSize   // Either 32 or 64 bytes
@@ -181,27 +237,33 @@ fileprivate extension HCD_XHCI {
             // Configure the slot context
             let slotCtxOffset = contextSize
             let slotContext: SlotContext
+            // Include the current slot as it will not be in the array of pipes yet
+            let contextEntries = max(self.deviceData.maxDCI(), self.epContextSlot)
+
             if endpointDescriptor.endpoint == 0 {
                 // For EP0, used for Address Device command
-                slotContext = SlotContext(routeString: usbDevice.routeString,
-                                          speed: usbDevice.speed,
-                                          interrupter: 0, rootHubPort: usbDevice.rootPort)
+                slotContext = SlotContext(for: usbDevice)
             } else {
 
                 if let hubDriver = usbDevice.deviceDriver as? USBHubDriver {
                     // Configure endpoint as a Hub
                     // TODO: Get settings
                     if XHCIDebug {
-                        #kprintf("xhci-pipe: Configuring endpoint as hub, ports: %d\n",
-                                 hubDriver.ports)
+                        #kprintf("xhci-pipe: Configuring endpoint as hub, ports: %d ttThinkTime: %d speed: %s\n",
+                                 hubDriver.ports, hubDriver.hubDescriptor.ttThinkTime,
+                                 usbDevice.speed.description
+                        )
                     }
-                    slotContext = SlotContext(contextEntries: self.epContextSlot + 1,
-                                              numberOfHubPorts: UInt8(hubDriver.ports),
-                                              ttThinkTime: hubDriver.hubDescriptor.ttThinkTime,
-                                              mtt: hubDriver.multiTT)
+                    let isHighSpeed = usbDevice.speed == .highSpeed
+                    slotContext = SlotContext(
+                        contextEntries: contextEntries,
+                        numberOfHubPorts: UInt8(hubDriver.ports),
+                        ttThinkTime: isHighSpeed ? hubDriver.hubDescriptor.ttThinkTime : 0,
+                        mtt: isHighSpeed ? hubDriver.multiTT : false
+                    )
                 } else {
                     // For all other endpoints used for configure endpoint command
-                    slotContext = SlotContext(contextEntry: self.epContextSlot + 1)
+                    slotContext = SlotContext(contextEntry: contextEntries)
                 }
             }
 
@@ -222,9 +284,12 @@ fileprivate extension HCD_XHCI {
             let epCtxOffset = (epContextSlot + 1) * contextSize // +1 to skip over input context
             // TODO: Setup the endpoint context here and allocate a ring
 
-            let epContext = EndpointContext(endpoint: endpointDescriptor,
-                                            dequeuePointer: self.transferRing.ringBaseAddress,
-                                            dequeueCycleState: true)
+            let epContext = EndpointContext(
+                endpoint: endpointDescriptor,
+                speed: usbDevice.speed,
+                dequeuePointer: self.transferRing.ringBaseAddress,
+                dequeueCycleState: true
+            )
             for idx in 0...3 {
                 let offset = epCtxOffset + (idx * 4)
                 self.inputContext.write(value: epContext.dwords[idx], toByteOffset: offset)
@@ -296,6 +361,7 @@ fileprivate extension HCD_XHCI {
 
 
             // Use maxExitLatency of 0 for now as there are no power managed devices
+            // Use an Evaluate Context Command
             let slotContext = SlotContext(maxExitLatency: 0, interrupter: 0)
             let slotCtxOffset = contextSize
             for idx in 0...3 {
@@ -363,47 +429,52 @@ fileprivate extension HCD_XHCI {
             let bytesTransferred = urb.bytesToTransfer - Int(trb.trbTransferLength)
 //            #kprintf("xhci-pipe: bytesToTransfer: %d trbTransferLength: %d bytesTransferred: %d\n",
 //                     urb.bytesToTransfer, Int(trb.trbTransferLength), bytesTransferred)
-            let status: USBPipe.Status = switch trb.completionCode {
-                case 1: .finished
+            let status: USBPipe.Status
+            switch trb.completionCode {
+                case 1:
+                    status = .finished
 
-                case 6: .stalled
+
+                case 6:
+                    status = .stalled
 
                 case 0:
                     #kprint("xhci-pipe: Invalid completion code")
-                    fallthrough
+                    status = .timedout
 
                 case 2:
                     #kprint("xhci-pipe: databuffer error")
-                    fallthrough
+                    status = .timedout
 
                 case 3:
                     #kprint("xhci-pipe: babble detected")
-                    fallthrough
+                    status = .timedout
 
                 case 4:
                     #kprint("xhci-pipe: transaction error")
-                    fallthrough
+                    status = .timedout
 
                 case 5:
                     #kprint("xhci-pipe: TRB error")
-                    fallthrough
+                    status = .timedout
 
                 case 7:
                     #kprint("xhci-pipe: resource error")
-                    fallthrough
+                    status = .timedout
 
                 case 8:
                     #kprint("xhci-pipe: bandwidth error")
-                    fallthrough
+                    status = .timedout
 
                 case 13:
                     if XHCIDebug {
                         #kprintf("\n**xhci-pipe: short packet wanted: %d remaining: %d got: %d\n",
                                  urb.bytesToTransfer, Int(trb.trbTransferLength), bytesTransferred)
                     }
-                    fallthrough
+                    status = .timedout
 
-                default: .timedout
+                default:
+                    status = .timedout
             }
             let response = USB.Response(status: status, bytesTransferred: bytesTransferred)
             if false {
@@ -550,9 +621,11 @@ fileprivate extension HCD_XHCI {
             } else {
                 dataBuffer = .address(buffer.baseAddress, UInt32(urb.bytesToTransfer))
             }
-            let trb = TransferTRB.normal(dataBuffer, tdSize: 0, interrupter: 0, blockInterrupt: false,
-                                         interruptOnComplete: true, chain: false, noSnoop: true,
-                                         interruptOnShortPacket: true, evaluateNextTrb: false)
+            let trb = TransferTRB.normal(
+                dataBuffer, tdSize: 0, interrupter: 0, blockInterrupt: false,
+                interruptOnComplete: true, chain: false, noSnoop: true,
+                interruptOnShortPacket: true, evaluateNextTrb: false
+            )
             transferRing.addTRB(trb)
 //            #kprintf("xhci-pipe: Added Interrupt TRB @ %p\n", addr.value)
             deviceData.hcd.doorbells.ring(Int(deviceData.slotId), taskId: 0,
@@ -568,7 +641,7 @@ class XHCIDeviceData: HCDData {
     let deviceContext: MMIORegion
     private var _inputDeviceContext: MMIORegion?
     private let usbDevice: USBDevice
-    fileprivate var pipes: InlineArray<16, HCD_XHCI.XHCIPipe?> = .init(repeating: nil)
+    fileprivate var pipes: InlineArray<31, HCD_XHCI.XHCIPipe?> = .init(repeating: nil)
 
     init(hcd: HCD_XHCI, device: USBDevice) {
         self.hcd = hcd
@@ -589,6 +662,18 @@ class XHCIDeviceData: HCDData {
         // TODO: Free deviceContext and inputDeviceContext
     }
 
+    // Return the maximum Device Context Index for the slot context.
+    // There are 31 potential endpoint (EP0 == pipe1) but the first context is not an endpoint
+    // so the index into the array (0...30) needs to be +1 (1...31)
+    func maxDCI() -> Int {
+        var dci = 0
+        for idx in pipes.indices {
+            if pipes[idx] != nil {
+                dci = idx + 1
+            }
+        }
+        return dci
+    }
 
     func inputDeviceContext() -> MMIORegion {
 
@@ -604,7 +689,7 @@ class XHCIDeviceData: HCDData {
         if false {
             #kprintf("xhci-pipe: processing TRB for endpoint: %d\n", endpointId)
         }
-        guard let pipe = self.pipes[endpointId] else { return false }
+        guard let pipe = self.pipes[endpointId - 1] else { return false }
         pipe.processEventTRB(trb)
         return true
     }

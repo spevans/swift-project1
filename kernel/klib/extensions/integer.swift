@@ -204,3 +204,13 @@ extension FixedWidthInteger {
         self = value
     }
 }
+
+
+extension FixedWidthInteger {
+    // Returns 0 is input is 0 else 1-bitWidth
+
+    @inline(__always)
+    var highestBitSet: Int {
+        self.bitWidth - self.leadingZeroBitCount
+    }
+}

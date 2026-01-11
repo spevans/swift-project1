@@ -50,7 +50,7 @@ class USBDevice: Device {
         // Walk up the USB tree to determine the rootPort and routeString
         // for this device
         var _rootPort = port
-        var _routeString: UInt32 = 0
+        var _routeString = UInt32(self.port)
         var parentDevice = parent as? USBDevice
         while let p = parentDevice, !(p is HCDRootHub) {
             _rootPort = p.port
@@ -63,7 +63,7 @@ class USBDevice: Device {
         self.descriptor = USB.DeviceDescriptor.init() // Add dummy for now
 
         super.init(parent: parent,
-                   className: (parent is HCDRootHub) ? "USBDevice" : "HCDRootHub",
+                   className: "USBDevice",
                    busDeviceName: #sprintf("usbdev-%d.%u", self.bus.busId, self.address)
         )
         self.hcdData = bus.hcdData?(self)
@@ -97,7 +97,7 @@ class USBDevice: Device {
             let endPoint = USB.EndpointDescriptor(
                 controlEndPoint: 0,
                 // FIXME, might be different for USB3
-                maxPacketSize: 8,
+                maxPacketSize: UInt16(self.maxPacketSize0),
                 bInterval: 0
             )
             guard let pipe = self.bus.allocatePipe(self, endPoint) else {

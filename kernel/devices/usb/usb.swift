@@ -106,7 +106,7 @@ final class USB {
                         _ = HCD_EHCI(pciDevice: pciDevice)
 
                     case .xhci:
-                        XHCIDebug = true
+                        XHCIDebug = false
                         _ = HCD_XHCI(pciDevice: pciDevice)
                         XHCIDebug = false
 
@@ -154,10 +154,11 @@ extension USB {
         }
 
         var controlSize: Int {
-            switch self {
-                case .lowSpeed, .fullSpeed: return 8
-                case .highSpeed: return 64
-                default: return 512
+            return switch self {
+                case .unknown: 0
+                case .lowSpeed, .fullSpeed: 8
+                case .highSpeed: 64
+                default: 512
             }
         }
 
