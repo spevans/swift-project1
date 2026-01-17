@@ -38,6 +38,7 @@ final class HCD_UHCI: DeviceDriver {
     private var interruptQHs: [PhysQueueHead] = []
     private var interuptHandler: InterruptHandler?
     private var urbs: InlineArray<4, USB.Request?> = .init(repeating: nil)
+    private var portInReset: InlineArray<2, Bool> = [false, false]
 
 
     init?(pciDevice: PCIDevice) {
@@ -501,8 +502,12 @@ final class HCD_UHCI: DeviceDriver {
                         self.clearConnectStatus(port: port)
                         return okResponse
 
+                    case (.CLEAR_FEATURE, .C_PORT_RESET):
+                        self.portInReset[port] = false
+                        return okResponse
+
                     default:
-                        #kprintf("xhci-root: Unsupported Port Feature %s request: %2.2x\n",
+                        #kprintf("uhci-root: Unsupported Port Feature %s request: 0x%2.2x\n",
                                  requestCode.description, setupRequest.wValue)
                         return errorResponse
                 }
@@ -559,6 +564,7 @@ final class HCD_UHCI: DeviceDriver {
 
         status = portStatus(port: port)
         let resetOK = status.portEnabled
+        self.portInReset[port] = true
         #uhciDebug(self.instanceName + " Port \(port) Final status: \(status) reset", resetOK ? "OK" : "Failed")
         return resetOK
     }
@@ -580,7 +586,7 @@ final class HCD_UHCI: DeviceDriver {
             portEnabledChange: status.portEnabledChange,
             suspendChange: false,
             overCurrentIndicatorChanged: status.overCurrentConditionChange,
-            resetComplete: false
+            resetComplete: self.portInReset[port]
         )
     }
 

@@ -669,6 +669,7 @@ extension HCD_XHCI {
             isInReset: status.bit(4),
             isPowered: status.bit(9),
             speed: speed,
+            portLinkState: UInt16(status.bits(5...8)),
             currentConnectChange: status.bit(17),
             portEnabledChange: status.bit(18),
             suspendChange: false,

@@ -29,8 +29,9 @@ class USBDevice: Device {
 
 
     override var description: String {
-        #sprintf("USB %d.%u isHCDRootHub: %s",
-                 bus.busId, address, self is HCDRootHub)
+        #sprintf("USB %d.%u isHCDRootHub: %s speed: %s",
+                 bus.busId, address, self is HCDRootHub, self.speed.description
+        )
     }
 
 
