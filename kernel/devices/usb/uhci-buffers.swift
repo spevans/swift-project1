@@ -146,7 +146,10 @@ extension HCD_UHCI {
             if let region = qhBufferPool16.mmioSubRegion(containing: address, count: 16) { return region }
             else if let region = tdBufferPool32.mmioSubRegion(containing: address, count: 32) { return region }
             else if let region = bufferPool256.mmioSubRegion(containing: address, count: 256) { return region }
-            else { fatalError("UHCI: Bufers: No MMIORegion contains physical address \(address)") }
+            else {
+                #kprintf("UHCI: Buffers: No MMIORegion contains physical address %p\n", address)
+                fatalError()
+            }
         }
 
         // 256byte aligned 256 bytes buffer in 32bit physical space

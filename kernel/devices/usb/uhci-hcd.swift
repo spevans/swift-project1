@@ -266,6 +266,7 @@ final class HCD_UHCI: DeviceDriver {
                     if qhlp.address == queueHead.physAddress {
                         // Point it to the next pointer of the QH to remove
                         qh.headLinkPointer = queueHead.headLinkPointer
+                        #uhciDebug("Removed QH")
                         return
                     }
 
@@ -276,18 +277,19 @@ final class HCD_UHCI: DeviceDriver {
                     qh = PhysQueueHead(mmioSubRegion: region)
                     qhlp = qh.headLinkPointer
                 }
-                fatalError("Failed to find QH \(queueHead) in list of control queueheads")
-
+                fatalError("Failed to find QH in list of control queueheads")
 
             case .interrupt:
-                // Loop through every frame list entry to
-                fallthrough
+                fatalError("Removing QH for interrupt pipes is not currently supported")
 
-            default:
-                fatalError("Pipes of type \(transferType) are not currently supported")
+            case .isochronous:
+                fatalError("Removing QH for isochronous pipes is not currently supported")
+
+            case .bulk:
+                fatalError("Removing QH for bulk pipes is not currently supported")
         }
 
-        #uhciDebug("\(self.description) Removed QH")
+        #uhciDebug("uhci-hcd: Removed QH")
     }
 
 

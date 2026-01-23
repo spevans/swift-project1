@@ -125,6 +125,7 @@ extension HCD_UHCI {
                 }
                 if td.controlStatus.stalled {
                     #kprint(self.endpointDescriptor.transferType.description, "pipe has stalled!")
+                    self.removeControl()
                     return .stalled
                 }
                 if td.controlStatus.nakReceived {
@@ -132,6 +133,7 @@ extension HCD_UHCI {
                 }
                 if td.controlStatus.crcTimeoutError {
                     #kprint("Timedout")
+                    self.removeControl()
                     return .timedout
                 }
 
@@ -231,7 +233,7 @@ extension HCD_UHCI {
                 enableSPD = false
             }
 
-            let setupTd = transferDescriptors[0] // ahcd.allocator.allocTransferDescriptor()
+            let setupTd = transferDescriptors[0] // hcd.allocator.allocTransferDescriptor()
             var _statusTd: PhysTransferDescriptor?
 
 
@@ -354,7 +356,8 @@ extension HCD_UHCI {
             }
 
             guard tdAllocations == 0 else {
-                fatalError("tdAllocation = \(tdAllocations), corrupted link pointers")
+                #kprintf("tdAllocations != 0 (%d), corrupted link pointers\n", tdAllocations)
+                fatalError()
             }
         }
 
