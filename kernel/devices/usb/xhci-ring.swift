@@ -128,8 +128,10 @@ extension HCD_XHCI {
             self.nrTRBs = UInt32(self.ringSize / self.trbSize)
             self.maxSlotIndex = Int(self.nrTRBs - 1)
             self.segmentTable.write(value: self.nrTRBs, toByteOffset: 0x8)
-            #kprintf("xhci-ring: size: %d nrTRBs: %d maxSlotIndex: %d\n",
-                     self.ringSize, self.nrTRBs, self.maxSlotIndex)
+            if XHCIDebug {
+                #kprintf("xhci-ring: size: %d nrTRBs: %d maxSlotIndex: %d\n",
+                         self.ringSize, self.nrTRBs, self.maxSlotIndex)
+            }
         }
 
         deinit {
@@ -152,11 +154,16 @@ extension HCD_XHCI {
         mutating func nextTRB() -> EventTRB? {
             let eventRingOffset = self.slotIndex * self.trbSize
             let dword3: UInt32 = ringSegment.read(fromByteOffset: eventRingOffset + 0xC)
-            if false {
-                #kprintf("xhci-ring: nextEventTRB, ringSegment: %p, slotIndex: %d  cycle: %s currentCycle: %s\n",
-                         ringSegment.baseAddress, self.slotIndex, dword3 & 1 == 1, self.cycle)
+            if XHCIDebug {
+                #kprintf("xhci-ring: nextEventTRB, ringSegment: %p, slotIndex: %d  cycle: %s currentCycle: %s eventRingOffset: 0x%x\n",
+                         ringSegment.baseAddress, self.slotIndex, dword3 & 1 == 1, self.cycle,
+                         UInt(eventRingOffset)
+                )
             }
             guard dword3 & 1 == (self.cycle ? 1 : 0) else {
+                if XHCIDebug {
+                    #kprintf("xhci-ring: Invalid TRB @ slotIndex: %d eventRingOffset: 0x%x\n", self.slotIndex, UInt(eventRingOffset))
+                }
                 return nil
             }
             let dwords: InlineArray<4, UInt32> = [
@@ -178,14 +185,21 @@ extension HCD_XHCI {
                 // Do not let the number of unacknowleged events in the queue get too high or it will fill up.
                 updateDequeuePointer()
             }
+            if XHCIDebug {
+                #kprintf("xhci-ring: Valid TRB @ slotIndex: %d eventRingOffset: 0x%x\n",
+                         self.slotIndex, UInt(eventRingOffset))
+            }
             return EventTRB(dwords: dwords)
         }
 
         mutating func updateDequeuePointer() {
             // Write the ERDP with the address of the last processed Event TRB
             let ringSegmentAddr = UInt64(ringSegment.baseAddress.value)
-            let eventRingOffset = self.slotIndex * self.trbSize
-            let erdp = ringSegmentAddr + UInt64(eventRingOffset)
+            let eventRingOffset = UInt64(self.slotIndex * self.trbSize)
+            if XHCIDebug {
+                #kprintf("xhci-ring: Updating dequeuPointer to 0x%x\n", eventRingOffset)
+            }
+            let erdp = ringSegmentAddr + eventRingOffset
             let newErdp = erdp | 8
             setInterrupter(eventRingDequeuePointer: newErdp)
             self.unAckedEvents = 0

@@ -153,7 +153,8 @@ extension HCD_XHCI {
         let pipe = XHCIPipe(usbDevice: device, endpointDescriptor: endpointDescriptor, deviceData)
         if let pipe {
             if XHCIDebug {
-                #kprintf("xhci-pipe: Adding new pipe for epId: %d pipeIdx: %d\n", pipe.epContextSlot, pipeIdx)
+                #kprintf("xhci-pipe: Adding new pipe for ep: %d dir: %s epId: %d pipeIdx: %d\n",
+                         ep, endpointDescriptor.direction.description, pipe.epContextSlot, pipeIdx)
             }
             deviceData.pipes[pipe.epContextSlot - 1] = pipe
         }
@@ -164,10 +165,11 @@ extension HCD_XHCI {
 fileprivate extension HCD_XHCI {
     final class XHCIPipe: USBPipe {
         private let deviceData: XHCIDeviceData
-        private let maxPacketSize0: Int
-        private var urb: USB.Request?
+        private(set) var maxPacketSize0: Int
         private var transferRing: ProducerRing<TransferTRB>
         private var inputContext: MMIORegion
+        private var urb: USB.Request?
+        private var expectedTRB = PhysAddress(0)
         let epContextSlot: Int  // 1 - 31
 
 
@@ -384,6 +386,7 @@ fileprivate extension HCD_XHCI {
                   commandCompletion.slotId == deviceData.slotId else {
                 fatalError("xhci-pipe: Failed to send command TRB or returned slotId is wrong")
             }
+            self.maxPacketSize0 = maxPacketSize
         }
 
         override func submitURB(_ urb: consuming USB.Request) {
@@ -393,6 +396,10 @@ fileprivate extension HCD_XHCI {
 
             let transfer = urb.transfer
             self.urb = consume urb
+            if XHCIDebug {
+                #kprintf("xhci-pipe Set urb for %d/%d to valid URB: %s\n",
+                         self.deviceData.slotId, self.epContextSlot, self.urb != nil)
+            }
 
             switch transfer {
                 case .control(let request):
@@ -413,24 +420,39 @@ fileprivate extension HCD_XHCI {
         // Called in interrupt context
         private var gotEvent = false
         fileprivate func processEventTRB(_ trb: EventTRB.Transfer) {
-            #if false
-                #kprintf("\n**xhci-pipe: event: cc: %d trbp: %p ed: %p ttlen: %u trbt: %d ep: %d sl: %u",
+
+            if let trbPointer = trb.trbPointer, self.expectedTRB.value != UInt(trbPointer) {
+                #kprintf("xhci-pipe: %d/%d Got unexpected TRB, expecting %p got %p\n",
+                         trb.slotId, trb.endpointId, self.expectedTRB, trbPointer)
+                return
+            }
+            self.expectedTRB = PhysAddress(0)
+
+            if XHCIDebug {
+                if trb.completionCode != 1 {
+                    #kprintf("\n**xhci-pipe, completionCode: %d remaining bytes: %d\n",
+                         Int(trb.completionCode), Int(trb.trbTransferLength))
+                }
+                #kprintf("**xhci-pipe: event: cc: %d trbp: %p ed: %p ttlen: %u trbt: %d ep: %d sl: %u urb: %s\n",
                          trb.completionCode,
                          trb.trbPointer ?? 0,
                          trb.eventData ?? 0,
                          trb.trbTransferLength,
                          trb.trbTypeValue,
                          trb.endpointId,
-                         trb.slotId)
-            #endif
-            if trb.completionCode != 1 && XHCIDebug {
-                #kprintf("\n**xhci-pipe, completionCode: %d remaining bytes: %d\n",
-                         Int(trb.completionCode), Int(trb.trbTransferLength))
+                         trb.slotId,
+                         self.urb != nil
+                )
             }
-
             guard let urb = self.urb.take() else {
-                #kprintf("\n**xhci-pipe: Got transfer event %d when no URB is active\n", trb.completionCode)
+                #kprintf("\n**xhci-pipe: %d/%d Got transfer event %d when no URB is active\n",
+                         trb.slotId, trb.endpointId, trb.completionCode)
                 return
+            }
+            if XHCIDebug {
+                #kprintf("**xhci-pipe: Set urb to nil for %d/%d: %s\n",
+                         self.deviceData.slotId, self.epContextSlot, self.urb == nil
+                )
             }
             gotEvent = true
 
@@ -514,8 +536,13 @@ fileprivate extension HCD_XHCI {
             let setupTrb = TransferTRB.setupStage(request: request, interrupter: 0,
                                                   interruptOnComplete: false, trt: trt)
 
-            transferRing.addTRB(setupTrb, enable: false)
-
+            let setupAddr = transferRing.addTRB(setupTrb, enable: false)
+            if XHCIDebug {
+                #kprintf("xhci-pipe: Added SETUP  TRB @ %p  0x%8.8x 0x%8.8x 0x%8.8x 0x%8.8x\n",
+                         setupAddr,
+                         setupTrb.dwords[0], setupTrb.dwords[1], setupTrb.dwords[2], setupTrb.dwords[3]
+                )
+            }
             var useDataTRB = true   // First TRB is Data, rest are Normal
             if let buffer {
                 if XHCIDebug {
@@ -585,17 +612,16 @@ fileprivate extension HCD_XHCI {
                 }
             }
 
-
             let statusTrb = TransferTRB.statusStage(
                 interrupter: 0, readData: trt != 3,
                 interruptOnComplete: true,
                 chain: false, evaluateNextTRB: false
             )
             let addr = transferRing.addTRB(statusTrb)
+            self.expectedTRB = addr
             gotEvent = false
             if XHCIDebug {
-                #kprintf("xhci-pipe: Added status TRB @ %p\n", addr.value)
-                #kprint("xhci-pipe: enabling TRB and ringing doorbell")
+                #kprintf("xhci-pipe: Added status TRB @ %p enabling TRB and ringing doorbell\n", addr)
             }
             memoryBarrier()
             transferRing.enableTRB()
@@ -607,13 +633,17 @@ fileprivate extension HCD_XHCI {
                 sleep(milliseconds: 1)
                 count -= 1
             }
-            if !gotEvent { #kprint("xhci-pipe: timedout waiting for urb") }
+            if gotEvent { return }
+            #kprintf("xhci-pipe: %u/%d timedout waiting for urb\n",
+                     self.deviceData.slotId, self.epContextSlot)
+            self.expectedTRB = PhysAddress(0)
             // Needs to be atomic exchange
-            guard let urb = self.urb.take() else { return }
-            gotEvent = true
-            #kprint("xhci-pipe: timeout!")
-            let status = USBPipe.Status.timedout
-            let response = USB.Response(status: status, bytesTransferred: 0)
+            guard let urb = self.urb.take() else {
+                #kprintf("xhci-pipe: %u/%d Transfer timed out and there is no URB\n",
+                         self.deviceData.slotId, self.epContextSlot)
+                return
+            }
+            let response = USB.Response(status: .timedout, bytesTransferred: 0)
             let handler = urb.completionHandler
             handler(urb, response)
         }
@@ -636,7 +666,7 @@ fileprivate extension HCD_XHCI {
                 interruptOnComplete: true, chain: false, noSnoop: true,
                 interruptOnShortPacket: true, evaluateNextTrb: false
             )
-            transferRing.addTRB(trb)
+            self.expectedTRB = transferRing.addTRB(trb)
             deviceData.hcd.doorbells.ring(Int(deviceData.slotId), taskId: 0,
                                           target: UInt8(self.epContextSlot))
         }

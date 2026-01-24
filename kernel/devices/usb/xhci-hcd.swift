@@ -369,7 +369,7 @@ final class HCD_XHCI: DeviceDriver {
                     #kprint("xhci-irq: mfIndexWrap")
 
                 case .invalid(let trbtValue):
-                    #kprintf("xhci: Unknown Event TRB type: %d\n", trbtValue)
+                    #kprintf("xhci-irq: Unknown Event TRB type: %d\n", trbtValue)
             }
         }
         eventRing0.updateDequeuePointer()
@@ -415,6 +415,7 @@ final class HCD_XHCI: DeviceDriver {
                 sleep(milliseconds: 1)
                 continue
             }
+            self.lastCommandCompletion = nil
 
             guard let ringIdx = commandRing.ringAddrToIndex(commandCompletion.commandPointer) else {
                 #kprint("xhci: Last command completion has invalid ring index for addres:",
