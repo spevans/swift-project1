@@ -55,7 +55,6 @@ private var _nextBusId = 1
 
 final class USB {
 
-    let devices: [Device] = []
     // Each HCD is a Bus and also a Root Hub
     private var rootDevices: [USBDevice] = []
 
@@ -164,10 +163,10 @@ extension USB {
             }
         }
 
-        var protocolMajor: Int {
+        var isUSB3: Bool {
             switch self {
-                case .lowSpeed, .fullSpeed, .highSpeed: return 2
-                default: return 3
+                case .lowSpeed, .fullSpeed, .highSpeed: false
+                default: true
             }
         }
     }
@@ -179,6 +178,8 @@ extension USB {
 final class USBBus: CustomStringConvertible {
     let busId: Int
     let hcdData: ((USBDevice) -> HCDData)?
+    let basePort: UInt8
+    let portCount: UInt8
     let allocateBuffer: (Int) -> MMIOSubRegion
     let freeBuffer: (MMIOSubRegion) -> ()
     let allocatePipe: (USBDevice, USB.EndpointDescriptor) -> USBPipe?
@@ -187,22 +188,34 @@ final class USBBus: CustomStringConvertible {
 
     init (busId: Int,
           hcdData: ((USBDevice) -> HCDData)? = nil,
+          basePort: UInt8,
+          portCount: UInt8,
           allocateBuffer: @escaping (Int) -> MMIOSubRegion,
           freeBuffer: @escaping (MMIOSubRegion) -> (),
           allocatePipe: @escaping (USBDevice, USB.EndpointDescriptor) -> USBPipe?,
           setAddress: @escaping (USBDevice) -> UInt8?,
     ) {
-        self.description = #sprintf("USBBUS: %d", busId)
         self.busId = busId
         self.hcdData = hcdData
+        self.basePort = basePort
+        self.portCount = portCount
         self.allocateBuffer = allocateBuffer
         self.freeBuffer = freeBuffer
         self.allocatePipe = allocatePipe
         self.setAddress = setAddress
+        self.description = #sprintf("USBBUS: %d", busId)
     }
 
     func allocateBuffer(length: Int) -> MMIOSubRegion {
         self.allocateBuffer(length)
+    }
+
+
+    // Convert the usbDevice.port / rootPort to the physical port
+    // On XHCI where there are 2 busses (2.0 and 3.0) the physical ports
+    // go from 1..x but the per bus ports go from 1..y y+1..x
+    func physPort(for port: UInt8) -> UInt8 {
+        return self.basePort + (port - 1)
     }
 }
 

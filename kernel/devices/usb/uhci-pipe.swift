@@ -12,9 +12,9 @@
 extension HCD_UHCI {
     // FIXME: The HCD should probably track any interrupt pipes that are allocated so that it can poll
     // all of the interrupt pipes when an IRQ actually occurs.
-    func allocatePipe(device: USBDevice,
+    func allocatePipe(usbDevice: USBDevice,
                       endpointDescriptor: USB.EndpointDescriptor) -> USBPipe? {
-        return UHCIPipe(hcd: self, usbDevice: device, endpointDescriptor: endpointDescriptor)
+        return UHCIPipe(hcd: self, usbDevice: usbDevice, endpointDescriptor: endpointDescriptor)
     }
 }
 

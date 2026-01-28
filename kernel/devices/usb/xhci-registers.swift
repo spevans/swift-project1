@@ -207,6 +207,18 @@ extension HCD_XHCI {
             }
             return nil
         }
+
+        // Find the given port range for a specified protocol (2 or 3)
+        // Only 1 port range will start at 1 as the XHCI HCD treats each physical port
+        // as multiple logical ports.
+        func portRange(usbVersion: UInt8) -> ClosedRange<UInt8>? {
+            for (portRange, value) in self.portMap {
+                if value.majorRevision == usbVersion {
+                    return portRange
+                }
+            }
+            return nil
+        }
     }
 
     enum ExtendedCapability {
@@ -312,8 +324,8 @@ extension HCD_XHCI {
             let protocolSlotType: UInt32
             private(set) var speedIds: [ProtocolSpeedID] = []
 
-            var majorRevision: UInt { UInt((header >> 24) & 0xFF) }
-            var minorRevision: UInt { UInt((header >> 16) & 0xFF) }
+            var majorRevision: UInt8 { UInt8((header >> 24) & 0xFF) }
+            var minorRevision: UInt8 { UInt8((header >> 16) & 0xFF) }
 
             var portOffset: UInt8 { UInt8(portInfo.bits(0...7)) }
             var portCount: UInt8 { UInt8(portInfo.bits(8...15)) }

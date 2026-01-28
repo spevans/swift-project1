@@ -58,7 +58,8 @@ extension USB {
         var bNumConfigurations: UInt8 { descriptor.bNumConfigurations }
 
         var deviceClass: DeviceClass? { DeviceClass(rawValue: bDeviceClass) }
-
+        var usbMajor: Int { Int(bcdUSB >> 8) }
+        var usbMinor: Int { Int(bcdUSB & 0xff) }
 
         // Pass in a buffer that maybe shorter than a full packet
         init(from buffer: MMIOSubRegion) {
@@ -76,8 +77,11 @@ extension USB {
 
         // Dummy descriptor with all values 0. Used so that USBDevice does not have
         // to hold a DeviceDescriptor?
-        init() {
-            self.descriptor = usb_standard_device_descriptor()
+        init(usbMajor: UInt8) {
+            var _descriptor = usb_standard_device_descriptor()
+            _descriptor.bcdUSB = UInt16(usbMajor) << 8
+            _descriptor.bMaxPacketSize0 = 8 // Initial default
+            self.descriptor = _descriptor
         }
     }
 }

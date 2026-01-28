@@ -31,7 +31,7 @@ extension HCD_XHCI {
             // and use this to determine the parent port settings
 
             if usbDevice.speed == .lowSpeed || usbDevice.speed == .fullSpeed {
-                parentPortNumber = usbDevice.port
+                parentPortNumber = usbDevice.bus.physPort(for: usbDevice.port)
                 var parent: Device? = usbDevice.parent
                 var foundParent = false
                 while let p = parent as? USBDevice, !p.isHCD {
@@ -44,7 +44,7 @@ extension HCD_XHCI {
                         break
                     } else {
                         parent = p.parent
-                        parentPortNumber = p.port
+                        parentPortNumber = usbDevice.bus.physPort(for: p.port)
                     }
                 }
                 if !foundParent {
@@ -55,9 +55,10 @@ extension HCD_XHCI {
 
             let contextEntries: UInt32 = 1
             let interrupter: UInt32 = 0
+            let physRootPort = usbDevice.bus.physPort(for: usbDevice.rootPort)
             self.dwords = [
                 (contextEntries << 27) | UInt32(mtt ? 1 : 0)  << 25 | (usbDevice.speed.slotContextSpeed << 20) | usbDevice.routeString ,
-                UInt32(usbDevice.rootPort) << 16,
+                UInt32(physRootPort) << 16,
                 (interrupter) << 22 | UInt32(parentPortNumber) << 8 | UInt32(parentHubSlotId),
                 0
             ]
@@ -135,10 +136,10 @@ extension HCD_XHCI {
     }
 
 
-    func allocatePipe(device: USBDevice,
+    func allocatePipe(usbDevice: USBDevice,
                       endpointDescriptor: USB.EndpointDescriptor) -> USBPipe? {
 
-        guard let deviceData = device.hcdData as? XHCIDeviceData else {
+        guard let deviceData = usbDevice.hcdData as? XHCIDeviceData else {
             #kprint("xhci-pipe: No per device data")
             return nil
         }
@@ -150,7 +151,7 @@ extension HCD_XHCI {
             #kprintf("xhci-pipe: Pipe already active for endpoint %u\n", endpointDescriptor.endpoint)
             return nil
         }
-        let pipe = XHCIPipe(usbDevice: device, endpointDescriptor: endpointDescriptor, deviceData)
+        let pipe = XHCIPipe(usbDevice: usbDevice, endpointDescriptor: endpointDescriptor, deviceData)
         if let pipe {
             if XHCIDebug {
                 #kprintf("xhci-pipe: Adding new pipe for ep: %d dir: %s epId: %d pipeIdx: %d\n",
@@ -185,7 +186,7 @@ fileprivate extension HCD_XHCI {
                 #kprintf("xhci-pipe: direction: %d endpointDescriptor.endpoint: %d epContextSlot: %d\n",
                          direction, Int(endpointDescriptor.endpoint), epContextSlot)
             }
-            self.inputContext = deviceData.inputDeviceContext()
+            self.inputContext = deviceData.inputDeviceContext
 
             super.init(endpointDescriptor: endpointDescriptor)
 
@@ -324,9 +325,11 @@ fileprivate extension HCD_XHCI {
                 }
             }
 
-            guard let commandCompletion = deviceData.hcd.writeCommandTRB(commandTrb),
-                  commandCompletion.slotId == deviceData.slotId else {
-                fatalError("xhci-pipe: Failed to send command TRB or returned slotId is wrong")
+            guard let commandCompletion = deviceData.hcd.writeCommandTRB(commandTrb) else {
+                fatalError("xhci-pipe: Failed to send command TRB")
+            }
+            guard commandCompletion.slotId == deviceData.slotId else {
+                fatalError("xhci-pipe: slotId \(commandCompletion.slotId) is wrong \(deviceData.slotId)")
             }
         }
 
@@ -674,21 +677,18 @@ fileprivate extension HCD_XHCI {
 }
 
 
-class XHCIDeviceData: HCDData {
+final class XHCIDeviceData: HCDData {
     let hcd: HCD_XHCI
     let slotId: UInt8
     let deviceContext: MMIORegion
-    private var _inputDeviceContext: MMIORegion?
-    private let usbDevice: USBDevice
+    let inputDeviceContext: MMIORegion
     fileprivate var pipes: InlineArray<31, HCD_XHCI.XHCIPipe?> = .init(repeating: nil)
 
-    init(hcd: HCD_XHCI, device: USBDevice) {
+    init(hcd: HCD_XHCI) {
         self.hcd = hcd
-        self.usbDevice = device
-        self._inputDeviceContext = nil
-
         // Do the device setup
         (self.slotId, self.deviceContext) = hcd.enableSlot()
+        self.inputDeviceContext = hcd.allocator.allocInputDeviceContect()
 
         if XHCIDebug {
             #kprintf("xhci-pipe: enableSlot returned slotId %d\n", self.slotId)
@@ -712,16 +712,6 @@ class XHCIDeviceData: HCDData {
             }
         }
         return dci
-    }
-
-    func inputDeviceContext() -> MMIORegion {
-
-        if let context = self._inputDeviceContext {
-            return context
-        }
-        let context = hcd.allocator.allocInputDeviceContect()
-        self._inputDeviceContext = context
-        return context
     }
 
     func processTRB(_ trb: HCD_XHCI.EventTRB.Transfer, endpointId: Int) -> Bool {

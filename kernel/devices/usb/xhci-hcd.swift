@@ -211,33 +211,60 @@ final class HCD_XHCI: DeviceDriver {
 
         let busId = system.deviceManager.usb!.nextBusId()
         self.pciDevice.setAsBus()
-        let usbBus = USBBus(
-            busId: busId,
-            hcdData: { XHCIDeviceData(hcd: self, device: $0) },
-            allocateBuffer: { self.allocator.allocPhysBuffer(length: $0) },
-            freeBuffer: { self.allocator.freePhysBuffer($0) },
-            allocatePipe: {
-                if XHCIDebug {
-                    #kprint("USBBus.allocatePipe() called, isHCD:", $0.isHCD)
-                }
-                if $0.isHCD {
-                    return HCD_XHCIPipe(self, endpointDescriptor: $1)
-                } else {
-                    return self.allocatePipe(device: $0, endpointDescriptor: $1)
-                }
-            },
-            setAddress: { usbDevice in self.setAddress(on: usbDevice) },
-        )
 
-        let rootHubDevice = USBDevice(
-            parent: self.pciDevice,
-            bus: usbBus,
-            speed: .highSpeed,
-            address: 1
-        )
         let instance = atomic_inc(&_xhciNumber)
         self.setInstanceName(to: "xhci-hcd\(instance)")
-        return system.deviceManager.usb!.addRootDevice(rootHubDevice)
+
+        for usbVersion: UInt8 in 2...3 {
+            guard let portRange = self.capabilities.portRange(usbVersion: usbVersion) else {
+                continue
+            }
+            let basePort = portRange.lowerBound
+            let portCount = (portRange.upperBound - portRange.lowerBound) + 1
+
+            guard portRange.upperBound <= self.capabilities.maxPorts else {
+                fatalError("xhci: portRange upperBount \(portRange.upperBound) > maxPorts \(self.capabilities.maxPorts)")
+            }
+
+            XHCIDebug = false
+            let usbBus = USBBus(
+                busId: busId,
+                hcdData: { usbDevice in XHCIDeviceData(hcd: self) },
+                basePort: basePort,
+                portCount: portCount,
+                allocateBuffer: { self.allocator.allocPhysBuffer(length: $0) },
+                freeBuffer: { self.allocator.freePhysBuffer($0) },
+                allocatePipe: {
+                    if XHCIDebug {
+                        #kprint("USBBus.allocatePipe() called, isHCD:", $0.isHCD)
+                    }
+                    if $0.isHCD {
+                        return HCD_XHCIPipe(self, endpointDescriptor: $1,
+                                            basePort: basePort, portCount: portCount,
+                                            usbVersion: usbVersion)
+                    } else {
+                        return self.allocatePipe(usbDevice: $0, endpointDescriptor: $1)
+                    }
+                },
+                setAddress: { usbDevice in self.setAddress(on: usbDevice) },
+            )
+
+            #kprintf("xhci: Adding %d.0 bus, basePort: %u portCount: %u\n",
+                     usbVersion, basePort, portCount);
+            let rootHubDevice = USBDevice(
+                parent: self.pciDevice,
+                bus: usbBus,
+                speed: usbVersion == 2 ? .highSpeed : .superSpeed_gen1_x1,
+                address: 1
+            )
+            #kprintf("xhci: adding root device, speed: %s\n", rootHubDevice.speed.description)
+            XHCIDebug = false
+
+            guard system.deviceManager.usb!.addRootDevice(rootHubDevice) else {
+                return false
+            }
+        }
+        return true
     }
 
     private func setAddress(on usbDevice: USBDevice) -> UInt8? {
@@ -245,8 +272,9 @@ final class HCD_XHCI: DeviceDriver {
             #kprint("xhci: Failed to get device data")
             return nil
         }
+
         // Configure the EP0
-        let inputContext = deviceData.inputDeviceContext()
+        let inputContext = deviceData.inputDeviceContext
         let value = UInt32(1 << 1) | 1
         inputContext.write(value: value, toByteOffset: 4)
         // Configure the EP0 inputContext, used for Address Device command
@@ -494,13 +522,18 @@ final class HCD_XHCI: DeviceDriver {
 // Pipe to the HCD, used for the Root hub device
 final class HCD_XHCIPipe: USBPipe {
     private let hcd: HCD_XHCI
+    private let basePort: UInt8
+    private let portCount: UInt8
+    private let usbVersion: UInt8
 
-    init(_ hcd: HCD_XHCI, endpointDescriptor: USB.EndpointDescriptor) {
+    init(_ hcd: HCD_XHCI, endpointDescriptor: USB.EndpointDescriptor,
+         basePort: UInt8, portCount: UInt8, usbVersion: UInt8) {
         self.hcd = hcd
+        self.basePort = basePort
+        self.portCount = portCount
+        self.usbVersion = usbVersion
         super.init(endpointDescriptor: endpointDescriptor)
     }
-
-    var portCount: UInt8 { UInt8(self.hcd.capabilities.maxPorts) }
 
     override func submitURB(_ urb: consuming USB.Request) {
         let response: USB.Response
@@ -555,7 +588,8 @@ final class HCD_XHCIPipe: USBPipe {
                 #kprintf("xhci-root: Invalid port %d\n", setupRequest.wIndex)
                 return nil
             }
-            return UInt8(setupRequest.wIndex)
+            // Convert to full port number
+            return UInt8(setupRequest.wIndex - 1) + basePort
         }
 
 
@@ -569,8 +603,17 @@ final class HCD_XHCIPipe: USBPipe {
             case (deviceRequest, .GET_DESCRIPTOR):
                 // FIXME, use the returned length in a URB response
                 guard var buffer = buffer else { return errorResponse }
-                let hubDescriptor = USB.HUBDescriptor(ports: self.portCount)
-                let length = hubDescriptor.descriptorAsBuffer(wLength: setupRequest.wLength, into: &buffer)
+                let length: Int
+                if setupRequest.wValue >> 8 == USB.DescriptorType.HUB.rawValue {
+                    let hubDescriptor = USB.HUBDescriptor(isSuperSpeed: false, ports: self.portCount)
+                    length = hubDescriptor.descriptorAsBuffer(wLength: setupRequest.wLength, into: &buffer)
+                } else if setupRequest.wValue >> 8 == USB.DescriptorType.SUPER_SPEED_HUB.rawValue {
+                    let hubDescriptor = USB.HUBDescriptor(isSuperSpeed: true, ports: self.portCount)
+                    length = hubDescriptor.descriptorAsBuffer(wLength: setupRequest.wLength, into: &buffer)
+                } else {
+                    #kprintf("xhci-root: Invalid GET_DESCRIPTOR: 0x%x\n", setupRequest.wValue)
+                    return errorResponse
+                }
                 return USB.Response(status: .finished, bytesTransferred: UInt32(length))
 
             case (fromPortRequest, .GET_STATUS):

@@ -146,13 +146,15 @@ final class HCD_UHCI: DeviceDriver {
         let busId = system.deviceManager.usb!.nextBusId()
         let usbBus = USBBus(
             busId: busId,
+            basePort: 1,
+            portCount: 2,
             allocateBuffer: { self.allocator.allocPhysBuffer(length: $0) },
             freeBuffer: { self.allocator.freePhysBuffer($0) },
             allocatePipe: {
                 if $0.isHCD {
                     return HCD_UHCIPipe(self, endpointDescriptor: $1)
                 } else {
-                    return self.allocatePipe(device: $0, endpointDescriptor: $1)
+                    return self.allocatePipe(usbDevice: $0, endpointDescriptor: $1)
                 }
             },
             setAddress: { self.setAddress($0) },
@@ -576,7 +578,7 @@ final class HCD_UHCIPipe: USBPipe {
             case (deviceRequest, .GET_DESCRIPTOR):
                 // FIXME, use the returned length in a URB response
                 guard var buffer = buffer else { return errorResponse }
-                let hubDescriptor = USB.HUBDescriptor(ports: portCount)
+                let hubDescriptor = USB.HUBDescriptor(isSuperSpeed: false, ports: portCount)
                 let length = hubDescriptor.descriptorAsBuffer(wLength: setupRequest.wLength, into: &buffer)
                 return USB.Response(status: .finished, bytesTransferred: UInt32(length))
 

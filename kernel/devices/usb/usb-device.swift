@@ -27,11 +27,14 @@ class USBDevice: Device {
     let depth: UInt8        // Only needed for hub Root is depth 0
     let routeString: UInt32 // The Route String to this device
     var isLowSpeedDevice: Bool { speed == .lowSpeed }
+    var isUSB3Device: Bool { descriptor.usbMajor == 3 }
     var isHCD: Bool { depth == 0 }
 
+
     override var description: String {
-        #sprintf("USB %d.%u isHCD: %s speed: %s",
-                 bus.busId, address, self.isHCD, self.speed.description)
+        #sprintf("USB %d.%u isHCD: %s speed: %s usbVer: %d.%d",
+                 bus.busId, address, self.isHCD, self.speed.description,
+                 self.descriptor.usbMajor, self.descriptor.usbMinor)
     }
 
 
@@ -52,17 +55,17 @@ class USBDevice: Device {
         // Walk up the USB tree to determine the rootPort and routeString
         // for this device
         var _rootPort = port
-        var _routeString = UInt32(self.port)
+        var _routeString = UInt32(bus.physPort(for: _rootPort))
         var parentDevice = parent as? USBDevice
         while let p = parentDevice, !(p.isHCD) {
             _rootPort = p.port
             _routeString <<= 4
-            _routeString |= UInt32(_rootPort & 0xf)
+            _routeString |= UInt32(bus.physPort(for: _rootPort) & 0xf)
             parentDevice = p.parent as? USBDevice
         }
         self.rootPort = _rootPort
         self.routeString = _routeString >> 4  // Remove the rootPort
-        self.descriptor = USB.DeviceDescriptor.init() // Add dummy for now
+        self.descriptor = USB.DeviceDescriptor.init(usbMajor: speed.isUSB3 ? 3 : 2) // Add dummy for now
 
         super.init(parent: parent,
                    className: "USBDevice",
@@ -86,13 +89,12 @@ class USBDevice: Device {
         self.hcdData = nil
         // Contol Pipe
         self.maxPacketSize0 = speed.controlSize
-        self.descriptor = USB.DeviceDescriptor.init() // Add dummy for now
+        self.descriptor = USB.DeviceDescriptor.init(usbMajor: speed.isUSB3 ? 3 : 2) // Add dummy for now
 
         super.init(parent: parent,
                    className: "USBDevice",
                    busDeviceName: #sprintf("usbhcd-%d.%u", self.bus.busId, self.address)
         )
-        self.hcdData = bus.hcdData?(self)
         self.setAsBus()
     }
 
@@ -218,17 +220,32 @@ class USBDevice: Device {
 
         let descriptor = USB.DeviceDescriptor(from: infoBuffer)
         if Int(descriptor.bMaxPacketSize0) > maxPacketSize0 {
+            // An Enhanced SuperSpeed device shall set the bMaxPacketSize0 field to 09H (see Table 9-11)
+            // indicating a 512-byte maximum packet. An Enhanced SuperSpeed device shall not support
+            // any other maximum packet sizes for the default control pipe (endpoint 0) control endpoint .
+            let newMaxPacketSize0: Int
+            if self.isUSB3Device {
+                self.speed = .superSpeed_gen1_x1
+                guard descriptor.bMaxPacketSize0 == 0x09 else {
+                    // Die for now
+                    fatalError("USB-DEV: Device protocol \(descriptor.bDeviceProtocol) has bMaxPacketSize0 \(descriptor.bMaxPacketSize0) which is not supported")
+                }
+                newMaxPacketSize0 = 512
+            } else {
+                newMaxPacketSize0 = Int(descriptor.bMaxPacketSize0)
+            }
+
             // For Control Pipes update the maxPacketSize0 if new data is available
-            #kprintf("USB-DEV: Updating Control Pipe max Packet size from %d to %d\n", maxPacketSize0, descriptor.bMaxPacketSize0)
+            #kprintf("USB-DEV: Updating Control Pipe max Packet size from %d to %d\n", maxPacketSize0, newMaxPacketSize0)
 
             // Validate the speeds
-            switch (speed, descriptor.bMaxPacketSize0) {
+            switch (speed, newMaxPacketSize0) {
                 case (.lowSpeed, 8),
                     (.fullSpeed, 8), (.fullSpeed, 16), (.fullSpeed, 32), (.fullSpeed, 64),
                     (.highSpeed, 64),
-                    (.superSpeed_gen1_x1, 64), (.superSpeed_gen1_x2, 64),
-                    (.superSpeed_gen2_x1, 64), (.superSpeed_gen2_x2, 64):
-                    self.maxPacketSize0 = Int(descriptor.bMaxPacketSize0)
+                    (.superSpeed_gen1_x1, 512), (.superSpeed_gen1_x2, 512),
+                    (.superSpeed_gen2_x1, 512), (.superSpeed_gen2_x2, 512):
+                    self.maxPacketSize0 = newMaxPacketSize0
                     self.getControlPipe()?.updateMaxPacketSize(to: self.maxPacketSize0)
                 default: #kprintf("Invalid bMaxPackageSize0 %d for speed %s\n", descriptor.bMaxPacketSize0, speed.description)
             }

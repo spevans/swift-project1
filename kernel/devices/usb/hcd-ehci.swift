@@ -139,7 +139,7 @@ final class HCD_EHCI: DeviceDriver {
         return true
     }
 
-    func allocatePipe(device: USBDevice,
+    func allocatePipe(usbDevice: USBDevice,
                       endpointDescriptor: USB.EndpointDescriptor) -> USBPipe? {
         fatalError("ehci: allocatePipe not implemented")
     }
