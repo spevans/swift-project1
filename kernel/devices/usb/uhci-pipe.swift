@@ -14,15 +14,17 @@ extension HCD_UHCI {
     // all of the interrupt pipes when an IRQ actually occurs.
     func allocatePipe(device: USBDevice,
                       endpointDescriptor: USB.EndpointDescriptor) -> USBPipe? {
-        return UHCIPipe(hcd: self, endpointDescriptor: endpointDescriptor)
+        return UHCIPipe(hcd: self, usbDevice: device, endpointDescriptor: endpointDescriptor)
     }
 }
 
+extension HCD_UHCI {
 
-fileprivate extension HCD_UHCI {
     final class UHCIPipe: USBPipe {
         private /*unowned*/ let hcd: HCD_UHCI
+        private /*unowned*/ let usbDevice: USBDevice
 
+        private var activeUrb: USB.Request?
         private var queueHead: PhysQueueHead
         private let transferDescriptors: [PhysTransferDescriptor]
         private let lastTdIndex: Int
@@ -30,13 +32,12 @@ fileprivate extension HCD_UHCI {
         private var tdAllocations = 0
 
         // General USB
-        private var pipeActive = false
         private var timeout: UInt64 = 0
 
 
-        init?(hcd: HCD_UHCI, endpointDescriptor: USB.EndpointDescriptor) {
-
+        init?(hcd: HCD_UHCI, usbDevice: USBDevice, endpointDescriptor: USB.EndpointDescriptor) {
             self.hcd = hcd
+            self.usbDevice = usbDevice
 
             var _tds: [PhysTransferDescriptor] = []
             switch endpointDescriptor.transferType {
@@ -89,40 +90,9 @@ fileprivate extension HCD_UHCI {
             hcd.allocator.freePhysBuffer(buffer)
         }
 
-        private func submitInterrupt(urb: USB.Request) {
-            guard pipeActive == false else {
-                fatalError("Intgerupr pipe is already active")
-            }
-            pipeActive = true
-
-            guard let physBuffer = urb.buffer else {
-                fatalError("UHCI-PIPE: Interrupt URB with no buffer")
-            }
-
-            guard case .interrupt = endpointDescriptor.transferType,
-                  let td = transferDescriptors.first else {
-                fatalError("UHCI-PIPE: Attempting to poll a non interrupt pipe")
-            }
-            let deviceAddress = urb.usbDevice.address
-            let isLowSpeedDevice = urb.usbDevice.isLowSpeedDevice
-
-            td.setTD(TransferDescriptor(
-                linkPointer: TransferDescriptor.LinkPointer.terminator(),
-                controlStatus: TransferDescriptor.ControlStatus(active: true, lowSpeedDevice: isLowSpeedDevice, maxErrorCount: 3, interruptOnComplete: true),
-                token: TransferDescriptor.Token(pid: .pidIn, deviceAddress: deviceAddress, endpoint: endpointDescriptor.endpoint, dataToggle: interruptDataToggle, maximumLength: UInt(endpointDescriptor.maxPacketSize)),
-                bufferPointer: physBuffer.physAddress32
-            ))
-            queueHead.elementLinkPointer = QueueHead.QueueElementLinkPointer(transferDescriptorAddress: td.physAddress)
-            interruptDataToggle.toggle()
-        }
-
         // FIXME: This needs to do more checks from the queue head and also timeout transfers better.
         // Also need to maintain a ptr to the current active TD to check that on eack poll a transfer is progressing
-        override func pollPipe(_ error: Bool) -> USBPipe.Status {
-            guard pipeActive == true else {
-                fatalError("Polling an inactive pipe!")
-            }
-
+        private func _pollPipe(_ error: Bool) -> USBPipe.Status {
             // Walk the list of TransferDescriptors until an active one is found and report on its status
             // If the end of the list is reached then the request was processed successfully
             let startTd = transferDescriptors[0]
@@ -155,7 +125,6 @@ fileprivate extension HCD_UHCI {
                 }
                 if td.controlStatus.stalled {
                     #kprint(self.endpointDescriptor.transferType.description, "pipe has stalled!")
-                    pipeActive = false
                     return .stalled
                 }
                 if td.controlStatus.nakReceived {
@@ -163,7 +132,6 @@ fileprivate extension HCD_UHCI {
                 }
                 if td.controlStatus.crcTimeoutError {
                     #kprint("Timedout")
-                    pipeActive = false
                     return .timedout
                 }
 
@@ -182,22 +150,54 @@ fileprivate extension HCD_UHCI {
                 if self.endpointDescriptor.transferType == .control {
                     self.removeControl()
                 }
-                pipeActive = false
+
                 return .finished
                 // Reached end and last TD is not active
             }
             return .inprogress
         }
 
+        func pollPipe(_ error: Bool) -> USBPipe.Status {
+            guard self.activeUrb != nil  else {
+                fatalError("uhci-pipe: No active URB")
+            }
+            let status = self._pollPipe(error)
+            if status != .inprogress {
+                if let urb = self.activeUrb.take() {
+                    self.activeUrb = nil
+                    // FIXME, find the correct number of bytes for other statuses
+                    let bytes = (status == .finished) ? urb.transfer.bytesToTransfer : 0
+                    let response = USB.Response(status: status, bytesTransferred: bytes)
+                    // FIXME
+                    // urb.completionHandler(urb, response) has error:
+                    // error: copy of noncopyable typed value. This is a compiler bug. Please file a bug with a small example of the bug
+                    let handler = urb.completionHandler
+                    handler(urb, response)
+                }
+            }
+            return status
+        }
 
-        override func submitURB(_ urb: USB.Request) {
-            timeout = current_ticks() + 1000
-            switch endpointDescriptor.transferType {
-                case .control:
-                    _ = self.submitControl(urb: urb)
 
-                case .interrupt:
-                    self.submitInterrupt(urb: urb)
+        override func submitURB(_ urb: consuming USB.Request) {
+            self.timeout = current_ticks() + 1000
+
+            guard self.activeUrb == nil else {
+                fatalError("uhci-pipe: Endpoint already processing URB")
+            }
+            let transfer = urb.transfer
+            self.activeUrb = consume urb
+            self.hcd.addActivePipe(self)
+
+            switch transfer {
+                case .control(let request):
+                    self.submitControl(request, nil, 0)
+
+                case .controlWithBuffer(let request, let buffer, let bytes):
+                    self.submitControl(request, buffer, bytes)
+
+                case .interrupt(let buffer, _):
+                    self.submitInterrupt(buffer)
 
                 case .bulk, .isochronous:
                     fatalError("Cannot process URBs for bulk/ISO yet")
@@ -205,22 +205,16 @@ fileprivate extension HCD_UHCI {
         }
 
 
-        private func submitControl(urb: USB.Request) -> Bool {
+        private func submitControl(
+            _ request: USB.ControlRequest, _ withBuffer: MMIOSubRegion?, _ bytesToTransfer: UInt32)
+        {
+            let requestBuffer = self.hcd.allocator.allocPhysBuffer(
+                length: MemoryLayout<USB.ControlRequest>.size
+            )
+            requestBuffer.storeBytes(of: request, as: USB.ControlRequest.self)
+            defer { self.hcd.allocator.freePhysBuffer(requestBuffer) }
 
-            guard let requestBuffer = urb.setupRequest else {
-                #kprint("UHCI-PIPE: Control URB has no setup packet")
-                return false
-            }
-            guard pipeActive == false else {
-                fatalError("Control pipe is already active")
-            }
-            let deviceAddress = urb.usbDevice.address
-            let isLowSpeedDevice = urb.usbDevice.isLowSpeedDevice
-            let maxPacketSize0 = urb.usbDevice.maxPacketSize0
-            pipeActive = true
-
-            let direction = urb.direction
-            let withBuffer = urb.buffer
+            let direction = request.direction
             let dataPid: TransferDescriptor.Token.PID
             let statusPid: TransferDescriptor.Token.PID
 
@@ -258,19 +252,25 @@ fileprivate extension HCD_UHCI {
             let endpoint = endpointDescriptor.endpoint
             setupTd.setTD(TransferDescriptor(
                 linkPointer: TransferDescriptor.LinkPointer(transferDescriptor: UInt32(nextTd.physAddress), depthFirst: true),
-                controlStatus: TransferDescriptor.ControlStatus(active: true, lowSpeedDevice: isLowSpeedDevice, maxErrorCount: 3, interruptOnComplete: false),
-                token: TransferDescriptor.Token(pid: .pidSetup, deviceAddress: deviceAddress, endpoint: endpoint, dataToggle: false, maximumLength: requestLength),
+                controlStatus: TransferDescriptor.ControlStatus(
+                    active: true, lowSpeedDevice: self.usbDevice.isLowSpeedDevice,
+                    maxErrorCount: 3, interruptOnComplete: false
+                ),
+                token: TransferDescriptor.Token(
+                    pid: .pidSetup, deviceAddress: self.usbDevice.address,
+                    endpoint: endpoint, dataToggle: false, maximumLength: requestLength
+                ),
                 bufferPointer: requestBuffer.physAddress32
             ))
             var toggle = true
 
             // 0 or more data pids as necessary
             if let dataBuffer = withBuffer {
-                var bytesLeft = Int(urb.bytesToTransfer)
-                precondition(dataBuffer.count >= urb.bytesToTransfer)
+                var bytesLeft = Int(bytesToTransfer)
+                precondition(dataBuffer.count >= bytesLeft)
                 var bufferPointer = dataBuffer.physAddress32
                 while bytesLeft > 0 {
-                    let length = min(bytesLeft, Int(maxPacketSize0))
+                    let length = min(bytesLeft, self.usbDevice.maxPacketSize0)
                     let dataTd = nextTd
 
                     bytesLeft -= length
@@ -290,13 +290,20 @@ fileprivate extension HCD_UHCI {
                     //let spd = dataPid == .pidIn
                     dataTd.setTD(TransferDescriptor(
                         linkPointer: TransferDescriptor.LinkPointer(transferDescriptor: UInt32(nextTd.physAddress), depthFirst: true),
-                        controlStatus: TransferDescriptor.ControlStatus(active: true, lowSpeedDevice: isLowSpeedDevice, maxErrorCount: 3,
-                                                                        shortPacketDetect: enableSPD, interruptOnComplete: false),
-                        token: TransferDescriptor.Token(pid: dataPid, deviceAddress: deviceAddress, endpoint: endpoint, dataToggle: toggle, maximumLength: UInt(length)),
+                        controlStatus: TransferDescriptor.ControlStatus(
+                            active: true, lowSpeedDevice: self.usbDevice.isLowSpeedDevice,
+                            maxErrorCount: 3, shortPacketDetect: enableSPD,
+                            interruptOnComplete: false
+                        ),
+                        token: TransferDescriptor.Token(
+                            pid: dataPid, deviceAddress: self.usbDevice.address,
+                            endpoint: endpoint, dataToggle: toggle,
+                            maximumLength: UInt(length)
+                        ),
                         bufferPointer: bufferPointer
                     ))
 
-                    bufferPointer += UInt32(maxPacketSize0)
+                    bufferPointer += UInt32(self.usbDevice.maxPacketSize0)
                     toggle.toggle()
                 }
             }
@@ -306,25 +313,30 @@ fileprivate extension HCD_UHCI {
             // Status PID
             statusTd.setTD(TransferDescriptor(
                 linkPointer: TransferDescriptor.LinkPointer.terminator(),
-                controlStatus: TransferDescriptor.ControlStatus(active: true, lowSpeedDevice: isLowSpeedDevice, maxErrorCount: 3, interruptOnComplete: true),
-                token: TransferDescriptor.Token(pid: statusPid, deviceAddress: deviceAddress, endpoint: endpoint, dataToggle: true, maximumLength: 0),
+                controlStatus: TransferDescriptor.ControlStatus(
+                    active: true, lowSpeedDevice: self.usbDevice.isLowSpeedDevice,
+                    maxErrorCount: 3, interruptOnComplete: true
+                ),
+                token: TransferDescriptor.Token(
+                    pid: statusPid, deviceAddress: self.usbDevice.address,
+                    endpoint: endpoint, dataToggle: true, maximumLength: 0),
                 bufferPointer: 0
             ))
 
             // Add the chain of Transfer Descriptors into the Queue Head.
             //let queueHead = queueHeads[0]
-            let queueElementLP = QueueHead.QueueElementLinkPointer(transferDescriptorAddress: setupTd.physAddress)
-            queueHead.setQH(QueueHead(headLinkPointer: .terminator(), elementLinkPointer: queueElementLP))
+            let queueElementLP = QueueHead.QueueElementLinkPointer(
+                transferDescriptorAddress: setupTd.physAddress)
+            queueHead.setQH(QueueHead(headLinkPointer: .terminator(),
+                                      elementLinkPointer: queueElementLP
+                                     ))
             // Add the queueHD into the global chain
             writeMemoryBarrier()
             //            hcd.statusRegister = hcd.statusRegister // clear bits
             hcd.addQueueHead(queueHead, transferType: endpointDescriptor.transferType, interval: endpointDescriptor.bInterval)
-            return true
         }
 
         private func removeControl() {
-
-
             // Remove it from the global chain
             hcd.removeQueueHead(queueHead, transferType: endpointDescriptor.transferType)
 
@@ -344,6 +356,34 @@ fileprivate extension HCD_UHCI {
             guard tdAllocations == 0 else {
                 fatalError("tdAllocation = \(tdAllocations), corrupted link pointers")
             }
+        }
+
+
+        private func submitInterrupt(_ physBuffer: MMIOSubRegion) {
+            guard case .interrupt = endpointDescriptor.transferType,
+                  let td = transferDescriptors.first else {
+                fatalError("UHCI-PIPE: Attempting to poll a non interrupt pipe")
+            }
+
+            let transferDescriptor = TransferDescriptor(
+                linkPointer: TransferDescriptor.LinkPointer.terminator(),
+                controlStatus: TransferDescriptor.ControlStatus(
+                    active: true, lowSpeedDevice: self.usbDevice.isLowSpeedDevice,
+                    maxErrorCount: 3, interruptOnComplete: true
+                ),
+                token: TransferDescriptor.Token(
+                    pid: .pidIn,
+                    deviceAddress: self.usbDevice.address,
+                    endpoint: endpointDescriptor.endpoint,
+                    dataToggle: interruptDataToggle,
+                    maximumLength: UInt(endpointDescriptor.maxPacketSize)
+                ),
+                bufferPointer: physBuffer.physAddress32
+            )
+            td.setTD(transferDescriptor)
+
+            queueHead.elementLinkPointer = QueueHead.QueueElementLinkPointer(transferDescriptorAddress: td.physAddress)
+            interruptDataToggle.toggle()
         }
     }
 }

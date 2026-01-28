@@ -24,21 +24,22 @@ class USBDevice: Device {
     let bus: USBBus         // FIXME, could this just be HCDRootHub?
     let rootPort: UInt8     // The port of the HCD this is ultimatley connected to
     let port: UInt8         // The port of the hub this is connected to, if no upstream hub then == rootPort
+    let depth: UInt8        // Only needed for hub Root is depth 0
     let routeString: UInt32 // The Route String to this device
     var isLowSpeedDevice: Bool { speed == .lowSpeed }
-
+    var isHCD: Bool { depth == 0 }
 
     override var description: String {
-        #sprintf("USB %d.%u isHCDRootHub: %s speed: %s",
-                 bus.busId, address, self is HCDRootHub, self.speed.description
-        )
+        #sprintf("USB %d.%u isHCD: %s speed: %s",
+                 bus.busId, address, self.isHCD, self.speed.description)
     }
 
 
-    init?(parent: Device, bus: USBBus, port: UInt8, speed: USB.Speed,
-          address: UInt8? = nil) {
+    init?(parent: Device, bus: USBBus, port: UInt8, depth: UInt8,
+          speed: USB.Speed, address: UInt8? = nil) {
         self.bus = bus
         self.port = port
+        self.depth = depth
         self.speed = speed
         self.hcdData = nil
 
@@ -53,7 +54,7 @@ class USBDevice: Device {
         var _rootPort = port
         var _routeString = UInt32(self.port)
         var parentDevice = parent as? USBDevice
-        while let p = parentDevice, !(p is HCDRootHub) {
+        while let p = parentDevice, !(p.isHCD) {
             _rootPort = p.port
             _routeString <<= 4
             _routeString |= UInt32(_rootPort & 0xf)
@@ -69,8 +70,30 @@ class USBDevice: Device {
         )
         self.hcdData = bus.hcdData?(self)
 
-        #kprintf("usb-device: rootPort: %u port: %u routeString: %5.5x\n",
-                 self.rootPort, self.port, self.routeString)
+        #kprintf("usb-device: depth: %u, rootPort: %u port: %u speed: %s routeString: %5.5x\n",
+                 self.depth, self.rootPort, self.port, self.speed.description,
+                 self.routeString)
+    }
+
+    // Used by Root HCD
+    init(parent: Device, bus: USBBus, speed: USB.Speed, address: UInt8) {
+        self.bus = bus
+        self.rootPort = 0
+        self.port = 0
+        self.routeString = 0
+        self.depth = 0
+        self.speed = speed
+        self.hcdData = nil
+        // Contol Pipe
+        self.maxPacketSize0 = speed.controlSize
+        self.descriptor = USB.DeviceDescriptor.init() // Add dummy for now
+
+        super.init(parent: parent,
+                   className: "USBDevice",
+                   busDeviceName: #sprintf("usbhcd-%d.%u", self.bus.busId, self.address)
+        )
+        self.hcdData = bus.hcdData?(self)
+        self.setAsBus()
     }
 
     func setDescriptor(_ descriptor: USB.DeviceDescriptor) {
@@ -85,7 +108,7 @@ class USBDevice: Device {
         var result = #sprintf("rootPort: %u port: %u routeString: %5.5x speed: %s",
                               self.rootPort, self.port, self.routeString,
                               self.speed.description)
-        result += "\n" + descriptor.description
+        result += "\n" + self.descriptor.description
         return result
     }
 
@@ -101,7 +124,7 @@ class USBDevice: Device {
                 maxPacketSize: UInt16(self.maxPacketSize0),
                 bInterval: 0
             )
-            guard let pipe = self.bus.allocatePipe(self, endPoint) else {
+            guard let pipe = self.allocatePipe(endPoint) else {
                 #kprint("usb-dev: Failed to allocate pipe")
                 return nil
             }
@@ -112,48 +135,50 @@ class USBDevice: Device {
 
     // FIXME: Should these 2 functions return USB.Response?
     func sendControlRequest(request: USB.ControlRequest) -> Bool {
-        return sendControlRequestReadData(request: request, into: nil)
+        return self._sendControlRequestReadData(request, into: nil)
     }
 
+    func sendControlRequestReadData(request: USB.ControlRequest, into buffer: MMIOSubRegion) -> Bool {
+        return self._sendControlRequestReadData(request, into: buffer)
+    }
 
-    func sendControlRequestReadData(request: USB.ControlRequest, into buffer: MMIOSubRegion? = nil) -> Bool {
+    private func _sendControlRequestReadData(_ request: USB.ControlRequest, into buffer: MMIOSubRegion? = nil) -> Bool {
         if buffer != nil, request.wLength == 0 {
             fatalError("USBDEV: sendControlRequestReadData wLength is 0!")
         }
         guard let controlPipe = getControlPipe() else { return false }
 
-        #kprint("USB-DEV: \(self.bus.busId)-\(self.address).0 Sending request:", request)
+        if USBTrace {
+            #kprint("USB-DEV: \(self.bus.busId)-\(self.address).0 Sending request:", request)
+        }
 
-        let requestBuffer = bus.allocateBuffer(length: MemoryLayout<USB.ControlRequest>.size)
-        requestBuffer.storeBytes(of: request, as: USB.ControlRequest.self)
-        defer { bus.freeBuffer(requestBuffer) }
+        let transfer: USB.Request.Transfer = if let buffer {
+            .controlWithBuffer(request, buffer, UInt32(request.wLength))
+        } else {
+            .control(request)
+        }
 
         var lastStatus: USBPipe.Status?
         let urb = USB.Request(
-            usbDevice: self,
-            transferType: .control,
-            direction: request.direction,
-            pipe: controlPipe,
+            transfer: transfer,
             completionHandler: { (urb, response) in
                 lastStatus = response.status
             },
-            setupRequest: requestBuffer,
-            buffer: buffer,
-            bytesToTransfer: Int(request.wLength)
         )
-        // FIXME: Could this submit directly on the pipe?
-        bus.submitURB(urb)
+        controlPipe.submitURB(urb)
 
         while lastStatus == nil {
             sleep(milliseconds: 10)
         }
 
         if lastStatus == .finished {
-            #kprint("USB-DEV sendControlRequestReadData returned finished")
-            if let buffer {
-                #kprintf("Dumping %u bytes\n", request.wLength)
-                let dump = buffer.dump(maxBytes: Int(request.wLength))
-                #kprint(dump)
+            if USBTrace {
+                #kprint("USB-DEV sendControlRequestReadData returned finished")
+                if let buffer {
+                    #kprintf("Dumping %u bytes\n", request.wLength)
+                    let dump = buffer.dump(maxBytes: Int(request.wLength))
+                    #kprint(dump)
+                }
             }
         }
 
@@ -248,7 +273,9 @@ class USBDevice: Device {
     }
 
     func setConfiguration(to configuration: UInt8) -> Bool {
-        #kprint("USBDEV: Setting configuration to:", configuration)
+        if USBTrace {
+            #kprint("USBDEV: Setting configuration to:", configuration)
+        }
         let request = USB.ControlRequest.setConfiguration(configuration: configuration)
         guard sendControlRequest(request: request) else {
             #kprint("USBDEV: Failed to set configuration")
@@ -392,33 +419,5 @@ class USBDevice: Device {
             values.append(value)
         }
         return values
-    }
-}
-
-
-// Host controllers also act as Root Hubs so need to act as a USB Device
-// as well.
-final class HCDRootHub: USBDevice {
-
-    struct HCDDeviceFunctions {
-        let processURB: (USB.ControlRequest, MMIOSubRegion?) -> USB.Response
-    }
-
-    private let hcd: HCDDeviceFunctions
-
-    init?(parent: Device, bus: USBBus, hcd: HCDDeviceFunctions) {
-        self.hcd = hcd
-        super.init(parent: parent, bus: bus, port: 0,
-                   speed: .fullSpeed, address: 1)
-        self.setAsBus()
-    }
-
-
-    override func sendControlRequestReadData(
-        request: USB.ControlRequest,
-        into buffer: MMIOSubRegion? = nil) -> Bool
-    {
-        let response = self.hcd.processURB(request, buffer)
-        return response.status == .finished
     }
 }

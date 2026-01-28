@@ -143,8 +143,4 @@ final class HCD_EHCI: DeviceDriver {
                       endpointDescriptor: USB.EndpointDescriptor) -> USBPipe? {
         fatalError("ehci: allocatePipe not implemented")
     }
-
-    func pollInterrupt() -> Bool {
-        return false
-    }
 }

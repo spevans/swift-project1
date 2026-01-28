@@ -74,13 +74,13 @@ extension HCD_XHCI {
         }
 
         // 6.4.1.1 - Normal TRB
-        static func normal(_ data: DataBuffer, tdSize: Int,
+        static func normal(_ data: DataBuffer, tdSize: UInt32,
                            interrupter: Int, blockInterrupt: Bool,
                            interruptOnComplete: Bool, chain: Bool,
                            noSnoop: Bool, interruptOnShortPacket: Bool,
                            evaluateNextTrb: Bool) -> TransferTRB {
 
-            let tdSize = UInt32(min(tdSize, 31))    // Only 5 bits
+            let tdSize = min(tdSize, 31)    // Only 5 bits
             let dword2 = UInt32(interrupter) << 22 | tdSize << 17 | data.count
             let dword3 = UInt32(blockInterrupt ? 1 << 9 : 0)
             | UInt32(data.isData ? 1 << 8 : 0)
@@ -111,11 +111,11 @@ extension HCD_XHCI {
         }
 
         // 6.4.1.2.2 Data Stage TRB
-        static func dataStage(_ data: DataBuffer, tdSize: Int, interrupter: Int,
+        static func dataStage(_ data: DataBuffer, tdSize: UInt32, interrupter: Int,
                              readData: Bool, interruptOnComplete: Bool,
                              chain: Bool, interruptOnShortPacket: Bool,
                              evaluateNextTRB: Bool) -> TransferTRB {
-            let tdSize = UInt32(min(tdSize, 31))    // Only 5 bits
+            let tdSize = min(tdSize, 31)    // Only 5 bits
             let dword2 = UInt32(interrupter << 22) | tdSize << 17 | data.count
             let dword3 = UInt32(readData ? 1 << 16 : 0)
             | UInt32(data.isData ? 1 << 6 : 0)

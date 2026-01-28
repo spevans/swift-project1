@@ -14,8 +14,8 @@ var XHCIDebug = false
 final class HCD_XHCI: DeviceDriver {
     private let pciDevice: PCIDevice
     private let mmioRegion: MMIORegion
-    private let capabilities: CapabilityRegisters
-    private var operationRegs: OperationRegisters
+    fileprivate let capabilities: CapabilityRegisters
+    fileprivate var operationRegs: OperationRegisters
     private var runtimeRegs: RuntimeRegisters
     private let primaryIRQ: IRQSetting
     private var commandRing: ProducerRing<CommandTRB>
@@ -218,27 +218,23 @@ final class HCD_XHCI: DeviceDriver {
             freeBuffer: { self.allocator.freePhysBuffer($0) },
             allocatePipe: {
                 if XHCIDebug {
-                    #kprint("USBBus.allocatePipe() called")
+                    #kprint("USBBus.allocatePipe() called, isHCD:", $0.isHCD)
                 }
-                return self.allocatePipe(device: $0, endpointDescriptor: $1)
+                if $0.isHCD {
+                    return HCD_XHCIPipe(self, endpointDescriptor: $1)
+                } else {
+                    return self.allocatePipe(device: $0, endpointDescriptor: $1)
+                }
             },
             setAddress: { usbDevice in self.setAddress(on: usbDevice) },
-            submitURB: { urb in urb.pipe.submitURB(urb) },
         )
 
-        guard let rootHubDevice = HCDRootHub(
+        let rootHubDevice = USBDevice(
             parent: self.pciDevice,
             bus: usbBus,
-            hcd: HCDRootHub.HCDDeviceFunctions(
-                processURB: { self.processURB($0, into: $1) }
-            )
-        ) else {
-            #kprint("xhci: Failed to create root hub device")
-            return false
-        }
-        if XHCIDebug {
-            #kprint("xhci: created rootHubDevice")
-        }
+            speed: .highSpeed,
+            address: 1
+        )
         let instance = atomic_inc(&_xhciNumber)
         self.setInstanceName(to: "xhci-hcd\(instance)")
         return system.deviceManager.usb!.addRootDevice(rootHubDevice)
@@ -334,8 +330,10 @@ final class HCD_XHCI: DeviceDriver {
                 case .transfer(let trb):
                     let slotId = Int(trb.slotId)
                     let ep = Int(trb.endpointId)
-//                    #kprintf("xhci-irq: Got Transfer event for slotId: %d/endpoint: %d, trbPtr: %p\n",
-//                             slotId, ep, trb.trbPointer ?? 0)
+                    if XHCIDebug {
+                        #kprintf("xhci-irq: Got Transfer event for slotId: %d/endpoint: %d, trbPtr: %p\n",
+                                 slotId, ep, trb.trbPointer ?? 0)
+                    }
                     guard let deviceData = self.deviceData[slotId] else {
                         #kprintf("xhci-irq: No active device for slotId: %d\n", slotId)
                         continue
@@ -489,25 +487,41 @@ final class HCD_XHCI: DeviceDriver {
                 #kprintf("Invalid command '%s'\n", command)
         }
     }
-
-
-    func pollInterrupt() -> Bool {
-        return false
-    }
-
-    // Fixme this needs to do locking etc
-    func submitURB(_ urb: USB.Request) {
-        urb.pipe.submitURB(urb)
-    }
 }
 
 
-// USBHub functions
-extension HCD_XHCI {
+// Pipe to the HCD, used for the Root hub device
+final class HCD_XHCIPipe: USBPipe {
+    private let hcd: HCD_XHCI
 
-    var portCount: UInt8 { UInt8(self.capabilities.maxPorts) }
+    init(_ hcd: HCD_XHCI, endpointDescriptor: USB.EndpointDescriptor) {
+        self.hcd = hcd
+        super.init(endpointDescriptor: endpointDescriptor)
+    }
 
-    func processURB(_ setupRequest: USB.ControlRequest, into buffer: MMIOSubRegion?) -> USB.Response {
+    var portCount: UInt8 { UInt8(self.hcd.capabilities.maxPorts) }
+
+    override func submitURB(_ urb: consuming USB.Request) {
+        let response: USB.Response
+
+        switch urb.transfer {
+            case .control(let request):
+                response = self.processURB(request, nil)
+
+            case .controlWithBuffer(let request, let buffer, _):
+                response = self.processURB(request, buffer)
+
+            case .interrupt:
+                fallthrough
+
+            case .bulk, .isochronous:
+                fatalError("xhci-pipe: Failed to process URBs for bulk/ISO yet")
+        }
+        urb.completionHandler(urb, response)
+    }
+
+
+    func processURB(_ setupRequest: USB.ControlRequest, _ buffer: MMIOSubRegion?) -> USB.Response {
 
         let okResponse = USB.Response(status: .finished, bytesTransferred: 0)
         let errorResponse = USB.Response(status: .stalled, bytesTransferred: 0)
@@ -556,14 +570,14 @@ extension HCD_XHCI {
                 guard var buffer = buffer else { return errorResponse }
                 let hubDescriptor = USB.HUBDescriptor(ports: self.portCount)
                 let length = hubDescriptor.descriptorAsBuffer(wLength: setupRequest.wLength, into: &buffer)
-                return USB.Response(status: .finished, bytesTransferred: length)
+                return USB.Response(status: .finished, bytesTransferred: UInt32(length))
 
             case (fromPortRequest, .GET_STATUS):
                 guard let port = getPort() else { return errorResponse }
                 guard var buffer = buffer else { return errorResponse }
                 let portStatus = self.portStatus(port: port)
                 let length = portStatus.asBytes(into: &buffer, maxLength: 4)
-                return USB.Response(status: .finished, bytesTransferred: length)
+                return USB.Response(status: .finished, bytesTransferred: UInt32(length))
 
             case (toPortRequest, .SET_FEATURE), (toPortRequest, .CLEAR_FEATURE):
                 guard let port = getPort() else { return errorResponse }
@@ -571,12 +585,12 @@ extension HCD_XHCI {
                     #kprintf("xhci-root: Invalid FEATURE_SELECTOR: %4.4x\n", setupRequest.wValue)
                     return errorResponse
                 }
-                var portsc = operationRegs.portSC(port: port) & ~0x80ff_01ff
+                var portsc = self.hcd.operationRegs.portSC(port: port) & ~0x80ff_01ff
 
                 switch (requestCode, feature) {
                     case (.SET_FEATURE, .PORT_POWER):
                         portsc |= HCD_XHCI.PORTSC_PP
-                        operationRegs.portSC(port: port, newValue: portsc)
+                        self.hcd.operationRegs.portSC(port: port, newValue: portsc)
                         return okResponse
 
                     case (.SET_FEATURE, .PORT_RESET):
@@ -584,7 +598,7 @@ extension HCD_XHCI {
                             #kprintf("xhci: Setting port(%u) reset\n", port)
                         }
                         portsc |= HCD_XHCI.PORTSC_PR
-                        operationRegs.portSC(port: port, newValue: portsc)
+                        self.hcd.operationRegs.portSC(port: port, newValue: portsc)
                         return okResponse
 
                     case (.CLEAR_FEATURE, .C_PORT_CONNECTION):
@@ -592,7 +606,7 @@ extension HCD_XHCI {
                             #kprintf("xhci: Clearing port(%u) connection change\n", port)
                         }
                         portsc |= HCD_XHCI.PORTSC_CSC
-                        operationRegs.portSC(port: port, newValue: portsc)
+                        self.hcd.operationRegs.portSC(port: port, newValue: portsc)
                         return okResponse
 
                     case (.CLEAR_FEATURE, .C_PORT_RESET):
@@ -600,7 +614,7 @@ extension HCD_XHCI {
                             #kprintf("xhci: Clearing port(%u) reset change\n", port)
                         }
                         portsc |= HCD_XHCI.PORTSC_PRC
-                        operationRegs.portSC(port: port, newValue: portsc)
+                        self.hcd.operationRegs.portSC(port: port, newValue: portsc)
                         return okResponse
 
                     default:
@@ -616,19 +630,8 @@ extension HCD_XHCI {
         return errorResponse
     }
 
-
-    func reset(port: UInt8) -> Bool {
-        if XHCIDebug {
-            #kprintf("xhci: Resetting port %u\n", port)
-        }
-        var portsc = operationRegs.portSC(port: port)
-        portsc |= (1 << 4)
-        operationRegs.portSC(port: port, newValue: portsc)
-        return true
-    }
-
     private func portStatus(port: UInt8) -> USBHubDriver.PortStatus {
-        let status = operationRegs.portSC(port: port)
+        let status = self.hcd.operationRegs.portSC(port: port)
 
         let psiv = status.bits(10...13)
         let speed: USB.Speed = switch psiv {
@@ -648,7 +651,7 @@ extension HCD_XHCI {
                      port, status, UInt(psiv), speed.description)
         }
 
-        let portProtocol = self.capabilities.supportedProtocol(port: port)
+        let portProtocol = self.hcd.capabilities.supportedProtocol(port: port)
         if let portProtocol {
             for speedId in portProtocol.speedIds {
                 if speedId.psiv == psiv {
@@ -677,12 +680,5 @@ extension HCD_XHCI {
             overCurrentIndicatorChanged: status.bit(20),
             resetComplete: status.bit(21)
         )
-    }
-
-
-    func clearConnectStatus(port: UInt8) {
-        var status = operationRegs.portSC(port: port)
-        status |= (1 << 17)
-        operationRegs.portSC(port: port, newValue: status)
     }
 }

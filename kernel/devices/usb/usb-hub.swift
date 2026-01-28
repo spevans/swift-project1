@@ -163,6 +163,7 @@ final class USBHubDriver: DeviceDriver {
         #usbhubDebug("\(self)/\(port) New Device speed: \(connectedSpeed)")
         guard let newDevice = USBDevice(parent: self.usbDevice, bus: usbDevice.bus,
                                         port: UInt8(port),
+                                        depth: self.usbDevice.depth + 1,
                                         speed: connectedSpeed) else {
             #kprint("USB-HUB: Failed to create USBDevice")
             return false

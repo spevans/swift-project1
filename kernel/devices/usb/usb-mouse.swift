@@ -65,16 +65,10 @@ final class USBMouse: DeviceDriver {
         super.init(driverName: "usb-mouse", device: device)
         self.setInstanceName(to: "usb-mouse0")
         let urb = USB.Request(
-            usbDevice: self.usbDevice,
-            transferType: .interrupt,
-            direction: .deviceToHost,
-            pipe: _intrPipe,
-            completionHandler: irqHandler,
-            setupRequest: nil,
-            buffer: physBuffer,
-            bytesToTransfer: Int(intrEndpoint.maxPacketSize)
+            transfer: .interrupt(physBuffer, UInt32(intrEndpoint.maxPacketSize)),
+            completionHandler: irqHandler
         )
-        usbDevice.bus.submitURB(urb)
+        self.intrPipe.submitURB(urb)
     }
 
     deinit {
@@ -99,7 +93,7 @@ final class USBMouse: DeviceDriver {
         return nil
     }
 
-    private func irqHandler(_ request: USB.Request, response: USB.Response) {
+    private func irqHandler(_ request: consuming USB.Request, response: USB.Response) {
 
         if response.bytesTransferred >= 3, let event = MouseEvent(data: physBuffer) {
 
@@ -128,7 +122,7 @@ final class USBMouse: DeviceDriver {
         }
 
         // Resubmit the IRQ
-        usbDevice.bus.submitURB(request)
+        self.intrPipe.submitURB(request)
     }
 }
 

@@ -47,11 +47,9 @@ class USBPipe {
 
     func allocateBuffer(length: Int) -> MMIOSubRegion { fatalError("Implement USBPipe.allocateBuffer") }
     func freeBuffer(_ buffer: MMIOSubRegion) {}
-    func submitURB(_ urb: USB.Request) {}
-    func pollPipe(_ error: Bool) -> Status { .cancelled }
+    func submitURB(_ urb: consuming USB.Request) {}
     func updateMaxPacketSize(to maxPacketSize: Int) {}
 }
-
 
 private var _nextBusId = 1
 
@@ -59,7 +57,7 @@ final class USB {
 
     let devices: [Device] = []
     // Each HCD is a Bus and also a Root Hub
-    private var rootDevices: [HCDRootHub] = []
+    private var rootDevices: [USBDevice] = []
 
 
     init() {
@@ -70,7 +68,11 @@ final class USB {
         return atomic_inc(&_nextBusId)
     }
 
-    func addRootDevice(_ rootHubDevice: HCDRootHub) -> Bool {
+    func addRootDevice(_ rootHubDevice: USBDevice) -> Bool {
+        guard rootHubDevice.isHCD else {
+            #kprintf("usb: %s is not an HCD Root Bus\n", rootHubDevice.deviceName)
+            return false
+        }
         guard let rootHubDriver = USBHubDriver(usbDevice: rootHubDevice) else {
             #kprint("USB: Failed to add roothub")
             return false
@@ -174,14 +176,13 @@ extension USB {
 
 // Every USB Host controller is both a Bus and a Root Hub. This defines the functions that a USBDevice
 // can use via it's bus
-struct USBBus: CustomStringConvertible {
+final class USBBus: CustomStringConvertible {
     let busId: Int
     let hcdData: ((USBDevice) -> HCDData)?
     let allocateBuffer: (Int) -> MMIOSubRegion
     let freeBuffer: (MMIOSubRegion) -> ()
     let allocatePipe: (USBDevice, USB.EndpointDescriptor) -> USBPipe?
     let setAddress: (USBDevice) -> UInt8?
-    let submitURB: (USB.Request) -> Void
     let description: String
 
     init (busId: Int,
@@ -190,7 +191,6 @@ struct USBBus: CustomStringConvertible {
           freeBuffer: @escaping (MMIOSubRegion) -> (),
           allocatePipe: @escaping (USBDevice, USB.EndpointDescriptor) -> USBPipe?,
           setAddress: @escaping (USBDevice) -> UInt8?,
-          submitURB: @escaping (USB.Request) -> Void,
     ) {
         self.description = #sprintf("USBBUS: %d", busId)
         self.busId = busId
@@ -199,7 +199,6 @@ struct USBBus: CustomStringConvertible {
         self.freeBuffer = freeBuffer
         self.allocatePipe = allocatePipe
         self.setAddress = setAddress
-        self.submitURB = submitURB
     }
 
     func allocateBuffer(length: Int) -> MMIOSubRegion {
@@ -208,25 +207,32 @@ struct USBBus: CustomStringConvertible {
 }
 
 extension USB {
-    struct Request {
-        let usbDevice: USBDevice
+    struct Request: ~Copyable {
 
-        // FIXME, might be better as .control(SetupRequest, direction, buffer?) .interrupt(buffer) ...
-        // FIXME: Could remove pipe, transferType and usbDevice and just do submitURB directly
-        //        on the pipe instead of the device
+        enum Transfer {
+            // FIXME is TransferDriection needed if it is in the request
+            case control(ControlRequest)
+            // Send Request, with data buffer and length
+            case controlWithBuffer(ControlRequest, MMIOSubRegion, UInt32)
+            case interrupt(MMIOSubRegion, UInt32)
+            case bulk
+            case isochronous
 
-        let transferType: EndpointDescriptor.TransferType
-//        let endpointDescriptor: EndpointDescriptor
-        let direction: TransferDirection    // Control requests do not use the direction in the Endpoint Descriptor
-        let pipe: USBPipe
-        let completionHandler: (Request, Response) -> ()
-        let setupRequest: MMIOSubRegion?    // Used for control requests
-        let buffer: MMIOSubRegion?
-        let bytesToTransfer: Int
+            var bytesToTransfer: UInt32 {
+                return switch self {
+                    case .controlWithBuffer(_, _, let bytes): bytes
+                    case .interrupt(_, let bytes): bytes
+                    default: 0
+                }
+            }
+        }
+
+        let transfer: Transfer
+        let completionHandler: (consuming Request, Response) -> ()
     }
 
     struct Response {
         let status: USBPipe.Status
-        let bytesTransferred: Int
+        let bytesTransferred: UInt32
     }
 }

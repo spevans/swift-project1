@@ -208,16 +208,10 @@ final class USBKeyboard: DeviceDriver {
         super.init(driverName: "usb-kbd", device: device)
         self.setInstanceName(to: "usb-kbd0")
         let urb = USB.Request(
-            usbDevice: self.usbDevice,
-            transferType: .interrupt,
-            direction: .deviceToHost,
-            pipe: _intrPipe,
-            completionHandler: irqHandler,
-            setupRequest: nil,
-            buffer: physBuffer,
-            bytesToTransfer: Int(intrEndpoint.maxPacketSize)
+            transfer: .interrupt(physBuffer, UInt32(intrEndpoint.maxPacketSize)),
+            completionHandler: irqHandler
         )
-        usbDevice.bus.submitURB(urb)
+        self.intrPipe.submitURB(urb)
     }
 
     deinit {
@@ -240,7 +234,7 @@ final class USBKeyboard: DeviceDriver {
     }
 
 
-    private func irqHandler(_ request: USB.Request, response: USB.Response) {
+    private func irqHandler(_ request: consuming USB.Request, response: USB.Response) {
 //        #kprintf("USB-KBD: IRQ status: %s bytes: %d\n", response.status.description, response.bytesTransferred)
 
         let byteCount = response.bytesTransferred
@@ -295,12 +289,12 @@ final class USBKeyboard: DeviceDriver {
             }
         }
 //        #kprintf("usb-keyboard: Copying %d bytes to prevKeysSpan\n", min(byteCount, physBuffer.count))
-        for idx in 0..<min(byteCount, physBuffer.count) {
+        for idx in 0..<min(Int(byteCount), physBuffer.count) {
             prevKeysSpan[idx] = physBuffer[idx]
         }
 
         // Resubmit the IRQ
-        usbDevice.bus.submitURB(request)
+        self.intrPipe.submitURB(request)
     }
 
     private func mmioRegion(_ region: MMIOSubRegion, contains value: UInt8) -> Bool {
