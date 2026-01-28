@@ -42,7 +42,7 @@ final class DeviceManager {
     // implement sleep() etc, used by more complex devices eg USB Host Controllers when initialising.
     // Currently this setups all of the pnp ISA devices but this should be restricted to timers.
     func initialiseEarlyDevices() {
-        #kprint("initialiseEarlyDevices start, device manager has \(masterBus.device.devices.count) devices")
+        #kprint("initialiseEarlyDevices start, device manager has \(masterBus.device.devices?.count ?? 0) devices")
 
         interruptManager.enableGpicMode()
         initPNPDevice(withName: "PNP0C0F")  // PCI Interrupt Link Devices
@@ -150,8 +150,9 @@ final class DeviceManager {
 
 
     private func dumpBus(_ bus: Device, depth: Int) {
+        guard let devices = bus.devices else { return }
         let spaces = String(repeating: " ", count: depth * 6)
-        for device in bus.devices {
+        for device in devices {
             let driverName = if let driver = device.deviceDriver {
                 #sprintf(" driver: %s instance: %s",
                          driver.driverName, driver.instanceName)
@@ -173,8 +174,8 @@ final class DeviceManager {
     }
 
     func walkDeviceTree(bus: Device, body: (Device) -> Bool) {
-
-        for device in bus.devices {
+        guard let devices = bus.devices else { return }
+        for device in devices {
             if !body(device) {
                 return
             }

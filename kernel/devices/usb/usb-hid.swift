@@ -63,6 +63,12 @@ final class USBHIDDriver {
             #kprint("USB-HID: Device has no boot protocol or cannot determine device type (subClass=\(interface.bInterfaceSubClass), protocol=\(interface.bInterfaceProtocol)")
             return false
         }
+        // The HID drivers for each interface are added to this USBDevice as child devices.
+        // There can be multiple HID devices on a USB Device so it only needs to be set as
+        // a bus once.
+        if !self.usbDevice.isBus {
+            self.usbDevice.setAsBus()
+        }
 
         switch interfaceProtocol {
             case .none:

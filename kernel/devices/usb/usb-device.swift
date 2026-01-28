@@ -410,6 +410,7 @@ final class HCDRootHub: USBDevice {
         self.hcd = hcd
         super.init(parent: parent, bus: bus, port: 0,
                    speed: .fullSpeed, address: 1)
+        self.setAsBus()
     }
 
 

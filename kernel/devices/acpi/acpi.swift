@@ -453,6 +453,7 @@ extension ACPI {
                 parent = p.parent
             }
             guard let parentDevice else { fatalError("Reached top of tree! for \(node.fullname())")}
+            if !parentDevice.isBus { parentDevice.setAsBus() }
 
             // Only add devices with a valid _HID or _CID, this excludes subdevices
             // eg the ports on a USB Host Controller or display ports on a graphics

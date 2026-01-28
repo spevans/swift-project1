@@ -34,6 +34,10 @@ final class USBHubDriver: DeviceDriver {
 
 
     init?(usbDevice: USBDevice, interface: USB.InterfaceDescriptor? = nil) {
+        guard usbDevice.isBus else {
+            #kprintf("usbhub: %s is not a bus\n", usbDevice.deviceName)
+            return nil
+        }
         self.usbDevice = usbDevice
         self.responseBuffer = usbDevice.bus.allocateBuffer(length: 32)
         super.init(driverName: "usb-hub", device: usbDevice)
@@ -250,6 +254,7 @@ final class USBHubDriver: DeviceDriver {
 
             case .hub:
                 #kprintf("%s: Found a hub\n", usbDevice.description)
+                usbDevice.setAsBus()
                 if let driver = USBHubDriver(usbDevice: usbDevice) {
                     driver.enumerate()
                 } else {

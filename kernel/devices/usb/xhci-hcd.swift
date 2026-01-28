@@ -210,6 +210,7 @@ final class HCD_XHCI: DeviceDriver {
         #kprint("xhci: Found HCD:", self.pciDevice.deviceName)
 
         let busId = system.deviceManager.usb!.nextBusId()
+        self.pciDevice.setAsBus()
         let usbBus = USBBus(
             busId: busId,
             hcdData: { XHCIDeviceData(hcd: self, device: $0) },

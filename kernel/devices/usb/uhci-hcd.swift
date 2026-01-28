@@ -154,6 +154,7 @@ final class HCD_UHCI: DeviceDriver {
             submitURB: { self.submitURB($0) },
         )
 
+        self.pciDevice.setAsBus()
         guard let rootHubDevice = HCDRootHub(
             parent: self.pciDevice,
             bus: usbBus,

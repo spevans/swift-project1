@@ -36,12 +36,14 @@ final class MasterBus: CustomStringConvertible {
 
     init(acpiSystemBus: ACPI.ACPIObjectNode) {
         self.device = Device()
+        self.device.setAsBus()
         self.acpiSystemBus = acpiSystemBus
     }
 #else
 
     init() {
         self.device = Device()
+        self.device.setAsBus()
     }
 #endif
 }

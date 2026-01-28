@@ -16,7 +16,7 @@ class Device: CustomStringConvertible {
 
     private(set) var deviceDriver: DeviceDriver?
     /*unowned*/ let parent: Device?
-    private(set) var devices: [Device] = []
+    private(set) var devices: [Device]?
     let className: String
     let deviceName: String
 
@@ -24,7 +24,7 @@ class Device: CustomStringConvertible {
     // FIXME, need to decide what these should actually represent or if even needed
     var enabled = false
 
-    var isBus: Bool { devices.count > 0 }
+    var isBus: Bool { devices != nil }
     var description: String { deviceName }
 
     init(parent: Device, className: String, busDeviceName: String) {
@@ -32,8 +32,7 @@ class Device: CustomStringConvertible {
         self.className = className
         self.deviceName = "dev\(nextDeviceId())"
         self.busDeviceName = busDeviceName
-
-        parent.devices.append(self)
+        parent.addChild(device: self)
     }
 
     init() {
@@ -41,6 +40,21 @@ class Device: CustomStringConvertible {
         self.className = "GenericDevice"
         self.deviceName = "dev\(nextDeviceId())"
         self.busDeviceName = "MasterBus"
+    }
+
+    func setAsBus() {
+        guard self.devices == nil else {
+            fatalError("\(self.deviceName) is already a bus")
+        }
+        self.devices = []
+    }
+
+    func addChild(device: Device) {
+        guard self.devices != nil else {
+            let driver = self.deviceDriver?.driverName ?? "none"
+            fatalError("\(self.deviceName): trying to add child device \(device.className) to a non-bus \(self.className), driver: \(driver)")
+        }
+        self.devices?.append(device)
     }
 
     func info() -> String {

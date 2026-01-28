@@ -35,6 +35,7 @@ final class PCIBus: DeviceDriver {
         self.isHostBus = true
 
         super.init(driverName: "pcibus", device: pnpDevice)
+        if !pnpDevice.isBus { pnpDevice.setAsBus() }
         self.setInstanceName(to: "pcibus\(busId)")
         #kprint("PCIBus.init:", pnpDevice.description, self.description, pnpDevice.description)
     }
@@ -50,6 +51,7 @@ final class PCIBus: DeviceDriver {
         self.busId = pciDevice.deviceFunction.bridgeDevice!.secondaryBusId
         self.isHostBus = false
         super.init(driverName: "pcibus", device: pciDevice)
+        pciDevice.setAsBus()
         self.setInstanceName(to: "pcibus\(busId)")
     }
 
