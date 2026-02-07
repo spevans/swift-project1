@@ -16,10 +16,13 @@ class USBDevice: Device {
     fileprivate(set) var address: UInt8 = 0 // Default Start Address when not assigned
     private(set) var maxPacketSize0: Int
     private(set) var hcdData: HCDData?   // FIXME, could be an enum but need to fix pointers in enum bug
-    private var _controlPipe: USBPipe?
+    private(set) var controlPipe: USBPipe
     private(set) var descriptor: USB.DeviceDescriptor
     private(set) var speed: USB.Speed
     private(set) var bosDescriptor: USB.BOSDescriptor? = nil
+    private(set) var manufacturer: String?
+    private(set) var product: String?
+    private(set) var serialNumber: String?
 
     let bus: USBBus         // FIXME, could this just be HCDRootHub?
     let rootPort: UInt8     // The port of the HCD this is ultimatley connected to
@@ -67,19 +70,26 @@ class USBDevice: Device {
         self.routeString = _routeString >> 4  // Remove the rootPort
         self.descriptor = USB.DeviceDescriptor.init(usbMajor: speed.isUSB3 ? 3 : 2) // Add dummy for now
 
+        let endPoint = USB.EndpointDescriptor(
+            controlEndPoint: 0,
+            // FIXME, might be different for USB3
+            maxPacketSize: UInt16(self.maxPacketSize0),
+            bInterval: 0
+        )
+        self.controlPipe = USBPipe(endpointDescriptor: endPoint) // Dummy until after super call
         super.init(parent: parent,
                    className: "USBDevice",
                    busDeviceName: #sprintf("usbdev-%d.%u", self.bus.busId, self.address)
         )
         self.hcdData = bus.hcdData?(self)
-
+        guard self.initialise() else { return nil }
         #kprintf("usb-device: depth: %u, rootPort: %u port: %u speed: %s routeString: %5.5x\n",
                  self.depth, self.rootPort, self.port, self.speed.description,
                  self.routeString)
     }
 
     // Used by Root HCD
-    init(parent: Device, bus: USBBus, speed: USB.Speed, address: UInt8) {
+    init?(parent: Device, bus: USBBus, speed: USB.Speed, address: UInt8) {
         self.bus = bus
         self.rootPort = 0
         self.port = 0
@@ -89,13 +99,30 @@ class USBDevice: Device {
         self.hcdData = nil
         // Contol Pipe
         self.maxPacketSize0 = speed.controlSize
-        self.descriptor = USB.DeviceDescriptor.init(usbMajor: speed.isUSB3 ? 3 : 2) // Add dummy for now
-
+        // HUB Device Descriptor
+        self.descriptor = USB.DeviceDescriptor(usbMajorHub: speed.isUSB3 ? 3 : 2)
+        let endPoint = USB.EndpointDescriptor(
+            controlEndPoint: 0,
+            // FIXME, might be different for USB3
+            maxPacketSize: UInt16(self.maxPacketSize0),
+            bInterval: 0
+        )
+        self.controlPipe = USBPipe(endpointDescriptor: endPoint) // Dummy until after super call
         super.init(parent: parent,
                    className: "USBDevice",
                    busDeviceName: #sprintf("usbhcd-%d.%u", self.bus.busId, self.address)
         )
         self.setAsBus()
+        guard self.initialise() else { return nil }
+    }
+
+    private func initialise() -> Bool {
+        guard let pipe = self.allocatePipe(self.controlPipe.endpointDescriptor) else {
+            #kprint("usb-dev: Failed to allocate pipe")
+            return false
+        }
+        self.controlPipe = pipe
+        return true
     }
 
     func setDescriptor(_ descriptor: USB.DeviceDescriptor) {
@@ -118,23 +145,6 @@ class USBDevice: Device {
         return self.bus.allocatePipe(self, endpoint)
     }
 
-    func getControlPipe() -> USBPipe? {
-        if _controlPipe == nil {
-            let endPoint = USB.EndpointDescriptor(
-                controlEndPoint: 0,
-                // FIXME, might be different for USB3
-                maxPacketSize: UInt16(self.maxPacketSize0),
-                bInterval: 0
-            )
-            guard let pipe = self.allocatePipe(endPoint) else {
-                #kprint("usb-dev: Failed to allocate pipe")
-                return nil
-            }
-            _controlPipe = pipe
-        }
-        return _controlPipe
-    }
-
     // FIXME: Should these 2 functions return USB.Response?
     func sendControlRequest(request: USB.ControlRequest) -> Bool {
         return self._sendControlRequestReadData(request, into: nil)
@@ -148,7 +158,6 @@ class USBDevice: Device {
         if buffer != nil, request.wLength == 0 {
             fatalError("USBDEV: sendControlRequestReadData wLength is 0!")
         }
-        guard let controlPipe = getControlPipe() else { return false }
 
         if USBTrace {
             #kprint("USB-DEV: \(self.bus.busId)-\(self.address).0 Sending request:", request)
@@ -167,7 +176,7 @@ class USBDevice: Device {
                 lastStatus = response.status
             },
         )
-        controlPipe.submitURB(urb)
+        self.controlPipe.submitURB(urb)
 
         while lastStatus == nil {
             sleep(milliseconds: 10)
@@ -246,7 +255,7 @@ class USBDevice: Device {
                     (.superSpeed_gen1_x1, 512), (.superSpeed_gen1_x2, 512),
                     (.superSpeed_gen2_x1, 512), (.superSpeed_gen2_x2, 512):
                     self.maxPacketSize0 = newMaxPacketSize0
-                    self.getControlPipe()?.updateMaxPacketSize(to: self.maxPacketSize0)
+                    self.controlPipe.updateMaxPacketSize(to: self.maxPacketSize0)
                 default: #kprintf("Invalid bMaxPackageSize0 %d for speed %s\n", descriptor.bMaxPacketSize0, speed.description)
             }
         }

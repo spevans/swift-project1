@@ -227,6 +227,7 @@ final class HCD_XHCI: DeviceDriver {
             }
 
             XHCIDebug = false
+            defer { XHCIDebug = false }
             let usbBus = USBBus(
                 busId: busId,
                 hcdData: { usbDevice in XHCIDeviceData(hcd: self) },
@@ -251,14 +252,16 @@ final class HCD_XHCI: DeviceDriver {
 
             #kprintf("xhci: Adding %d.0 bus, basePort: %u portCount: %u\n",
                      usbVersion, basePort, portCount);
-            let rootHubDevice = USBDevice(
+            guard let rootHubDevice = USBDevice(
                 parent: self.pciDevice,
                 bus: usbBus,
                 speed: usbVersion == 2 ? .highSpeed : .superSpeed_gen1_x1,
                 address: 1
-            )
+            ) else {
+                #kprint("xhci: Faild to add RootHub Device")
+                return false
+            }
             #kprintf("xhci: adding root device, speed: %s\n", rootHubDevice.speed.description)
-            XHCIDebug = false
 
             guard system.deviceManager.usb!.addRootDevice(rootHubDevice) else {
                 return false

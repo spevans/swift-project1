@@ -161,12 +161,14 @@ final class HCD_UHCI: DeviceDriver {
         )
 
         self.pciDevice.setAsBus()
-        let rootHubDevice = USBDevice(
+        guard let rootHubDevice = USBDevice(
             parent: self.pciDevice,
             bus: usbBus,
             speed: .fullSpeed,
             address: 1
-        )
+        ) else {
+            return false
+        }
         return system.deviceManager.usb!.addRootDevice(rootHubDevice)
     }
 

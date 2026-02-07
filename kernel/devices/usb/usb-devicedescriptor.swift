@@ -83,5 +83,24 @@ extension USB {
             _descriptor.bMaxPacketSize0 = 8 // Initial default
             self.descriptor = _descriptor
         }
+
+        init(usbMajorHub usbMajor: UInt8) {
+            self.descriptor = usb_standard_device_descriptor(
+                bLength: UInt8(MemoryLayout<usb_standard_device_descriptor>.size),
+                bDescriptorType: USB.DescriptorType.DEVICE.rawValue,
+                bcdUSB: UInt16(usbMajor) << 8,
+                bDeviceClass: USB.DeviceClass.hub.rawValue,
+                bDeviceSubClass: 0,
+                bDeviceProtocol: (usbMajor == 3) ? 3 : 0,
+                bMaxPacketSize0: (usbMajor == 3) ? 9 : 64,
+                idVendor: 0x1d6b,    // Linux Foundation root hub
+                idProduct: UInt16(usbMajor),
+                bcdDevice: 0x0100,
+                iManufacturer: 1,
+                iProduct: 2,
+                iSerialNumber: 3,
+                bNumConfigurations: 1,
+            )
+        }
     }
 }
