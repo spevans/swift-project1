@@ -330,7 +330,6 @@ class USBDevice: Device {
             // any other maximum packet sizes for the default control pipe (endpoint 0) control endpoint .
             let newMaxPacketSize0: Int
             if self.isUSB3Device {
-                self.speed = .superSpeed_gen1_x1
                 guard descriptor.bMaxPacketSize0 == 0x09 else {
                     // Die for now
                     fatalError("USB-DEV: Device protocol \(descriptor.bDeviceProtocol) has bMaxPacketSize0 \(descriptor.bMaxPacketSize0) which is not supported")
@@ -552,13 +551,7 @@ class USBDevice: Device {
 
         guard bLength > 2 else { return nil }
 
-        let charCount = Int(bLength - 2)
-        if !charCount.isMultiple(of: 2) {
-            #kprint(buffer.dump(maxBytes: buffer.count))
-            fatalError("String buffer is not multiple of 2 but is \(bLength)")
-        }
-
-        // Number of values
+        // Number of values (bLength is even, verified above)
         let count = Int(bLength - 2) / 2
         var values: [UInt16] = []
 

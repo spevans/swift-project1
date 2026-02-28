@@ -174,7 +174,7 @@ extension HCD_UHCI {
 
             init(pid: PID, deviceAddress: UInt8, endpoint: UInt, dataToggle: Bool, maximumLength: UInt) {
                 precondition(maximumLength <= 1280)
-                precondition(deviceAddress <= 128)
+                precondition(deviceAddress < 128)
                 precondition(endpoint <= 0xf)
 
                 var bits = BitArray32(UInt32(pid.rawValue))

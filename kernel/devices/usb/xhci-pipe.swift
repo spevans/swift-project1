@@ -1,8 +1,8 @@
 /*
- *  xhci-pipe.swift
- *  Kernel
+ * kernel/devices/usb/xhci-pipe.swift
  *
- *  Created by Simon Evans on 03/09/2025.
+ * Created by Simon Evans on 03/09/2025.
+ *
  */
 
 extension HCD_XHCI {
@@ -504,7 +504,7 @@ fileprivate extension HCD_XHCI {
                                  urb.transfer.bytesToTransfer,
                                  Int(trb.trbTransferLength), bytesTransferred)
                     }
-                    status = .timedout
+                    status = .finished
 
                 default:
                     status = .timedout

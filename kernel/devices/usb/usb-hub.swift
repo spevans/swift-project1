@@ -40,7 +40,7 @@ final class USBHubDriver: DeviceDriver {
             return nil
         }
         self.usbDevice = usbDevice
-        self.responseBuffer = usbDevice.bus.allocateBuffer(length: 32)
+        self.responseBuffer = usbDevice.bus.allocateBuffer(length: 72) // max USB2 hub descriptor is 71 bytes (255-port hub)
         self.hubDescriptor = USB.HUBDescriptor(isSuperSpeed: usbDevice.speed.isUSB3, ports: 0)
         super.init(driverName: "usb-hub", device: usbDevice)
         let instance = #sprintf("usb-hub%d-%d.%u", atomic_inc(&hubNumber),
@@ -90,9 +90,9 @@ final class USBHubDriver: DeviceDriver {
     func enumerate() {
         let hubName = self.instanceName + ":"
         // Power on the ports then wait for the power to come up
-        #kprintf("%s enumerating, have %d ports basePort: %u portCount: %u speed: %s\n",
+        #kprintf("%s enumerating %d ports basePort: %u speed: %s\n",
                  hubName, self.ports, usbDevice.bus.basePort,
-                 usbDevice.bus.portCount, usbDevice.speed.description)
+                 usbDevice.speed.description)
 
         for port in 1...self.ports {
 
@@ -162,6 +162,10 @@ final class USBHubDriver: DeviceDriver {
         _ = self.clearConnection(port)
         guard portStatus.deviceAttached else {
             #kprint(portName, "no device attached")
+            return false
+        }
+        guard portStatus.isPortPowered else {
+            #kprint(portName, " is not powered")
             return false
         }
         // Wait for port powerup
@@ -326,7 +330,7 @@ final class USBHubDriver: DeviceDriver {
 
 
     private func getHubStatus() -> Bool {
-        let request = USB.ControlRequest.getStatus(direction: .hostToDevice, recipient: .device)
+        let request = USB.ControlRequest.getStatus(direction: .deviceToHost, recipient: .device)
         guard usbDevice.sendControlRequestReadData(request: request, into: responseBuffer) else {
             #kprint(self.instanceName, "Failed to get HubStatus")
             return false
@@ -369,7 +373,7 @@ final class USBHubDriver: DeviceDriver {
             #kprintf("%s port %d: Failed to get port status\n", self.instanceName, port)
             return nil
         }
-        return PortStatus(from: responseBuffer)
+        return PortStatus(from: responseBuffer, isUSB3Hub: self.usbDevice.isUSB3Device)
     }
 
     private func clearHubFeature(_ selector: FEATURE_SELECTOR, port: Int) -> Bool {
@@ -482,22 +486,28 @@ final class USBHubDriver: DeviceDriver {
     struct PortStatus {
         let wPortStatus: BitArray16
         var wPortChange: BitArray16
+        let isUSB3Hub: Bool
 
         var deviceAttached: Bool { wPortStatus[0] != 0 }    // PORT_CONNECTION
         var isEnabled: Bool { wPortStatus[1] != 0 }         // PORT_ENABLE
         var isSuspended: Bool { wPortStatus[2] != 0 }       // PORT_SUSPEND (USB2.0)
         var isOverCurrent: Bool { wPortStatus[3] != 0 }     // PORT_OVER_CURRENT
         var isInReset: Bool { wPortStatus[4] != 0 }         // PORT_RESET
-        var isPowered: Bool { wPortStatus[8] != 0 }         // PORT_POWER    (USB2.0)
-        var isPoweredSS: Bool { wPortStatus[9] != 0 }       // PORT_POWER_SS (USB3.0)
-        // Speeds here are USB2 Only
-        var isLowSpeed: Bool { wPortStatus[9] != 0 }        // PORT_LOW_SPEED
+        // USB2.0: bit 8 = PORT_POWER; USB3.0: bits [8:5] = PORT_LINK_STATE (bit 8 is MSB)
+        var isPowered: Bool { wPortStatus[8] != 0 }         // PORT_POWER    (USB2.0 only)
+        var isPoweredSS: Bool { wPortStatus[9] != 0 }       // PORT_POWER    (USB3.0, bit 9)
+        // USB2 speed bits (USB2.0 only; bit 9 = PORT_POWER on USB3 hubs)
+        var isLowSpeed: Bool { wPortStatus[9] != 0 }        // PORT_LOW_SPEED (USB2.0)
         var isFullSpeed: Bool {
-            wPortStatus[9] == 0 && wPortStatus[10] == 0     // FULL_SPEED
+            wPortStatus[9] == 0 && wPortStatus[10] == 0     // FULL_SPEED (USB2.0)
         }
-        var isHighSpeed: Bool { wPortStatus[10] != 0 }      // PORT_HIGH_SPEED
+        var isHighSpeed: Bool { wPortStatus[10] != 0 }      // PORT_HIGH_SPEED (USB2.0)
         var inTestMode: Bool { wPortStatus[11] != 0 }       // PORT_TEST
-        var indicator: Bool { wPortStatus[12] == 0 }        // PORT_INDICATOR
+        var indicator: Bool { wPortStatus[12] != 0 }        // PORT_INDICATOR
+        // True when the port has power, regardless of hub type
+        var isPortPowered: Bool {
+            isUSB3Hub ? wPortStatus[9] != 0 : wPortStatus[8] != 0
+        }
 
         var connectStatusChange: Bool {                     // C_PORT_CONNECTION
             get { wPortChange[0] != 0 }
@@ -512,17 +522,12 @@ final class USBHubDriver: DeviceDriver {
         var portConfigError: Bool { wPortChange[7] != 0 }       // C_PORT_CONFIG_ERROR (USB3.0)
 
         @inline(__always)
-        init(from buffer: MMIOSubRegion) {
+        init(from buffer: MMIOSubRegion, isUSB3Hub: Bool) {
             let word0 = UInt16(buffer[0]) | UInt16(buffer[1]) << 8
             wPortStatus = BitArray16(word0)
             let word1 = UInt16(buffer[2]) | UInt16(buffer[3]) << 8
             wPortChange = BitArray16(word1)
-        }
-
-        @inline(__always)
-        init(wPortStatus: UInt16, wPortChange: UInt16) {
-            self.wPortStatus = BitArray16(wPortStatus)
-            self.wPortChange = BitArray16(wPortChange)
+            self.isUSB3Hub = isUSB3Hub
         }
 
         @inline(__always)
@@ -541,6 +546,7 @@ final class USBHubDriver: DeviceDriver {
              overCurrentIndicatorChanged: Bool,
              resetComplete: Bool) {
 
+            self.isUSB3Hub = speed.isUSB3
             var _wPortStatus = BitArray16()
             _wPortStatus[0] = deviceAttached ? 1 : 0
             _wPortStatus[1] = isEnabled ? 1 : 0
@@ -561,9 +567,18 @@ final class USBHubDriver: DeviceDriver {
                     _wPortStatus[10] = 1
 
                 default:
-                    // Highspeed
+                    // SuperSpeed: bit 9 = PORT_POWER, bits [5:8] = PORT_LINK_STATE,
+                    // bits [10:12] = PORT_SPEED (USB 3.2 10.16.2.6.1 Table 10-13)
                     _wPortStatus[9] = isPowered ? 1 : 0
                     _wPortStatus[5...8] = portLinkState
+                    let portSpeedBits: UInt16 = switch speed {
+                        case .superSpeed_gen1_x1: 1
+                        case .superSpeed_gen2_x1: 2
+                        case .superSpeed_gen1_x2: 3
+                        case .superSpeed_gen2_x2: 4
+                        default: 0
+                    }
+                    _wPortStatus[10...12] = portSpeedBits
                     break
             }
             self.wPortStatus = _wPortStatus
@@ -589,9 +604,15 @@ final class USBHubDriver: DeviceDriver {
         }
 
         func speed() -> USB.Speed {
-            if !self.isPowered && self.isPoweredSS {
-                // SuperSpeed hub
-                return .superSpeed_gen1_x1
+            if self.isUSB3Hub {
+                // USB 3.2 10.16.2.6.1 Table 10-13: PORT_SPEED in bits [12:10]
+                // 0=Undefined, 1=Gen1?1, 2=Gen2x1, 3=Gen1x2, 4=Gen2x2
+                switch (self.wPortStatus.rawValue >> 10) & 0x7 {
+                    case 2:  return .superSpeed_gen2_x1
+                    case 3:  return .superSpeed_gen1_x2
+                    case 4:  return .superSpeed_gen2_x2
+                    default: return .superSpeed_gen1_x1 // 1 = Gen1?1; 0/others treated as minimum SS
+                }
             } else {
                 if self.isLowSpeed {
                     return .lowSpeed

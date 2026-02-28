@@ -318,7 +318,7 @@ extension USB {
 
         static func setDescriptor(descriptorType: DescriptorType, descriptorIndex: UInt8, length: UInt16) -> ControlRequest {
             return ControlRequest(request: usb_control_request(
-                bmRequestType: BMRequestType(direction: .deviceToHost, requestType: .standard, recipient: .device).rawValue,
+                bmRequestType: BMRequestType(direction: .hostToDevice, requestType: .standard, recipient: .device).rawValue,
                 bRequest: RequestCode.SET_DESCRIPTOR.rawValue,
                 wValue: UInt16(descriptorType.rawValue) << 8 | UInt16(descriptorIndex),
                 wIndex: 0,

@@ -150,7 +150,7 @@ extension USB {
             guard let lengthByte = iterator.next(), let descriptorByte = iterator.next() else {
                 throw ParsingError.packetTooShort
             }
-            guard Int(lengthByte) >= MemoryLayout<usb_standard_endpoint_descriptor>.size else {
+            guard Int(lengthByte) >= MemoryLayout<usb_hub_descriptor>.size else {
                 throw ParsingError.invalidLengthByte
             }
             guard descriptorByte == USB.DescriptorType.HUB.rawValue else {
@@ -160,7 +160,6 @@ extension USB {
             var descriptor = usb_hub_descriptor()
             try withUnsafeMutableBytes(of: &descriptor) { (buffer: UnsafeMutableRawBufferPointer)
                 throws(ParsingError) -> () in
-                assert(MemoryLayout<usb_standard_endpoint_descriptor>.size == buffer.count)
                 buffer[0] = lengthByte
                 buffer[1] = descriptorByte
 

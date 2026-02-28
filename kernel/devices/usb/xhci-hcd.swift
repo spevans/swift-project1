@@ -134,7 +134,7 @@ final class HCD_XHCI: DeviceDriver {
             #kprint("xhci: Have legacy support:", legacySupport.description)
             var count = 20
             while legacySupport.biosOwned && count > 0 {
-                legacySupport.osOwned = false
+                legacySupport.osOwned = true
                 sleep(milliseconds: 50)
                 count -= 1
             }
@@ -148,7 +148,7 @@ final class HCD_XHCI: DeviceDriver {
         // Reset the controller
         // Clear Run/Stop bit
         var cmd = operationRegs.usbCmd
-        cmd &= 1
+        cmd &= ~1
         operationRegs.usbCmd = cmd
 
         // Wait for HCHalted to be set
@@ -157,6 +157,7 @@ final class HCD_XHCI: DeviceDriver {
         while !sts.bit(0) && timeout > 0 {
             sleep(milliseconds: 1)
             timeout -= 1
+            sts = operationRegs.usbSts
         }
         guard sts.bit(0) else {
             #kprint("xhchi: Reset failed, HCHalted not set")
@@ -464,7 +465,7 @@ final class HCD_XHCI: DeviceDriver {
             guard commandCompletion.completionCode == 1 else {
                 #kprintf("xhci: Last command completion has bad completion Code: %d\n",
                          commandCompletion.completionCode)
-                continue
+                return nil
             }
 
             return commandCompletion

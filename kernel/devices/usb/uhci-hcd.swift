@@ -110,7 +110,10 @@ final class HCD_UHCI: DeviceDriver {
         if status.rawValue != 0 {
             statusRegister = status
         }
-        hcdReset()
+        guard hcdReset() else {
+            #kprint("UHCI: HCD did not reset")
+            return false
+        }
         #uhciDebug("UHCI: \(self.instanceName): statusRegister after HCD Reset:", self.statusRegister)
         // Restore SOF
         self.startOfFrame = savedSOF
@@ -350,7 +353,7 @@ final class HCD_UHCI: DeviceDriver {
     }
 
 
-    private func hcdReset() {
+    private func hcdReset() -> Bool {
         var cmd = Command()
         cmd.hostControllerReset = true
         cmdRegister = cmd
@@ -358,11 +361,12 @@ final class HCD_UHCI: DeviceDriver {
         for _ in 0..<100 {
             let status = cmdRegister
             if status.hostControllerReset == false { // All done
-                return
+                return true
             }
             sleep(milliseconds: 1)
         }
         #uhciDebug(self.instanceName, "did not reset")
+        return false
     }
 
     // USBBus functions
@@ -590,7 +594,7 @@ final class HCD_UHCIPipe: USBPipe {
 
                 switch requestedDescriptorType {
                     case .DEVICE:
-                        let descriptor = USB.DeviceDescriptor(usbMajorHub: 2)
+                        let descriptor = USB.DeviceDescriptor(usbMajorHub: 1)
                         length = descriptor.write(into: &buffer, maxLength: setupRequest.wLength)
 
                     case .CONFIGURATION:
@@ -695,7 +699,7 @@ final class HCD_UHCIPipe: USBPipe {
         status = self.hcd.portStatus(port: port)
         status = HCD_UHCI.PortStatusControl(rawValue: status.rawValue & mask.rawValue)
         self.hcd.portControl(port: port, data: status)
-        sleep(milliseconds: 1)
+        sleep(milliseconds: 10)
         #uhciDebug(self.hcd.instanceName + " port status1, ", self.hcd.portStatus(port: port))
 
         // CSC bit must be clear before the enable bit is set

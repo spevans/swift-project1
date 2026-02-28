@@ -184,7 +184,7 @@ final class USBHIDDriver {
     private func setReportRequest(report: HIDReportRequest, reportId: UInt8 = 0, dataLength: UInt16) -> USB.ControlRequest {
         let recipient = USB.ControlRequest.Recipient.interface(interface.bInterfaceNumber)
         let wValue = UInt16(report.rawValue) << 8 | UInt16(reportId)
-        return USB.ControlRequest.classSpecificRequest(direction: .deviceToHost, recipient: recipient, bRequest: HIDRequest.SET_REPORT.rawValue, wValue: wValue, wLength: dataLength)
+        return USB.ControlRequest.classSpecificRequest(direction: .hostToDevice, recipient: recipient, bRequest: HIDRequest.SET_REPORT.rawValue, wValue: wValue, wLength: dataLength)
     }
 
 

@@ -1,8 +1,8 @@
 /*
- *  kernel/devices/usb/xhci-registers.swift
- *  Kernel
+ * kernel/devices/usb/xhci-registers.swift
  *
- *  Created by Simon Evans on 18/08/2025.
+ * Created by Simon Evans on 18/08/2025.
+ *
  */
 
 
@@ -485,7 +485,7 @@ extension HCD_XHCI {
             set { mmioRegion.write(value: newValue, toByteOffset: 0x38)}
         }
 
-        // Port registers
+        // Port registers - note ports are 1-based
         // Port Status and Control Register (PORTSC)
         func portSC(port: UInt8) -> UInt32 {
             let offset = 0x400 + (0x10 * Int(port - 1))
@@ -510,23 +510,23 @@ extension HCD_XHCI {
 
         // Port Link Info Register (PORTLI)
         func portLI(port: UInt8) -> UInt32 {
-            let offset = 0x404 + (0x10 * Int(port - 1))
+            let offset = 0x408 + (0x10 * Int(port - 1))
             return mmioRegion.read(fromByteOffset: offset)
         }
 
         func portLI(port: UInt8, newValue: UInt32) {
-            let offset = 0x404 + (0x10 * Int(port - 1))
+            let offset = 0x408 + (0x10 * Int(port - 1))
             mmioRegion.write(value: newValue, toByteOffset: offset)
         }
 
         // Port Hardware LPM Control Register (PORTHLPMC)
         func portHLPMC(port: UInt8) -> UInt32 {
-            let offset = 0x404 + (0x10 * Int(port - 1))
+            let offset = 0x40C + (0x10 * Int(port - 1))
             return mmioRegion.read(fromByteOffset: offset)
         }
 
         func portHLPMC(port: UInt8, newValue: UInt32) {
-            let offset = 0x404 + (0x10 * Int(port - 1))
+            let offset = 0x40C + (0x10 * Int(port - 1))
             mmioRegion.write(value: newValue, toByteOffset: offset)
         }
     }

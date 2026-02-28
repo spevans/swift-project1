@@ -213,7 +213,7 @@ internal extension HCD_UHCI {
 
         var description: String {
             return "PORT: 0x\(String(rawValue, radix: 16))" +
-                " Connected: \(bits[0]) ConnectChange: \(bits[1]) enb: \(bits[2]) enbChange: \(bits[4])" +
+                " Connected: \(bits[0]) ConnectChange: \(bits[1]) enb: \(bits[2]) enbChange: \(bits[3])" +
                 " LnSts: \(lineStatus) Resume: \(bits[6]) LoSpd: \(bits[8]) Reset: \(bits[9]) Suspend: \(bits[12])"
         }
     }

@@ -1,8 +1,8 @@
 /*
- *  xhci-buffers.swift
- *  Kernel
+ * kernel/devices/usb/xhci-buffers.swift
  *
- *  Created by Simon Evans on 04/09/2025.
+ * Created by Simon Evans on 04/09/2025.
+ *
  */
 
 extension HCD_XHCI {
@@ -27,7 +27,7 @@ extension HCD_XHCI {
             self.allocatedPages.append(page)
             self.deviceContextIndex = MMIORegion(page)
 
-            if self.scratchPadRestore, self.maxScratchPadBuffers > 0 {
+            if self.maxScratchPadBuffers > 0 {
                 // Allocate a page to hold max_bufs scratch entries, clip to 4096/8 for now
                 if self.maxScratchPadBuffers > 4096 / 8 {
                     fatalError("xhci: Too many scratch pad buffers to fit in a page")
