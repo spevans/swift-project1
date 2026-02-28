@@ -107,26 +107,26 @@ final class USBHIDDriver {
 
                 if let usbKeyboard = USBKeyboard(usbDevice: usbDevice, interface: interface) {
                     let keyboard = Keyboard(hid: usbKeyboard.hid())
-                    #kprint("USB-HID Adding keyboard")
+                    #kprint(usbKeyboard.instanceName, "Adding keyboard")
                     #if !TEST
                     system.deviceManager.keyboard = keyboard
                     #endif
                     break
                 }
-                #kprint("USB-HID Cannot initialise keyboard")
+                #kprint("USB-HID : Failed to initialise keyboard")
 
             case .mouse:
                 #kprint("USB-HID: Found mouse")
 
                 if let usbMouse = USBMouse(usbDevice: usbDevice, interface: interface) {
                     let mouse = Mouse(hid: usbMouse.hid())
-                    #kprint("USB-HID Adding mouse")
+                    #kprint(usbMouse.instanceName, "Adding mouse")
                     #if !TEST
                     system.deviceManager.mouse = mouse
                     #endif
                     break
                 }
-                #kprint("USB-HID Cannot initialise mouse")
+                #kprint("USB-HID Failed to initialise mouse")
 
             default:
                 break
@@ -173,9 +173,9 @@ final class USBHIDDriver {
     }
 */
     // HID Class specific control requests
-    private func getReportRequest(report: HIDReportRequest, reportId: UInt8 = 0) -> USB.ControlRequest {
+    private func getReportRequest(report: HIDReportRequest, reportId: UInt8 = 0, length: UInt16) -> USB.ControlRequest {
         let recipient = USB.ControlRequest.Recipient.interface(interface.bInterfaceNumber)
-        let wLength = interface.endpoint0.wMaxPacketSize
+        let wLength = length
         let wValue = UInt16(report.rawValue) << 8 | UInt16(reportId)
         return USB.ControlRequest.classSpecificRequest(direction: .deviceToHost, recipient: recipient, bRequest: HIDRequest.GET_REPORT.rawValue, wValue: wValue, wLength: wLength)
     }

@@ -16,10 +16,11 @@ class USBDevice: Device {
     fileprivate(set) var address: UInt8 = 0 // Default Start Address when not assigned
     private(set) var maxPacketSize0: Int
     private(set) var hcdData: HCDData?   // FIXME, could be an enum but need to fix pointers in enum bug
-    private(set) var controlPipe: USBPipe
-    private(set) var descriptor: USB.DeviceDescriptor
     private(set) var speed: USB.Speed
+    private(set) var controlPipe: USBPipe
+    private(set) var deviceDescriptor: USB.DeviceDescriptor
     private(set) var bosDescriptor: USB.BOSDescriptor? = nil
+    private(set) var configDescriptor: USB.ConfigDescriptor? = nil
     private(set) var manufacturer: String?
     private(set) var product: String?
     private(set) var serialNumber: String?
@@ -30,23 +31,29 @@ class USBDevice: Device {
     let depth: UInt8        // Only needed for hub Root is depth 0
     let routeString: UInt32 // The Route String to this device
     var isLowSpeedDevice: Bool { speed == .lowSpeed }
-    var isUSB3Device: Bool { descriptor.usbMajor == 3 }
+    var isUSB3Device: Bool { deviceDescriptor.usbMajor == 3 }
     var isHCD: Bool { depth == 0 }
 
 
     override var description: String {
         let plus = UInt8(ascii: "+")
         let minus = UInt8(ascii: "-")
-        return #sprintf("USB %d.%u HCD%c bus%c speed: %s usbVer: %d.%d %4.4x:%4.4x class: %2.2x/%2.2x",
+
+        // FIXME: Bodge around #kprintf argument count limit
+        let strings = #sprintf("%s %s %s", self.manufacturer ?? "",
+                               self.product ?? "",
+                               self.serialNumber ?? "")
+        let deviceClass = #sprintf("%2.2x/%2.2x", self.deviceDescriptor.bDeviceClass,
+                             self.deviceDescriptor.bDeviceSubClass
+                             )
+        return #sprintf("USB %d.%u HCD%c bus%c %s %d.%d %4.4x:%4.4x class: %s %s",
                         bus.busId, address, self.isHCD ? plus : minus,
                         self.isBus ? plus : minus, self.speed.description,
-                        self.descriptor.usbMajor,
-                        self.descriptor.usbMinor,
-                        self.descriptor.idVendor,
-                        self.descriptor.idProduct,
-                        self.descriptor.bDeviceClass,
-                        self.descriptor.bDeviceSubClass
-        )
+                        self.deviceDescriptor.usbMajor,
+                        self.deviceDescriptor.usbMinor,
+                        self.deviceDescriptor.idVendor,
+                        self.deviceDescriptor.idProduct,
+                        deviceClass, strings)
     }
 
 
@@ -77,13 +84,14 @@ class USBDevice: Device {
         }
         self.rootPort = _rootPort
         self.routeString = _routeString >> 4  // Remove the rootPort
-        self.descriptor = USB.DeviceDescriptor.init(usbMajor: speed.usbMajor) // Add dummy for now
+        self.deviceDescriptor = USB.DeviceDescriptor.init(usbMajor: speed.usbMajor) // Add dummy for now
 
         let endPoint = USB.EndpointDescriptor(
-            controlEndPoint: 0,
+            endPoint: 0,
+            direction: .hostToDevice,
             // FIXME, might be different for USB3
             maxPacketSize: UInt16(self.maxPacketSize0),
-            bInterval: 0
+            interval: 0
         )
         self.controlPipe = USBPipe(endpointDescriptor: endPoint) // Dummy until after super call
         super.init(parent: parent,
@@ -91,8 +99,12 @@ class USBDevice: Device {
                    busDeviceName: #sprintf("usbdev-%d.%u", self.bus.busId, self.address)
         )
         self.hcdData = bus.hcdData?(self)
-        guard self.initialise() else { return nil }
-        #kprintf("usb-device: depth: %u, rootPort: %u port: %u speed: %s routeString: %5.5x\n",
+        guard self.initialise() else {
+            #kprint("usbdev: Failed to initialise device:", self.description)
+            return nil
+        }
+        #kprint("usbdev: Found:", self.description)
+        #kprintf("usbdev: depth: %u, rootPort: %u port: %u speed: %s routeString: %5.5x\n",
                  self.depth, self.rootPort, self.port, self.speed.description,
                  self.routeString)
     }
@@ -109,12 +121,13 @@ class USBDevice: Device {
         // Contol Pipe
         self.maxPacketSize0 = speed.controlSize
         // HUB Device Descriptor
-        self.descriptor = USB.DeviceDescriptor(usbMajorHub: speed.usbMajor)
+        self.deviceDescriptor = USB.DeviceDescriptor(usbMajorHub: speed.usbMajor)
         let endPoint = USB.EndpointDescriptor(
-            controlEndPoint: 0,
+            endPoint: 0,
+            direction: .hostToDevice,
             // FIXME, might be different for USB3
             maxPacketSize: UInt16(self.maxPacketSize0),
-            bInterval: 0
+            interval: 0
         )
         self.controlPipe = USBPipe(endpointDescriptor: endPoint) // Dummy until after super call
         super.init(parent: parent,
@@ -127,26 +140,96 @@ class USBDevice: Device {
 
     private func initialise() -> Bool {
         guard let pipe = self.allocatePipe(self.controlPipe.endpointDescriptor) else {
-            #kprint("usb-dev: Failed to allocate pipe")
+            #kprint("usbdev: Failed to allocate pipe")
             return false
         }
         self.controlPipe = pipe
+
+        // Get initial 8byte device descriptor
+        guard let deviceDescriptor = self.getInitialDeviceDescriptor() else {
+            return false
+        }
+
+        if USBTrace {
+            #kprintf("usbdev: %s deviceDescriptor: %s\n", self.description,
+                     deviceDescriptor.description)
+        }
+        guard deviceDescriptor.bLength != 0 else {
+            fatalError("usbdev: info8 returned zero length bLength")
+        }
+
+        // Set address of device
+        if USBTrace {
+            #kprintf("usbdev: %s Setting address of device\n", self.description)
+        }
+        guard let address = self.bus.setAddress(self) else {
+            #kprint("usbdev: Failed to set address of device - ignoring device")
+            return false
+        }
+        if USBTrace {
+            #kprintf("usbdev: %s set to address %u\n", self.description, address)
+        }
+
+        // Get full DeviceDescriptor
+        if USBTrace {
+            #kprintf("usbdev: %s Getting full DeviceDescriptor of length: %u\n",
+                     self.description, address, deviceDescriptor.bLength)
+        }
+        guard let fullDeviceDescriptor = self.getDeviceDescriptor(length: UInt16(deviceDescriptor.bLength)) else {
+            if USBTrace {
+                #kprint("usbdaev: Failed to get full DeviceDescriptor")
+            }
+            return false
+        }
+        if USBTrace {
+            #kprint("usbdev: fullDeviceDescriptor:", fullDeviceDescriptor)
+        }
+        self.deviceDescriptor = fullDeviceDescriptor
+
+        if USBTrace {
+            #kprint("\nusbdev: Getting ConfigurationDescriptor")
+        }
+        guard let _configDescriptor = self.getConfigurationDescriptor() else {
+            #usbhubDebug("usbdev: Failed to get device ConfigurationDescriptor of device on port: \(port) - ignoring device")
+            return false
+        }
+        if USBTrace {
+            #kprintf("usbdev: configDescriptor: %s\n", _configDescriptor.description)
+        }
+        self.configDescriptor = _configDescriptor
+        if self.isUSB3Device {
+            if USBTrace {
+                #kprint("usbdev: Getting BOS Descriptor")
+            }
+            guard let _bosDescriptor = self.getBinaryObjectStore() else {
+                #kprintf("usbdev: Failed to get BOS Descriptor of device on port: %u - ignoring device\n", self.port)
+                return false
+            }
+            if USBTrace {
+                #kprint("USB: BOS Descriptor", _bosDescriptor)
+            }
+            self.bosDescriptor = _bosDescriptor
+        }
+        self.getStrings()
+
         return true
     }
 
-    func setDescriptor(_ descriptor: USB.DeviceDescriptor) {
-        self.descriptor = descriptor
-    }
-
-    func setBOSDescriptor(_ descriptor: USB.BOSDescriptor) {
-        self.bosDescriptor = descriptor
+    private func getInitialDeviceDescriptor() -> USB.DeviceDescriptor? {
+        for _ in 1...2 {
+            if let deviceDescriptor = self.getDeviceDescriptor(length: 8) {
+                return deviceDescriptor
+            }
+            sleep(milliseconds: 20)
+        }
+        return nil
     }
 
     override func info() -> String {
         var result = #sprintf("rootPort: %u port: %u routeString: %5.5x speed: %s",
                               self.rootPort, self.port, self.routeString,
                               self.speed.description)
-        result += "\n" + self.descriptor.description
+        result += "\n" + self.deviceDescriptor.description
         return result
     }
 
@@ -165,7 +248,7 @@ class USBDevice: Device {
 
     private func _sendControlRequestReadData(_ request: USB.ControlRequest, into buffer: MMIOSubRegion? = nil) -> Bool {
         if buffer != nil, request.wLength == 0 {
-            fatalError("USBDEV: sendControlRequestReadData wLength is 0!")
+            fatalError("usbdev: sendControlRequestReadData wLength is 0!")
         }
 
         if USBTrace {
@@ -227,12 +310,16 @@ class USBDevice: Device {
 
     func getDeviceDescriptor(length: UInt16) -> USB.DeviceDescriptor? {
         let request = USB.ControlRequest.getDescriptor(descriptorType: .DEVICE, descriptorIndex: 0, length: length)
+        if USBTrace {
+            #kprint("Created deviceDescriptor request for info8, length:", request.wLength)
+        }
+
         var infoBuffer = bus.allocateBuffer(length: Int(length))
         infoBuffer.clearBuffer()
         defer { bus.freeBuffer(infoBuffer) }
 
         guard sendControlRequestReadData(request: request, into: infoBuffer) else {
-            #kprint("USBDEV: getDeviceDescriptor: Failed to get descriptor length:", length)
+            #kprint("usbdev: getDeviceDescriptor: Failed to get descriptor length:", length)
             return nil
         }
 
@@ -283,18 +370,20 @@ class USBDevice: Device {
             return nil
         }
 
-        guard let configDescriptor1 = try? USB.ConfigDescriptor(from: descriptorBuffer) else {
-            #kprint("USBDEV: Failed to decode CONFIGURATION descriptor packet")
+        let configDescriptor1: USB.ConfigDescriptor
+        do {
+            configDescriptor1 = try USB.ConfigDescriptor(from: descriptorBuffer)
+        } catch {
+            #kprint("usbdev: Failed to decode CONFIGURATION descriptor packet1:", error)
+            #kprint(descriptorBuffer.dump(maxBytes: descriptorBuffer.count, perLine: 32))
                 return nil
         }
-        #kprint("USBDEV:", configDescriptor1)
         let infoBuffer = bus.allocateBuffer(length: Int(configDescriptor1.wTotalLength))
         defer { bus.freeBuffer(infoBuffer) }
 
-
         let deviceConfigRequest2 = USB.ControlRequest.getDescriptor(descriptorType: .CONFIGURATION, descriptorIndex: 0, length: configDescriptor1.wTotalLength)
         guard sendControlRequestReadData(request: deviceConfigRequest2, into: infoBuffer) else {
-            #kprint("USB-DEV: getConfigurationDescriptor request2 failed")
+            #kprint("usbdev: getConfigurationDescriptor request2 failed")
             return nil
         }
 
@@ -302,18 +391,19 @@ class USBDevice: Device {
             let configDescriptor2 = try USB.ConfigDescriptor(from: infoBuffer)
             return configDescriptor2
         } catch {
-            #kprint("USBDEV: Failed to decode CONFIGURATION descriptor packet: ", error)
+            #kprint("usbdev: Failed to decode CONFIGURATION descriptor packet2:", error)
+            #kprint(infoBuffer.dump(maxBytes: infoBuffer.count, perLine: 32))
             return nil
         }
     }
 
     func setConfiguration(to configuration: UInt8) -> Bool {
         if USBTrace {
-            #kprint("USBDEV: Setting configuration to:", configuration)
+            #kprint("usbdev: Setting configuration to:", configuration)
         }
         let request = USB.ControlRequest.setConfiguration(configuration: configuration)
         guard sendControlRequest(request: request) else {
-            #kprint("USBDEV: Failed to set configuration")
+            #kprint("usbdev: Failed to set configuration")
             return false
         }
         return true
@@ -333,29 +423,31 @@ class USBDevice: Device {
         }
 
         guard let bos1 = try? USB.BOSDescriptor(from: descriptorBuffer) else {
-            #kprint("USBDEV: Failed to decode BOS descriptor packet")
+            #kprint("usbdev: Failed to decode BOS descriptor packet")
                 return nil
         }
-        #kprint("USBDEV:", bos1)
+        if USBTrace {
+            #kprint("usbdev:", bos1)
+        }
         let infoBuffer = bus.allocateBuffer(length: Int(bos1.wTotalLength))
         defer { bus.freeBuffer(infoBuffer) }
 
 
         let request2 = USB.ControlRequest.getDescriptor(descriptorType: .BINARY_OBJECT_STORE, descriptorIndex: 0, length: bos1.wTotalLength)
         guard sendControlRequestReadData(request: request2, into: infoBuffer) else {
-            #kprint("USB-DEV: getBinaryObjectStore request2 failed")
+            #kprint("usbdev: getBinaryObjectStore request2 failed")
             return nil
         }
 
         do {
             return try USB.BOSDescriptor(from: infoBuffer)
         } catch {
-            #kprint("USBDEV: Failed to decode BOS descriptor packet: ", error)
+            #kprint("usbdev: Failed to decode BOS descriptor packet: ", error)
             return nil
         }
     }
 
-    func showStrings() {
+    func getStrings() {
 
         func toString(_ utf16: [UInt16]) -> String {
             var result = ""
@@ -367,39 +459,47 @@ class USBDevice: Device {
                     result.append("?")
                 }
             }
+            // Remove trailing whitespace
+            while let ch = result.last, ch == " " || ch == "\n" {
+                result.removeLast()
+            }
             return result
         }
 
 
         do {
+            let manu = self.deviceDescriptor.iManufacturer
+            let prod = self.deviceDescriptor.iProduct
+            let sern = self.deviceDescriptor.iSerialNumber
             if USBTrace {
-                #kprint("USBDEV getting language ids")
+                #kprintf("usbdev: iManufacturer: %d iProduct: %d iSerialNumber: %d\n",
+                         manu, prod, sern)
+                #kprint("usbdev getting language ids")
+
             }
             guard let langIds = try getStringDescriptor(at: 0) else {
-                #kprint("USBDEV: No language IDs found")
+                if USBTrace {
+                    #kprint("usbdev: No language IDs found")
+                }
                 return
             }
-            #kprint("USBDEV: LangIDS:",
-                     langIds.map { $0.hex() }.joined(separator: ", ")
-            )
-            let manu = self.descriptor.iManufacturer
-            let prod = self.descriptor.iProduct
-            let sern = self.descriptor.iSerialNumber
-            #kprintf("USBDEV: iManufacturer: %d iProduct: %d iSerialNumber: %d\n", manu, prod, sern)
             for id in langIds {
-                #kprintf("USBDEV: LangID: 0x%x\n", id)
-                if manu > 0, let s = try getStringDescriptor(at: manu, langId: id) {
-                    #kprint("USBDEV: Manufacturer:", toString(s))
+                if manu > 0, self.manufacturer == nil, let s = try getStringDescriptor(at: manu, langId: id) {
+                    self.manufacturer = toString(s)
                 }
-                if prod > 0, let s = try getStringDescriptor(at: prod, langId: id) {
-                    #kprint("USBDEV: Product:     ", toString(s))
+                if prod > 0, self.product == nil, let s = try getStringDescriptor(at: prod, langId: id) {
+                    self.product = toString(s)
                 }
-                if sern > 0, let s = try getStringDescriptor(at: sern, langId: id) {
-                    #kprint("USBDEV: SerialNumber:", toString(s))
+                if sern > 0, self.serialNumber == nil, let s = try getStringDescriptor(at: sern, langId: id) {
+                    self.serialNumber = toString(s)
                 }
             }
         } catch {
-            #kprint("USBDEV: Failed to get string descriptors: ", error)
+            #kprint("usbdev: Failed to get string descriptors: ", error)
+        }
+        if USBTrace {
+            #kprintf("usbdev: Manufacturer: %s Porduct: %s SerialNumber: %s\n",
+                     self.manufacturer ?? "", self.product ?? "", self.serialNumber ?? "")
         }
     }
 
@@ -413,7 +513,9 @@ class USBDevice: Device {
         defer { bus.freeBuffer(buffer1) }
 
         guard sendControlRequestReadData(request: request1, into: buffer1) else {
-            #kprint("USBDEV: getStringDescriptor: Failed to get descriptor length:", length1)
+            if USBTrace {
+                #kprint("usbdev: getStringDescriptor: Failed to get descriptor length:", length1)
+            }
             return nil
         }
         if buffer1[0] <= length1 {
@@ -427,7 +529,9 @@ class USBDevice: Device {
         defer { bus.freeBuffer(buffer2) }
 
         guard sendControlRequestReadData(request: request2, into: buffer2) else {
-            #kprint("USBDEV: getStringDescriptor: Failed to get descriptor length:", length2)
+            if USBTrace {
+                #kprint("usbdev: getStringDescriptor: Failed to get descriptor length:", length2)
+            }
             return nil
         }
 
@@ -457,6 +561,7 @@ class USBDevice: Device {
         // Number of values
         let count = Int(bLength - 2) / 2
         var values: [UInt16] = []
+
         values.reserveCapacity(count)
         for idx in 1...count {
             let value = UInt16(buffer[2 * idx + 1]) << 8 | UInt16(buffer[2 * idx])

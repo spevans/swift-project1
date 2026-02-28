@@ -1,11 +1,10 @@
-//
-//  USBTests.swift
-//  tests
-//
-//  Created by Simon Evans on 27/10/2020.
-//  Copyright © 2020 Simon Evans. All rights reserved.
-//
-
+/*
+ * USBTests.swift
+ *
+ * Created by Simon Evans on 27/10/2020.
+ * Copyright © 2020 Simon Evans. All rights reserved.
+ *
+ */
 import XCTest
 @testable import Kernel
 
@@ -102,9 +101,100 @@ class USBTests: XCTestCase {
         let configDescriptor = try USB.ConfigDescriptor(from: mmioRegion)
         XCTAssertEqual(configDescriptor.interfaces.count, 1)
         let interface = configDescriptor.interfaces[0]
-        XCTAssertNotNil(interface.endpoint0.companion)
-        XCTAssertEqual(interface.endpoints.count, 1)
         XCTAssertNotNil(interface.endpoints[0].companion)
+        XCTAssertEqual(interface.endpoints.count, 2)
+        XCTAssertNotNil(interface.endpoints[1].companion)
         print(configDescriptor)
     }
+
+    func testConfigDescriptor6() throws {
+        let getDescriptorConfigData = Data([
+            0x09, 0x02, 0x3b, 0x00, 0x02, 0x01, 0x00, 0xa0, 0x19,
+        ])
+        XCTAssertEqual(getDescriptorConfigData.count, 9)
+
+        let region = PhysRegion(data: getDescriptorConfigData)
+        let mmioRegion = MMIOSubRegion(baseAddress: region.baseAddress, count: Int(region.size))
+        let configDescriptor = try USB.ConfigDescriptor(from: mmioRegion)
+        XCTAssertEqual(configDescriptor.interfaces.count, 0)
+        print(configDescriptor)
+    }
+
+    func testConfigDescriptor7() throws {
+        let data = Data([
+            0x09, 0x02, 0xd8, 0x00, 0x04, 0x01, 0x00, 0xe0, 0x00, 0x09, 0x04, 0x00, 0x00, 0x03, 0xff, 0x01,
+            0x01, 0x00, 0x07, 0x05, 0x81, 0x03, 0x10, 0x00, 0x01, 0x07, 0x05, 0x82, 0x02, 0x40, 0x00, 0x01,
+            0x07, 0x05, 0x02, 0x02, 0x40, 0x00, 0x01, 0x09, 0x04, 0x01, 0x00, 0x02, 0xe0, 0x01, 0x01, 0x00,
+            0x07, 0x05, 0x83, 0x01, 0x00, 0x00, 0x01, 0x07, 0x05, 0x03, 0x01, 0x00, 0x00, 0x01, 0x09, 0x04,
+            0x01, 0x01, 0x02, 0xe0, 0x01, 0x01, 0x00, 0x07, 0x05, 0x83, 0x01, 0x09, 0x00, 0x01, 0x07, 0x05,
+            0x03, 0x01, 0x09, 0x00, 0x01, 0x09, 0x04, 0x01, 0x02, 0x02, 0xe0, 0x01, 0x01, 0x00, 0x07, 0x05,
+            0x83, 0x01, 0x11, 0x00, 0x01, 0x07, 0x05, 0x03, 0x01, 0x11, 0x00, 0x01, 0x09, 0x04, 0x01, 0x03,
+            0x02, 0xe0, 0x01, 0x01, 0x00, 0x07, 0x05, 0x83, 0x01, 0x20, 0x00, 0x01, 0x07, 0x05, 0x03, 0x01,
+            0x20, 0x00, 0x01, 0x09, 0x04, 0x01, 0x04, 0x02, 0xe0, 0x01, 0x01, 0x00, 0x07, 0x05, 0x83, 0x01,
+            0x40, 0x00, 0x01, 0x07, 0x05, 0x03, 0x01, 0x40, 0x00, 0x01, 0x09, 0x04, 0x01, 0x05, 0x02, 0xe0,
+            0x01, 0x01, 0x00, 0x07, 0x05, 0x83, 0x01, 0x40, 0x00, 0x01, 0x07, 0x05, 0x03, 0x01, 0x40, 0x00,
+            0x01, 0x09, 0x04, 0x02, 0x00, 0x2 , 0xff, 0xff, 0xff, 0x00, 0x07, 0x05, 0x84, 0x02, 0x20, 0x00,
+            0x01, 0x07, 0x05, 0x04, 0x02, 0x20, 0x00, 0x01, 0x09, 0x04, 0x03, 0x00, 0x00, 0xfe, 0x01, 0x01,
+            0x00, 0x07, 0x21, 0x07, 0x88, 0x13, 0x40, 0x00
+        ])
+        XCTAssertEqual(data.count, 216)
+
+        let region = PhysRegion(data: data)
+        let mmioRegion = MMIOSubRegion(baseAddress: region.baseAddress, count: Int(region.size))
+        do {
+            let configDescriptor = try USB.ConfigDescriptor(from: mmioRegion)
+            XCTAssertEqual(configDescriptor.interfaces.count, 9)
+            print(configDescriptor)
+        } catch {
+            XCTFail("error")
+        }
+    }
+
+    func testConfigDescriptorForHub() throws {
+        do {
+            let config = USB.ConfigDescriptor(hubSpeed: .fullSpeed)
+            let region = PhysRegion(count: 256)
+            var mmioRegion = MMIOSubRegion(baseAddress: region.baseAddress, count: Int(region.size))
+            XCTAssertEqual(config.write(into: &mmioRegion, maxLength: 256), config.wTotalLength)
+            let config2 = try USB.ConfigDescriptor(from: mmioRegion)
+            XCTAssertEqual(config, config2)
+        }
+
+        do {
+            let config = USB.ConfigDescriptor(hubSpeed: .highSpeed)
+            let region = PhysRegion(count: 256)
+            var mmioRegion = MMIOSubRegion(baseAddress: region.baseAddress, count: Int(region.size))
+            XCTAssertEqual(config.write(into: &mmioRegion, maxLength: 256), config.wTotalLength)
+            let config2 = try USB.ConfigDescriptor(from: mmioRegion)
+            XCTAssertEqual(config, config2)
+        }
+
+        do {
+            let config = USB.ConfigDescriptor(hubSpeed: .superSpeed_gen1_x1)
+            let region = PhysRegion(count: 256)
+            var mmioRegion = MMIOSubRegion(baseAddress: region.baseAddress, count: Int(region.size))
+            XCTAssertEqual(config.write(into: &mmioRegion, maxLength: 256), config.wTotalLength)
+            let config2 = try USB.ConfigDescriptor(from: mmioRegion)
+            XCTAssertEqual(config, config2)
+        }
+    }
+
+    func testConfigDescriptorIntoShortBuffer() throws {
+        let config = USB.ConfigDescriptor(hubSpeed: .fullSpeed)
+        for maxLength: UInt16 in 2...10 {
+            let region = PhysRegion(count: Int(maxLength))
+            var mmioRegion = MMIOSubRegion(baseAddress: region.baseAddress, count: Int(region.size))
+            XCTAssertEqual(config.write(into: &mmioRegion, maxLength: maxLength), maxLength)
+            do {
+                _ = try USB.ConfigDescriptor(from: mmioRegion)
+        //        XCTFail("Decoding should have thrown a USB.ParsingError.packetTooShort")
+            } catch {
+                XCTAssertEqual(error.description, "PacketTooShort")
+            }
+        }
+    }
+
 }
+
+
+

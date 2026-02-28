@@ -28,7 +28,6 @@ final class HCD_XHCI: DeviceDriver {
 
 
     init?(pciDevice: PCIDevice) {
-        #kprint("xhci: init")
         guard pciDevice.deviceFunction.deviceClass == PCIDeviceClass(
             classCode: .serialBusController,
             subClassCode: PCISerialBusControllerSubClass.usb.rawValue,
@@ -132,7 +131,7 @@ final class HCD_XHCI: DeviceDriver {
 
         // Get device from BIOS ownership if necessary
         if var legacySupport = capabilities.legacySupport {
-            #kprint("xhci: Have leagacy support:", legacySupport.description)
+            #kprint("xhci: Have legacy support:", legacySupport.description)
             var count = 20
             while legacySupport.biosOwned && count > 0 {
                 legacySupport.osOwned = false
@@ -258,7 +257,7 @@ final class HCD_XHCI: DeviceDriver {
                 speed: usbVersion == 2 ? .highSpeed : .superSpeed_gen1_x1,
                 address: 1
             ) else {
-                #kprint("xhci: Faild to add RootHub Device")
+                #kprint("xhci: Failed to add RootHub Device")
                 return false
             }
             #kprintf("xhci: adding root device, speed: %s\n", rootHubDevice.speed.description)
@@ -271,6 +270,7 @@ final class HCD_XHCI: DeviceDriver {
     }
 
     private func setAddress(on usbDevice: USBDevice) -> UInt8? {
+        if usbDevice.isHCD { return 1 }
         guard let deviceData = usbDevice.hcdData as? XHCIDeviceData else {
             #kprint("xhci: Failed to get device data")
             return nil
@@ -420,7 +420,9 @@ final class HCD_XHCI: DeviceDriver {
         }
 
         let slotId = commandCompletion.slotId
-        #kprintf("xhci: Got slotId %d\n", slotId)
+        if XHCIDebug {
+            #kprintf("xhci: Got slotId %d\n", slotId)
+        }
         return (slotId, allocator.allocDeviceContext(forSlot: slotId))
     }
 
@@ -559,7 +561,9 @@ final class HCD_XHCIPipe: USBPipe {
 
 
     func processURB(_ setupRequest: USB.ControlRequest, _ buffer: MMIOSubRegion?) -> USB.Response {
-
+        if XHCIDebug {
+            #kprint("processURB, length:", setupRequest.wLength)
+        }
         let okResponse = USB.Response(status: .finished, bytesTransferred: 0)
         let errorResponse = USB.Response(status: .stalled, bytesTransferred: 0)
 
@@ -578,6 +582,10 @@ final class HCD_XHCIPipe: USBPipe {
 
         let fromPortRequest = USB.ControlRequest.BMRequestType(
             direction: .deviceToHost, requestType: .klass, recipient: .other(0)
+        ).rawValue
+
+        let standardHtoD = USB.ControlRequest.BMRequestType(
+            direction: .hostToDevice, requestType: .standard, recipient: .device
         ).rawValue
 
         let standardDtoH = USB.ControlRequest.BMRequestType(
@@ -603,19 +611,61 @@ final class HCD_XHCIPipe: USBPipe {
                 buffer[1] = 0
                 return USB.Response(status: .finished, bytesTransferred: 2)
 
-            case (deviceRequest, .GET_DESCRIPTOR):
-                // FIXME, use the returned length in a URB response
-                guard var buffer = buffer else { return errorResponse }
-                let length: Int
-                if setupRequest.wValue >> 8 == USB.DescriptorType.HUB.rawValue {
-                    let hubDescriptor = USB.HUBDescriptor(isSuperSpeed: false, ports: self.portCount)
-                    length = hubDescriptor.descriptorAsBuffer(wLength: setupRequest.wLength, into: &buffer)
-                } else if setupRequest.wValue >> 8 == USB.DescriptorType.SUPER_SPEED_HUB.rawValue {
-                    let hubDescriptor = USB.HUBDescriptor(isSuperSpeed: true, ports: self.portCount)
-                    length = hubDescriptor.descriptorAsBuffer(wLength: setupRequest.wLength, into: &buffer)
+            case (standardDtoH, .GET_DESCRIPTOR):
+                guard var buffer = buffer, buffer.count >= Int(setupRequest.wLength) else { return errorResponse }
+                let descriptorType = UInt8(setupRequest.wValue >> 8)
+                let requestedDescriptorType = USB.DescriptorType(rawValue: descriptorType)
+                let length: UInt16
+
+                switch requestedDescriptorType {
+                    case .DEVICE:
+                        let descriptor = USB.DeviceDescriptor(usbMajorHub: self.usbVersion)
+                        length = descriptor.write(into: &buffer, maxLength: setupRequest.wLength)
+
+                    case .CONFIGURATION:
+                        let speed: USB.Speed = self.usbVersion < 3 ? .highSpeed : .superSpeed_gen1_x1
+                        let descriptor = USB.ConfigDescriptor(hubSpeed: speed)
+                        length = descriptor.write(into: &buffer, maxLength: setupRequest.wLength)
+
+                    case .BINARY_OBJECT_STORE:
+                        let descriptor = USB.BOSDescriptor(capabilities: [])
+                        length = descriptor.write(into: &buffer, maxLength: setupRequest.wLength)
+
+                    default:
+                        let type = requestedDescriptorType?.description ?? #sprintf("type: 0x%2.2x", descriptorType)
+                        #kprint("xhci-hcd: Unsupported GET_DESCRIPTOR for:", type)
+                        return errorResponse
+                }
+                return USB.Response(status: .finished, bytesTransferred: UInt32(length))
+
+            case (standardHtoD, .SET_ADDRESS):
+                // Validate the prequest but ignore it for an HCD
+                if setupRequest.wValue >= 128 {
+                    return errorResponse
                 } else {
+                    return okResponse
+                }
+
+            case (deviceRequest, .GET_DESCRIPTOR):
+                guard var buffer = buffer, buffer.count >= Int(setupRequest.wLength) else { return errorResponse }
+                guard let descriptorType = USB.DescriptorType(rawValue: UInt8(setupRequest.wValue >> 8)) else {
                     #kprintf("xhci-root: Invalid GET_DESCRIPTOR: 0x%x\n", setupRequest.wValue)
                     return errorResponse
+                }
+                let length: UInt16
+                switch descriptorType {
+                    case .HUB:
+                        let hubDescriptor = USB.HUBDescriptor(isSuperSpeed: false, ports: self.portCount)
+                        length = hubDescriptor.write(into: &buffer, maxLength: setupRequest.wLength)
+
+                    case .SUPER_SPEED_HUB:
+                        let hubDescriptor = USB.HUBDescriptor(isSuperSpeed: true, ports: self.portCount)
+                        length = hubDescriptor.write(into: &buffer, maxLength: setupRequest.wLength)
+
+                    default:
+                        #kprintf("xhci-hcd: Unsupported GET_DESCRIPTOR(%x)\n", descriptorType.rawValue)
+                        return errorResponse
+
                 }
                 return USB.Response(status: .finished, bytesTransferred: UInt32(length))
 

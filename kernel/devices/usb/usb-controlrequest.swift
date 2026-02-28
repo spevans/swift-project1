@@ -11,7 +11,7 @@
 
 extension USB {
 
-    enum DescriptorType: UInt8 {
+    enum DescriptorType: UInt8, CustomStringConvertible {
         case DEVICE = 1
         case CONFIGURATION = 2
         case STRING = 3
@@ -26,6 +26,25 @@ extension USB {
         case HUB = 0x29
         case SUPER_SPEED_HUB = 0x2A
         case ENDPOINT_COMPANION = 0x30
+
+        var description: String {
+            return switch self {
+                case .DEVICE: "DEVICE"
+                case .CONFIGURATION: "CONFIGURATION"
+                case .STRING: "STRING"
+                case .INTERFACE: "INTERFACE"
+                case .ENDPOINT: "ENDPOINT"
+                case .DEVICE_QUALIFIER: "DEV_QUALIFIER"
+                case .OTHER_SPEED_CONFIGURATION: "OTHER_SPEED"
+                case .INTERFACE_POWER: "INTERFACE_POWER"
+                case .BINARY_OBJECT_STORE: "BIN_OBJECT_STORE"
+                case .DEVICE_CAPABILITY: "DEV_CAPABILITY"
+                case .HID: "HID"
+                case .HUB: "HUB"
+                case .SUPER_SPEED_HUB: "SUPER_SPEED_HUB"
+                case .ENDPOINT_COMPANION: "ENDPOINT_COMP"
+            }
+        }
     }
 
     enum TransferDirection: UInt8, CustomStringConvertible {

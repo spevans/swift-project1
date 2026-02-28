@@ -11,7 +11,7 @@
 
 extension USB {
 
-    struct HIDDescriptor: CustomStringConvertible {
+    struct HIDDescriptor: Equatable, CustomStringConvertible {
         private let descriptor: usb_hid_descriptor
 
         var bLength: UInt8 { descriptor.bLength }
@@ -39,7 +39,9 @@ extension USB {
                 guard descriptorByte == USB.DescriptorType.HID.rawValue else { throw ParsingError.invalidDescriptor(descriptorByte) }
                 bLength = lengthByte
             }
-            guard Int(bLength) == MemoryLayout<usb_hid_descriptor>.size else { throw ParsingError.invalidLengthByte }
+            guard Int(bLength) == MemoryLayout<usb_hid_descriptor>.size else {
+                throw ParsingError.invalidLengthByte
+            }
 
             var _descriptor = usb_hid_descriptor()
             try withUnsafeMutableBytes(of: &_descriptor) { (buffer: UnsafeMutableRawBufferPointer) throws(ParsingError) -> () in
@@ -54,6 +56,26 @@ extension USB {
             }
 
             descriptor = _descriptor
+        }
+
+        func write(into buffer: inout MMIOSubRegion, maxLength: UInt16) -> UInt16 {
+            let length = min(UInt16(self.descriptor.bLength), maxLength)
+            withUnsafeBytes(of: self.descriptor) {
+                for idx in 0..<Int(length) {
+                    buffer[idx] = $0[idx]
+                }
+            }
+            return length
+        }
+
+        static func ==(lhs: Self, rhs: Self) -> Bool {
+            lhs.descriptor.bLength == rhs.descriptor.bLength
+            && lhs.descriptor.bDescriptorType == rhs.descriptor.bDescriptorType
+            && lhs.descriptor.bcdHID == rhs.descriptor.bcdHID
+            && lhs.descriptor.bCountryCode == rhs.descriptor.bCountryCode
+            && lhs.descriptor.bNumDescriptors == rhs.descriptor.bNumDescriptors
+            && lhs.descriptor.bReportDescriptorType == rhs.descriptor.bReportDescriptorType
+            && lhs.descriptor.wDescriptorLength == rhs.descriptor.wDescriptorLength
         }
     }
 }

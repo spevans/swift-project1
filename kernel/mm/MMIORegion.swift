@@ -1,16 +1,15 @@
-//
-//  MMIORegion.swift
-//  project1
-//
-//  Created by Simon Evans on 21/04/2021.
-//  Copyright © 2021 - 2022 Simon Evans. All rights reserved.
-//
-//  Access to a mapped region used for device IO. May represent the
-//  underlying hardware (eg frame buffer) or memory allocated for IO
-//  buffers. In both cases the pages are mapped as uncacheable so that
-//  the CPU doesnt reorder accesses.
-//
-
+/*
+ * kernel/mm/MMIORegion.swift
+ *
+ * Created by Simon Evans on 21/04/2021.
+ * Copyright © 2021 - 2022 Simon Evans. All rights reserved.
+ *
+ * Access to a mapped region used for device IO. May represent the
+ * underlying hardware (eg frame buffer) or memory allocated for IO
+ * buffers. In both cases the pages are mapped as uncacheable so that
+ * the CPU doesnt reorder accesses.
+ *
+ */
 var mmioDebug = false
 
 struct MMIORegion: CustomStringConvertible {
@@ -148,6 +147,13 @@ struct MMIOSubRegion: CustomStringConvertible, RandomAccessCollection {
         self.count = count
     }
 
+    func mmioSubRegion(offset: Int) -> MMIOSubRegion {
+        precondition(offset > 0)
+        precondition(offset < self.count)
+        return MMIOSubRegion(baseAddress: self.baseAddress + offset,
+                             count: self.count - offset)
+    }
+
     subscript(index: Index) -> Element {
         get {
             precondition(index < count)
@@ -227,11 +233,18 @@ struct MMIOSubRegion: CustomStringConvertible, RandomAccessCollection {
         }
     }
 
-    func dump(maxBytes: Int) -> String {
+    func dump(maxBytes: Int, perLine: Int = 16) -> String {
+        let maxBytes = Swift.max(count, maxBytes)
         var result = ""
-        for index in 0..<Swift.max(count, maxBytes) {
+        result.reserveCapacity(maxBytes * 3)
+
+        for index in 0..<maxBytes {
+            if index.isMultiple(of: perLine) {
+                result += "\n"
+            } else {
+                result += " "
+            }
             result += self[index].hex()
-            result += " "
         }
         return result
     }

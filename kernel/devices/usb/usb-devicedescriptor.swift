@@ -75,6 +75,16 @@ extension USB {
             descriptor = _descriptor
         }
 
+        func write(into buffer: inout MMIOSubRegion, maxLength: UInt16) -> UInt16 {
+            let length = min(UInt16(self.bLength), maxLength)
+            withUnsafeBytes(of: descriptor) {
+                for idx in 0..<Int(length) {
+                    buffer[idx] = $0[idx]
+                }
+            }
+            return length
+        }
+
         // Dummy descriptor with all values 0. Used so that USBDevice does not have
         // to hold a DeviceDescriptor?
         init(usbMajor: UInt8) {

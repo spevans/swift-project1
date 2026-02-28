@@ -21,32 +21,14 @@ extension USB {
             return switch self {
                 case .packetTooShort:               "PacketTooShort"
                 case .invalidLengthByte:            "InvalidLengthByte"
-                case let .invalidDescriptor(desc):  "InvalidDescripton: \(String(desc, radix: 16))"
+                case let .invalidDescriptor(desc):  "InvalidDescriptor: \(String(desc, radix: 16))"
                 case .garbageAtEnd:                 "GarbageAtEnd"
             }
         }
     }
 
-    enum Descriptor: CustomStringConvertible {
-        case interface(InterfaceDescriptor)
-        case endpoint(EndpointDescriptor)
-        case hid(HIDDescriptor)
-        case endpointCompanion(EndpointCompanionDescriptor)
-        case unknown(UInt8)
 
-        var description: String {
-            switch self {
-                case .interface: "interface"
-                case .endpoint: "endpoint"
-                case .hid: "hid"
-                case .endpointCompanion: "endpointCompanion"
-                case .unknown: "unknown"
-            }
-        }
-    }
-
-
-    struct ConfigDescriptor: CustomStringConvertible {
+    struct ConfigDescriptor: Equatable, CustomStringConvertible {
 
         private struct BMAttributes {
             private let bits: BitArray8
@@ -85,152 +67,221 @@ extension USB {
             return result
         }
 
+        // ConfigDescriptor for a HUB (internal HCD)
+        init(hubSpeed: USB.Speed) {
+            let interruptEndpoint = EndpointDescriptor(endPoint: 1, direction: .deviceToHost,
+                                                       maxPacketSize: 4, interval: 16)
+            let interface = InterfaceDescriptor(ifNum: 0, alternate: 0,
+                                                ifClass: InterfaceClass.hub.rawValue,
+                                                ifSubClass: 0, ifProtocol: 0, stringIndex: 1,
+                                                endpoints: [interruptEndpoint],
+                                                functionDescriptors: [])
+            self.interfaces = [interface]
 
-        // This will parse either a packet of size(usb_standard_interface_descriptor), sufficient to obtain wTotalLength,
-        // or a packet of size wTotalLength which will include all of the sub structures
-        init(from buffer: MMIOSubRegion) throws(ParsingError) {
-            guard  buffer.count >= MemoryLayout<usb_standard_interface_descriptor>.size else {
-                throw ParsingError.packetTooShort
+            let descriptorLength = MemoryLayout<usb_standard_config_descriptor>.size
+            var wLength = UInt16(descriptorLength)
+            for interface in self.interfaces {
+                wLength += UInt16(interface.bLength)
+                wLength += interface.endpoints.reduce(UInt16(0), {
+                    result, endpoint in result + UInt16(endpoint.bLength)
+                })
             }
+
+            self.descriptor = usb_standard_config_descriptor(
+                bLength: UInt8(descriptorLength),
+                bDescriptorType: USB.DescriptorType.CONFIGURATION.rawValue,
+                wTotalLength: wLength,
+                bNumInterfaces: 1,
+                bConfigurationValue: 1,
+                iConfiguration: 0,
+                bmAttributes: 0,
+                bMaxPower: 0
+            )
+        }
+
+        // This will parse either a packet of size(usb_standard_interface_descriptor),
+        // sufficient to obtain wTotalLength, or a packet of size wTotalLength which
+        // will include all of the sub structures.
+        init(from buffer: MMIOSubRegion) throws(ParsingError) {
             var iterator = buffer.makeIterator()
             // Validate the initial bytes
-            guard let lengthByte = iterator.next(), let descriptorByte = iterator.next() else { throw ParsingError.packetTooShort }
-            guard Int(lengthByte) == MemoryLayout<usb_standard_interface_descriptor>.size else { throw ParsingError.invalidLengthByte }
-            guard descriptorByte == USB.DescriptorType.CONFIGURATION.rawValue else { throw ParsingError.invalidDescriptor(descriptorByte) }
+            guard let lengthByte = iterator.next(), let descriptorByte = iterator.next() else {
+                throw ParsingError.packetTooShort
+            }
+            guard Int(lengthByte) == MemoryLayout<usb_standard_config_descriptor>.size else {
+                throw ParsingError.invalidLengthByte
+            }
+            guard descriptorByte == USB.DescriptorType.CONFIGURATION.rawValue else {
+                throw ParsingError.invalidDescriptor(descriptorByte)
+            }
 
-            var _descriptor = usb_standard_config_descriptor()
-            try withUnsafeMutableBytes(of: &_descriptor) { (buffer: UnsafeMutableRawBufferPointer) throws(ParsingError) -> () in
-                assert(MemoryLayout<usb_standard_interface_descriptor>.size == buffer.count)
-                buffer[0] = lengthByte
-                buffer[1] = descriptorByte
+            var _configDescriptor = usb_standard_config_descriptor()
+            var shortPacket = false
+            try withUnsafeMutableBytes(of: &_configDescriptor) { (output: UnsafeMutableRawBufferPointer) throws(ParsingError) -> () in
+                assert(MemoryLayout<usb_standard_config_descriptor>.size == output.count)
+                output[0] = lengthByte
+                output[1] = descriptorByte
 
-                for idx in 2..<buffer.count {
+                for idx in 2..<output.count {
                     // guard let byte = try? iterator.next() // else { return ParsingError.packetTooShort }
-                    guard let byte = iterator.next() else { throw ParsingError.packetTooShort }
-                    buffer[idx] = byte
+                    guard let byte = iterator.next() else {
+                        shortPacket = true
+                        return
+                    }
+                    output[idx] = byte
                 }
             }
-            self.descriptor = _descriptor
 
-            if buffer.count ==  MemoryLayout<usb_standard_interface_descriptor>.size {
+            self.descriptor = _configDescriptor
+            var bytesLeft = min(_configDescriptor.wTotalLength, UInt16(buffer.count))
+            if shortPacket || bytesLeft <= UInt16(_configDescriptor.bLength) {
                 // Short packet, no extra data
                 self.interfaces = []
                 return
             }
-            // Revalidate length, input buffer length should now be equal to wTotalLength
-            guard buffer.count == _descriptor.wTotalLength else { throw ParsingError.packetTooShort }
+            bytesLeft -= UInt16(_configDescriptor.bLength)
 
             // The rest of the Config Descriptor is interface, endpoint and other
             // smaller config descriptors so iterate through each one and append it
             // to the correct data structure.
 
-            // If there are any interfaces, try and initialise them from any remaining bytes
-            // Note there could be more than bNumInterfaces due to the presence of alternate interfaces
             var _interfaces: [InterfaceDescriptor] = []
             _interfaces.reserveCapacity(Int(descriptor.bNumInterfaces))
-
-            // The current interface and endpoint is not added to the repective arrays
-            // until the next interface or endpoint is seen as they are values so cannot
-            // be modified once they have been added into an array.
             var interfaceNumber: UInt8 = 0
-            var currentInterface: InterfaceDescriptor? = nil
-            var currentEndpoint: EndpointDescriptor? = nil
+            var haveInterface = false
+            var _interfaceDescriptor = usb_standard_interface_descriptor()
+            var _endpoints: [EndpointDescriptor] = []
+            var _functionDescriptors: [Array<UInt8>] = []
 
-            func addEndpoint() throws(ParsingError) {
-                guard let ep = currentEndpoint else { return }
-                if currentInterface != nil {
-                    currentInterface?.addEndpoint(ep)
-                } else {
-                    throw ParsingError.invalidDescriptor(DescriptorType.ENDPOINT.rawValue)
+            // The current interface is not added to the respective arrays
+            // until the next interface is seen.
+            func addLastInterface() {
+                if haveInterface {
+                    // Process the last interface before setting up the new one
+                    let interface = InterfaceDescriptor(
+                        descriptor: _interfaceDescriptor,
+                        endpoints: _endpoints,
+                        functionDescriptors: _functionDescriptors
+                    )
+                    _interfaces.append(interface)
                 }
-                currentEndpoint = nil
             }
 
-            func addInterface() throws(ParsingError) {
-                try addEndpoint()
-                if let iface = currentInterface {
-                    guard iface.bNumEndpoints == iface.endpoints.count + 1 else {
-                        #kprint("USB-DEV: Warning: Interface \(iface.bInterfaceNumber) has an inconsistent number of endpoints (\(iface.endpoints.count + 1) expected, \(iface.bNumEndpoints) found)")
-                        throw ParsingError.packetTooShort
+            while bytesLeft > 0 {
+                // Validate the initial bytes
+                guard let bLength = iterator.next() else {
+                    // Should not be possible as bytesLeft > 0
+                    fatalError("USB: bytesLeft > 0 but no next byte decoding ConfigDescriptor")
+                }
+                guard bLength > 2, UInt16(bLength) <= bytesLeft,
+                      let descriptorByte = iterator.next() else {
+                    throw ParsingError.packetTooShort
+                }
+
+                var hasFunctionDescriptor = false
+                if let descriptorType = DescriptorType(rawValue: descriptorByte) {
+                    switch descriptorType {
+                        case .INTERFACE:
+                            addLastInterface()
+                            // Now copy the new interface into the descriptor
+                            _interfaceDescriptor = usb_standard_interface_descriptor()
+                            try withUnsafeMutableBytes(of: &_interfaceDescriptor) { (buffer: UnsafeMutableRawBufferPointer) throws(ParsingError) -> () in
+                                buffer[0] = bLength
+                                buffer[1] = USB.DescriptorType.INTERFACE.rawValue
+
+                                for idx in 2..<Int(bLength) {
+                                    guard let byte = iterator.next() else {
+                                        throw ParsingError.packetTooShort
+                                    }
+                                    buffer[idx] = byte
+                                }
+                            }
+                            haveInterface = true
+                            interfaceNumber = _interfaceDescriptor.bInterfaceNumber
+                            _endpoints = []
+                            _endpoints.reserveCapacity(Int(_interfaceDescriptor.bNumEndpoints))
+                            _functionDescriptors = []
+
+                        case .ENDPOINT:
+                            let endpoint = try EndpointDescriptor(from: &iterator, length: bLength)
+                            _endpoints.append(endpoint)
+
+                        case .ENDPOINT_COMPANION:
+                            let companion = try EndpointCompanionDescriptor(from: &iterator, length: bLength)
+
+                            if var currentEndpoint = _endpoints.popLast() {
+                                try currentEndpoint.addEndpointCompanion(companion)
+                                _endpoints.append(currentEndpoint)
+                            } else {
+                                throw ParsingError.invalidDescriptor(descriptorByte)
+                            }
+
+                        default:
+                            hasFunctionDescriptor = true
+                            break
                     }
-                    _interfaces.append(iface)
+                } else {
+                    hasFunctionDescriptor = true
                 }
-                currentInterface = nil
+                if hasFunctionDescriptor {
+                    var functionDescriptor: [UInt8] = []
+                    functionDescriptor.reserveCapacity(Int(bLength))
+                    functionDescriptor.append(bLength)
+                    functionDescriptor.append(descriptorByte)
+                    for _ in 1...(bLength - 2) {
+                        guard let byte = iterator.next() else {
+                            throw ParsingError.packetTooShort
+                        }
+                        functionDescriptor.append(byte)
+                    }
+                    _functionDescriptors.append(functionDescriptor)
+                }
+                bytesLeft -= UInt16(bLength)
             }
 
-
-            while let descriptor = try Self.parseDescriptor(from: &iterator) {
-                switch descriptor {
-                    case .interface(let interface):
-                        try addInterface()
-                        interfaceNumber = interface.bInterfaceNumber
-                        currentInterface = interface
-
-                    case .endpoint(let endpoint):
-                        try addEndpoint()
-                        currentEndpoint = endpoint
-
-                    case .endpointCompanion(let companion):
-                        if currentEndpoint != nil {
-                            try currentEndpoint?.addEndpointCompanion(companion)
-                        } else {
-                            throw ParsingError.invalidDescriptor(DescriptorType.ENDPOINT_COMPANION.rawValue)
-                        }
-
-                    case .hid(let hid):
-                        guard currentInterface != nil else {
-                            throw ParsingError.invalidDescriptor(DescriptorType.HID.rawValue)
-                        }
-                        try currentInterface?.addHID(hid)
-
-                    case .unknown(let bDescriptorType):
-                        throw ParsingError.invalidDescriptor(bDescriptorType)
-                }
-            }
             // Add the current endpoint and interface
-            try addEndpoint()
-            try addInterface()
+            addLastInterface()
             // Check that there were enough interfaces
-            guard interfaceNumber == descriptor.bNumInterfaces - 1 else { throw ParsingError.packetTooShort }
-
-            // The iterator should now be empty
-            guard iterator.next() == nil else { throw ParsingError.garbageAtEnd }
-            self.interfaces = _interfaces
-        }
-
-        static func parseDescriptor(from iterator: inout MMIOSubRegion.Iterator) throws(ParsingError) -> Descriptor? {
-            guard let bLength = iterator.next() else { return nil }
-            // Validate the initial bytes
-            guard let descriptorByte = iterator.next() else {
+            guard interfaceNumber == descriptor.bNumInterfaces - 1 else {
+                #kprintf("ConfigDescriptor: not enough interfaces interfaceNumber: %u descriptor.bNumInterfaces: %u\n",
+                         interfaceNumber, descriptor.bNumInterfaces)
                 throw ParsingError.packetTooShort
             }
 
-            if let descriptorType = DescriptorType(rawValue: descriptorByte) {
-                switch descriptorType {
-                    case .INTERFACE:
-                        return .interface(try InterfaceDescriptor(from: &iterator, length: bLength))
+            self.interfaces = _interfaces
+        }
 
-                    case .ENDPOINT:
-                        return .endpoint(try EndpointDescriptor(from: &iterator, length: bLength))
 
-                    case .HID:
-                        return .hid(try HIDDescriptor(from: &iterator, length: bLength))
-
-                    case .ENDPOINT_COMPANION:
-                        return .endpointCompanion(try EndpointCompanionDescriptor(from: &iterator, length: bLength))
-
-                    default:
-                        break
+        func write(into buffer: inout MMIOSubRegion, maxLength: UInt16) -> UInt16 {
+            let length = min(UInt16(self.descriptor.bLength), maxLength)
+            var offset: UInt16 = 0
+            withUnsafeBytes(of: self.descriptor) {
+                for idx in 0..<Int(length) {
+                    buffer[idx] = $0[idx]
+                    offset += 1
                 }
             }
+            guard offset < maxLength else { return offset }
 
-            #kprint("usb: Unknown descriptor: \(descriptorByte)")
-            for _ in 1...(bLength - 2) {
-                guard iterator.next() != nil else {
-                    throw ParsingError.packetTooShort
-                }
+            for interface in self.interfaces {
+                var subRegion = buffer.mmioSubRegion(offset: Int(offset))
+                offset += interface.write(into: &subRegion, maxLength: maxLength - offset)
+                guard offset < maxLength else { return offset }
             }
-            return .unknown(descriptorByte)
+            assert(offset == self.descriptor.wTotalLength)
+            return offset
+        }
+
+        static func ==(lhs: USB.ConfigDescriptor, rhs: USB.ConfigDescriptor) -> Bool {
+            lhs.descriptor.bLength == rhs.descriptor.bLength
+            && lhs.descriptor.bDescriptorType == rhs.descriptor.bDescriptorType
+            && lhs.descriptor.wTotalLength == rhs.descriptor.wTotalLength
+            && lhs.descriptor.bNumInterfaces == rhs.descriptor.bNumInterfaces
+            && lhs.descriptor.bConfigurationValue == rhs.descriptor.bConfigurationValue
+            && lhs.descriptor.iConfiguration == rhs.descriptor.iConfiguration
+            && lhs.descriptor.bmAttributes == rhs.descriptor.bmAttributes
+            && lhs.descriptor.bMaxPower == rhs.descriptor.bMaxPower
+            && lhs.interfaces == rhs.interfaces
         }
     }
 }

@@ -1,11 +1,12 @@
-//
-//  usb-hubdescriptor.swift
-//  Kernel
-//
-//  Created by Simon Evans on 07/06/2025.
-//
-//  USB Hub Descriptor
-
+/*
+ * kernel/devices/usb/usb-hubdescriptor.swift
+ *
+ * Created by Simon Evans on 07/06/2025.
+ * Copyright © 2025 Simon Evans. All rights reserved.
+ *
+ * USB Hub Descriptor
+ *
+ */
 
 
 extension USB {
@@ -67,11 +68,13 @@ extension USB {
         let hubDelay: UInt16
 
 
-        func descriptorAsBuffer(wLength: UInt16, into buffer: inout MMIOSubRegion) -> Int {
+        func write(into buffer: inout MMIOSubRegion, maxLength: UInt16) -> UInt16 {
 
-            let length = min(Int(self.bDescLength), buffer.count)
-            #kprintf("descriptorAsBuffer length %d self.bDescLengthL %u isSuperSpeed: %s\n",
-                     length, self.bDescLength, self.isSuperSpeed)
+            let length = min(UInt16(self.bDescLength), maxLength)
+            if USBTrace {
+                #kprintf("write(into:maxLength:) length %u self.bDescLengthL %u isSuperSpeed: %s\n",
+                         length, self.bDescLength, self.isSuperSpeed)
+            }
             if self.isSuperSpeed {
                 let descriptor = usb_enhanced_ss_hub_descriptor(
                     bDescLength: self.bDescLength,
@@ -85,7 +88,7 @@ extension USB {
                     deviceRemoveable: 0 // FIXME, compute this
                 )
                 withUnsafeBytes(of: descriptor) {
-                    for idx in 0..<length {
+                    for idx in 0..<Int(length) {
                         buffer[idx] = $0[idx]
                     }
                 }
@@ -101,7 +104,7 @@ extension USB {
                     powerPwrCtrlMask: 0xff
                 )
                 withUnsafeBytes(of: descriptor) {
-                    for idx in 0..<length {
+                    for idx in 0..<Int(length) {
                         buffer[idx] = $0[idx]
                     }
                 }

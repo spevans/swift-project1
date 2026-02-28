@@ -14,9 +14,9 @@ macro usbhubDebug(_ item: CustomStringConvertible, _ items: CustomStringConverti
 
 
 private let USBHUB_DEBUG = true
-internal func _usbhubDebug(_ items: String...) {
+internal func _usbhubDebug(_ item1: String, _ items: String...) {
     if USBHUB_DEBUG {
-        _kprint("USB-HUB:", terminator: "")
+        _kprint(item1, terminator: "")
         for item in items {
             _kprint(" ", item, terminator: "")
         }
@@ -24,6 +24,7 @@ internal func _usbhubDebug(_ items: String...) {
     }
 }
 
+private var hubNumber = 0
 
 final class USBHubDriver: DeviceDriver {
     private let usbDevice: USBDevice
@@ -42,10 +43,12 @@ final class USBHubDriver: DeviceDriver {
         self.responseBuffer = usbDevice.bus.allocateBuffer(length: 32)
         self.hubDescriptor = USB.HUBDescriptor(isSuperSpeed: usbDevice.speed.isUSB3, ports: 0)
         super.init(driverName: "usb-hub", device: usbDevice)
+        let instance = #sprintf("usb-hub%d-%d.%u", atomic_inc(&hubNumber),
+                                usbDevice.bus.busId, usbDevice.address)
+        self.setInstanceName(to: instance)
         guard self.initialise() else {
             return nil
         }
-        self.setInstanceName(to: "usb-hub-\(usbDevice.bus.busId)-\(usbDevice.address)")
     }
 
     deinit {
@@ -54,14 +57,15 @@ final class USBHubDriver: DeviceDriver {
 
     private func initialise() -> Bool {
 
+        let hubName = self.instanceName + ":"
         // Root Hubs have depth 0 and dont need the depth set, the first
         // hub plugged into a root hub will have usbDevice.depth == 1 but
         // needs to be set as zero
         if self.usbDevice.depth > 0, self.usbDevice.isUSB3Device {
             let hubDepth = self.usbDevice.depth - 1
-            #kprintf("usbhub: setting hub depth to %u\n", hubDepth)
+            #kprintf("%s setting hub depth to %u\n", hubName, hubDepth)
             guard self.setHubDepth(hubDepth) else {
-                #kprintf("USBHUB: Failed to set hub depth to %u\n", hubDepth)
+                #kprintf("%s Failed to set hub depth to %u\n", hubName, hubDepth)
                 return false
             }
         }
@@ -69,16 +73,13 @@ final class USBHubDriver: DeviceDriver {
         if let _hubDescriptor = getHubDescriptor() {
             self.hubDescriptor = _hubDescriptor
         }  else {
-            #kprint("USB-HUB: Cannot get HubDescriptor")
+            #kprint(hubName, "Failed to get HubDescriptor")
             return false
         }
 
-        #kprintf("USB-Hub: ports: %u powerOn2Good: %u\n",
-                 hubDescriptor.bNbrPorts, hubDescriptor.bPwrOn2PwrGood)
-
         // Get Hub Status
         guard getHubStatus() else {
-            #kprint("USBHUB: Cannot get hub status")
+            #kprint(hubName, "Failed to get hub status")
             return false
         }
 
@@ -87,15 +88,16 @@ final class USBHubDriver: DeviceDriver {
     }
 
     func enumerate() {
+        let hubName = self.instanceName + ":"
         // Power on the ports then wait for the power to come up
-        #kprintf("USB-HUB: enumerating, have %d ports basePort: %u portCount: %u speed: %s\n",
-                 self.ports, usbDevice.bus.basePort, usbDevice.bus.portCount,
-                 usbDevice.speed.description)
+        #kprintf("%s enumerating, have %d ports basePort: %u portCount: %u speed: %s\n",
+                 hubName, self.ports, usbDevice.bus.basePort,
+                 usbDevice.bus.portCount, usbDevice.speed.description)
 
         for port in 1...self.ports {
 
             guard self.powerPort(port) else {
-                #kprintf("USB-HUB: Cannot power on port: %d\n", port)
+                #kprintf("%s Failed to power on port: %d\n", hubName, port)
                 continue
             }
        }
@@ -112,16 +114,16 @@ final class USBHubDriver: DeviceDriver {
             if portStatus.portEnabledChange {
                 // Clear connection Status bit
                 guard self.clearHubFeature(.C_PORT_ENABLE, port: port) else {
-                    #kprintf("USB-HUB: Cannot clear connection on port: %d\n", port)
+                    #kprintf("%s Failed to clear connection on port: %d\n", hubName, port)
                     continue
                 }
 
                 if portStatus.connectStatusChange {
                     // ignore
                 } else if portStatus.isEnabled {
-                    #kprintf("USB-HUB: invalid enable change: port: %d\n", port)
+                    #kprintf("%s port %d: invalid enable change\n", hubName, port)
                 } else {
-                    #kprintf("USB-HUB: error condition: port: %d\n", port)
+                    #kprintf("%s port %d: error condition\n", hubName, port)
                     portStatus.connectStatusChange = true
                 }
             }
@@ -140,6 +142,10 @@ final class USBHubDriver: DeviceDriver {
 
             if portStatus.connectStatusChange {
                 guard self.connected(port, portStatus) else { continue }
+            } else {
+                if USBHUB_DEBUG {
+                    #kprintf("%s port %d: not connected\n", self.instanceName, port)
+                }
             }
             if portStatus.portLinkStatusChange {
                 _ = self.clearHubFeature(.C_PORT_LINK_STATE, port: port)
@@ -148,161 +154,111 @@ final class USBHubDriver: DeviceDriver {
     }
 
     private func connected(_ port: Int, _ portStatus: PortStatus) -> Bool {
-
-        #kprintf("USB-HUB: connected: port: %d wChange: %4.4x wStatus: %4.4x isPowered: %s isPoweredSS: %s\n", port,
-                 portStatus.wPortChange.rawValue, portStatus.wPortStatus.rawValue,
+        let portName = #sprintf("%s port %d:", self.instanceName, port)
+        #kprintf("%s wChange: %4.4x wStatus: %4.4x isPowered: %s isPoweredSS: %s\n",
+                 portName, portStatus.wPortChange.rawValue,
+                 portStatus.wPortStatus.rawValue,
                  portStatus.isPowered, portStatus.isPoweredSS)
         _ = self.clearConnection(port)
-        guard portStatus.deviceAttached else { return false }
-        guard portStatus.isPowered || portStatus.isPoweredSS else {
-            #kprintf("USB-HUB: port %d is not powered\n", port)
+        guard portStatus.deviceAttached else {
+            #kprint(portName, "no device attached")
             return false
         }
         // Wait for port powerup
         sleep(milliseconds: 100)
         guard resetPort(port) else {
-            #usbhubDebug("\(self)/ \(port) reset failed")
+            #kprint(portName, "reset failed")
             return false
         }
 
         // Get current port status after reset
         guard let portStatus = self.portStatus(port), portStatus.deviceAttached else {
-            #kprintf("USB-HUB: Device disappeared after reset on port: %d\n", port)
+            #kprint(portName, "Device disappeared after reset")
             return false
         }
 
         let connectedSpeed = portStatus.speed()
 
-        #usbhubDebug("\(self)/\(port) New Device speed: \(connectedSpeed)")
+        #usbhubDebug("\(portName) New Device speed: \(connectedSpeed)")
         guard let newDevice = USBDevice(parent: self.usbDevice, bus: usbDevice.bus,
                                         port: UInt8(port),
                                         depth: self.usbDevice.depth + 1,
                                         speed: connectedSpeed) else {
-            #kprint("USB-HUB: Failed to create USBDevice")
+            #kprint(portName, "Failed to create USBDevice")
             return false
         }
 
-        // Get initial 8byte device descriptor
-        guard let deviceDescriptor = getInitialDeviceDescriptor(newDevice) else {
-            #kprint("\(self)/\(port)-0: Cannot get info8")
+        guard let configDescriptor = newDevice.configDescriptor else {
+            #kprint(portName, "No config descriptor for newDevice")
             return false
         }
-        #kprintf("USB: %s deviceDescriptor: %s\n", newDevice.description, deviceDescriptor.description)
-        guard deviceDescriptor.bLength != 0 else {
-            fatalError("USB-HUB: info8 returned zero length bLength")
-        }
-
-        // Set address of device
-        #kprintf("USB: %s Setting address of device\n", newDevice.description)
-        guard let address = usbDevice.bus.setAddress(newDevice) else {
-            #kprint("\(self)/\(port)-0: Failed to address of device - ignoring device")
-            return false
-        }
-        #kprintf("USB-HUB: %s set to address %u\n", newDevice.description, address)
-
-        // Get full DeviceDescriptor
-        #usbhubDebug("\(self)/\(port)-\(address) Getting full DeviceDescriptor of length:", deviceDescriptor.bLength)
-        guard let _descriptor = newDevice.getDeviceDescriptor(length: UInt16(deviceDescriptor.bLength)) else {
-            #usbhubDebug("\(self)/\(port)-\(address) Failed to get full DeviceDescriptor")
-            return false
-        }
-        let fullDeviceDescriptor = _descriptor
-        #usbhubDebug("\(newDevice.description) fullDeviceDescriptor:", fullDeviceDescriptor)
-        newDevice.setDescriptor(fullDeviceDescriptor)
-
-        #kprintf("USB-HUB: %s vendor: %4.4x product: %4.4x manu: %2.2x product: %2.2x\n",
-                 newDevice.description,
-                 fullDeviceDescriptor.idVendor, fullDeviceDescriptor.idProduct,
-                 fullDeviceDescriptor.iManufacturer, fullDeviceDescriptor.iProduct)
-
-        #kprint("\nUSB-HUB: \(newDevice.description) Getting ConfigurationDescriptor")
-        guard let configDescriptor = newDevice.getConfigurationDescriptor() else {
-            #usbhubDebug("\(newDevice.description) Failed to get device ConfigurationDescriptor of device on port: \(port) - ignoring device")
-            return false
-        }
-        #usbhubDebug("\(newDevice.description) configDescriptor: \(configDescriptor)")
-        if newDevice.isUSB3Device {
-            #kprint("USB: Getting BOS Descriptor")
-            guard let bosDescriptor = newDevice.getBinaryObjectStore() else {
-                #usbhubDebug("\(newDevice.description) Failed to get BOS Descriptor of device on port: \(port) - ignoring device")
-                return false
-            }
-            #kprint("USB: BOS Descriptor", bosDescriptor)
-            newDevice.setBOSDescriptor(bosDescriptor)
-        }
-        newDevice.showStrings()
-        configureDevice(newDevice, fullDeviceDescriptor, configDescriptor)
+        configureDevice(newDevice, newDevice.deviceDescriptor, configDescriptor)
         return true
     }
 
-    private func getInitialDeviceDescriptor(_ newDevice: USBDevice) -> USB.DeviceDescriptor? {
-        for _ in 1...2 {
-            if let deviceDescriptor = newDevice.getDeviceDescriptor(length: 8) {
-                return deviceDescriptor
-            }
-            sleep(milliseconds: 20)
-        }
-        return nil
-    }
-
-
     private func configureDevice(_ usbDevice: USBDevice, _ deviceDescriptor: USB.DeviceDescriptor, _ configDescriptor: USB.ConfigDescriptor) {
+
+        let portName = #sprintf("%s port %d:", self.instanceName, usbDevice.port)
 
         // Configure device - set_configuration
         guard usbDevice.setConfiguration(to: configDescriptor.bConfigurationValue) else {
-            #usbhubDebug("\(usbDevice.description) Failed to set configuration")
+            #usbhubDebug("\(portName) Failed to set configuration")
             return
         }
 
         guard let deviceClass = USB.DeviceClass(rawValue: deviceDescriptor.bDeviceClass) else {
-            #kprintf("USB-HUB: Unknown device class 0x%2.2x\n", deviceDescriptor.bDeviceClass)
+            #kprintf("%s Unknown device class 0x%2.2x\n", portName, deviceDescriptor.bDeviceClass)
             return
         }
 
-        #kprint("USB: device class:", deviceClass.description)
+        #usbhubDebug("\(portName) device class:", deviceClass)
         switch deviceClass {
             case .interfaceSpecific:
                 for interface in configDescriptor.interfaces {
                     switch interface.interfaceClass {
                         case .hid:
-                            #usbhubDebug("\(usbDevice.description) Found a HID Device, interface: \(interface)")
+                            #usbhubDebug("\(portName) Found a HID Device, interface: \(interface)")
                             guard USBHIDDriver(device: usbDevice, interface: interface) != nil else {
-                                #usbhubDebug("\(usbDevice.description) Cannot create HID Driver for device")
+                                #usbhubDebug("\(portName) Cannot create HID Driver for device")
                                 continue
                             }
                         default:
                             let iClass = interface.interfaceClass?.description ?? "nil"
-                            #usbhubDebug("\(usbDevice.description) ignoring non-HID device: \(iClass)")
+                            #usbhubDebug("\(portName) ignoring non-HID device: \(iClass)")
                     }
                 }
 
             case .hub:
-                #kprintf("%s: Found a hub\n", usbDevice.description)
+                #kprintf("%s %s: Found a hub\n", portName, usbDevice.description)
                 usbDevice.setAsBus()
                 if let driver = USBHubDriver(usbDevice: usbDevice) {
                     driver.enumerate()
                 } else {
-                    #kprint("USB-HUB: Failed to initialise hub")
+                    #kprint(portName, "Failed to initialise hub")
                 }
 
             default:
-                #kprintf("USB-HUB: Unsupported device class %s\n", deviceClass.description)
-
+                #kprint(portName, "Unsupported device class", deviceClass.description)
         }
     }
 
 
     private func getHubDescriptor() -> USB.HUBDescriptor? {
 
-        #kprintf("getHubDescriptor: speed: %s version: %d isUSB3: %s\n",
-                 self.usbDevice.speed.description, self.usbDevice.descriptor.usbMajor,
-                 self.usbDevice.isUSB3Device)
+        if USBHUB_DEBUG {
+            #kprintf("%s: getHubDescriptor: speed: %s version: %d isUSB3: %s\n",
+                     self.instanceName,
+                     self.usbDevice.speed.description,
+                     self.usbDevice.deviceDescriptor.usbMajor,
+                     self.usbDevice.isUSB3Device
+            )
+        }
         if self.usbDevice.isUSB3Device {
-            #kprint("USBHUB: getHubDescriptor: Device supports Enhanced Hub Descriptor")
+            #kprintf("%s: getHubDescriptor: Device supports Enhanced Hub Descriptor\n",
+                     self.instanceName)
             return self.getEnhanchedHubDescriptor()
         }
 
-        #kprint("Getting a HUB descriptor of length 9")
         let length: UInt16 = 9 // 9 bytes for the minimal response, upto 7 ports. // + 32x2x8bits for ports bitmaps (255 ports max + 1 reserved bit)
         let descriptorIndex = 0
         let request = USB.ControlRequest.classSpecificRequest(
@@ -314,7 +270,7 @@ final class USBHubDriver: DeviceDriver {
         )
 
         guard usbDevice.sendControlRequestReadData(request: request, into: responseBuffer) else {
-            #kprint("USBHUB: getHubDescriptor: Cannot get HUB descriptor")
+            #kprint(self.instanceName, "Failed to get initial HUB descriptor")
             return nil
         }
         let numPorts = Int(responseBuffer[2])
@@ -322,7 +278,8 @@ final class USBHubDriver: DeviceDriver {
             // Got the whole descriptor so just decode it
             return try? USB.HUBDescriptor(hubFrom: responseBuffer)
         }
-        #kprintf("USBHUB: Got descr1 nports: %d bDescLength: %u\n", numPorts, responseBuffer[0])
+        #kprintf("%s: Got descr1 nports: %d bDescLength: %u\n", self.instanceName,
+                 numPorts, responseBuffer[0])
         let newLength = 9 + (2 * (numPorts / 8))
         let request2 = USB.ControlRequest.classSpecificRequest(
             direction: .deviceToHost,
@@ -332,7 +289,7 @@ final class USBHubDriver: DeviceDriver {
             wLength: UInt16(newLength)
         )
         guard usbDevice.sendControlRequestReadData(request: request2, into: responseBuffer) else {
-            #kprint("USBHUB: getHubDescriptor: Cannot get HUB descriptor")
+            #kprint(self.instanceName, "Failed to get Full HUB descriptor")
             return nil
         }
         return try? USB.HUBDescriptor(hubFrom: responseBuffer)
@@ -350,7 +307,7 @@ final class USBHubDriver: DeviceDriver {
         )
 
         guard usbDevice.sendControlRequestReadData(request: request, into: responseBuffer) else {
-            #kprint("USBHUB: getEnhanchedHubDescriptor: Cannot get HUB descriptor")
+            #kprint(self.instanceName, ": Failed to get Enhanced HUB descriptor")
             return nil
         }
         return try? USB.HUBDescriptor(SSHubFrom: responseBuffer)
@@ -371,7 +328,7 @@ final class USBHubDriver: DeviceDriver {
     private func getHubStatus() -> Bool {
         let request = USB.ControlRequest.getStatus(direction: .hostToDevice, recipient: .device)
         guard usbDevice.sendControlRequestReadData(request: request, into: responseBuffer) else {
-            #kprint("USBHUB getHubStatus failed")
+            #kprint(self.instanceName, "Failed to get HubStatus")
             return false
         }
         //#kprintf("UBSHUB: status: 0x%2.2x 0x%2.2x\n", responseBuffer[0], responseBuffer[1])
@@ -389,7 +346,7 @@ final class USBHubDriver: DeviceDriver {
             wValue: FEATURE_SELECTOR.PORT_POWER.rawValue,
             wLength: 0)
         guard usbDevice.sendControlRequest(request: request) else {
-            #kprintf("USB-HUB: error powering on port %d\n", port)
+            #kprintf("%s: port: %d error powering on port\n", self.instanceName, port)
             return false
         }
         return true
@@ -397,7 +354,7 @@ final class USBHubDriver: DeviceDriver {
 
     private func portStatus(_ port: Int) -> PortStatus? {
         guard port > 0, port <= self.ports else {
-            #kprintf("USB-HUB invalid port: %d\n", port)
+            #kprintf("%s: port: %d invalid port: %d\n", self.instanceName, port)
             return nil
         }
         // Get port status
@@ -409,7 +366,7 @@ final class USBHubDriver: DeviceDriver {
             wLength: 4
         )
         guard usbDevice.sendControlRequestReadData(request: portStatusReq, into: responseBuffer) else {
-            #kprintf("USB-HUB: Failed to get status of port: %d\n", port)
+            #kprintf("%s port %d: Failed to get port status\n", self.instanceName, port)
             return nil
         }
         return PortStatus(from: responseBuffer)
@@ -453,7 +410,7 @@ final class USBHubDriver: DeviceDriver {
 
         // Send reset
         guard self.setHubFeature(.PORT_RESET, port: port) else {
-            #kprintf("USB-HUB: Failed to send reset to port %d\n", port)
+            #kprintf("%s port %d: Failed to send port reset\n", self.instanceName, port)
             return false
         }
         // Wait for device to finish resetting
@@ -463,7 +420,8 @@ final class USBHubDriver: DeviceDriver {
                 return false
             }
             guard status.deviceAttached else {
-                #kprintf("USB-HUB: Device disappeared after reset on port: %d\n", port)
+                #kprintf("%s port %d: Device disappeared after reset\n",
+                         self.instanceName, port)
                 return false
             }
             if status.resetChange {break}
@@ -471,7 +429,8 @@ final class USBHubDriver: DeviceDriver {
 
         // Clear port reset
         guard self.clearHubFeature(.C_PORT_RESET, port: port) else {
-            #kprintf("USB-HUB: Failed to clear reset bit to port %d\n", port)
+            #kprintf("%s port %d: Failed to clear reset bit\n",
+                     self.instanceName, port)
             return false
         }
         // Wait for device to finish resetting

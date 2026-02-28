@@ -1,10 +1,10 @@
-//
-//  FakePhysicalMemory.swift
-//
-//  Created by Simon Evans on 09/11/2024.
-//  Copyright © 2024 Simon Evans. All rights reserved.
-//
-
+/*
+ * kernel/teststub/FakePhysicalMemory.swift
+ *
+ * Created by Simon Evans on 09/11/2024.
+ * Copyright © 2024 Simon Evans. All rights reserved.
+ *
+ */
 
 import Foundation
 
@@ -100,5 +100,9 @@ extension PhysRegion {
         let address = dest.address
         self.baseAddress = PhysAddress(address - PHYSICAL_MEM_BASE)
         self.size = UInt(data.count)
+    }
+
+    init(count: Int) {
+        self.init(data: Data(count: count))
     }
 }

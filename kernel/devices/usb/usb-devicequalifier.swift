@@ -33,20 +33,18 @@ extension USB {
         var deviceClass: DeviceClass? { DeviceClass(rawValue: bDeviceClass) }
 
 
-        init(from buffer: UnsafeRawBufferPointer) throws(ParsingError) {
+        init(from buffer: MMIOSubRegion) throws(ParsingError) {
             guard  buffer.count == MemoryLayout<usb_device_qualifier>.size else {
                 throw ParsingError.packetTooShort
             }
 
             // Validate the initial bytes
             guard Int(buffer[0]) == MemoryLayout<usb_standard_interface_descriptor>.size else { throw ParsingError.invalidLengthByte }
-            guard buffer[1] == USB.DescriptorType.CONFIGURATION.rawValue else { throw ParsingError.invalidDescriptor(buffer[1]) }
-
+            guard buffer[1] == USB.DescriptorType.DEVICE_QUALIFIER.rawValue else { throw ParsingError.invalidDescriptor(buffer[1]) }
+            let length = min(Int(buffer[0]), buffer.count)
             var _descriptor = usb_device_qualifier()
             withUnsafeMutableBytes(of: &_descriptor) {
-                assert(MemoryLayout<usb_device_qualifier>.size == $0.count)
-
-                for idx in 0..<$0.count {
+                for idx in 0..<length {
                     $0[idx] = buffer[0]
                 }
             }

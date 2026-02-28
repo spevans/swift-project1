@@ -11,7 +11,7 @@
 
 extension USB {
 
-    struct EndpointDescriptor: CustomStringConvertible {
+    struct EndpointDescriptor: Equatable, CustomStringConvertible {
 
         enum TransferType: UInt8, CustomStringConvertible {
             case control = 0
@@ -64,6 +64,7 @@ extension USB {
         private let descriptor: usb_standard_endpoint_descriptor
         private(set) var companion: EndpointCompanionDescriptor? = nil
 
+        var bLength: UInt8 { descriptor.bLength }
         var bEndpointAddress: UInt8 { descriptor.bEndpointAddress }
         var bmAttributes: UInt8 { descriptor.bmAttributes }
         var wMaxPacketSize: UInt16 { descriptor.wMaxPacketSize }
@@ -84,33 +85,37 @@ extension USB {
         }
 
 
-        private init(endPoint: UInt8, direction: TransferDirection, transfer: TransferType, bmAttributes: UInt8, wMaxPacketSize: UInt16, bInterval: UInt8) {
+        private init(endPoint: UInt8, direction: TransferDirection,
+                     transfer: TransferType, bmAttributes: UInt8,
+                     wMaxPacketSize: UInt16, bInterval: UInt8) {
             precondition(endPoint < 16)
             descriptor = usb_standard_endpoint_descriptor(
-            bLength: UInt8(MemoryLayout<usb_standard_endpoint_descriptor>.size),
-            bDescriptorType: USB.DescriptorType.ENDPOINT.rawValue,
-            bEndpointAddress: direction.rawValue << 7 | endPoint,
-            bmAttributes: bmAttributes,
-            wMaxPacketSize: wMaxPacketSize,
-            bInterval: bInterval)
+                bLength: UInt8(MemoryLayout<usb_standard_endpoint_descriptor>.size),
+                bDescriptorType: USB.DescriptorType.ENDPOINT.rawValue,
+                bEndpointAddress: direction.rawValue << 7 | endPoint,
+                bmAttributes: bmAttributes,
+                wMaxPacketSize: wMaxPacketSize,
+                bInterval: bInterval
+            )
         }
 
         // Dummy descriptor for the InterfaceDescriptor
         init() {
-            self.init(controlEndPoint: 0, maxPacketSize: 0, bInterval: 0)
+            self.init(endPoint: 0, direction: .hostToDevice, maxPacketSize: 0, interval: 0)
         }
 
         // For Control Endpoints
-        init(controlEndPoint: UInt8, maxPacketSize: UInt16, bInterval: UInt8) {
-            precondition(controlEndPoint < 16)
+        init(endPoint: UInt8, direction: TransferDirection, maxPacketSize: UInt16, interval: UInt8) {
+            precondition(endPoint < 16)
             precondition(maxPacketSize < 2047)
-            descriptor = usb_standard_endpoint_descriptor(
+            let address = (direction.rawValue << 7) | endPoint
+            self.descriptor = usb_standard_endpoint_descriptor(
                 bLength: UInt8(MemoryLayout<usb_standard_endpoint_descriptor>.size),
                 bDescriptorType: USB.DescriptorType.ENDPOINT.rawValue,
-                bEndpointAddress: controlEndPoint,
+                bEndpointAddress: address,
                 bmAttributes: 0,
                 wMaxPacketSize: maxPacketSize,
-                bInterval: bInterval
+                bInterval: interval
             )
         }
 
@@ -148,6 +153,16 @@ extension USB {
             descriptor = _descriptor
         }
 
+        func write(into buffer: inout MMIOSubRegion, maxLength: UInt16) -> UInt16 {
+            let length = min(UInt16(self.descriptor.bLength), maxLength)
+            withUnsafeBytes(of: self.descriptor) {
+                for idx in 0..<Int(length) {
+                    buffer[idx] = $0[idx]
+                }
+            }
+            return length
+        }
+
         mutating func addEndpointCompanion(_ companion: EndpointCompanionDescriptor) throws(ParsingError) {
             guard self.companion == nil else {
                 throw ParsingError.garbageAtEnd
@@ -167,11 +182,21 @@ extension USB {
                 case (.interrupt, .deviceToHost): 7
             }
         }
+
+        static func ==(lhs: Self, rhs: Self) -> Bool {
+            lhs.descriptor.bLength == rhs.descriptor.bLength
+            && lhs.descriptor.bDescriptorType == rhs.descriptor.bDescriptorType
+            && lhs.descriptor.bEndpointAddress == rhs.descriptor.bEndpointAddress
+            && lhs.descriptor.bmAttributes == rhs.descriptor.bmAttributes
+            && lhs.descriptor.wMaxPacketSize == rhs.descriptor.wMaxPacketSize
+            && lhs.descriptor.bInterval == rhs.descriptor.bInterval
+            && lhs.companion == rhs.companion
+        }
     }
 
     // 9.6.7 SuperSpeed Endpoint Companion Descriptor
     // Used by SuperSpeed USB3 devices
-    struct EndpointCompanionDescriptor {
+    struct EndpointCompanionDescriptor: Equatable {
         let bLength: UInt8
         let bDescriptorType: UInt8
         let bMaxBurst: UInt8

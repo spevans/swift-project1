@@ -1,11 +1,10 @@
-//
-//  usb-keyboard.swift
-//  project1
-//
-//  Created by Simon Evans on 12/05/2025.
-//  Copyright © 2025 Simon Evans. All rights reserved.
-//
-
+/*
+ * kernel/devices/usb/usb-keyboard.swift
+ *
+ * Created by Simon Evans on 12/05/2025.
+ * Copyright © 2025 Simon Evans. All rights reserved.
+ *
+ */
 final class KeyboardHID: HID {
     private let keyboard: USBKeyboard
 
@@ -175,7 +174,6 @@ final class USBKeyboard: DeviceDriver {
 
 
     init?(usbDevice: USBDevice, interface: USB.InterfaceDescriptor) {
-        #kprint("USB-HID: Creating USBKeyboard")
         // Check the interface is valid
         guard let intrEndpoint = interface.endpointMatching(transferType: .interrupt) else {
             #kprint("USB-KBD: Failed to find an interrupt endpoint")
@@ -184,7 +182,6 @@ final class USBKeyboard: DeviceDriver {
 
         // Set idle
         let idleRequest = USBHIDDriver.setIdleRequest(for: interface, idleMs: 33)
-        #kprint("USB-KBD: keyboard setIdle to 33")
         guard usbDevice.sendControlRequest(request: idleRequest) else {
             #kprint("USB-KBD: Failed to set idleRequest")
             return nil
@@ -192,7 +189,7 @@ final class USBKeyboard: DeviceDriver {
 
         // Find the INTR endpoint
         guard let _intrPipe = usbDevice.allocatePipe(intrEndpoint) else {
-            #kprint("Cannot allocate Interupt pipe")
+            #kprint("USB-KBD: Failed to allocate Interupt pipe")
             return nil
         }
         self.intrPipe = _intrPipe
