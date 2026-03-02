@@ -163,11 +163,17 @@ extension USB {
             }
         }
 
-        var isUSB3: Bool {
+        var usbMajor: UInt8 {
             switch self {
-                case .lowSpeed, .fullSpeed, .highSpeed: false
-                default: true
+                case .unknown: 0
+                case .lowSpeed, .fullSpeed: 1
+                case .highSpeed: 2
+                default: 3
             }
+        }
+
+        var isUSB3: Bool {
+            self.usbMajor == 3
         }
     }
 }

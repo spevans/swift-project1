@@ -35,9 +35,18 @@ class USBDevice: Device {
 
 
     override var description: String {
-        #sprintf("USB %d.%u isHCD: %s speed: %s usbVer: %d.%d",
-                 bus.busId, address, self.isHCD, self.speed.description,
-                 self.descriptor.usbMajor, self.descriptor.usbMinor)
+        let plus = UInt8(ascii: "+")
+        let minus = UInt8(ascii: "-")
+        return #sprintf("USB %d.%u HCD%c bus%c speed: %s usbVer: %d.%d %4.4x:%4.4x class: %2.2x/%2.2x",
+                        bus.busId, address, self.isHCD ? plus : minus,
+                        self.isBus ? plus : minus, self.speed.description,
+                        self.descriptor.usbMajor,
+                        self.descriptor.usbMinor,
+                        self.descriptor.idVendor,
+                        self.descriptor.idProduct,
+                        self.descriptor.bDeviceClass,
+                        self.descriptor.bDeviceSubClass
+        )
     }
 
 
@@ -68,7 +77,7 @@ class USBDevice: Device {
         }
         self.rootPort = _rootPort
         self.routeString = _routeString >> 4  // Remove the rootPort
-        self.descriptor = USB.DeviceDescriptor.init(usbMajor: speed.isUSB3 ? 3 : 2) // Add dummy for now
+        self.descriptor = USB.DeviceDescriptor.init(usbMajor: speed.usbMajor) // Add dummy for now
 
         let endPoint = USB.EndpointDescriptor(
             controlEndPoint: 0,
@@ -100,7 +109,7 @@ class USBDevice: Device {
         // Contol Pipe
         self.maxPacketSize0 = speed.controlSize
         // HUB Device Descriptor
-        self.descriptor = USB.DeviceDescriptor(usbMajorHub: speed.isUSB3 ? 3 : 2)
+        self.descriptor = USB.DeviceDescriptor(usbMajorHub: speed.usbMajor)
         let endPoint = USB.EndpointDescriptor(
             controlEndPoint: 0,
             // FIXME, might be different for USB3
@@ -427,8 +436,9 @@ class USBDevice: Device {
 
     // For Descriptor Zero this is an array of lang IDs
     // For a Unicode String descriptor it is an array of UTF16-LE characters
-    private func decodeLanguageDescriptor(from buffer: MMIOSubRegion) throws(USB.ParsingError) -> [UInt16] {
-        guard buffer.count > 2, buffer[0] <= buffer.count, buffer.count.isMultiple(of: 2) else {
+    private func decodeLanguageDescriptor(from buffer: MMIOSubRegion) throws(USB.ParsingError) -> [UInt16]? {
+        let bLength = buffer[0]
+        guard buffer.count > 2, bLength <= buffer.count, bLength.isMultiple(of: 2) else {
             throw USB.ParsingError.packetTooShort
         }
 
@@ -436,8 +446,16 @@ class USBDevice: Device {
             throw USB.ParsingError.packetTooShort
         }
 
+        guard bLength > 2 else { return nil }
+
+        let charCount = Int(bLength - 2)
+        if !charCount.isMultiple(of: 2) {
+            #kprint(buffer.dump(maxBytes: buffer.count))
+            fatalError("String buffer is not multiple of 2 but is \(bLength)")
+        }
+
         // Number of values
-        let count = Int(buffer[0] - 2) / 2
+        let count = Int(bLength - 2) / 2
         var values: [UInt16] = []
         values.reserveCapacity(count)
         for idx in 1...count {

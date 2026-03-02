@@ -366,7 +366,7 @@ final class HCD_UHCI: DeviceDriver {
     }
 
     // USBBus functions
-    private var activePipes: InlineArray<4, UHCIPipe?> = .init(repeating: nil)
+    private var activePipes: InlineArray<16, UHCIPipe?> = .init(repeating: nil)
     // Fixme this needs to do locking etc
     func addActivePipe(_ pipe: UHCIPipe) {
         for idx in self.activePipes.indices {
