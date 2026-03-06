@@ -39,7 +39,7 @@ CC := clang
 CFLAGS := -ggdb -O3 -Wall -std=gnu11 -Wextra -Werror -target x86_64-unknown-none-elf -ffreestanding -fno-stack-protector -fno-omit-frame-pointer -fno-common -mno-red-zone -mcmodel=kernel  -mno-mmx -mno-sse -mno-sse2 -I$(TOPDIR)/include
 
 
-NASM_OBJ_FLAGS := -felf64
+NASM_OBJ_FLAGS := -felf64 -g
 
 
 %.o: %.c

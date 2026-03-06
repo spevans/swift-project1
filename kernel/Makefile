@@ -19,17 +19,11 @@ KSWIFTC_FLAGS := -g -O -Xcc -mno-red-zone -Xcc -mcmodel=kernel				\
 all: kernel.o
 
 
-arch/x86_64/main.o: arch/x86_64/main.asm
-arch/x86_64/bss.o: arch/x86_64/bss.c
-arch/x86_64/entry.o: arch/x86_64/entry.asm
-arch/x86_64/vmentry.o: arch/x86_64/vmentry.asm
-devices/timer.o: devices/timer.asm
-
-init/init.o: arch/x86_64/main.o arch/x86_64/bss.o
-	$(LD) -r -z noexecstack -o $@ $^
-
-KERNEL_OBJS := init/init.o arch/x86_64/entry.o arch/x86_64/vmentry.o devices/timer.o SwiftKernel.o
+KERNEL_OBJS := arch/x86_64/arch.o SwiftKernel.o
 HEADERS = $(TOPDIR)/include/*.h
+
+arch/x86_64/arch.o:
+	make -C arch/x86_64
 
 init/version.swift: ../.git/index
 	echo making version.swift for $(GITVER)
