@@ -9,8 +9,8 @@ concurrency/thread support on multiple CPUs.
 The code has been rewritten to work on Embedded Swift, originally it used
 a version of Swift with a modified runtime and standard library. Some small
 additions to Embedded Swift needed to be made, currently a separate toolchain
-is required. For more details see [swift-kstdlib](https://github.com/spevans/swift-kstdlib/blob/kstdlib-20251120/KERNEL_LIB.md)
-The required toolchain can be downloaded from https://github.com/spevans/swift-kstdlib/releases/tag/v20251120
+is required. For more details see [swift-kstdlib](https://github.com/spevans/swift-kstdlib/blob/kstdlib-20260309/KERNEL_LIB.md)
+The required toolchain can be downloaded from https://github.com/spevans/swift-kstdlib/releases/tag/v20260309
 Hopefully the changes will be upstreamed into the main Swift project at some point.
 
 ## Current status
@@ -74,7 +74,7 @@ devices including the Real-time Clock and PCI interrupts.
 
 A custom Swift toolchain is currently required to build the kernel as it contains
 a modified version of the Embedded Swift runtime for x86-64. For more details see
-[swift-kstdlib](https://github.com/spevans/swift-kstdlib/blob/kstdlib-20251120/KERNEL_LIB.md)
+[swift-kstdlib](https://github.com/spevans/swift-kstdlib/blob/kstdlib-20260309/KERNEL_LIB.md)
 
 The project has a `Package.swift` but this is only used for building and running the tests,
 the kernel itself is built using Makefiles and `make`.
@@ -93,11 +93,13 @@ $ docker run --rm -v `pwd`:`pwd` -w `pwd` -t swift-kstdlib make
 
 ### On macOS
 
-Download the [toolchain](https://github.com/spevans/swift-kstdlib/releases/download/v20251120/swift-LOCAL-2025-11-20-a-osx.tar.gz)
+Download the [toolchain](https://github.com/spevans/swift-kstdlib/releases/download/v20260309/swift-LOCAL-2026-03-09-a-osx.tar.gz)
 and untar it in the home directory, the toolchain will be installed under `Library/Developer/Toolchains/`.
 Some extra tools need to be installed as well.
 
 ```
+wget --directory-prefix=/tmp https://github.com/spevans/swift-kstdlib/releases/download/v20260309/swift-LOCAL-2026-03-09-a-osx.tar.gz
+(cd ~ && tar zxvf /tmp/swift-LOCAL-2026-03-09-a-osx.tar.gz)
 brew install nasm x86_64-elf-binutils qemu xorriso mtools dosfstools
 make
 ```
