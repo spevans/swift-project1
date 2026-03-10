@@ -73,5 +73,5 @@ output/boot-cd.iso: output/boot-hd.img output/kernel.efi
 	rm -r $(ISO_TMP)
 
 clean:
-	rm -rf output/*
+	rm -rf output/* .build
 	set -e; for dir in $(SUBDIRS); do $(MAKE) -C $$dir clean; done
