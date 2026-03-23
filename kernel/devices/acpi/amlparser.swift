@@ -141,6 +141,36 @@ final class AMLParser {
         }
     }
 
+    // Result from parseTermListSymbol: either a completed item or a
+    // request to parse a sub-stream's term list iteratively.
+    private enum ParseResult {
+        case complete(AMLParsedItem)
+        case needsSubTermList(subStream: AMLByteStream, newScope: AMLNameString?, continuation: TermListContinuation)
+    }
+
+    // Describes how to complete an AMLParsedItem once a sub-term-list
+    // has been parsed. Each case captures the header data parsed before
+    // the term list.
+    private enum TermListContinuation {
+        case elseOp
+        case whileOp(predicate: AMLTermArg)
+        case deviceOp(name: AMLNameString)
+        case powerResOp(name: AMLNameString, systemLevel: UInt8, resourceOrder: UInt16)
+        case processorOp(name: AMLNameString, procId: UInt8, pblkAddr: UInt32, pblkLen: UInt8)
+        case thermalZoneOp(name: AMLNameString)
+        case scopeOp(name: AMLNameString)
+        case ifOp(predicate: AMLTermArg)
+        case ifElseOp(predicate: AMLTermArg, ifTermList: AMLTermList)
+    }
+
+    // Saved state for one level of parseTermList nesting.
+    private struct ParseFrame {
+        let termList: AMLTermList
+        let byteStream: AMLByteStream
+        let scope: AMLNameString
+        let continuation: TermListContinuation
+    }
+
     private var byteStream: AMLByteStream!
     private var currentScope: AMLNameString
     let acpiGlobalObjects: ACPI.ACPIObjectNode
@@ -157,21 +187,67 @@ final class AMLParser {
     }
 
 
-    private func subParser() throws(AMLError) -> AMLParser {
+    // Carve out a pkg-length-delimited sub-stream from the current
+    // byteStream. The parent stream's position is advanced past the
+    // sub-stream bytes.
+    private func createSubStream() throws(AMLError) -> AMLByteStream {
         let curPos = byteStream.position
         let pkgLength = try parsePkgLength()
         let bytesRead = byteStream.position - curPos
         let byteCount = Int(pkgLength) - bytesRead
-        let stream = try byteStream.substreamOf(length: byteCount)
-        let parser = AMLParser(byteStream: stream,
-                               scope: currentScope,
-                               globalObjects: acpiGlobalObjects
-        )
-        return parser
+        return try byteStream.substreamOf(length: byteCount)
     }
 
+    // Parse a pkg-length-delimited sub-stream synchronously via a
+    // closure. Used for opcodes that need a sub-stream but do NOT
+    // call parseTermList() (e.g. bufferOp, packageOp, fieldOp).
+    private func parseSubStream<T>(_ body: () throws(AMLError) -> T) throws(AMLError) -> T {
+        let subStream = try createSubStream()
+        let savedStream = byteStream!
+        let savedScope = currentScope
+        byteStream = subStream
 
-    // Called by subParser
+        let result: T
+        do {
+            result = try body()
+        } catch {
+            byteStream = savedStream
+            currentScope = savedScope
+            throw error
+        }
+        byteStream = savedStream
+        currentScope = savedScope
+        return result
+    }
+
+    // Parse header bytes from a sub-stream (e.g. name, flags) without
+    // consuming the remaining term-list bytes. Returns the parsed
+    // header and the remaining sub-stream for iterative term-list parsing.
+    private func parseSubStreamHeader<T>(_ parseHeader: () throws(AMLError) -> T) throws(AMLError) -> (T, AMLByteStream) {
+        let subStream = try createSubStream()
+        let savedStream = byteStream!
+        byteStream = subStream
+        let header: T
+        do {
+            header = try parseHeader()
+        } catch {
+            byteStream = savedStream
+            throw error
+        }
+        let remainingStream = byteStream!
+        byteStream = savedStream
+        return (header, remainingStream)
+    }
+
+    // Used for methodOp deferred parsing, creates a standalone parser
+    private func subParserForMethod() throws(AMLError) -> AMLParser {
+        let stream = try createSubStream()
+        return AMLParser(byteStream: stream,
+                         scope: currentScope,
+                         globalObjects: acpiGlobalObjects
+        )
+    }
+
     init(byteStream: AMLByteStream, scope: AMLNameString,
                  globalObjects: ACPI.ACPIObjectNode) {
         self.byteStream = byteStream
@@ -281,29 +357,202 @@ final class AMLParser {
     }
 
 
-    // parse funcs return, true = matched and ran ok, false = no match,
-    // throw on error
+    // Iterative term-list parser. Uses an explicit stack instead of
+    // recursion for opcodes that contain nested term lists (Device,
+    // Scope, If/Else, While, Processor, PowerRes, ThermalZone).
     func parseTermList(newScope: AMLNameString? = nil) throws(AMLError) -> AMLTermList {
 
         if let name = newScope {
             let fqn = name.isFullPath ? name : resolveNameToCurrentScope(path: name)
-            // open a new scope.
             self.currentScope = fqn
         }
 
+        var stack: [ParseFrame] = []
         var termList: AMLTermList = []
-        while let symbol = try nextSymbol() {
-            do {
-                let x = try parseSymbol(symbol: symbol)
-                if x.isTermObj {
-                    termList.append(x)
-                } else {
-                    let r = "\(symbol.currentOpcode?.description ?? "nil") is Invalid for termobj in scope \(self.currentScope)"
-                    throw AMLError.invalidSymbol(reason: r)
+
+        mainLoop: while true {
+            while let symbol = try nextSymbol() {
+                let result = try parseTermListSymbol(symbol: symbol)
+                switch result {
+                case .complete(let item):
+                    if item.isTermObj {
+                        termList.append(item)
+                    } else {
+                        let r = "\(symbol.currentOpcode?.description ?? "nil") is Invalid for termobj in scope \(self.currentScope)"
+                        throw AMLError.invalidSymbol(reason: r)
+                    }
+                case .needsSubTermList(let subStream, let subScope, let continuation):
+                    // Save current state and switch to the sub-stream.
+                    stack.append(ParseFrame(
+                        termList: termList,
+                        byteStream: byteStream,
+                        scope: currentScope,
+                        continuation: continuation
+                    ))
+                    byteStream = subStream
+                    if let scope = subScope {
+                        let fqn = scope.isFullPath ? scope : resolveNameToCurrentScope(path: scope)
+                        currentScope = fqn
+                    }
+                    termList = []
+                    continue mainLoop
                 }
             }
+
+            // Current stream finished, pop frame and complete the item.
+            guard let frame = stack.popLast() else {
+                return termList
+            }
+            let completedTermList = termList
+            byteStream = frame.byteStream
+            currentScope = frame.scope
+            termList = frame.termList
+
+            switch frame.continuation {
+            case .elseOp:
+                termList.append(.type1opcode(.amlDefElse(completedTermList.isEmpty ? nil : completedTermList)))
+
+            case .whileOp(let predicate):
+                termList.append(.type1opcode(.amlDefWhile(predicate, completedTermList)))
+
+            case .deviceOp(let name):
+                termList.append(.namespaceModifier(parseDefDevice(name, completedTermList)))
+
+            case .powerResOp(let name, let systemLevel, let resourceOrder):
+                termList.append(.namespaceModifier(parseDefPowerResource(name, systemLevel, resourceOrder, completedTermList)))
+
+            case .processorOp(let name, let procId, let pblkAddr, let pblkLen):
+                termList.append(.namespaceModifier(parseDefProcessor(name, procId, pblkAddr, pblkLen, completedTermList)))
+
+            case .thermalZoneOp(let name):
+                termList.append(.namespaceModifier(parseDefThermalZone(name, completedTermList)))
+
+            case .scopeOp(let name):
+                let resolvedScope = resolveNameToCurrentScope(path: name)
+                termList.append(.namespaceModifier(.defScope(AMLDefScope(scope: resolvedScope, termList: completedTermList))))
+
+            case .ifOp(let predicate):
+                // If-body is done. Look ahead in parent stream for an elseOp.
+                var defElse: AMLTermList? = nil
+                if !byteStream.endOfStream() {
+                    let curPosition = byteStream.position
+                    if let symbol = try nextSymbol() {
+                        if let op = symbol.currentOpcode, op == .elseOp {
+                            if byteStream.endOfStream() {
+                                // elseOp with empty else
+                                defElse = nil
+                            } else {
+                                let elseSubStream = try createSubStream()
+                                if elseSubStream.endOfStream() {
+                                    defElse = nil
+                                } else {
+                                    // Push frame for else-body parsing.
+                                    stack.append(ParseFrame(
+                                        termList: termList,
+                                        byteStream: byteStream,
+                                        scope: currentScope,
+                                        continuation: .ifElseOp(predicate: predicate, ifTermList: completedTermList)
+                                    ))
+                                    byteStream = elseSubStream
+                                    termList = []
+                                    continue mainLoop
+                                }
+                            }
+                        } else {
+                            byteStream.position = curPosition
+                        }
+                    }
+                }
+                termList.append(.type1opcode(.amlDefIfElse(predicate, completedTermList, defElse)))
+
+            case .ifElseOp(let predicate, let ifTermList):
+                let elseTermList = completedTermList.isEmpty ? nil : completedTermList
+                termList.append(.type1opcode(.amlDefIfElse(predicate, ifTermList, elseTermList)))
+            }
         }
-        return termList
+    }
+
+
+    // Intercepts the 8 opcodes that require a nested parseTermList()
+    // call and returns .needsSubTermList instead of recursing.
+    // All other opcodes delegate to parseSymbol() and return .complete.
+    private func parseTermListSymbol(symbol: ParsedSymbol) throws(AMLError) -> ParseResult {
+        guard let opcode = symbol.currentOpcode else {
+            return .complete(try parseSymbol(symbol: symbol))
+        }
+
+        switch opcode {
+        case .elseOp:
+            if byteStream.endOfStream() {
+                return .complete(.type1opcode(.amlDefElse(nil)))
+            }
+            let subStream = try createSubStream()
+            if subStream.endOfStream() {
+                return .complete(.type1opcode(.amlDefElse(nil)))
+            }
+            return .needsSubTermList(subStream: subStream, newScope: nil, continuation: .elseOp)
+
+        case .whileOp:
+            let (predicate, remainingStream) = try parseSubStreamHeader { () throws(AMLError) in
+                try self.parseTermArg()
+            }
+            return .needsSubTermList(subStream: remainingStream, newScope: nil,
+                                     continuation: .whileOp(predicate: predicate))
+
+        case .ifOp:
+            let (predicate, remainingStream) = try parseSubStreamHeader { () throws(AMLError) in
+                try self.parseTermArg()
+            }
+            return .needsSubTermList(subStream: remainingStream, newScope: nil,
+                                     continuation: .ifOp(predicate: predicate))
+
+        case .deviceOp:
+            let (name, remainingStream) = try parseSubStreamHeader { () throws(AMLError) in
+                try self.parseNameString()
+            }
+            return .needsSubTermList(subStream: remainingStream, newScope: name,
+                                     continuation: .deviceOp(name: name))
+
+        case .powerResOp:
+            let (header, remainingStream) = try parseSubStreamHeader { () throws(AMLError) in
+                let name = try self.parseNameString()
+                let systemLevel = try self.nextByte()
+                let resourceOrder = try self.nextWord()
+                return (name, systemLevel, resourceOrder)
+            }
+            return .needsSubTermList(subStream: remainingStream, newScope: header.0,
+                                     continuation: .powerResOp(name: header.0, systemLevel: header.1,
+                                                               resourceOrder: header.2))
+
+        case .processorOp:
+            let (header, remainingStream) = try parseSubStreamHeader { () throws(AMLError) in
+                let name = try self.parseNameString()
+                let procId = try self.nextByte()
+                let pblkAddr = try self.nextDWord()
+                let pblkLen = try self.nextByte()
+                return (name, procId, pblkAddr, pblkLen)
+            }
+            return .needsSubTermList(subStream: remainingStream, newScope: header.0,
+                                     continuation: .processorOp(name: header.0, procId: header.1,
+                                                                pblkAddr: header.2, pblkLen: header.3))
+
+        case .thermalZoneOp:
+            let (name, remainingStream) = try parseSubStreamHeader { () throws(AMLError) in
+                try self.parseNameString()
+            }
+            return .needsSubTermList(subStream: remainingStream, newScope: name,
+                                     continuation: .thermalZoneOp(name: name))
+
+        case .scopeOp:
+            let (name, remainingStream) = try parseSubStreamHeader { () throws(AMLError) in
+                try self.parseNameString()
+            }
+            return .needsSubTermList(subStream: remainingStream, newScope: name,
+                                     continuation: .scopeOp(name: name))
+
+        default:
+            return .complete(try parseSymbol(symbol: symbol))
+        }
     }
 
 
@@ -439,11 +688,12 @@ final class AMLParser {
                 if byteStream.endOfStream() {
                     return .type1opcode(.amlDefElse(nil))
                 }
-                let parser = try subParser()
-                if parser.byteStream.endOfStream() {
-                    return .type1opcode(.amlDefElse(nil))
+                let termList: AMLTermList? = try parseSubStream { () throws(AMLError) -> AMLTermList? in
+                    if byteStream.endOfStream() {
+                        return nil
+                    }
+                    return try parseTermList()
                 }
-                let termList = try parser.parseTermList()
                 return .type1opcode(.amlDefElse(termList))
 
             case .fatalOp:      return try .type1opcode(.amlDefFatal(nextByte(), nextDWord(), parseTermArg()))
@@ -459,19 +709,23 @@ final class AMLParser {
             case .stallOp:      return try .type1opcode(.amlDefStall(parseTermArg()))
             case .unloadOp:     return try .type1opcode(.amlDefUnload(parseSuperName()))
             case .whileOp:
-                let parser = try subParser()
-                return try .type1opcode(.amlDefWhile(parser.parseTermArg(), parser.parseTermList()))
+                return try .type1opcode(parseSubStream { () throws(AMLError) in
+                    let predicate = try parseTermArg()
+                    let termList = try parseTermList()
+                    return .amlDefWhile(predicate, termList)
+                })
 
             // Type2 opcodes
             case .acquireOp:            return try .type2opcode(.amlDefAcquire(parseSuperName(), nextWord()))
             case .addOp:                return try .type2opcode(.amlDefAdd(parseTermArg(), parseTermArg(), parseTarget()))
             case .andOp:                return try .type2opcode(.amlDefAnd(parseTermArg(), parseTermArg(), parseTarget()))
             case .bufferOp:
-                let parser = try subParser()
-                let bufSize = try parser.parseTermArg()
-                let bytes = parser.byteStream.bytesToEnd()
-                return .type2opcode(.amlDefBuffer(
-                    AMLDefBuffer(bufferSize: bufSize, byteList: bytes)))
+                return try .type2opcode(parseSubStream { () throws(AMLError) in
+                    let bufSize = try parseTermArg()
+                    let bytes = byteStream.bytesToEnd()
+                    return .amlDefBuffer(
+                        AMLDefBuffer(bufferSize: bufSize, byteList: bytes))
+                })
 
             case .concatOp:             return try .type2opcode(.amlDefConcat(parseTermArg(), parseTermArg(), parseTarget()))
             case .concatResOp:          return try .type2opcode(.amlDefConcatRes(parseTermArg(), parseTermArg(), parseTarget()))
@@ -510,21 +764,21 @@ final class AMLParser {
             case .objectTypeOp:         return try .type2opcode(.amlDefObjectType(parseDefObjectType()))
             case .orOp:                 return try .type2opcode(.amlDefOr(parseTermArg(), parseTermArg(), parseTarget()))
             case .packageOp:
-                let parser = try subParser()
-                let numElements = try parser.nextByte()
-                let elements = try parser.parsePackageElementList(numElements: Int(numElements))
-
-                return .type2opcode(.amlDefPackage(
-                    AMLDefPackage(numElements: numElements, packageElementList: elements)))
+                return try .type2opcode(parseSubStream { () throws(AMLError) in
+                    let numElements = try nextByte()
+                    let elements = try parsePackageElementList(numElements: Int(numElements))
+                    return .amlDefPackage(
+                        AMLDefPackage(numElements: numElements, packageElementList: elements))
+                })
 
 
             case .varPackageOp:
-                let parser = try subParser()
-                let numElements = try parser.parseTermArg()
-                let elements = try parser.parsePackageElementList(numElements: nil)
-
-                return.type2opcode(.amlDefPackage(
-                    AMLDefPackage(varNumElements: numElements, packageElementList: elements)))
+                return try .type2opcode(parseSubStream { () throws(AMLError) in
+                    let numElements = try parseTermArg()
+                    let elements = try parsePackageElementList(numElements: nil)
+                    return .amlDefPackage(
+                        AMLDefPackage(varNumElements: numElements, packageElementList: elements))
+                })
 
 
             case .refOfOp:              return try .type2opcode(.amlDefRefOf(AMLDefRefOf(name: parseSuperName())))
@@ -557,10 +811,11 @@ final class AMLParser {
                     parseNameString(), parseTermArg(), parseTermArg(), parseTermArg()))
 
             case .deviceOp:
-                 let parser = try subParser()
-                 let name = try parser.parseNameString()
-                 let termList = try parser.parseTermList(newScope: name)
-                 return .namespaceModifier(parseDefDevice(name, termList))
+                return try .namespaceModifier(parseSubStream { () throws(AMLError) in
+                    let name = try parseNameString()
+                    let termList = try parseTermList(newScope: name)
+                    return parseDefDevice(name, termList)
+                })
 
             case .externalOp:
                 let fullName =  try parseNameString()
@@ -574,7 +829,7 @@ final class AMLParser {
 
             // NameSpace Modifiers
             case .methodOp:
-                return try .namespaceModifier(parseDefMethod(parser: subParser()))
+                return try .namespaceModifier(parseDefMethod(parser: subParserForMethod()))
 
             case .mutexOp:              return try .namespaceModifier(
                 parseDefMutex(parseNameString(), nextByte()))
@@ -583,27 +838,30 @@ final class AMLParser {
                 parseDefOpRegion(parseNameString(), nextByte(), parseTermArg(), parseTermArg()))
 
             case .powerResOp:
-                 let parser = try subParser()
-                 let name = try parser.parseNameString()
-                 let systemLevel = try parser.nextByte()
-                 let resourceOrder = try parser.nextWord()
-                 let termList = try parser.parseTermList(newScope: name)
-                 return .namespaceModifier(parseDefPowerResource(name, systemLevel, resourceOrder, termList))
+                return try .namespaceModifier(parseSubStream { () throws(AMLError) in
+                    let name = try parseNameString()
+                    let systemLevel = try nextByte()
+                    let resourceOrder = try nextWord()
+                    let termList = try parseTermList(newScope: name)
+                    return parseDefPowerResource(name, systemLevel, resourceOrder, termList)
+                })
 
             case .processorOp:
-                 let parser = try subParser()
-                 let name = try parser.parseNameString()
-                 let procId = try parser.nextByte()
-                 let pblkAddr = try parser.nextDWord()
-                 let pblkLen = try parser.nextByte()
-                 let objects = try parser.parseTermList(newScope: name)
-                 return .namespaceModifier(parseDefProcessor(name, procId, pblkAddr, pblkLen, objects))
+                return try .namespaceModifier(parseSubStream { () throws(AMLError) in
+                    let name = try parseNameString()
+                    let procId = try nextByte()
+                    let pblkAddr = try nextDWord()
+                    let pblkLen = try nextByte()
+                    let objects = try parseTermList(newScope: name)
+                    return parseDefProcessor(name, procId, pblkAddr, pblkLen, objects)
+                })
 
             case .thermalZoneOp:
-                 let parser = try subParser()
-                 let name = try parser.parseNameString()
-                 let termList = try parser.parseTermList(newScope: name)
-                 return .namespaceModifier(parseDefThermalZone(name, termList))
+                return try .namespaceModifier(parseSubStream { () throws(AMLError) in
+                    let name = try parseNameString()
+                    let termList = try parseTermList(newScope: name)
+                    return parseDefThermalZone(name, termList)
+                })
 
             case .bankFieldOp:          return .namespaceModifier(try parseDefBankField(parseNameString(), parseNameString(), parseTermArg(), nextByte()))
 
@@ -628,27 +886,30 @@ final class AMLParser {
 
             case .eventOp:              return .namespaceModifier(try parseDefEvent(name: parseNameString()))
             case .fieldOp:
-                 let parser = try subParser()
-                 return try .namespaceModifier(parseDefField(
-                                       parser.parseNameString(),
-                                       parser.parseFieldList(fieldFlags: AMLFieldFlags(flags: parser.nextByte()))
-                 ))
+                return try .namespaceModifier(parseSubStream { () throws(AMLError) in
+                    return try parseDefField(
+                        parseNameString(),
+                        parseFieldList(fieldFlags: AMLFieldFlags(flags: nextByte()))
+                    )
+                })
 
             case .indexFieldOp:
-                 let parser = try subParser()
-                 return .namespaceModifier(try parseDefIndexField(
-                        parser.parseNameString(), parser.parseNameString(),
-                        parser.parseFieldList(fieldFlags: AMLFieldFlags(flags: parser.nextByte()))
-                 ))
+                return try .namespaceModifier(parseSubStream { () throws(AMLError) in
+                    return try parseDefIndexField(
+                        parseNameString(), parseNameString(),
+                        parseFieldList(fieldFlags: AMLFieldFlags(flags: nextByte()))
+                    )
+                })
 
             case .aliasOp:              return try .namespaceModifier(parseDefAlias(parseNameString(), parseNameString()))
             case .nameOp:               return .namespaceModifier(try parseDefName())
             case .scopeOp:
-                 let parser = try subParser()
-                 let name = try parser.parseNameString()
-                 let termList = try parser.parseTermList(newScope: name)
-                 let newScope = resolveNameToCurrentScope(path: name)
-                 return .namespaceModifier(.defScope(AMLDefScope(scope: newScope, termList: termList)))
+                return try .namespaceModifier(parseSubStream { () throws(AMLError) in
+                    let name = try parseNameString()
+                    let termList = try parseTermList(newScope: name)
+                    let newScope = resolveNameToCurrentScope(path: name)
+                    return .defScope(AMLDefScope(scope: newScope, termList: termList))
+                })
 
 
             // AMLDataObj
@@ -1099,9 +1360,11 @@ final class AMLParser {
 
 
     private func parseDefIfElse() throws(AMLError) -> AMLType1Opcode {
-        let parser = try subParser()
-        let predicate = try parser.parseTermArg()
-        let termList = try parser.parseTermList()
+        let (predicate, termList) = try parseSubStream { () throws(AMLError) in
+            let predicate = try parseTermArg()
+            let termList = try parseTermList()
+            return (predicate, termList)
+        }
         var defElse: AMLTermList? = nil
 
         // Look ahead to see if the next opcode is an elseOp otherwise there
