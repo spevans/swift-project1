@@ -4,7 +4,8 @@
  * Created by Simon Evans on 05/07/2016.
  * Copyright © 2016 - 2025 Simon Evans. All rights reserved.
  *
- * AML Parser
+ * AML Parser.
+ *
  */
 
 
@@ -1294,7 +1295,8 @@ final class AMLParser {
     private func parseDefOpRegion(_ name: AMLNameString, _ byte: AMLByteData, _ offsetArg: AMLTermArg,
                                   _ lengthArg: AMLTermArg) throws(AMLError) -> AMLNameSpaceModifier {
         // NameString RegionSpace RegionOffset RegionLen
-        guard let region = AMLRegionSpace(rawValue: byte) else {
+        let region = AMLRegionSpace(rawValue: byte)
+        if case .reserved(_) = region {
             throw AMLError.invalidData(reason: "Bad AMLRegionSpace: \(byte)")
         }
 

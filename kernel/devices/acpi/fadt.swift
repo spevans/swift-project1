@@ -1,18 +1,20 @@
 /*
- * kernel/devices/acpi/facp.swift
+ * kernel/devices/acpi/fadt.swift
  *
  * Created by Simon Evans on 02/03/2016.
- * Copyright © 2016 - 2021 Simon Evans. All rights reserved.
+ * Copyright © 2016 - 2026 Simon Evans. All rights reserved.
  *
- * Parsing of ACPI FACP (Fixed ACPI Description Table). Bare minimum
- * of fields are looked at, just to see if IAPC flags held any information.
+ * Parsing of Fixed ACPI Description Table. Signature is FACP. Bare minimum
+ * of fields are looked at, just to see if IAPC flags hold any information
+ * and for reboot/shutdown values.
+ *
  */
 
-struct FACP: CustomStringConvertible {
+struct FADT: CustomStringConvertible {
 
     private let table: acpi_facp_table
 
-    // IA-PC Boot Architecture Flags (bit)
+    // IA-PC Boot Architecture Flags (bit) (5.2.9.3)
     private let IAPC_LEGACY_DEVICES     = 0
     private let IAPC_8042               = 1
     private let IAPC_VGA_NOT_PRESENT    = 2
@@ -51,8 +53,25 @@ struct FACP: CustomStringConvertible {
     }
 
 
+    // FADT Fixed Feature Flags (Table 5.10)
+    private let FADT_FLAG_RESET_REG_SUP = 10
+
+    var supportsResetRegister: Bool {
+        table.feature_flags.bit(FADT_FLAG_RESET_REG_SUP)
+    }
+
+    var resetRegister: ACPIGenericAddressStrucure {
+        ACPIGenericAddressStrucure(table.reset_reg)
+    }
+
+    var resetValue: UInt8 { table.reset_value }
+
+    // PM1 Control Block addresses (§4.8.3.2)
+    var pm1aCntBlk: UInt16 { UInt16(table.pm1a_cnt_blk) }
+    var pm1bCntBlk: UInt16 { UInt16(table.pm1b_cnt_blk) }
+
     var description: String {
-        "FACP: hasLegacyDev: \(hasLegacyDevices) has8042: \(has8042Controller) hasVga: \(isVgaPresent) " +
+        "FADT: hasLegacyDev: \(hasLegacyDevices) has8042: \(has8042Controller) hasVga: \(isVgaPresent) " +
             "hasMSI: \(isMsiSupported) hasRTC: \(hasCmosRtc)"
     }
 

@@ -40,7 +40,7 @@ final class CMOSRTC: DeviceDriver {
         // Might be nil if no interrupt is specified in ACPI.
         self.irq = resources.interrupts.first
 
-        if let century = system.deviceManager.acpiTables.facp?.rtcCenturyIndex, century < 64 {
+        if let century = system.deviceManager.acpiTables.fadt?.rtcCenturyIndex, century < 64 {
             self.centuryIndex = century
         } else {
             self.centuryIndex = 0

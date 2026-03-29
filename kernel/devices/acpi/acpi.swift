@@ -16,7 +16,7 @@ enum ACPITable {
     case mcfg(MCFG)
     case boot(BOOT)
     case ecdt(ECDT)
-    case facp(FACP)
+    case fadt(FADT)
     case facs(FACS)
     case hpet(HPETTable)
     case sbst(SBST)
@@ -159,7 +159,7 @@ final class ACPI {
                                                                            object: AMLObject())
 
     private(set) var mcfg: MCFG?
-    private(set) var facp: FACP?
+    private(set) var fadt: FADT?
     private(set) var madt: MADT?
     private(set) var hpet: HPETTable?
     private(set) var tables: [ACPITable] = []
@@ -200,7 +200,7 @@ final class ACPI {
             parseEntry(physAddress: entry, vendor: vendor, product: product)
         }
 
-        if dsdt == nil, let dsdtAddr = facp?.dsdtAddress {
+        if dsdt == nil, let dsdtAddr = fadt?.dsdtAddress {
             #kprint("Found DSDT address in FACP: 0x\(asHex(dsdtAddr.value))")
             parseEntry(physAddress: dsdtAddr, vendor: vendor, product: product)
         }
@@ -274,10 +274,10 @@ final class ACPI {
                 }
 
         case "FACP":
-            facp = FACP(rawSDTPtr)
-            if let _facp = facp {
-                #kprint(_facp)
-                tables.append(.facp(_facp))
+            fadt = FADT(rawSDTPtr)
+            if let _fadt = fadt {
+                #kprint(_fadt)
+                tables.append(.fadt(_fadt))
             }
 
         case "APIC":

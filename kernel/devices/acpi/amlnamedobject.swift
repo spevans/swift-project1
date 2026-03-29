@@ -1,12 +1,12 @@
-//
-//  kernel/devices/acpi/amlnamedobject.swift
-//  project1
-//
-//  Created by Simon Evans on 25/11/2017.
-//  Copyright © 2017 - 2019 Simon Evans. All rights reserved.
-//
-//  Named Object types
-
+/*
+ * kernel/devices/acpi/amlnamedobject.swift
+ *
+ * Created by Simon Evans on 25/11/2017.
+ * Copyright © 2017 - 2019 Simon Evans. All rights reserved.
+ *
+ * Named Object types.
+ *
+ */
 
 struct AMLDataRegion {
     let name: AMLNameString
@@ -280,32 +280,81 @@ struct AMLDefMutex {
 }
 
 
-enum AMLRegionSpace: AMLByteData, CustomStringConvertible {
-    case systemMemory = 0x00
-    case systemIO = 0x01
-    case pciConfig = 0x02
-    case embeddedControl = 0x03
-    case smbus = 0x04
-    case systemCMOS = 0x05
-    case pciBarTarget = 0x06
-    case ipmi = 0x07
-    case generalPurposeIO = 0x08
-    case genericSerialBus = 0x09
-    case oemDefined = 0x80 // .. 0xff fixme
+enum AMLRegionSpace: CustomStringConvertible {
+    case systemMemory
+    case systemIO
+    case pciConfig
+    case embeddedControl
+    case smbus
+    case systemCMOS
+    case pciBarTarget
+    case ipmi
+    case generalPurposeIO
+    case genericSerialBus
+    case pcc                // Platform Communication Channel
+    case prm                // Platform Runtime Mechanism Table
+    case reserved(UInt8)    // 0x0c 0 -x07e Reserved
+    case ffixedHW           // Functional Fixed Hardware
+    case oemDefined(UInt8)  // 0x80 .. 0xff
+
+    init(rawValue: UInt8) {
+        self = switch rawValue {
+            case 0x00: .systemMemory
+            case 0x01: .systemIO
+            case 0x02: .pciConfig
+            case 0x03: .embeddedControl
+            case 0x04: .smbus
+            case 0x05: .systemCMOS
+            case 0x06: .pciBarTarget
+            case 0x07: .ipmi
+            case 0x08: .generalPurposeIO
+            case 0x09: .genericSerialBus
+            case 0x0a: .pcc
+            case 0x0b: .prm
+            case 0x0c...0x7e: .reserved(rawValue)
+            case 0x7f: .ffixedHW
+            case 0x80...0xff: .oemDefined(rawValue)
+            default: .systemMemory
+        }
+    }
+
+    var rawValue: UInt8 {
+        switch self {
+            case .systemMemory:         0x00
+            case .systemIO:             0x01
+            case .pciConfig:            0x02
+            case .embeddedControl:      0x03
+            case .smbus:                0x04
+            case .systemCMOS:           0x05
+            case .pciBarTarget:         0x06
+            case .ipmi:                 0x07
+            case .generalPurposeIO:     0x08
+            case .genericSerialBus:     0x09
+            case .pcc:                  0x0a
+            case .prm:                  0x0b
+            case .reserved(let raw):    raw
+            case .ffixedHW:             0x7f
+            case .oemDefined(let oem):  oem
+        }
+    }
 
     var description: String {
         return switch self {
-            case .systemMemory: "System Memory"
-            case .systemIO: "System IO"
-            case .pciConfig: "PCI Config"
-            case .embeddedControl: "EmbeddedControl"
-            case .smbus: "SMBus"
-            case .systemCMOS: "System CMOS"
-            case .pciBarTarget: "PCI Bar Target"
-            case .ipmi: "IPMI"
-            case .generalPurposeIO: "GPIO"
-            case .genericSerialBus: "GPSerialBus"
-            default: "OEMDefined"
+            case .systemMemory:         "System Memory"
+            case .systemIO:             "System IO"
+            case .pciConfig:            "PCI Config"
+            case .embeddedControl:      "EmbeddedControl"
+            case .smbus:                "SMBus"
+            case .systemCMOS:           "System CMOS"
+            case .pciBarTarget:         "PCI Bar Target"
+            case .ipmi:                 "IPMI"
+            case .generalPurposeIO:     "GPIO"
+            case .genericSerialBus:     "GPSerialBus"
+            case .pcc:                  "PlatformCommsCh"
+            case .prm:                  "PlatformRT"
+            case .reserved(let value):  #sprintf("Reserved(0x%2.2x)", value)
+            case .ffixedHW:             "FuncFixedHW"
+            case .oemDefined(let oem):  #sprintf("OEM(0x%2x)", oem)
         }
     }
 }

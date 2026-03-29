@@ -1,27 +1,22 @@
-//
-// kernel/devices/acpi/ACPIGenericAddressStructure.swift
-//
-// Created by Simon Evans on 17/04/2021.
-// Copyright © 2021 Simon Evans. All rights reserved.
-//
-// ACPI Generic Address Structure.
-//
+/*
+ * kernel/devices/acpi/ACPIGenericAddressStructure.swift
+ *
+ * Created by Simon Evans on 17/04/2021.
+ * Copyright © 2021 Simon Evans. All rights reserved.
+ *
+ * ACPI Generic Address Structure.
+ *
+ */
 
-
-struct ACPIGenericAddressStrucure {
-    enum AddressSpaceID: UInt8 {
-        case systemMemory = 0
-        case systemIO = 1
-    }
-
+struct ACPIGenericAddressStrucure: CustomStringConvertible {
     private let gas: acpi_gas
 
     init(_ gas: acpi_gas) {
         self.gas = gas
     }
 
-    var addressSpaceID: AddressSpaceID {
-        return AddressSpaceID(rawValue: gas.address_space_id)!
+    var addressSpaceID: AMLRegionSpace {
+        return AMLRegionSpace(rawValue: gas.address_space_id)
     }
 
     var registerBitWidth: Int { Int(gas.register_bit_width) }
@@ -30,4 +25,10 @@ struct ACPIGenericAddressStrucure {
     var baseAddress: UInt64 { gas.address }
     var physicalAddress: PhysAddress { PhysAddress(RawAddress(baseAddress)) }
     var rawPointer: UnsafeMutableRawPointer { physicalAddress.rawPointer }
+
+    var description: String {
+        #sprintf("addr_spc_id: 0x%2.2x bitWidth: %u bitOffset: %u accessSz: %u address: %p",
+                 self.gas.address_space_id, self.gas.register_bit_width,
+                 self.gas.register_bit_offset, self.gas.access_size, self.gas.address)
+    }
 }

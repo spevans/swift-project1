@@ -5,6 +5,7 @@
  * Copyright © 2020 Simon Evans. All rights reserved.
  *
  * Simple command line shell - currently not its own task.
+ *
  */
 
 
@@ -264,13 +265,15 @@ private let commands: [String: ShellCommand] = [
     "vmxoff":   ShellCommand(vmxOffCommand, "Disable VMX"),
     "vmxtest":  ShellCommand(vmxTestCommand, "Test VMX"),
     "hidinput": ShellCommand(hidInput, "Test HID input"),
-    "cls"     : ShellCommand( { _ in tty.clearScreen() }, "Clear the screen"),
+    "cls"     : ShellCommand({ _ in tty.clearScreen() }, "Clear the screen"),
     "device":   ShellCommand(deviceDebug, "Debug Device"),
     "i915":     ShellCommand(testi915, "Test an i915 display"),
-    "memory":   ShellCommand( { _ in system.showMemoryRanges() }, "Show memory ranges"),
+    "memory":   ShellCommand({ _ in system.showMemoryRanges() }, "Show memory ranges"),
     "mcfg":     ShellCommand(showMCFG, "Show ACPI MCFG table"),
-    "tty":      ShellCommand( { args in tty.commands(args) }, "Show TTY information"),
-    "version":  ShellCommand( { args in #kprint("Version:", gitBuildVersion) }, "Show build version"),
+    "tty":      ShellCommand({ args in tty.commands(args) }, "Show TTY information"),
+    "version":  ShellCommand({ args in #kprint("Version:", gitBuildVersion) }, "Show build version"),
+    "reboot":   ShellCommand({ _ in system.systemTables.acpiTables.reboot() }, "Reboot the system via ACPI"),
+    "shutdown": ShellCommand({ _ in system.systemTables.acpiTables.shutdown() }, "Shut down the system via ACPI"),
 ]
 
 
