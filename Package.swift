@@ -37,6 +37,7 @@ let package = Package(
                           "devices/ps2keyboard.swift",
                           "devices/ps2mouse.swift",
                           "devices/acpi/acpi-ps2.swift",
+                          "devices/acpi/acpi-tad.swift",
                           "devices/usb/uhci-buffers.swift",
                           "devices/usb/uhci-hcd.swift",
                           "devices/usb/uhci-pipe.swift",

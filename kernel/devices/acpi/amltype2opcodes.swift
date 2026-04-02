@@ -1,10 +1,12 @@
-//
-//  kernel/devices/acpi/amltype2ocodes.swift
-//
-//  Created by Simon Evans on 25/11/2017.
-//  Copyright © 2017 - 2025 Simon Evans. All rights reserved.
-//
-//  ACPI Type 2 Opcodes
+/*
+ * kernel/devices/acpi/amltype2opcodes.swift
+ *
+ * Created by Simon Evans on 25/11/2017.
+ * Copyright © 2017 - 2025 Simon Evans. All rights reserved.
+ *
+ * ACPI Type 2 Opcodes
+ *
+ */
 
 
 private func AMLBoolean(_ bool: Bool) -> AMLObject {
@@ -304,7 +306,6 @@ enum AMLType2Opcode {
                 let object = try operand1.evaluate(context: &context)
                 let index = try operandAsInteger(operand: operand2, context: &context)
                 let length = try operandAsInteger(operand: operand3, context: &context)
-                #kprint("defmid: object: \(object) index: \(index)")
                 let result: AMLObject
                 if let string = object.stringValue {
                     result = AMLObject(string.subString(offset: index, length: length))

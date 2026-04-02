@@ -8,6 +8,8 @@
  * non-PCI, usually ISA or ACPI devices.
  *
  */
+
+
 final class PNPDevice: Device {
     private(set) var resources: ISABus.Resources?
     private let acpiDeviceConfig: ACPIDeviceConfig
@@ -99,6 +101,8 @@ final class PNPDevice: Device {
                 return HPET(pnpDevice: pnpDevice)
             case "PNP0C01", "PNP0C02":  // System Board
                 return MotherBoardResource(pnpDevice: pnpDevice)
+            case "ACPI000E":
+                return ACPITimeAlarmDevice(pnpDevice: pnpDevice)
             default:
                 return nil
         }

@@ -1,5 +1,5 @@
 /*
- * kernel/init/tests.swift
+ * kernel/tasks/tests.swift
  *
  * Created by Simon Evans on 30/12/2021.
  * Copyright © 2021 Simon Evans. All rights reserved.
@@ -7,6 +7,7 @@
  * Random test routines to test subsystems during boot and intialisation.
  *
  */
+
 
 public func cacheTest() {
     let buffer = alloc(pages: 1)
@@ -67,18 +68,18 @@ public func cacheTest() {
 
 func sleepTest(milliseconds: Int) {
     // sleepTest
-    if let cmos = system.deviceManager.rtc {
-        #kprint(milliseconds, "ms sleep test")
-        #kprint(cmos.readTime())
-        sleep(milliseconds: milliseconds)
-        #kprint(cmos.readTime())
-    }
+    #kprint("using sleep()")
+    showDateTime()
+    sleep(milliseconds: milliseconds)
+    showDateTime()
 }
 
-func dateTest() {
+func showDateTime() {
     if let cmos = system.deviceManager.rtc {
         #kprint(cmos.readTime())
+    } else if let tad = system.deviceManager.tad {
+        #kprint(tad.readTime())
     } else {
-        #kprint("Cant find a RTC")
+        #kprint("No RTC")
     }
 }

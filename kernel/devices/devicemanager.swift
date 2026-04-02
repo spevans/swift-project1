@@ -18,6 +18,7 @@ final class DeviceManager {
     var mouse: Mouse?
     var timer: Timer?
     var rtc: CMOSRTC?
+    var tad: ACPITimeAlarmDevice?
     private(set)var usb: USB?
 
 

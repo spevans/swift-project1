@@ -263,7 +263,7 @@ private enum OpRegionSpace: ~Copyable {
     case pciConfig(PCIConfigRegionSpace)
     case embeddedControl
     case smbus
-    case systemCMOS
+    case systemCMOS(SystemCMOS)
     case pciBarTarget
     case ipmi
     case generalPurposeIO
@@ -344,6 +344,9 @@ private enum OpRegionSpace: ~Copyable {
                 }
                 self = .pciConfig(PCIConfigRegionSpace(config: configSpace, offset: offset, length: length))
 
+            case .systemCMOS:
+                self = .systemCMOS(try SystemCMOS(offset: offset, length: length))
+
             default:
                 throw AMLError.unimplementedError(reason: "OpRegionSpace: \(region.description) not implemented")
         }
@@ -388,6 +391,7 @@ private enum OpRegionSpace: ~Copyable {
             case .systemMemory(let region): region.read(atIndex: index)
             case .systemIO(let region): region.read(atIndex: index)
             case .pciConfig(let region): region.read(atIndex: index)
+            case .systemCMOS(let region): region.read(atIndex: index)
             // This should never be reached as the OpRegionSpace will never be created
             default: fatalError("acpi: OpRegionSpace.read() not implemented for \(self.description)")
         }
@@ -399,6 +403,7 @@ private enum OpRegionSpace: ~Copyable {
             case .systemMemory(let region): region.write(atIndex: index, value: value)
             case .systemIO(let region): region.write(atIndex: index, value: value)
             case .pciConfig(let region): region.write(atIndex: index, value: value)
+            case .systemCMOS(let region): region.write(atIndex: index, value: value)
             // This should never be reached as the OpRegionSpace will never be created
             default: fatalError("acpi: OpRegionSpace.write() not implemented for \(self.description)")
         }
@@ -502,6 +507,50 @@ private struct SystemIO {
             case 2: outw(port + offset, UInt16(truncatingIfNeeded: value))
             case 4: outl(port + offset, UInt32(truncatingIfNeeded: value))
             default: fatalError("acpi: Invalid bitWidth \(T.bitWidth) access not allowed in a SystemIO region")
+        }
+    }
+}
+
+private struct SystemCMOS {
+    private let addressPort: UInt16 = 0x70
+    private let dataPort: UInt16 = 0x71
+    let offset: UInt8
+    let length: UInt8
+
+    init(offset: AMLInteger, length: AMLInteger) throws(AMLError) {
+        guard length > 0, offset + length <= 255 else {
+            let error = #sprintf("Invalid SystemCMOS region: 0x%x/0x%x",
+                                 offset, length)
+            #kprint("acpi:", error)
+            throw AMLError.invalidData(reason: error)
+        }
+        self.offset = UInt8(offset)
+        self.length = UInt8(length)
+    }
+
+
+    func read<T: FixedWidthInteger & UnsignedInteger>(atIndex index: Int) -> T {
+        let bytes = T.bitWidth / 8
+        guard bytes == 1, index < self.length else {
+            return 0
+        }
+        let index = self.offset + UInt8(index)
+        let data = noInterrupt {
+            outb(addressPort, index)
+            return inb(dataPort)
+        }
+        return T(data)
+    }
+
+
+    func write<T: FixedWidthInteger & UnsignedInteger>(atIndex index: Int, value: T) {
+        let bytes = T.bitWidth / 8
+        guard bytes == 1, index < self.length else {
+            return
+        }
+        noInterrupt {
+            outb(addressPort, self.offset + UInt8(index))
+            outb(dataPort, UInt8(value))
         }
     }
 }

@@ -34,7 +34,7 @@ private func echoCommand(arguments: [String]) {
 }
 
 private func dateCommand(arguments: [String]) {
-    dateTest()
+    showDateTime()
 }
 
 private func showCPUCommand(arguments: [String]) {
@@ -137,7 +137,7 @@ private func sleepTestCommand(arguments: [String]) {
 }
 
 private func testsCommand(arguments: [String]) {
-    dateTest()
+    showDateTime()
     CPU.getInfo()
     #kprint("dumppci")
     system.deviceManager.dumpPCIDevices()
