@@ -57,10 +57,6 @@ final class System {
         CPU.getInfo()
         deviceManager.acpiTables.startup()
         deviceManager.initialiseEarlyDevices()
-
-        // gitBuildVersion defined in kernel/init/version.swift, created
-        // by kernel/Makefile
-        #kprint("Version: \(gitBuildVersion)\n")
     }
 
 

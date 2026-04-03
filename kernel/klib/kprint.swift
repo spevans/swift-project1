@@ -78,6 +78,9 @@ private func _show_kprintf_error(_ error: PrintfError, forFormat format: StaticS
 
 @inline(never)
 func _kprintf(_ format: StaticString, _ arg: _PrintfArg) {
+    if !format.isASCII {
+        fatalError("\(format) is not an ASCII string")
+    }
     do {
         try _printf(to: &_tty, format: format, arg, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
     } catch {

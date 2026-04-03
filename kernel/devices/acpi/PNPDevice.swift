@@ -92,10 +92,9 @@ final class PNPDevice: Device {
             case "PNP0A03", // PCI Host bridge
                 "PNP0A08": // PCIBus, PCI Express
                 return PCIBus(pnpDevice: pnpDevice)
-            case "PNP0103", // HPET System Timer
-                "PNP0C01":  // System Board
+            case "PNP0103": // HPET System Timer
                 return HPET(pnpDevice: pnpDevice)
-            case "PNP0C02":
+            case "PNP0C01", "PNP0C02":  // System Board
                 return MotherBoardResource(pnpDevice: pnpDevice)
             default:
                 return nil

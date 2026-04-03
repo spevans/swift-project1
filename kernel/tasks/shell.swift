@@ -270,6 +270,7 @@ private let commands: [String: ShellCommand] = [
     "memory":   ShellCommand( { _ in system.showMemoryRanges() }, "Show memory ranges"),
     "mcfg":     ShellCommand(showMCFG, "Show ACPI MCFG table"),
     "tty":      ShellCommand( { args in tty.commands(args) }, "Show TTY information"),
+    "version":  ShellCommand( { args in #kprint("Version:", gitBuildVersion) }, "Show build version"),
 ]
 
 
