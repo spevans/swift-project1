@@ -103,8 +103,14 @@ extension USB {
         }
 
         init(descriptor: usb_standard_interface_descriptor, endpoints: [EndpointDescriptor],
-             functionDescriptors: [Array<UInt8>]) {
+             functionDescriptors: [Array<UInt8>]) throws(USB.ParsingError) {
 
+            guard descriptor.bLength == MemoryLayout<usb_standard_interface_descriptor>.size else {
+                throw .invalidLengthByte
+            }
+            guard descriptor.bDescriptorType == DescriptorType.INTERFACE.rawValue else  {
+                throw .invalidDescriptor(descriptor.bDescriptorType)
+            }
             self.descriptor = descriptor
             self.functionDescriptors = functionDescriptors
             self.endpoints = endpoints

@@ -155,10 +155,10 @@ extension USB {
 
             // The current interface is not added to the respective arrays
             // until the next interface is seen.
-            func addLastInterface() {
+            func addLastInterface() throws(ParsingError) {
                 if haveInterface {
                     // Process the last interface before setting up the new one
-                    let interface = InterfaceDescriptor(
+                    let interface = try InterfaceDescriptor(
                         descriptor: _interfaceDescriptor,
                         endpoints: _endpoints,
                         functionDescriptors: _functionDescriptors
@@ -182,7 +182,7 @@ extension USB {
                 if let descriptorType = DescriptorType(rawValue: descriptorByte) {
                     switch descriptorType {
                         case .INTERFACE:
-                            addLastInterface()
+                            try addLastInterface()
                             // Now copy the new interface into the descriptor
                             _interfaceDescriptor = usb_standard_interface_descriptor()
                             try withUnsafeMutableBytes(of: &_interfaceDescriptor) { (buffer: UnsafeMutableRawBufferPointer) throws(ParsingError) -> () in
@@ -240,7 +240,7 @@ extension USB {
             }
 
             // Add the current endpoint and interface
-            addLastInterface()
+            try addLastInterface()
             // Check that there were enough interfaces
             guard interfaceNumber == descriptor.bNumInterfaces - 1 else {
                 #kprintf("ConfigDescriptor: not enough interfaces interfaceNumber: %u descriptor.bNumInterfaces: %u\n",
