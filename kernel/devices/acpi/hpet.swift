@@ -1,10 +1,13 @@
-//
-//  kernel/devices/acpi/hpet.swift
-//
-//  Created by Simon Evans on 29/04/2017.
-//  Copyright © 2017 - 2021 Simon Evans. All rights reserved.
-//
-//  Parsing of High Precision Event Timer (HPET).
+/*
+ * kernel/devices/acpi/hpet.swift
+ *
+ * Created by Simon Evans on 29/04/2017.
+ * Copyright © 2017 - 2021 Simon Evans. All rights reserved.
+ *
+ * Parsing of High Precision Event Timer (HPET).
+ *
+ */
+
 
 // FIXME: The individual timers should probable be represented with a 'class HPETTimer' or something
 struct HPETTable: CustomStringConvertible {
@@ -125,10 +128,11 @@ final class HPET: DeviceDriver {
     // FIXME: This should look at the avaialble IRQs from ACPI as it may specify the
     // IRQs 0 & 8 instead of the CMOS clock using them
     init?(pnpDevice: PNPDevice) {
-        guard let _hpet = system.systemTables.acpiTables.hpet else {
+        guard let hpetPtr = ACPI.getTable("HPET")?.first  else {
             #kprint("HPET: No HPET ACPI table found")
             return nil
         }
+        let _hpet = HPETTable(hpetPtr)
         let region = PhysRegion(start: _hpet.gas.physicalAddress, size: 0x400)
         self.hpet = _hpet
         self.mmioRegion = mapIORegion(region: region)

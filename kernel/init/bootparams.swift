@@ -178,7 +178,6 @@ func parse(bootParamsAddr: VirtualAddress) -> BootParams {
 
 
 struct SystemTables {
-    let acpiTables: ACPI
     // vendor and product is the only information needed from the SMBIOS
     let vendor: String
     let product: String
@@ -196,13 +195,10 @@ struct SystemTables {
 
         vendor = tmpVendor ?? "generic"
         product = tmpProduct ?? "generic"
-        if let physAddress = acpiPhysAddress {
-            if let acpi = ACPI(rsdp: physAddress, vendor: vendor, product: product, memoryRanges: bootParams.memoryRanges) {
-                acpiTables = acpi
-                return
-            }
+        guard let physAddress = acpiPhysAddress,
+              ACPI.findTables(rsdp: physAddress, vendor: vendor, product: product, memoryRanges: bootParams.memoryRanges) else {
+            koops("Failed to find ACPI tables")
         }
-        koops("Cant find ACPI tables")
     }
 }
 

@@ -8,55 +8,43 @@
  *
  */
 
+
 typealias SDTPtr = UnsafePointer<acpi_sdt_header>
 
-
-enum ACPITable {
-    case madt(MADT)
-    case mcfg(MCFG)
-    case boot(BOOT)
-    case ecdt(ECDT)
-    case fadt(FADT)
-    case facs(FACS)
-    case hpet(HPETTable)
-    case sbst(SBST)
-    case srat(SRAT)
-    case waet(WAET)
-}
-
-
-struct ACPI_SDT: CustomStringConvertible {
-    let signature:  String
-    let length:     UInt32
-    let revision:   UInt8
-    let checksum:   UInt8
-    let oemId:      String
-    let oemTableId: String
-    let oemRev:     UInt32
-    let creatorId:  String
-    let creatorRev: UInt32
-
-    var description: String {
-        return "ACPI: \(signature): \(oemId): \(creatorId): \(oemTableId): rev: \(revision)"
-    }
-
-
-    init(ptr: UnsafeRawPointer) {
-        signature = String(ptr, maxLength: 4)
-        let header = ptr.load(as: acpi_sdt_header.self)
-        length = header.length
-        revision = header.revision
-        checksum = header.checksum
-        oemId = String(ptr.advanced(by: 10), maxLength: 6)
-        oemTableId = String(ptr.advanced(by: 16), maxLength: 8)
-        oemRev = header.oem_revision
-        creatorId = String(ptr.advanced(by: 28), maxLength: 4)
-        creatorRev = header.creator_rev
-    }
-}
-
 var ACPIDebug = false
-final class ACPI {
+private var acpi = ACPI()
+
+struct ACPI: ~Copyable {
+
+    struct ACPI_SDT: CustomStringConvertible {
+        let signature:  String
+        let length:     UInt32
+        let revision:   UInt8
+        let checksum:   UInt8
+        let oemId:      String
+        let oemTableId: String
+        let oemRev:     UInt32
+        let creatorId:  String
+        let creatorRev: UInt32
+
+        var description: String {
+            return "ACPI: \(signature): \(oemId): \(creatorId): \(oemTableId): rev: \(revision)"
+        }
+
+
+        init(ptr: UnsafeRawPointer) {
+            signature = String(ptr, maxLength: 4)
+            let header = ptr.load(as: acpi_sdt_header.self)
+            length = header.length
+            revision = header.revision
+            checksum = header.checksum
+            oemId = String(ptr.advanced(by: 10), maxLength: 6)
+            oemTableId = String(ptr.advanced(by: 16), maxLength: 8)
+            oemRev = header.oem_revision
+            creatorId = String(ptr.advanced(by: 28), maxLength: 4)
+            creatorRev = header.creator_rev
+        }
+    }
 
 
     struct RSDT {
@@ -158,33 +146,58 @@ final class ACPI {
     static private(set) var globalObjects: ACPIObjectNode = ACPIObjectNode(name: AMLNameString("\\"),
                                                                            object: AMLObject())
 
-    private(set) var mcfg: MCFG?
-    private(set) var fadt: FADT?
-    private(set) var madt: MADT?
-    private(set) var hpet: HPETTable?
-    private(set) var tables: [ACPITable] = []
+    private(set) var _mcfg: MCFG?
+    private(set) var _fadt: FADT?
+    private(set) var _madt: MADT?
+    private(set) var tables: [String: [UnsafeRawPointer]] = [:]
     private var dsdt: PhysRegion?
     private var ssdts: [PhysRegion] = []
     private var mmioRegions: [MMIORegion] = []
 
-    init?(rsdp: PhysAddress, vendor: String, product: String, memoryRanges: [MemoryRange]) {
+    static var mcfg: MCFG? {
+        return acpi._mcfg
+    }
+
+    static var madt: MADT? {
+        return acpi._madt
+    }
+
+    static var fadt: FADT? {
+        return acpi._fadt
+    }
+
+#if !TEST
+    init() {}
+#else
+    // Used for testing
+    init() {
+        mmioRegions.append(MMIORegion(PhysRegion(start: PhysAddress(0), size: 1)))
+    }
+#endif
+
+    static func getTable(_ signature: String) -> [UnsafeRawPointer]? {
+        return acpi.tables[signature]
+    }
+
+    static func findTables(rsdp: PhysAddress, vendor: String,
+                             product: String, memoryRanges: [MemoryRange]) -> Bool {
         let rsdp = RSDP(rsdp)
         guard let entries = rsdp.xsdt()?.entries ?? rsdp.rsdt()?.entries else {
-            #kprint("Cant find a XSDT or RSDT")
-            return nil
+            #kprint("Failed to find a XSDT or RSDT")
+            return false
         }
 
         guard !entries.isEmpty else {
-            #kprint("Cant find any ACPI tables")
-            return nil
+            #kprint("Failed to find any ACPI tables")
+            return false
         }
 
         var mRanges: [MemoryRange] = []
         // Ensure each table phys address is covered by an MMIORegion
         for entry in entries {
             guard let memoryRange = memoryRanges.findRange(containing: entry) else {
-                #kprint("Cant find MemoryRange containing:", entry)
-                return nil
+                #kprint("Failed to find MemoryRange containing:", entry)
+                return false
             }
             if !mRanges.contains(memoryRange) {
                 mRanges.append(memoryRange)
@@ -195,28 +208,24 @@ final class ACPI {
                     case .readWrite: mapRWRegion(region: region)
                     default: fatalError("Trying to map region that is not RO or RW")
                 }
-                mmioRegions.append(mmioRegion)
+                acpi.mmioRegions.append(mmioRegion)
             }
-            parseEntry(physAddress: entry, vendor: vendor, product: product)
+            acpi.parseEntry(physAddress: entry, vendor: vendor, product: product)
         }
 
-        if dsdt == nil, let dsdtAddr = fadt?.dsdtAddress {
+        if acpi.dsdt == nil, let dsdtAddr = acpi._fadt?.dsdtAddress {
             #kprint("Found DSDT address in FACP: 0x\(asHex(dsdtAddr.value))")
-            parseEntry(physAddress: dsdtAddr, vendor: vendor, product: product)
+            acpi.parseEntry(physAddress: dsdtAddr, vendor: vendor, product: product)
         }
+        return true
     }
 
-#if TEST
-    // Used for testing
-    init() {
-        mmioRegions.append(MMIORegion(PhysRegion(start: PhysAddress(0), size: 1)))
-    }
-#endif
 
-    func parseAMLTables(allowNoDsdt: Bool = false) {
+
+    static func parseAMLTables(allowNoDsdt: Bool = false) {
 //                #kprintf("Parsing AML")
-        if let ptr = dsdt {
-            ssdts.insert(ptr, at: 0) // Put the DSDT first
+        if let ptr = acpi.dsdt {
+            acpi.ssdts.insert(ptr, at: 0) // Put the DSDT first
         } else {
             guard allowNoDsdt else {
                 fatalError("ACPI: No valid DSDT found")
@@ -225,7 +234,7 @@ final class ACPI {
 
         ACPI.globalObjects = ACPI.ACPIObjectNode.createGlobalObjects()
         do {
-            for buffer in ssdts {
+            for buffer in acpi.ssdts {
                 let amlBuffer = AMLByteBuffer(start: buffer.baseAddress.rawPointer,
                                               count: Int(buffer.size))
                 let byteStream = try AMLByteStream(buffer: amlBuffer)
@@ -241,18 +250,17 @@ final class ACPI {
             fatalError("parseerror: \(error)")
         }
 
-        dsdt = nil
-        ssdts.removeAll()
+        acpi.dsdt = nil
+        acpi.ssdts.removeAll()
 //        #kprintf("End of AML code")
     }
 
-    func parseEntry(physAddress: PhysAddress, vendor: String, product: String) {
+    private mutating func parseEntry(physAddress: PhysAddress, vendor: String, product: String) {
 
         let rawSDTPtr = physAddress.rawPointer
         let signature = tableSignature(ptr: rawSDTPtr)
         if signature == "FACS" {
-            let facs = FACS(rawSDTPtr)
-            tables.append(.facs(facs))
+            tables["FACS"] = [UnsafeRawPointer(rawSDTPtr)]
             return
         }
 
@@ -263,50 +271,22 @@ final class ACPI {
 
 //        #kprintf("Found: \(signature)")
         switch signature {
-        case "MCFG":
-                self.mcfg = MCFG(rawSDTPtr, vendor: vendor, product: product)
-                if let _mcfg = self.mcfg  {
-                    initPCI(mcfg: _mcfg)
-                    tables.append(.mcfg(_mcfg))
-                    for entry in _mcfg.allocations {
-                        #kprint("MCFG:", entry)
-                    }
+            case "MCFG":
+                let _mcfg = MCFG(rawSDTPtr, vendor: vendor, product: product)
+                initPCI(mcfg: _mcfg)
+                self._mcfg = _mcfg
+                for entry in _mcfg.allocations {
+                    #kprint("MCFG:", entry)
                 }
 
-        case "FACP":
-            fadt = FADT(rawSDTPtr)
-            if let _fadt = fadt {
+            case "FACP":
+                let _fadt = FADT(rawSDTPtr)
+                self._fadt = _fadt
                 #kprint(_fadt)
-                tables.append(.fadt(_fadt))
-            }
 
-        case "APIC":
-            madt = MADT(rawSDTPtr)
-            tables.append(.madt(madt!))
-
-        case "HPET":
-            hpet = HPETTable(rawSDTPtr)
-            tables.append(.hpet(hpet!))
-
-        case "ECDT":
-            let table = ECDT(rawSDTPtr)
-            tables.append(.ecdt(table))
-
-        case "SBST":
-            let table = SBST(rawSDTPtr)
-            tables.append(.sbst(table))
-
-        case "SRAT":
-            let table = SRAT(rawSDTPtr)
-            tables.append(.srat(table))
-
-        case "WAET":
-            let table = WAET(rawSDTPtr)
-            tables.append(.waet(table))
-
-        case "BOOT":
-            let table = BOOT(rawSDTPtr)
-            tables.append(.boot(table))
+            case "APIC":
+                let _madt = MADT(rawSDTPtr)
+                self._madt = _madt
 
 
         case "DSDT", "SSDT":
@@ -316,13 +296,14 @@ final class ACPI {
             let amlRegion = PhysRegion(start: physAddress + headerLength,
                                               size: UInt(amlCodeLength))
             if header.signature == "DSDT" {
-                dsdt = amlRegion
+                self.dsdt = amlRegion
             } else {
-                ssdts.append(amlRegion)
+                self.ssdts.append(amlRegion)
             }
 
         default:
-            #kprint("ACPI: Unknown table: \(header.signature)")
+            #kprint("ACPI: Found table: \(header.signature)")
+            tables[header.signature] = [UnsafeRawPointer(rawSDTPtr)]
         }
     }
 
@@ -367,7 +348,7 @@ final class ACPI {
 
 #if !TEST
 extension ACPI {
-    func startup() {
+    static func startup() {
 
         func runMethod(_ node: ACPIObjectNode) -> Bool {
             if ACPIDebug {

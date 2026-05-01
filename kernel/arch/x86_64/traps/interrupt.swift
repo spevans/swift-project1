@@ -1,5 +1,5 @@
 /*
- * kernel/traps/interrupt.swift
+ * kernel/arch/x86_64/traps/interrupt.swift
  *
  * Created by Simon Evans on 26/02/2016.
  * Copyright © 2016 Simon Evans. All rights reserved.
@@ -7,6 +7,7 @@
  * Handing of IRQs including using a queue to service interrupts
  * outside of the IRQ handler for situations where the handler may
  * need to do more work etc
+ *
  */
 
 
@@ -54,20 +55,17 @@ public struct InterruptManager: ~Copyable {
     init() {
     }
 
-    mutating func setup(with acpiTables: ACPI) {
+    mutating func setup(with madt: MADT) {
 
-        guard let madtEntries = acpiTables.madt?.madtEntries else {
-            fatalError("Cant find MADT Table")
-        }
-        guard localAPIC.setup(with: madtEntries) else {
-            fatalError("Cannot setup ACPI")
+        guard localAPIC.setup(with: madt.madtEntries) else {
+            fatalError("Failed to setup APIC")
         }
 
         // Find the IO-APICS and interrupt overrides
         var _ioapics: [IOAPIC] = []
         var _overrideEntries: [MADT.InterruptSourceOverrideTable] = []
 
-        madtEntries.forEach {
+        madt.madtEntries.forEach {
             //#kprint("INT-MAN: MADT entry:", $0)
             switch $0 {
                 case let .ioApic(entry):

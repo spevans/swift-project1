@@ -50,12 +50,14 @@ final class System {
         // symbolLookupInit uses a sort() so may require more free memory, do it after all the free
         // RAM has been added to the free list.
         symbolLookupInit(bootParams: bootParams)
-        deviceManager = DeviceManager(acpiTables: systemTables.acpiTables)
+        guard let madt = ACPI.madt else {
+            fatalError("Failed to find ACPI MADT")
+        }
+        deviceManager = DeviceManager(madt: madt)
     }
 
     fileprivate func initSystem() {
-        CPU.getInfo()
-        deviceManager.acpiTables.startup()
+        ACPI.startup()
         deviceManager.initialiseEarlyDevices()
     }
 

@@ -239,7 +239,7 @@ private func deviceDebug(arguments: [String]) {
 }
 
 private func showMCFG(arguments: [String]) {
-    if let mcfg = system.systemTables.acpiTables.mcfg {
+    if let mcfg = ACPI.mcfg {
         mcfg.showEntries()
     } else {
         #kprint("No MCFG table found")
@@ -274,8 +274,8 @@ private let commands: [String: ShellCommand] = [
     "mcfg":     ShellCommand(showMCFG, "Show ACPI MCFG table"),
     "tty":      ShellCommand({ args in tty.commands(args) }, "Show TTY information"),
     "version":  ShellCommand({ args in #kprint("Version:", gitBuildVersion) }, "Show build version"),
-    "reboot":   ShellCommand({ _ in system.systemTables.acpiTables.reboot() }, "Reboot the system via ACPI"),
-    "shutdown": ShellCommand({ _ in system.systemTables.acpiTables.shutdown() }, "Shut down the system via ACPI"),
+    "reboot":   ShellCommand({ _ in ACPI.reboot() }, "Reboot the system via ACPI"),
+    "shutdown": ShellCommand({ _ in ACPI.shutdown() }, "Shut down the system via ACPI"),
 ]
 
 

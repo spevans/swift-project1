@@ -10,7 +10,6 @@
 private(set) var interruptManager = InterruptManager()
 
 final class DeviceManager {
-    let acpiTables: ACPI
 
     private(set) var masterBus: MasterBus
 
@@ -22,16 +21,15 @@ final class DeviceManager {
     private(set)var usb: USB?
 
 
-    init(acpiTables: ACPI) {
-        acpiTables.parseAMLTables()
+    init(madt: MADT) {
+        interruptManager.setup(with: madt)
+        withUnsafePointer(to: &interruptManager) {
+            set_interrupt_manager($0)
+        }
+        ACPI.parseAMLTables()
         guard let (sb, _) = ACPI.globalObjects.getGlobalObject(currentScope: AMLNameString("\\"),
                                                                      name: AMLNameString("_SB")) else {
             fatalError("No \\_SB system bus node")
-        }
-        self.acpiTables = acpiTables
-        interruptManager.setup(with: acpiTables)
-        withUnsafePointer(to: &interruptManager) {
-            set_interrupt_manager($0)
         }
         masterBus = MasterBus(acpiSystemBus: sb)
     }

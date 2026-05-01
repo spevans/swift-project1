@@ -10,6 +10,7 @@
  *
  */
 
+
 #if !TEST
 extension ACPI {
 
@@ -22,8 +23,8 @@ extension ACPI {
     /// Reboot the system using the ACPI FADT Reset Register.
     /// Falls back to PCI reset via port 0xCF9 if the reset
     /// register is not supported.
-    func reboot() -> Never {
-        if let fadt = fadt, fadt.supportsResetRegister {
+    static func reboot() -> Never {
+        if let fadt = ACPI.fadt, fadt.supportsResetRegister {
             let gas = fadt.resetRegister
             let value = fadt.resetValue
 
@@ -68,8 +69,8 @@ extension ACPI {
     /// Shut down the system by transitioning to ACPI S5 (soft-off).
     /// Looks up \_S5 in the ACPI namespace to obtain the SLP_TYPx
     /// values, then writes PM1a_CNT and PM1b_CNT control registers.
-    func shutdown() -> Never {
-        guard let fadt = fadt else {
+    static func shutdown() -> Never {
+        guard let fadt = ACPI.fadt else {
             #kprint("acpi: shutdown: no FADT available")
             stop()
         }
