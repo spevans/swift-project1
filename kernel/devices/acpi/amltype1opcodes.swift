@@ -1,10 +1,12 @@
-//
-//  kernel/devices/acpi/amltype1opcodes.swift
-//
-//  Created by Simon Evans on 25/11/2017.
-//  Copyright © 2017 - 2025 Simon Evans. All rights reserved.
-//
-//  ACPI Type 1 Opcodes
+/*
+ * kernel/devices/acpi/amltype1opcodes.swift
+ *
+ * Created by Simon Evans on 25/11/2017.
+ * Copyright © 2017 - 2025 Simon Evans. All rights reserved.
+ *
+ * ACPI Type 1 Opcodes
+ *
+ */
 
 
 enum AMLType1Opcode {
@@ -92,7 +94,7 @@ enum AMLType1Opcode {
             case .amlDefSleep(let msecTime):
                 // SleepOp MsecTime
                 let value = try operandAsInteger(operand: msecTime, context: &context)
-                throw AMLError.unimplemented("SLEEP: \(value) ms")
+                sleep(milliseconds: Int(value))
 
             case .amlDefStall(let usecTime):
                 // StallOp UsecTime

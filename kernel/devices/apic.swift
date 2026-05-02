@@ -363,5 +363,5 @@ public func apicIntHandler(registers: ExceptionRegisters) {
     }
 
     //printf("APIC INT Handler: %d\n", apicInt)
-    interruptManager.ackIRQ(apicInt)
+    InterruptManager.ackIRQ(apicInt)
 }

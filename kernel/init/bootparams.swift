@@ -181,24 +181,20 @@ struct SystemTables {
     // vendor and product is the only information needed from the SMBIOS
     let vendor: String
     let product: String
+    let acpiPhysAddress: PhysAddress?
+    let smbios: SMBIOS?
 
     init(bootParams: BootParams) {
         let (acpiPhysAddress, smbiosPhysAddress) = bootParams.findTables()
+        self.acpiPhysAddress = acpiPhysAddress
 
-        var tmpVendor: String?
-        var tmpProduct: String?
         if let physAddress = smbiosPhysAddress {
-            let smbios = SMBIOS(physAddress: physAddress)
-            tmpVendor = smbios?.dmiBiosVendor
-            tmpProduct = smbios?.dmiProductName
+            self.smbios = SMBIOS(physAddress: physAddress)
+        } else {
+            self.smbios = nil
         }
-
-        vendor = tmpVendor ?? "generic"
-        product = tmpProduct ?? "generic"
-        guard let physAddress = acpiPhysAddress,
-              ACPI.findTables(rsdp: physAddress, vendor: vendor, product: product, memoryRanges: bootParams.memoryRanges) else {
-            koops("Failed to find ACPI tables")
-        }
+        self.vendor = self.smbios?.dmiBiosVendor ?? "generic"
+        self.product = self.smbios?.dmiProductName ?? "generic"
     }
 }
 

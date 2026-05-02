@@ -7,56 +7,16 @@
  */
 
 
-private(set) var interruptManager = InterruptManager()
-
 final class DeviceManager {
 
-    private(set) var masterBus: MasterBus
+    private(set) var masterBus = MasterBus()
 
     var keyboard: Keyboard?
     var mouse: Mouse?
-    var timer: Timer?
     var rtc: CMOSRTC?
     var tad: ACPITimeAlarmDevice?
     private(set)var usb: USB?
 
-
-    init(madt: MADT) {
-        interruptManager.setup(with: madt)
-        withUnsafePointer(to: &interruptManager) {
-            set_interrupt_manager($0)
-        }
-        ACPI.parseAMLTables()
-        guard let (sb, _) = ACPI.globalObjects.getGlobalObject(currentScope: AMLNameString("\\"),
-                                                                     name: AMLNameString("_SB")) else {
-            fatalError("No \\_SB system bus node")
-        }
-        masterBus = MasterBus(acpiSystemBus: sb)
-    }
-
-
-
-    // Setup devices required for other device setup. This includes timers which are used to
-    // implement sleep() etc, used by more complex devices eg USB Host Controllers when initialising.
-    // Currently this setups all of the pnp ISA devices but this should be restricted to timers.
-    func initialiseEarlyDevices() {
-        #kprint("initialiseEarlyDevices start, device manager has \(masterBus.device.devices?.count ?? 0) devices")
-
-        interruptManager.enableGpicMode()
-        initPNPDevice(withName: "PNP0C0F")  // PCI Interrupt Link Devices
-         // Look for a PIT timer and add to device tree if found
-        // Look for an HPET timer
-        if initPNPDevice(withName: "PNP0103") || initPNPDevice(withName: "PNP0C01") {
-            #kprint("Found an HPET")
-        } else {
-            if initPNPDevice(withName: "PNP0100") {
-                #kprint("Found a PIT")
-            }
-        }
-        guard setupPeriodicTimer() else {
-            koops("Cannot find a HPET or PIT to use for periodic clock")
-        }
-    }
 
     @discardableResult
     private func initPNPDevice(withName pnpName: String) -> Bool {
@@ -132,20 +92,6 @@ final class DeviceManager {
             #kprint("Error: Cant Find ROOT PCI Bus")
         }
     }
-
-
-    func setIrqHandler(_ handler: InterruptHandler, forInterrupt: IRQSetting) {
-        interruptManager.setIrqHandler(handler, forInterrupt: forInterrupt)
-    }
-
-    func removeIrqHandler(_ handler: InterruptHandler, forInterrupt: IRQSetting) {
-        interruptManager.removeIrqHandler(handler, forInterrupt: forInterrupt)
-    }
-
-    func enableIRQs(){
-        interruptManager.enableIRQs()
-    }
-
 
     private func dumpBus(_ bus: Device, depth: Int) {
         guard let devices = bus.devices else { return }

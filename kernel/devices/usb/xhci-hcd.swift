@@ -8,6 +8,7 @@
  *
  */
 
+
 private var _xhciNumber = 0
 var XHCIDebug = false
 
@@ -111,9 +112,9 @@ final class HCD_XHCI: DeviceDriver {
         self.allocator = XHCIAllocator(capabilities)
         super.init(driverName: "xhci", device: pciDevice)
         let handler = InterruptHandler(name: "xhci-hcd", handler: xhciInterrupt)
-        system.deviceManager.setIrqHandler(handler, forInterrupt: interrupt)
+        InterruptManager.setIrqHandler(handler, forInterrupt: interrupt)
         guard self.initialise() else {
-            system.deviceManager.removeIrqHandler(handler, forInterrupt: interrupt)
+            InterruptManager.removeIrqHandler(handler, forInterrupt: interrupt)
             return nil
         }
     }

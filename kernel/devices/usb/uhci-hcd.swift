@@ -8,6 +8,7 @@
  *
  */
 
+
 @freestanding(expression)
 macro uhciDebug(_ item: CustomStringConvertible, _ items: CustomStringConvertible...) -> () = #externalMacro(module: "PrintfMacros", type: "DebugMacro")
 
@@ -135,7 +136,7 @@ final class HCD_UHCI: DeviceDriver {
 
         let handler = InterruptHandler(name: "uhci-hcd", handler: uhciInterrupt)
         self.interuptHandler = handler
-        system.deviceManager.setIrqHandler(handler, forInterrupt: interrupt)
+        InterruptManager.setIrqHandler(handler, forInterrupt: interrupt)
         pciCommand = deviceFunction.command
         pciCommand.interruptDisable = false
         #uhciDebug("enabling pci interrupts PCICommand:", deviceFunction.command)

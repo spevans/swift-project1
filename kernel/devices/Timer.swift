@@ -1,11 +1,12 @@
-//
-// kernel/devices/Timer.swift
-//
-// Created by Simon Evans on 18/04/2021.
-// Copyright © 2021 Simon Evans. All rights reserved.
-//
-// Timer setup and related routines.
-//
+/*
+ * kernel/devices/Timer.swift
+ *
+ * Created by Simon Evans on 18/04/2021.
+ * Copyright © 2021 Simon Evans. All rights reserved.
+ *
+ * Timer setup and related routines.
+ *
+ */
 
 
 // Generic Timer device
@@ -26,18 +27,66 @@ class Timer: CustomStringConvertible {
 }
 
 
-// Setup a periodic timer using either a PIT or HPET. This is set to 1Khz and
-// used to increment a counter that can be used for sleep etc.
-func setupPeriodicTimer() -> Bool {
-    // Find a timer and set the timer interrupt for 1kHz
-    guard let timer = system.deviceManager.timer, timer.enablePeriodicInterrupt(hz: 1000)  else {
-        #kprint("Cant setup periodic timer")
-        return false
+private(set) var timerCore = TimerCore()
+
+struct TimerCore: ~Copyable {
+    private var timers: [Timer] = []
+
+    init() {}
+
+    private func initialise() {
+        // Setup periodic timers so that sleep() etc can be used while initialising
+        // other devices. Needed before ACPI DSDT/SSDT AML can be parsed as that can
+        // use sleep().
+        // Look for an HPET or PIT
+        if HPET.init() != nil {
+            #kprint("Found an HPET")
+        } else if PIT8254.init() != nil {
+            #kprint("Found a PIT")
+        }
+
+        guard TimerCore.setupPeriodicTimer() else {
+            koops("Cannot find a HPET or PIT to use for periodic clock")
+        }
     }
-    #kprint(timer)
-    system.deviceManager.setIrqHandler(timer.interruptHandler, forInterrupt: timer.interrupt)
-    #kprintf("timer: Setup for 1000Hz on irq: %d\n", timer.interrupt.irq)
-    return true
+
+    static func initialise() {
+        timerCore.initialise()
+    }
+
+    static func addTimer(_ timer: Timer) {
+        timerCore.timers.append(timer)
+    }
+
+    static func timer(matching: (Timer) -> Bool) -> Timer? {
+        for timer in timerCore.timers {
+            if matching(timer) {
+                return timer
+            }
+        }
+        return nil
+    }
+
+    static func walkTimers( _ body: (Timer) -> Bool) {
+        for timer in timerCore.timers {
+            guard body(timer) else { return }
+        }
+    }
+
+
+    // Setup a periodic timer using either a PIT or HPET. This is set to 1Khz and
+    // used to increment a counter that can be used for sleep etc.
+    static func setupPeriodicTimer() -> Bool {
+        // Find a timer and set the timer interrupt for 1kHz
+        guard let timer = timerCore.timers.first, timer.enablePeriodicInterrupt(hz: 1000)  else {
+            #kprint("Failed to setup periodic timer")
+            return false
+        }
+        #kprint(timer)
+        InterruptManager.setIrqHandler(timer.interruptHandler, forInterrupt: timer.interrupt)
+        #kprintf("timer: Setup for 1000Hz on irq: %d\n", timer.interrupt.irq)
+        return true
+    }
 }
 
 

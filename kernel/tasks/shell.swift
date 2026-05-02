@@ -82,11 +82,10 @@ private func dumpMemCommand(arguments: [String]) {
 }
 
 private func timerCommand(arguments: [String]) {
-    guard let timer = system.deviceManager.timer else {
-        #kprint("No timer found")
-        return
+    TimerCore.walkTimers() { timer in
+        #kprint(timer)
+        return true
     }
-    #kprint(timer)
 }
 
 private func showDevCommand(arguments: [String]) {

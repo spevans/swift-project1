@@ -19,8 +19,7 @@ private var memoryRanges: [MemoryRange]! = nil
 public func startup(bootParamsAddr: UInt) {
     system = System(bootParamsAddr: bootParamsAddr)
     system.initSystem()
-    system.runSystem()
-    koops("kernel: Shouldnt get here")
+    koops("kernel: Should not get here")
 }
 
 
@@ -50,20 +49,28 @@ final class System {
         // symbolLookupInit uses a sort() so may require more free memory, do it after all the free
         // RAM has been added to the free list.
         symbolLookupInit(bootParams: bootParams)
+
+        // Find the ACPI fixed binary tables and parse the ones required
+        // for early initialisation
+        guard let physAddress = systemTables.acpiPhysAddress,
+              ACPI.findTables(rsdp: physAddress,
+                              vendor: systemTables.vendor,
+                              product: systemTables.product,
+                              memoryRanges: bootParams.memoryRanges) else {
+            fatalError("Failed to find ACPI tables")
+        }
+
         guard let madt = ACPI.madt else {
             fatalError("Failed to find ACPI MADT")
         }
-        deviceManager = DeviceManager(madt: madt)
+        InterruptManager.setup(with: madt)
+        deviceManager = DeviceManager()
     }
+
 
     fileprivate func initSystem() {
-        ACPI.startup()
-        deviceManager.initialiseEarlyDevices()
-    }
-
-
-    fileprivate func runSystem() {
-        addTask(name: "IRQ Queue runner", task: mainLoop)
+        TimerCore.initialise()
+        addTask(name: "MainLoop", task: mainLoop)
         run_first_task() // This jumps straight into mainLoop
     }
 
@@ -97,7 +104,10 @@ func benchmark(_ function: () -> ()) -> UInt64 {
 
 fileprivate func mainLoop() {
     #kprint("TASK: mainLoop task started")
-    system.deviceManager.enableIRQs()
+    InterruptManager.enableIRQs()
+    ACPI.parseAMLTables()
+    ACPI.startup()
+    InterruptManager.enableGpicMode()
 
     // Should be in an __init section which can iterate though all early init functions
     init8042()

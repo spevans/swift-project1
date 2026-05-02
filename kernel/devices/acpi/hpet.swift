@@ -98,7 +98,7 @@ struct HPETTable: CustomStringConvertible {
 #if !TEST
 
 final class HPETTimer: Timer {
-    private let hpet: HPET
+    fileprivate let hpet: HPET
     override var description: String { #sprintf("HPET: IRQ: %d", interrupt.irq) }
 
     init(hpet: HPET, irq: IRQSetting) {
@@ -119,20 +119,35 @@ final class HPETTimer: Timer {
 private var hpetNumber = 1
 
 final class HPET: DeviceDriver {
-    private let hpet: HPETTable
+    fileprivate let hpet: HPETTable
     private let mmioRegion: MMIORegion
     private(set) var irq = IRQSetting(isaIrq: 2)
 
     override var description: String { return hpet.description }
 
+
+    private static func alreadyInitialised(hpet: HPETTable) -> HPET? {
+        let timer = TimerCore.timer(matching: { timer in
+            guard let timer = timer as? HPETTimer else { return false }
+            return timer.hpet.mmioRegion.baseAddress == hpet.gas.physicalAddress
+        })
+        return (timer as? HPETTimer)?.hpet
+    }
+
     // FIXME: This should look at the avaialble IRQs from ACPI as it may specify the
     // IRQs 0 & 8 instead of the CMOS clock using them
     init?(pnpDevice: PNPDevice) {
-        guard let hpetPtr = ACPI.getTable("HPET")?.first  else {
+        // Check that an HPET hasnt already been probed
+        guard let hpetPtr = ACPI.getTable("HPET")?.first else {
             #kprint("HPET: No HPET ACPI table found")
             return nil
         }
         let _hpet = HPETTable(hpetPtr)
+        if let driver = Self.alreadyInitialised(hpet: _hpet) {
+            #kprintf("hpet: Driver already attached, updating device to %s\n", pnpDevice.pnpName)
+            pnpDevice.setDriver(driver)
+            return nil
+        }
         let region = PhysRegion(start: _hpet.gas.physicalAddress, size: 0x400)
         self.hpet = _hpet
         self.mmioRegion = mapIORegion(region: region)
@@ -143,7 +158,27 @@ final class HPET: DeviceDriver {
         }
         hpetNumber += 1
         let timer = HPETTimer(hpet: self, irq: irq)
-        system.deviceManager.timer = timer
+        TimerCore.addTimer(timer)
+    }
+
+    // Probe init, called before PNP devices have been found
+    init?() {
+        guard let hpetPtr = ACPI.getTable("HPET")?.first else {
+            #kprint("HPET: No HPET ACPI table found")
+            return nil
+        }
+        self.hpet = HPETTable(hpetPtr)
+        let region = PhysRegion(start: self.hpet.gas.physicalAddress, size: 0x400)
+        self.mmioRegion = mapIORegion(region: region)
+        let device = Device()
+        super.init(driverName: "hpet", device: device)
+        self.setInstanceName(to: #sprintf("hpet%d", hpetNumber))
+        if self.legacyReplacementRoute {
+            self.irq = IRQSetting(isaIrq: 0)
+        }
+        hpetNumber += 1
+        let timer = HPETTimer(hpet: self, irq: irq)
+        TimerCore.addTimer(timer)
     }
 
 

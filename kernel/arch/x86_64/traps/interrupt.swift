@@ -45,6 +45,9 @@ final class InterruptHandler: Equatable, Hashable, CustomStringConvertible {
 
 fileprivate var irqHandlers: InlineArray<256, (IRQSetting, Set<InterruptHandler>)?> = .init(repeating: nil)
 
+
+private var interruptManager = InterruptManager()
+
 public struct InterruptManager: ~Copyable {
 
     private(set) var localAPIC = APIC()
@@ -55,12 +58,10 @@ public struct InterruptManager: ~Copyable {
     init() {
     }
 
-    mutating func setup(with madt: MADT) {
-
-        guard localAPIC.setup(with: madt.madtEntries) else {
+    static func setup(with madt: MADT) {
+        guard interruptManager.localAPIC.setup(with: madt.madtEntries) else {
             fatalError("Failed to setup APIC")
         }
-
         // Find the IO-APICS and interrupt overrides
         var _ioapics: [IOAPIC] = []
         var _overrideEntries: [MADT.InterruptSourceOverrideTable] = []
@@ -78,19 +79,22 @@ public struct InterruptManager: ~Copyable {
                 default: break
             }
         }
-        ioapics = _ioapics
-        overrideEntries = _overrideEntries
+        interruptManager.ioapics = _ioapics
+        interruptManager.overrideEntries = _overrideEntries
 
         guard _ioapics.count > 0 else {
-            fatalError("Cant find any IO-APICs in the ACPI: MADT tables")
+            fatalError("Failed to find any IO-APICs in the ACPI: MADT tables")
         }
 
-        #kprint("INT-MAN: Have \(ioapics.count) IO-APICs")
-        localAPIC.disableAllIRQs()
+        #kprint("INT-MAN: Have \(_ioapics.count) IO-APICs")
+        interruptManager.localAPIC.disableAllIRQs()
+        withUnsafePointer(to: &interruptManager) {
+            set_interrupt_manager($0)
+        }
     }
 
 
-    func enableGpicMode() {
+    static func enableGpicMode() {
         // Set _PIC mode to APIC (1)
         do {
             try ACPI.invoke(method: "\\_PIC", AMLTermArg(1))
@@ -103,7 +107,7 @@ public struct InterruptManager: ~Copyable {
         }
     }
 
-    func enableIRQs() {
+    static func enableIRQs() {
         #kprint("INT-MAN: Enabling IRQs")
         sti()
     }
@@ -150,27 +154,31 @@ public struct InterruptManager: ~Copyable {
     }
 
 
-    func enableIRQ(_ irqSetting: IRQSetting) {
-        let actualIrq = remapIrqIfNeeded(irqSetting)
-        if let ioapic = ioapicForIrq(actualIrq) {
+    static func enableIRQ(_ irqSetting: IRQSetting) {
+        let actualIrq = interruptManager.remapIrqIfNeeded(irqSetting)
+        if let ioapic = interruptManager.ioapicForIrq(actualIrq) {
             // Global System Interrupts are mapped into the IDT starting at entry 32
             let vector = UInt8(irqSetting.irq) + 0x20
             ioapic.enableIRQ(actualIrq, vector: vector)
         }
     }
 
-    func disableIRQ(_ irqSetting: IRQSetting) {
-        let actualIrq = remapIrqIfNeeded(irqSetting)
-        if let ioapic = ioapicForIrq(actualIrq) {
+    static func disableIRQ(_ irqSetting: IRQSetting) {
+        interruptManager.disableIRQ(irqSetting)
+    }
+
+    private func disableIRQ(_ irqSetting: IRQSetting) {
+        let actualIrq = interruptManager.remapIrqIfNeeded(irqSetting)
+        if let ioapic = interruptManager.ioapicForIrq(actualIrq) {
             ioapic.disableIRQ(actualIrq)
         }
     }
 
-    func ackIRQ(_ irq: Int) {
-        localAPIC.ackIRQ(irq)
+    static func ackIRQ(_ irq: Int) {
+        interruptManager.localAPIC.ackIRQ(irq)
     }
 
-    mutating func setIrqHandler(_ handler: InterruptHandler, forInterrupt interrupt: IRQSetting) {
+    static func setIrqHandler(_ handler: InterruptHandler, forInterrupt interrupt: IRQSetting) {
         let irq = interrupt.irq
         #kprintf("INT-MAN: Setting IRQ handler for IRQ%d\n", irq)
 
@@ -210,7 +218,7 @@ public struct InterruptManager: ~Copyable {
     }
 
 
-    mutating func removeIrqHandler(_ handler: InterruptHandler, forInterrupt interrupt: IRQSetting) {
+    static func removeIrqHandler(_ handler: InterruptHandler, forInterrupt interrupt: IRQSetting) {
 
         var disableIrq = false
         guard let irqHandler = irqHandlers[interrupt.irq] else {
@@ -236,7 +244,7 @@ public struct InterruptManager: ~Copyable {
                 disableIrq = true
         }
         if disableIrq {
-            disableIRQ(interrupt)
+            interruptManager.disableIRQ(interrupt)
         }
     }
 }
@@ -274,5 +282,5 @@ public func irqHandler(registers: ExceptionRegisters,
         #kprintf("INT-MAN: Unexpected interrupt: %d\n", irq)
     }
     // EOI
-    interruptManager.ackIRQ(irq)
+    InterruptManager.ackIRQ(irq)
 }

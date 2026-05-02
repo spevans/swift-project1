@@ -1,10 +1,11 @@
-//
-//  kernel/devices/acpi/bus.swift
-//  project1
-//
-//  Created by Simon Evans on 25/09/2020.
-//  Copyright © 2020 Simon Evans. All rights reserved.
-//
+/*
+ * kernel/devices/acpi/bus.swift
+ *
+ * Created by Simon Evans on 25/09/2020.
+ * Copyright © 2020 Simon Evans. All rights reserved.
+ *
+ */
+
 
 #if ACPI
 // PNP0C02 device
@@ -31,19 +32,9 @@ final class MasterBus: CustomStringConvertible {
     let device: Device
 
     var resources: [MotherBoardResource] = []
-#if ACPI
-    let acpiSystemBus: ACPI.ACPIObjectNode      // \_SB node
-
-    init(acpiSystemBus: ACPI.ACPIObjectNode) {
-        self.device = Device()
-        self.device.setAsBus()
-        self.acpiSystemBus = acpiSystemBus
-    }
-#else
 
     init() {
         self.device = Device()
         self.device.setAsBus()
     }
-#endif
 }

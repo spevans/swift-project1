@@ -404,11 +404,11 @@ final class KBD8042: DeviceDriver {
         // FIXME: determine correct irq
         let handler = InterruptHandler(name: "i8042port1", handler: port1Interrupt)
         self.port1InterruptHandler = handler
-        system.deviceManager.setIrqHandler(handler, forInterrupt: self.port1irq)
+        InterruptManager.setIrqHandler(handler, forInterrupt: self.port1irq)
         if dualChannel {
             let handler = InterruptHandler(name: "i8042port2", handler: port2Interrupt)
             self.port2InterruptHandler = handler
-            system.deviceManager.setIrqHandler(handler, forInterrupt: self.port2irq)
+            InterruptManager.setIrqHandler(handler, forInterrupt: self.port2irq)
 
         }
 
