@@ -15,6 +15,11 @@ Hopefully the changes will be upstreamed into the main Swift project at some poi
 
 ## Current status
 
+04/05/2026
+- USB fixes for UHCI and XHCI and improved USB3 enumeration.
+- Add PS/2 Mouse driver for QEMU.
+- Add 'reboot' and 'shutdown' commands using ACPI.
+
 31/12/2025
 
 - USB XHCI fixes to improve device enumeration.
