@@ -1,9 +1,10 @@
-//
-//  kernel/device/tty/FrameBufferTTY.swift
-//  project1
-//
-//  Created by Simon Evans on 03/08/2025.
-//
+/*
+ * kernel/devices/tty/FrameBufferTTY.swift
+ *
+ * Created by Simon Evans on 03/08/2025.
+ * Copyright © 2025 Simon Evans. All rights reserved.
+ *
+ */
 
 
 struct FrameBufferTTY: ~Copyable {
@@ -40,7 +41,7 @@ struct FrameBufferTTY: ~Copyable {
     private var _cursorY: TextCoord = 0
     private(set) var charsPerLine: TextCoord = 0
     private(set) var totalLines:   TextCoord = 0
-    private var textMemory: UnsafeMutableRawBufferPointer?
+    private var textMemory: [UInt8] = []
 
 
     var cursorX: TextCoord {
@@ -72,7 +73,6 @@ struct FrameBufferTTY: ~Copyable {
     }
 
     deinit {
-      textMemory?.deallocate()
     }
 
     @inline(never)
@@ -96,7 +96,7 @@ struct FrameBufferTTY: ~Copyable {
         let mmioRegion = mapIORegion(region: physRegion, cacheType: .writeCombining)
         let screenBase = UnsafeMutablePointer<UInt8>(bitPattern: mmioRegion.baseAddress.vaddr)!
         screen = UnsafeMutableBufferPointer<UInt8>(start: screenBase, count: Int(size))
-
+        clearScreen()
     }
 
     mutating func setFont(_ font: Font) {
@@ -110,9 +110,7 @@ struct FrameBufferTTY: ~Copyable {
 
         // Text memory is based on the total text characters so may need to be resized up
         // Free the old memory and reallocate the buffer for now
-        self.textMemory?.deallocate()
-        self.textMemory = UnsafeMutableRawBufferPointer.allocate(byteCount: Int(charsPerLine * totalLines), alignment: 8)
-        self.textMemory?.initializeMemory(as: UInt8.self, repeating: blankChar)
+        textMemory = .init(repeating: blankChar, count: Int(charsPerLine * totalLines))
     }
 
     mutating func updateMapping(_ frameBufferInfo: FrameBufferInfo) {
@@ -129,15 +127,7 @@ struct FrameBufferTTY: ~Copyable {
 
 
     @inline(never)
-    mutating func printChar(_ ch: UInt8, x: TextCoord, y: TextCoord) {
-        guard x < charsPerLine && y < totalLines else {
-            return
-        }
-
-        // Update textMemory buffer
-        let textAddress = Int(y * charsPerLine + x)
-        textMemory?[textAddress] = ch
-
+    private func _printChar(_ ch: UInt8, x: TextCoord, y: TextCoord) {
         let ch = Int(ch)
         var pixelOffset: Int = (Int(y) &* bytesPerTextLine) &+ (Int(x) &* fontBytesPerLineDepth)
 
@@ -169,6 +159,16 @@ struct FrameBufferTTY: ~Copyable {
         }
     }
 
+    mutating func printChar(_ ch: UInt8, x: TextCoord, y: TextCoord) {
+        guard x < charsPerLine && y < totalLines else {
+            return
+        }
+
+        // Update textMemory buffer
+        let textAddress = Int(y &* charsPerLine &+ x)
+        textMemory[textAddress] = ch
+        _printChar(ch, x: x, y: y)
+    }
 
     // Write a line for a bitmap font to a line on the screen, 1 function for each supported depth
     private func writeFontLine4(_ fontLineByte: UInt8, _ screenLine: UnsafeMutableRawPointer) {
@@ -236,23 +236,32 @@ struct FrameBufferTTY: ~Copyable {
                 offset &+= increment
             }
         }
-        cursorX = 0
-        cursorY = 0
-        guard let textMemory else { return }
-        textMemory.initializeMemory(as: UInt8.self, repeating: blankChar)
+        self.cursorX = 0
+        self.cursorY = 0
+        let blankChar = self.blankChar
+        var span = self.textMemory.mutableSpan
+        span.update(repeating: blankChar)
     }
 
-
-    mutating func clearScreen2() {
-        guard let textMemory else { return }
-        textMemory.initializeMemory(as: UInt8.self, repeating: blankChar)
+    private func redrawScreen() {
+        let charsPerLine = self.charsPerLine
+        let totalLines = self.totalLines
+        let span = self.textMemory.span
         var textOffset = 0
+
         for y in 0..<totalLines {
             for x in 0..<charsPerLine {
-                printChar(textMemory[textOffset], x: x, y: y)
+                _printChar(span[textOffset], x: x, y: y)
                 textOffset &+= 1
             }
         }
+    }
+
+    mutating func clearScreen2() {
+        let blankChar = self.blankChar
+        var span = self.textMemory.mutableSpan
+        span.update(repeating: blankChar)
+        redrawScreen()
     }
 
     mutating func scrollUp() {
@@ -260,22 +269,25 @@ struct FrameBufferTTY: ~Copyable {
     }
 
     private mutating func scrollUpTxt() {
-        guard let textMemory else { return }
         var textOffset = 0
-        for y in 0..<totalLines {
-            for x in 0..<charsPerLine {
-                let ch = textMemory[textOffset &+ Int(charsPerLine)]
-                textMemory[textOffset] = ch
-                printChar(ch, x: x, y: y)
+        let charsPerLine = self.charsPerLine
+        let totalLines = self.totalLines
+        let blankChar = self.blankChar
+        var span = self.textMemory.mutableSpan
+
+        for _ in 0..<(totalLines - 1) {
+            for _ in 0..<charsPerLine {
+                let ch = span[textOffset &+ Int(charsPerLine)]
+                span[textOffset] = ch
                 textOffset &+= 1
             }
         }
         // Clear the bottom row
-        for x in 0..<charsPerLine {
-            textMemory[textOffset] = blankChar
-            printChar(blankChar, x: x, y: totalLines &- 1)
+        for _ in 0..<charsPerLine {
+            span[textOffset] = blankChar
             textOffset &+= 1
         }
+        redrawScreen()
     }
 
 
