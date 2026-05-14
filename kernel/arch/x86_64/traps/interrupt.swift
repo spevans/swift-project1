@@ -45,23 +45,21 @@ final class InterruptHandler: Equatable, Hashable, CustomStringConvertible {
 
 fileprivate var irqHandlers: InlineArray<256, (IRQSetting, Set<InterruptHandler>)?> = .init(repeating: nil)
 
-
 private var interruptManager = InterruptManager()
 
 public struct InterruptManager: ~Copyable {
 
-    private(set) var localAPIC = APIC()
     private var ioapics: [IOAPIC] = []
     private var overrideEntries: [MADT.InterruptSourceOverrideTable] = []
 
 
     init() {
+        guard APIC.initialise() else {
+            fatalError("Failed to setup APIC")
+        }
     }
 
     static func setup(with madt: MADT) {
-        guard interruptManager.localAPIC.setup(with: madt.madtEntries) else {
-            fatalError("Failed to setup APIC")
-        }
         // Find the IO-APICS and interrupt overrides
         var _ioapics: [IOAPIC] = []
         var _overrideEntries: [MADT.InterruptSourceOverrideTable] = []
@@ -86,8 +84,8 @@ public struct InterruptManager: ~Copyable {
             fatalError("Failed to find any IO-APICs in the ACPI: MADT tables")
         }
 
-        #kprint("INT-MAN: Have \(_ioapics.count) IO-APICs")
-        interruptManager.localAPIC.disableAllIRQs()
+        #kprintf("INT-MAN: Have %d IO-APICs\n", interruptManager.ioapics.count)
+        APIC.disableAllIRQs()
         withUnsafePointer(to: &interruptManager) {
             set_interrupt_manager($0)
         }
@@ -137,9 +135,11 @@ public struct InterruptManager: ~Copyable {
             newIrqSetting = irqSetting
         }
 
+        #if false
         guard newIrqSetting.irq < NR_IRQS else {
             fatalError("INT-MAN: setIrqHandler: Invalid IRQ \(newIrqSetting.irq) > \(NR_IRQS)")
         }
+        #endif
         return newIrqSetting
     }
 
@@ -149,7 +149,6 @@ public struct InterruptManager: ~Copyable {
         if let ioapic = ioapics.first(where: { $0.canHandleIrq(irqSetting) }) {
             return ioapic
         }
-        #kprint("INT-MAN: cant find an IOAPIC!")
         return nil
     }
 
@@ -164,10 +163,6 @@ public struct InterruptManager: ~Copyable {
     }
 
     static func disableIRQ(_ irqSetting: IRQSetting) {
-        interruptManager.disableIRQ(irqSetting)
-    }
-
-    private func disableIRQ(_ irqSetting: IRQSetting) {
         let actualIrq = interruptManager.remapIrqIfNeeded(irqSetting)
         if let ioapic = interruptManager.ioapicForIrq(actualIrq) {
             ioapic.disableIRQ(actualIrq)
@@ -175,7 +170,7 @@ public struct InterruptManager: ~Copyable {
     }
 
     static func ackIRQ(_ irq: Int) {
-        interruptManager.localAPIC.ackIRQ(irq)
+        APIC.ackIRQ(irq)
     }
 
     static func setIrqHandler(_ handler: InterruptHandler, forInterrupt interrupt: IRQSetting) {
@@ -244,7 +239,7 @@ public struct InterruptManager: ~Copyable {
                 disableIrq = true
         }
         if disableIrq {
-            interruptManager.disableIRQ(interrupt)
+            InterruptManager.disableIRQ(interrupt)
         }
     }
 }
@@ -259,11 +254,13 @@ public struct InterruptManager: ~Copyable {
 public func irqHandler(registers: ExceptionRegisters,
                        interruptManager: borrowing InterruptManager) {
 
-    let irq = Int(truncatingIfNeeded: registers.pointee.error_code)
+    let irq = Int(UInt16(truncatingIfNeeded: registers.pointee.error_code))
+    #if false
     guard irq >= 0 && irq < NR_IRQS else {
         #kprintf("\nInvalid interrupt: %d\n", irq)
         return
     }
+    #endif
     let c = read_int_nest_count()
     if c > 1 {
         #kprintf("\nint_nest_count: %d\n", c)

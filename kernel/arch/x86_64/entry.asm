@@ -14,7 +14,6 @@
         GLOBAL  set_interrupt_manager
         EXTERN  trap_dispatch_table
         EXTERN  irqHandler
-        EXTERN  apicIntHandler
         EXTERN  getFirstTask
         EXTERN  getNextTask
         DEFAULT ABS
@@ -113,13 +112,12 @@ _run_handler:
 %assign msi_irq msi_irq + 1
 %endrep
 
-        APIC_INT_STUB   0
-        APIC_INT_STUB   1
-        APIC_INT_STUB   2
-        APIC_INT_STUB   3
-        APIC_INT_STUB   4
-        APIC_INT_STUB   5
-        APIC_INT_STUB   6
+        ;; 7 APIC interrupts @ 240
+%assign apic_irq 240
+%rep    7
+        IRQ_STUB    apic_irq
+%assign apic_irq apic_irq + 1
+%endrep
 
 
         ALIGN   8
@@ -135,25 +133,6 @@ _irq_handler:
         mov     rdi, r12
         call    getNextTask
         mov     rsp, [rax + 8]
-        RESTORE_REGS
-        add     rsp, 8          ; pop irq ('error code')
-
-        iretq
-
-
-        ALIGN   8
-_apic_int_handler:
-        SAVE_REGS
-        cld                     ; ABI requires DF clear and stack 16byte aligned
-        ALIGN_STACK
-        ;; mov     r12, rsp
-        ;; mov     rsi, qword [interrupt_manager]
-        lock    inc dword [int_nest_count]
-        call    apicIntHandler
-        lock    dec dword [int_nest_count]
-
-;;;         mov     rsp, r12
-        UNALIGN_STACK
         RESTORE_REGS
         add     rsp, 8          ; pop irq ('error code')
 

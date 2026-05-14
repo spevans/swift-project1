@@ -78,8 +78,12 @@ struct TimerCore: ~Copyable {
     // used to increment a counter that can be used for sleep etc.
     static func setupPeriodicTimer() -> Bool {
         // Find a timer and set the timer interrupt for 1kHz
-        guard let timer = timerCore.timers.first, timer.enablePeriodicInterrupt(hz: 1000)  else {
-            #kprint("Failed to setup periodic timer")
+        if APIC.setupTimer() {
+            #kprint("time: Using APIC for periodic timer")
+            return true
+        }
+        guard let timer = timerCore.timers.first, timer.enablePeriodicInterrupt(hz: Int(TICKS_PER_SECOND))  else {
+            #kprint("time: Failed to setup periodic timer")
             return false
         }
         #kprint(timer)
@@ -89,17 +93,28 @@ struct TimerCore: ~Copyable {
     }
 }
 
+let TICKS_PER_SECOND: UInt64 = 100
+private var _currentTicks: UInt64 = 0
+func currentTicks() -> UInt64 {
+    return _currentTicks
+}
 
-private func timerInterrupt() -> Bool {
-    timer_callback()
+func timerInterrupt() -> Bool {
+    atomic_uinc(&_currentTicks)
+    rearmAPICTimer()
     return true
 }
 
 
 func sleep(milliseconds: Int) {
-    let current = current_ticks()
-    let required = current + UInt64(milliseconds)
-    while required > current_ticks() {
-        hlt()
+    let now = _currentTicks
+    let ticks = UInt64(milliseconds) * TICKS_PER_SECOND / 1000
+    if ticks < 2 {
+        ACPI.wait(milliSeconds: UInt32(milliseconds))
+    } else {
+        let required = now + ticks
+        while _currentTicks < required {
+            hlt()
+        }
     }
 }

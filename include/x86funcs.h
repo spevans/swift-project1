@@ -80,6 +80,15 @@ hlt()
         asm volatile ("hlt" : : : "memory");
 }
 
+
+static inline __attribute__((__always_inline__))
+void
+pause()
+{
+        asm volatile ("pause" : : : "memory");
+}
+
+
 static inline void stop() __attribute__ ((noreturn));
 
 static inline __attribute__((__always_inline__))

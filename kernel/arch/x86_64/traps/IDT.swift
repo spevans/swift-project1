@@ -1,5 +1,5 @@
 /*
- * kernel/traps/IDT.swift
+ * kernel/arch/x86_64/traps/IDT.swift
  *
  * Created by Simon Evans on 01/01/2016.
  * Copyright © 2016 Simon Evans. All rights reserved.
@@ -196,13 +196,13 @@ func setupIDT() {
     idt.127 = IDTEntry(function: irq87_stub, gateType: .INTR_GATE)
 
     // Local APIC interrupts
-    idt.240 = IDTEntry(function: apic_int0_stub, gateType: .INTR_GATE)
-    idt.241 = IDTEntry(function: apic_int1_stub, gateType: .INTR_GATE)
-    idt.242 = IDTEntry(function: apic_int2_stub, gateType: .INTR_GATE)
-    idt.243 = IDTEntry(function: apic_int3_stub, gateType: .INTR_GATE)
-    idt.244 = IDTEntry(function: apic_int4_stub, gateType: .INTR_GATE)
-    idt.245 = IDTEntry(function: apic_int5_stub, gateType: .INTR_GATE)
-    idt.246 = IDTEntry(function: apic_int6_stub, gateType: .INTR_GATE)
+    idt.240 = IDTEntry(function: irq240_stub, gateType: .INTR_GATE)
+    idt.241 = IDTEntry(function: irq241_stub, gateType: .INTR_GATE)
+    idt.242 = IDTEntry(function: irq242_stub, gateType: .INTR_GATE)
+    idt.243 = IDTEntry(function: irq243_stub, gateType: .INTR_GATE)
+    idt.244 = IDTEntry(function: irq244_stub, gateType: .INTR_GATE)
+    idt.245 = IDTEntry(function: irq245_stub, gateType: .INTR_GATE)
+    idt.246 = IDTEntry(function: irq246_stub, gateType: .INTR_GATE)
 
     lidt(&idtInfo)
 

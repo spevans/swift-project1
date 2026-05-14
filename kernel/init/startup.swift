@@ -11,6 +11,7 @@
 
 fileprivate(set) var system: System!
 
+
 // This is global as it is needed when creating elements in System
 // TODO: Should System exist or should the members just be globals?
 private var memoryRanges: [MemoryRange]! = nil
@@ -33,7 +34,7 @@ final class System {
         // Setup GDT/IDT as early as possible to help catch CPU exceptions
         setupGDT()
         setupIDT()
-        CPU.getInfo()
+        CPU.readCapabilities()
         // BootParams must come first to find memory regions for MM
         let bootParams = parse(bootParamsAddr: VirtualAddress(bootParamsAddr))
         frameBufferInfo = bootParams.frameBufferInfo
@@ -60,16 +61,17 @@ final class System {
             fatalError("Failed to find ACPI tables")
         }
 
+        CPU.readFrequencies()
         guard let madt = ACPI.madt else {
             fatalError("Failed to find ACPI MADT")
         }
         InterruptManager.setup(with: madt)
-        deviceManager = DeviceManager()
+        self.deviceManager = DeviceManager()
+        TimerCore.initialise()
     }
 
 
     fileprivate func initSystem() {
-        TimerCore.initialise()
         addTask(name: "MainLoop", task: mainLoop)
         run_first_task() // This jumps straight into mainLoop
     }
@@ -114,8 +116,8 @@ fileprivate func mainLoop() {
 
     system.deviceManager.initialiseDevices()
 
-    let now = current_ticks()
-    #kprintf("Total boot time: %d.%2ds\n", now / 1000, now % 1000)
+    let now = currentTicks()
+    #kprintf("Total boot time: %d.%2ds\n", now / TICKS_PER_SECOND, now % TICKS_PER_SECOND)
     addTask(name: "KeyboardInput", task: keyboardInput)
 
     // Idle, woken up by interrupts

@@ -4,7 +4,7 @@ TOPDIR := ../../..
 include $(TOPDIR)/Makedefs
 
 
-OBJS := main.o bss.o entry.o vmentry.o timer.o
+OBJS := main.o bss.o entry.o vmentry.o
 
 all: arch.o
 

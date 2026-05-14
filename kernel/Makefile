@@ -30,6 +30,7 @@ init/version.swift: ../.git/index
 	echo 'let gitBuildVersion: StaticString = "$(GITVER)"' > init/version.swift
 
 kernel.o: $(KERNEL_OBJS)
+	make -C arch/x86_64
 	$(LD) -r -z noexecstack -o $@ $(KERNEL_OBJS) $(SWIFTLIBDIR)/libswiftUnicodeDataTables.a
 
 SwiftKernel.o: $(SWIFT_SRCS) $(HEADERS)

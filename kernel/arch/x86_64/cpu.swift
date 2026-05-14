@@ -1,5 +1,5 @@
 /*
- * kernel/devices/cpu.swift
+ * kernel/arch/x86_64/cpu.swift
  *
  * Created by Simon Evans on 21/01/2016.
  * Copyright © 2016 Simon Evans. All rights reserved.
@@ -9,181 +9,129 @@
  */
 
 
-struct CPUID: CustomStringConvertible {
-    let maxBasicInput: UInt32
-    let maxExtendedInput: UInt32
-    let vendorName: String
-    let processorBrandString: String
+// Singleton that will be initialised by cpu.readCapabilities
+private(set) var cpu = CPU()
 
-    let cpuid01: cpuid_result
-    let cpuid80000001: cpuid_result
-    let cpuid80000008: cpuid_result
 
-    var APICId:      UInt8 { return UInt8(cpuid01.regs.ebx >> 24) }
-    var sse3:        Bool { return cpuid01.regs.ecx.bit(0) }
-    var pclmulqdq:   Bool { return cpuid01.regs.ecx.bit(1) }
-    var dtes64:      Bool { return cpuid01.regs.ecx.bit(2) }
-    var monitor:     Bool { return cpuid01.regs.ecx.bit(3) }
-    var dscpl:       Bool { return cpuid01.regs.ecx.bit(4) }
-    var vmx:         Bool { return cpuid01.regs.ecx.bit(5) }
-    var smx:         Bool { return cpuid01.regs.ecx.bit(6) }
-    var eist:        Bool { return cpuid01.regs.ecx.bit(7) }
-    var tm2:         Bool { return cpuid01.regs.ecx.bit(8) }
-    var ssse3:       Bool { return cpuid01.regs.ecx.bit(9) }
-    var cnxtid:      Bool { return cpuid01.regs.ecx.bit(10) }
-    var sdbg:        Bool { return cpuid01.regs.ecx.bit(11) }
-    var fma:         Bool { return cpuid01.regs.ecx.bit(12) }
-    var cmpxchg16b:  Bool { return cpuid01.regs.ecx.bit(13) }
-    var xptr:        Bool { return cpuid01.regs.ecx.bit(14) }
-    var pdcm:        Bool { return cpuid01.regs.ecx.bit(15) }
-    var pcid:        Bool { return cpuid01.regs.ecx.bit(17) }
-    var dca:         Bool { return cpuid01.regs.ecx.bit(18) }
-    var sse4_1:      Bool { return cpuid01.regs.ecx.bit(19) }
-    var sse4_2:      Bool { return cpuid01.regs.ecx.bit(20) }
-    var x2apic:      Bool { return cpuid01.regs.ecx.bit(21) }
-    var movbe:       Bool { return cpuid01.regs.ecx.bit(22) }
-    var popcnt:      Bool { return cpuid01.regs.ecx.bit(23) }
-    var tscDeadline: Bool { return cpuid01.regs.ecx.bit(24) }
-    var aesni:       Bool { return cpuid01.regs.ecx.bit(25) }
-    var xsave:       Bool { return cpuid01.regs.ecx.bit(26) }
-    var osxsave:     Bool { return cpuid01.regs.ecx.bit(27) }
-    var avx:         Bool { return cpuid01.regs.ecx.bit(28) }
-    var f16c:        Bool { return cpuid01.regs.ecx.bit(29) }
-    var rdrand:      Bool { return cpuid01.regs.ecx.bit(30) }
+struct CPU: ~Copyable {
+    private var cpuId = CPUID()
+    private(set) var microarchitecture = IntelMicroarchitecture.unknown
+    private(set) var displayFamily: UInt8 = 0
+    private(set) var displayModel: UInt8 = 0
 
-    var fpu:         Bool { return cpuid01.regs.edx.bit(0) }
-    var vme:         Bool { return cpuid01.regs.edx.bit(1) }
-    var de:          Bool { return cpuid01.regs.edx.bit(2) }
-    var pse:         Bool { return cpuid01.regs.edx.bit(3) }
-    var tsc:         Bool { return cpuid01.regs.edx.bit(4) }
-    var msr:         Bool { return cpuid01.regs.edx.bit(5) }
-    var pae:         Bool { return cpuid01.regs.edx.bit(6) }
-    var mce:         Bool { return cpuid01.regs.edx.bit(7) }
-    var cx8:         Bool { return cpuid01.regs.edx.bit(8) }
-    var apic:        Bool { return cpuid01.regs.edx.bit(9) }
-    var sysenter:    Bool { return cpuid01.regs.edx.bit(11) }
-    var mtrr:        Bool { return cpuid01.regs.edx.bit(12) }
-    var pge:         Bool { return cpuid01.regs.edx.bit(13) }
-    var mca:         Bool { return cpuid01.regs.edx.bit(14) }
-    var cmov:        Bool { return cpuid01.regs.edx.bit(15) }
-    var pat:         Bool { return cpuid01.regs.edx.bit(16) }
-    var pse36:       Bool { return cpuid01.regs.edx.bit(17) }
-    var psn:         Bool { return cpuid01.regs.edx.bit(18) }
-    var clfsh:       Bool { return cpuid01.regs.edx.bit(19) }
-    var ds:          Bool { return cpuid01.regs.edx.bit(21) }
-    var acpi:        Bool { return cpuid01.regs.edx.bit(22) }
-    var mmx:         Bool { return cpuid01.regs.edx.bit(23) }
-    var fxsr:        Bool { return cpuid01.regs.edx.bit(24) }
-    var sse:         Bool { return cpuid01.regs.edx.bit(25) }
-    var sse2:        Bool { return cpuid01.regs.edx.bit(26) }
-    var ss:          Bool { return cpuid01.regs.edx.bit(27) }
-    var htt:         Bool { return cpuid01.regs.edx.bit(28) }
-    var tm:          Bool { return cpuid01.regs.edx.bit(29) }
-    var pbe:         Bool { return cpuid01.regs.edx.bit(31) }
+    // Some of these frequencies can be determined via CPUID, otherwise
+    // they are calibrated against an external timer (initially PIT)
+    // FIXME: Add recalibration to increase the accuracy for the frequencies that are calibrated
+    private(set) var baseFrequency: UInt64 = 0
+    private(set) var cpuFrequency: UInt64 = 0
+    private(set) var tscFrequency: UInt64 = 0
+    private(set) var crystalFrequency: UInt64 = 0
+    private(set) var stepping: UInt8 = 0
 
-    var lahfsahf:    Bool { return cpuid80000001.regs.ecx.bit(0) }
-    var lzcnt:       Bool { return cpuid80000001.regs.ecx.bit(5) }
-    var prefetchw:   Bool { return cpuid80000001.regs.ecx.bit(8) }
+    // Processor type: 00=OEM, 01=OverDrive, 10=Dual, 11=reserved
+    private(set) var processorType: UInt8 = 0
 
-    var syscall:     Bool { return cpuid80000001.regs.edx.bit(11) }
-    var nxe:         Bool { return cpuid80000001.regs.edx.bit(20) }
+    init() {}   // Empty initialiser as stored at global scope to avoid
+                // one-time initialisation
 
-    // FIXME: 1G Pages seem to break using qemu on macos with hypervisor framework.
-    // Not sure where bug is atm.
-    //var pages1G:     Bool { return cpuid80000001.regs.edx.bit(26) }
-    var pages1G: Bool { return false }
-    var IA32_EFER:   Bool { return cpuid80000001.regs.edx.bit(29) }
+    static func readCapabilities() {
+        #kprint("CPU: Reading Capabilities")
+        cpu.initialise()
+    }
 
-    var maxPhyAddrBits: UInt {
-        let max = UInt(cpuid80000008.regs.eax & 0xff)
-        if max > 0 {
-            return max
-        } else {
-            return 36
+    static func readFrequencies() {
+        // Requires ACPI parsing to get PM timer
+        cpu.getFrequencies()
+    }
+
+    static var cpuId: CPUID {
+        return cpu.cpuId
+    }
+
+    static var capabilities: CPUID {
+        return cpu.cpuId
+    }
+
+    mutating private func initialise() {
+        self.cpuId.initialise()
+
+        self.stepping = UInt8(self.cpuId.cpuid01.regs.eax & 0xF)
+        // Processor type: 00=OEM, 01=OverDrive, 10=Dual, 11=reserved
+        self.processorType = UInt8((self.cpuId.cpuid01.regs.eax >> 12) & 0x3)
+
+        if self.cpuId.vendorName == "GenuineIntel" {
+            let eax = self.cpuId.cpuid01.regs.eax
+
+            // CPUID Leaf 01H EAX bit layout (SDM Vol. 3A 18.1):
+            //   [3:0]   Stepping ID
+            //   [7:4]   Model
+            //   [11:8]  Family
+            //   [13:12] Processor Type
+            //   [19:16] Extended Model
+            //   [27:20] Extended Family
+
+            // Displayed family as defined by Intel:
+            //   Family == 0xF -> Extended Family + 0xF
+            //   otherwise     -> Family
+
+            let family = UInt8((eax >> 8) & 0xF)
+            let model  = UInt8((eax >> 4) & 0xF)
+
+            if family == 0xF {
+                self.displayFamily = UInt8((eax >> 20) & 0xFF) + 0xF
+            } else {
+                self.displayFamily = family
+            }
+            // Displayed model as defined by Intel:
+            //   Family == 0x6 or 0xF -> (Extended Model << 4) | Model
+            //   otherwise            -> Model
+            if family == 0x6 || family == 0xF {
+                let extModel = UInt8((eax >> 16) & 0xF)
+                self.displayModel = (extModel << 4) | model
+            } else {
+                self.displayModel = model
+            }
+
+            self.microarchitecture = IntelMicroarchitecture(
+                self.displayFamily, self.displayModel
+            )
         }
     }
 
-    var pageSizes: [UInt]
 
-    var description: String {
-        var str = #sprintf("CPU: maxBI: %#x maxEI: %#x\n", maxBasicInput,
-            maxExtendedInput)
-        str += "CPU: [\(vendorName)] [\(processorBrandString)]\nCPU: "
-        if pages1G     { str += "1GPages "     }
-        if msr         { str += "msr "         }
-        if IA32_EFER   { str += "IA32_EFER "   }
-        if nxe         { str += "nxe "         }
-        if apic        { str += "apic "        }
-        if x2apic      { str += "x2apic "      }
-        if rdrand      { str += "rdrand "      }
-        if tsc         { str += "tsc "         }
-        if tscDeadline { str += "tscDeadline " }
-        if sysenter    { str += "sysenter "    }
-        if syscall     { str += "syscall "     }
-        if mtrr        { str += "mtrr "        }
-        if pat         { str += "pat "         }
-        if vmx         { str += "vmx "         }
-        str += "\nCPU: APIDId: \(APICId)"
+    mutating private func getFrequencies() {
+        if let cpuid16 = self.cpuId.cpuidLeaf(0x16), cpuid16.regs.eax > 0 {
+            self.baseFrequency = UInt64(cpuid16.regs.eax) * 1_000_000   // eax = base MHZ
+        }
 
-        return str
+        if baseFrequency > 0 {
+            self.cpuFrequency = self.baseFrequency
+        } else {
+            var total = UInt64(0)
+            var divisor = UInt64(0)
+
+            for _ in 1...3 {
+                if let frequency = quickPMTimerCalibrate() {
+                    total += frequency
+                    divisor += 1
+                }
+            }
+            guard divisor > 0 else {
+                fatalError("CPU: Failed to calibrate speed")
+            }
+            self.cpuFrequency = total / divisor
+        }
+        if let (tscFreq, crystalFreq) = readTSCFrequency() {
+            self.tscFrequency = tscFreq
+            self.crystalFrequency = crystalFreq
+        }
+        #kprintf("CPU: freq: %u.%uMHz TSC freq: %u.%uMHz crystal freq: %u.%uMHz\n",
+                 self.cpuFrequency / 1_000_000, self.cpuFrequency % 1_000_000,
+                 self.tscFrequency / 1_000_000, self.tscFrequency % 1_000_000,
+                 self.crystalFrequency / 1_000_000, self.crystalFrequency % 1_000_000
+        )
     }
 
-
-    init() {
-        var info = cpuid_result() //eax: 0, ebx: 0, ecx: 0, edx: 0)
-        var ptr = UnsafePointer<CChar>(cpuid(0, &info) + 4)
-        vendorName = String(cString: ptr)
-        maxBasicInput = info.regs.eax
-
-        cpuid(0x80000000, &info)
-        maxExtendedInput = info.regs.eax
-
-        if (maxBasicInput >= 1) {
-            cpuid(0x1, &info)
-            cpuid01 = info
-        } else {
-            cpuid01 = cpuid_result()
-        }
-
-        if (maxExtendedInput >= 0x80000001) {
-            cpuid(0x80000001, &info)
-            cpuid80000001 = info
-        } else {
-            cpuid80000001 = cpuid_result()
-        }
-
-        // Physical & Virtual address size information
-        if (maxExtendedInput >= 0x80000008) {
-            cpuid(0x80000008, &info)
-            cpuid80000008 = info
-        } else {
-            cpuid80000008 = cpuid_result()
-        }
-
-        if (maxExtendedInput >= 0x80000004) {
-            ptr = UnsafePointer<CChar>(cpuid(0x80000002, &info))
-            var brand = String(cString: ptr)
-            ptr = UnsafePointer<CChar>(cpuid(0x80000003, &info))
-            brand += String(cString: ptr)
-            ptr = UnsafePointer<CChar>(cpuid(0x80000004, &info))
-            brand += String(cString: ptr)
-            processorBrandString = brand
-        } else {
-            processorBrandString = ""
-        }
-        pageSizes = [ 4096, 2 * mb ]
-        if pages1G {
-            pageSizes.append(1 * gb)
-        }
-    }
-}
-
-
-// Singleton that will be initialised by CPU.getInfo() or CPU.capabilities
-private let cpuId = CPUID()
-
-
-struct CPU {
 
     // These are the values stored in the PAT MSRs
     enum PATEntry: UInt8, CustomStringConvertible {
@@ -307,16 +255,6 @@ struct CPU {
     }
 
 
-    static func getInfo() {
-        #kprint(cpuId)
-    }
-
-
-    static var capabilities: CPUID {
-        return cpuId
-    }
-
-
     static func enableWP(_ enable: Bool) {
         var cr0 = CPU.cr0
         cr0.writeProtect = enable
@@ -325,8 +263,8 @@ struct CPU {
 
 
     static func enableNXE(_ enable: Bool) -> Bool {
-        if cpuId.nxe && cpuId.msr && cpuId.IA32_EFER {
-            var (eax, edx) = readMSR(0xC0000080)
+        if CPU.capabilities.nxe && CPU.capabilities.msr && CPU.capabilities.IA32_EFER {
+            var (eax, edx) = CPU.readMSR(0xC0000080)
             eax |= 1 << 11
             writeMSR(0xC0000080, eax, edx)
             #kprint("CPU: NXE enabled")
@@ -340,7 +278,7 @@ struct CPU {
     // Setup the Page Attribute Table
     static func setupPAT() {
 
-        guard cpuId.pat else {
+        guard CPU.capabilities.pat else {
             koops("CPU doesnt support PAT")
         }
         // Update PAT to add a WriteCombining and WriteProtected entry
@@ -692,378 +630,4 @@ struct CPU {
         set { setCR4(newValue.value) }
     }
 
-}
-
-
-
-
-struct VMXBasicInfo: CustomStringConvertible {
-
-    private let bits: BitArray64
-
-    let recommendedMemoryType: CPU.PATEntry
-
-    var vmcsRevisionId: UInt32 { UInt32(bits[0...30]) }
-    var vmxRegionSize: Int { Int(bits[32...44]) }
-    var physAddressWidthMaxBits: UInt {
-        Bool(bits[48]) ? 32 : cpuId.maxPhyAddrBits
-    }
-    var supportsDualMonitorOfSMM: Bool { Bool(bits[48]) }
-    var vmExitsDueToInOut: Bool { Bool(bits[54]) }
-    var vmxControlsCanBeCleared: Bool { Bool(bits[55]) }
-
-    var description: String {
-        var str = "VMX: Basic Info: revision ID: \(vmcsRevisionId) \(String(vmcsRevisionId, radix: 16))\n"
-        str += "VMX: region size: \(vmxRegionSize) bytes "
-        str += "max address bits: \(physAddressWidthMaxBits)\n"
-        str += "VMX: supportsDualMonitor: \(supportsDualMonitorOfSMM) "
-        str += "recommendedMemoryType: \(recommendedMemoryType) "
-        return str
-    }
-
-    init() {
-        bits = BitArray64(CPU.readMSR(0x480))
-        guard bits[31] == 0 else {
-            fatalError("Bit31 of IA32_VMX_BASIC is not 0")
-        }
-
-        let memTypeVal = UInt8(bits[50...53])
-        guard let memoryType = CPU.PATEntry(rawValue: memTypeVal) else {
-            fatalError("Invalid memoryType: \(memTypeVal)")
-        }
-        recommendedMemoryType = memoryType
-
-        guard vmxRegionSize > 0 && vmxRegionSize <= 4096 else {
-            fatalError("vmxRegionSize: \(vmxRegionSize) should be 1-4096")
-        }
-    }
-}
-
-
-struct VMXPinBasedControls {
-    let low: UInt32
-    let high: UInt32
-
-    init() {
-        (low, high) = CPU.readMSR(0x481)
-    }
-
-    var defaultValue: UInt32 {
-        var result: UInt32 = 0
-        result &= high  // bits 32:63 contains allowed 1-settings. If bit is 0 it must be cleared
-        result |= low   // bits 0:31 contains allowed 0-settings. If bit is 1 it must be set
-        return result
-    }
-}
-
-
-struct VMXPrimaryProcessorBasedControls {
-    let bits: BitArray64
-
-    init() {
-        bits = BitArray64(CPU.readMSR(0x482))
-    }
-
-    var defaultValue: UInt32 {
-        let a = DWordArray2(bits.toUInt64())
-        let low = a[0]
-        let high = a[1]
-
-        var result: UInt32 = 0
-        result &= high  // bits 32:63 contains allowed 1-settings. If bit is 0 it must be cleared
-        result |= low   // bits 0:31 contains allowed 0-settings. If bit is 1 it must be set
-        return result
-    }
-
-    var intWindowExiting:           VMXAllowedBits { VMXAllowedBits(bits, 2)  }
-    var useTSCOffsetting:           VMXAllowedBits { VMXAllowedBits(bits, 3)  }
-    var hltExiting:                 VMXAllowedBits { VMXAllowedBits(bits, 7)  }
-    var invlpgExiting:              VMXAllowedBits { VMXAllowedBits(bits, 9)  }
-    var mwaitExiting:               VMXAllowedBits { VMXAllowedBits(bits, 10) }
-    var rdpmcExiting:               VMXAllowedBits { VMXAllowedBits(bits, 11) }
-    var rdtscExiting:               VMXAllowedBits { VMXAllowedBits(bits, 12) }
-    var cr3LoadExiting:             VMXAllowedBits { VMXAllowedBits(bits, 15) }
-    var cr3StoreExiting:            VMXAllowedBits { VMXAllowedBits(bits, 16) }
-    var cr8LoadExiting:             VMXAllowedBits { VMXAllowedBits(bits, 19) }
-    var cr8StoreExiting:            VMXAllowedBits { VMXAllowedBits(bits, 20) }
-    var useTPRShadow:               VMXAllowedBits { VMXAllowedBits(bits, 21) }
-    var nmiWindowExiting:           VMXAllowedBits { VMXAllowedBits(bits, 22) }
-    var movDRExiting:               VMXAllowedBits { VMXAllowedBits(bits, 23) }
-    var unconditionalIOExiting:     VMXAllowedBits { VMXAllowedBits(bits, 24) }
-    var useIOBitmaps:               VMXAllowedBits { VMXAllowedBits(bits, 25) }
-    var monitorTrapFlag:            VMXAllowedBits { VMXAllowedBits(bits, 27) }
-    var useMSRbitmaps:              VMXAllowedBits { VMXAllowedBits(bits, 28) }
-    var monitorExiting:             VMXAllowedBits { VMXAllowedBits(bits, 29) }
-    var pauseExiting:               VMXAllowedBits { VMXAllowedBits(bits, 30) }
-    var activateSecondaryControls:  VMXAllowedBits { VMXAllowedBits(bits, 31) }
-}
-
-struct VMXExitControls {
-    let low: UInt32
-    let high: UInt32
-
-    init() {
-        (low, high) = CPU.readMSR(0x483)
-    }
-
-    var defaultValue: UInt32 {
-        var result: UInt32 = 0
-        result &= high  // bits 32:63 contains allowed 1-settings. If bit is 0 it must be cleared
-        result |= low   // bits 0:31 contains allowed 0-settings. If bit is 1 it must be set
-        return result
-    }
-}
-
-
-
-struct VMXEntryControls {
-    let low: UInt32
-    let high: UInt32
-
-    init() {
-        (low, high) = CPU.readMSR(0x484)
-    }
-
-    var defaultValue: UInt32 {
-        var result: UInt32 = 0
-        result &= high  // bits 32:63 contains allowed 1-settings. If bit is 0 it must be cleared
-        result |= low   // bits 0:31 contains allowed 0-settings. If bit is 1 it must be set
-        return result
-    }
-}
-
-
-struct VMXMiscInfo: CustomStringConvertible {
-    private let bits: BitArray64
-
-    init() {
-        bits = BitArray64(CPU.readMSR(0x485))
-    }
-
-    var description: String {
-        var result = "value: " + String(bits.toUInt64(), radix: 16)
-        result += " timerRatio: \(self.timerRatio)"
-        result += " storesLMA: \(self.storesLMA)"
-        result += " maxCR3TargetValues: \(self.maxCR3TargetValues)"
-        result += " maxMSRinLoadList: \(self.maxMSRinLoadList)"
-        return result
-    }
-
-    var timerRatio: Int { Int(bits[0...4]) }
-    var storesLMA: Bool { Bool(bits[5]) }
-    var supportsActivityStateHLT: Bool { Bool(bits[6]) }
-    var supportsActivityStateShutdown: Bool { Bool(bits[7]) }
-    var supportsActivityStateWaitForSIPI: Bool { Bool(bits[8]) }
-    var allowsIPTinVMX: Bool { Bool(bits[14]) }
-    var allowsSMBASEReadInSMM: Bool { Bool(bits[15]) }
-    var maxCR3TargetValues: Int { Int(bits[16...24]) }
-    var maxMSRinLoadList: Int { (Int(bits[25...27]) + 1) * 512 }
-    var allowSMIBlocksInVMXOFF: Bool { Bool(bits[28]) }
-    var vmwriteCanModifyVMExitFields: Bool { Bool(bits[29]) }
-    var allowZeroLengthInstructionInjection: Bool { Bool(bits[30]) }
-    var msegRevision: UInt32 { UInt32(bits[32...63]) }
-}
-
-struct VMXFixedBits {
-    let cr0Fixed0Bits: UInt64 = CPU.readMSR(0x486)
-    let cr0Fixed1Bits: UInt64 = CPU.readMSR(0x487)
-    let cr4Fixed0Bits: UInt64 = CPU.readMSR(0x488)
-    let cr4Fixed1Bits: UInt64 = CPU.readMSR(0x489)
-
-
-    func updateCR0(bits: CPU.CR0Register) -> CPU.CR0Register {
-        var result = bits.value | cr0Fixed0Bits
-        result &= cr0Fixed1Bits
-        return CPU.CR0Register(result)
-    }
-
-    func updateCR4(bits: CPU.CR4Register) -> CPU.CR4Register {
-        var result = bits.value | cr4Fixed0Bits
-        result &= cr4Fixed1Bits
-        return CPU.CR4Register(result)
-    }
-
-    // Unrestricted guest is true when the PG and PE bits in CR0
-    // DO NOT need to be set, determined from the CR0 Fixed0 Bits MSR
-    var allowsUnrestrictedGuest: Bool {
-        let cr0 = CPU.CR0Register(cr0Fixed0Bits)
-        return !(cr0.protectionEnable || cr0.paging)
-    }
-}
-
-struct VMXAllowedBits {
-    let allowedToBeZero: Bool
-    let allowedToBeOne: Bool
-
-    init(_ bits :BitArray64, _ index: Int) {
-        // Note that bits allowed to be zero are set to 0 but these are flipped
-        // to enable 'allowedToBeZero == true' if they are zero
-        allowedToBeZero = !Bool(bits[index])
-        allowedToBeOne = Bool(bits[index + 32])
-    }
-}
-
-struct VMXVMCSEnumeration {
-    let bits: BitArray64
-
-    var highestIndex: Int {
-        return Int(bits[1...9])
-    }
-
-    var description: String {
-        let idx = String(highestIndex, radix: 16)
-        return "VMCS Enumeration highest index: \(idx)"
-    }
-
-    init() {
-        bits = BitArray64(CPU.readMSR(0x48A))
-    }
-}
-
-
-struct VMXSecondaryProcessorBasedControls {
-    let bits: BitArray64
-    let low: UInt32
-    let high: UInt32
-
-    init() {
-        bits = BitArray64(CPU.readMSR(0x48B))
-        (low, high) = CPU.readMSR(0x48B)
-    }
-
-    var defaultValue: UInt32 {
-        var result: UInt32 = 0
-        result &= high  // bits 32:63 contains allowed 1-settings. If bit is 0 it must be cleared
-        result |= low   // bits 0:31 contains allowed 0-settings. If bit is 1 it must be set
-        return result
-    }
-
-    var vitualizeApicAccesses:      VMXAllowedBits { VMXAllowedBits(bits, 0)  }
-    var enableEPT:                  VMXAllowedBits { VMXAllowedBits(bits, 1)  }
-    var descriptorTableExiting:     VMXAllowedBits { VMXAllowedBits(bits, 2)  }
-    var enableRDTSCP:               VMXAllowedBits { VMXAllowedBits(bits, 3)  }
-    var virtualizeX2ApicMode:       VMXAllowedBits { VMXAllowedBits(bits, 4)  }
-    var enableVPID:                 VMXAllowedBits { VMXAllowedBits(bits, 5)  }
-    var wbinvdExiting:              VMXAllowedBits { VMXAllowedBits(bits, 6)  }
-    var unrestrictedGuest:          VMXAllowedBits { VMXAllowedBits(bits, 7)  }
-    var apicRegisterVirtualization: VMXAllowedBits { VMXAllowedBits(bits, 8)  }
-    var virtualInterruptDelivery:   VMXAllowedBits { VMXAllowedBits(bits, 9)  }
-    var pauseLoopExiting:           VMXAllowedBits { VMXAllowedBits(bits, 10) }
-    var rdrandExiting:              VMXAllowedBits { VMXAllowedBits(bits, 11) }
-    var enableInvpcid:              VMXAllowedBits { VMXAllowedBits(bits, 12) }
-    var enableVMFunctions:          VMXAllowedBits { VMXAllowedBits(bits, 13) }
-    var vmcsShadowing:              VMXAllowedBits { VMXAllowedBits(bits, 14) }
-    var enableEnclsExiting:         VMXAllowedBits { VMXAllowedBits(bits, 15) }
-    var rdseedExiting:              VMXAllowedBits { VMXAllowedBits(bits, 16) }
-    var enablePML:                  VMXAllowedBits { VMXAllowedBits(bits, 17) }
-    var eptViolation:               VMXAllowedBits { VMXAllowedBits(bits, 18) }
-    var concealVMXFromPT:           VMXAllowedBits { VMXAllowedBits(bits, 19) }
-    var enableXSAVES:               VMXAllowedBits { VMXAllowedBits(bits, 20) }
-    var modeBasedExecCtrlForEPT:    VMXAllowedBits { VMXAllowedBits(bits, 22) }
-    var subpageWritePermsForEPT:    VMXAllowedBits { VMXAllowedBits(bits, 23) }
-    var iptUsesGuestPhysAddress:    VMXAllowedBits { VMXAllowedBits(bits, 24) }
-    var useTSCScaling:              VMXAllowedBits { VMXAllowedBits(bits, 25) }
-    var enableUserWaitAndPause:     VMXAllowedBits { VMXAllowedBits(bits, 26) }
-    var enableENCLVExiting:         VMXAllowedBits { VMXAllowedBits(bits, 28) }
-}
-
-
-struct VMX_EPT_VPID_CAP {
-    let bits: BitArray64
-
-    var supportsExecOnlyEPT: Bool { Bool(bits[0]) }
-    var supportsPageWalk4: Bool { Bool(bits[6]) }
-    var allowsEPTUncacheableType: Bool { Bool(bits[8]) }
-    var allowsEPTWriteBackType: Bool { Bool(bits[14]) }
-    var allowsEPT2mbPages: Bool { Bool(bits[16]) }
-    var allowsEPT1gbPages: Bool { Bool(bits[17]) }
-    var supportsINVEPT: Bool { Bool(bits[20]) }
-    var supportsSingleContextINVEPT: Bool { Bool(bits[25]) }
-    var supportsAllContextINVEPT: Bool { Bool(bits[26]) }
-    var supportsEPTDirtyAccessedFlags: Bool { Bool(bits[21]) }
-    var reportsVMExitInfoForEPTViolations: Bool { Bool(bits[22]) }
-    var supportsINVVIPD: Bool { Bool(bits[32]) }
-    var supportsIndividualAddressINVVIPD: Bool { Bool(bits[40]) }
-    var supportsSingleContextINVVIPD: Bool { Bool(bits[41]) }
-    var supportsAllContextINVVIPD: Bool { Bool(bits[42]) }
-    var supportsSingleContextRetainingGlobalsINVVIPD: Bool { Bool(bits[43]) }
-
-    init() {
-        bits = BitArray64(CPU.readMSR(0x48C))
-    }
-}
-
-struct VMXTruePinBasedControls {
-    let low: UInt32
-    let high: UInt32
-
-    init() {
-        (low, high) = CPU.readMSR(0x48D)
-    }
-
-    var defaultValue: UInt32 {
-        var result: UInt32 = 0
-        result &= high  // bits 32:63 contains allowed 1-settings. If bit is 0 it must be cleared
-        result |= low   // bits 0:31 contains allowed 0-settings. If bit is 1 it must be set
-        return result
-    }
-}
-
-struct VMXTruePrimaryProcessorBasedControls {
-    let low: UInt32
-    let high: UInt32
-
-    init() {
-        (low, high) = CPU.readMSR(0x48E)
-    }
-
-    var defaultValue: UInt32 {
-        var result: UInt32 = 0
-        result &= high  // bits 32:63 contains allowed 1-settings. If bit is 0 it must be cleared
-        result |= low   // bits 0:31 contains allowed 0-settings. If bit is 1 it must be set
-        return result
-    }
-}
-
-struct VMXTrueExitControls {
-    let low: UInt32
-    let high: UInt32
-
-    init() {
-        (low, high) = CPU.readMSR(0x48f)
-    }
-
-    var defaultValue: UInt32 {
-        var result: UInt32 = 0
-        result &= high  // bits 32:63 contains allowed 1-settings. If bit is 0 it must be cleared
-        result |= low   // bits 0:31 contains allowed 0-settings. If bit is 1 it must be set
-        return result
-    }
-}
-
-
-struct VMXTrueEntryControls {
-    let low: UInt32
-    let high: UInt32
-
-    init() {
-        (low, high) = CPU.readMSR(0x490)
-    }
-
-    var defaultValue: UInt32 {
-        var result: UInt32 = 0
-        result &= high  // bits 32:63 contains allowed 1-settings. If bit is 0 it must be cleared
-        result |= low   // bits 0:31 contains allowed 0-settings. If bit is 1 it must be set
-        return result
-    }
-}
-
-struct VMXVMFunc {
-    let bits: BitArray64
-
-    var eptpSwitching: Bool { Bool(bits[0]) }
-
-    init() {
-            bits = BitArray64(CPU.readMSR(0x48C))
-        }
 }

@@ -10,6 +10,7 @@
  *
  */
 
+
 struct FADT: CustomStringConvertible {
 
     private let table: acpi_facp_table
@@ -66,9 +67,28 @@ struct FADT: CustomStringConvertible {
 
     var resetValue: UInt8 { table.reset_value }
 
-    // PM1 Control Block addresses (§4.8.3.2)
+    // PM1 Control Block addresses (4.8.3.2)
     var pm1aCntBlk: UInt16 { UInt16(table.pm1a_cnt_blk) }
     var pm1bCntBlk: UInt16 { UInt16(table.pm1b_cnt_blk) }
+
+    // PM Timer (4.8.3.3)
+    // Prefer x_pm_tmr_blk (ACPI 2.0 GAS, requires table length >= 220)
+    // over the legacy 32-bit I/O port in pm_tmr_blk.
+    var pmTimerPort: UInt32? {
+        if table.header.length >= 220 {
+            let gas = ACPIGenericAddressStrucure(table.x_pm_tmr_blk)
+            if case .systemIO = gas.addressSpaceID, gas.baseAddress != 0 {
+                return UInt32(gas.baseAddress)
+            }
+        }
+        if table.pm_tmr_blk != 0 {
+            return table.pm_tmr_blk
+        }
+        return nil
+    }
+
+    // true = 32-bit counter; false = 24-bit counter (wraps at 0xFFFFFF)
+    var pmTimerIs32Bit: Bool { table.pm_tmr_len == 4 }
 
     var description: String {
         "FADT: hasLegacyDev: \(hasLegacyDevices) has8042: \(has8042Controller) hasVga: \(isVgaPresent) " +
@@ -77,9 +97,10 @@ struct FADT: CustomStringConvertible {
 
     init(_ ptr: UnsafeRawPointer) {
         table = ptr.load(as: acpi_facp_table.self)
+        FADT.pmTimerPort = UInt16(self.pmTimerPort ?? 0)
     }
 
-
+    static var pmTimerPort: UInt16 = 0
     private func physicalAddress(xAddr: UInt64, addr: UInt32) -> PhysAddress? {
         if xAddr != 0 {
             return PhysAddress(RawAddress(xAddr))

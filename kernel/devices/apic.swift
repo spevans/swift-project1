@@ -134,6 +134,7 @@ extension LocalInterruptEntry {
 //    }
 }
 
+private var apic = APIC()
 
 struct APIC: ~Copyable {
 
@@ -160,13 +161,23 @@ struct APIC: ~Copyable {
 
     static private let IA32_APIC_BASE_MSR: UInt32 = 0x1B
     static private let APIC_REGISTER_SPACE_SIZE = 0x400
-    private let bootProcessorBit = 8
-    private let globalEnableBit = 11
+    static private let globalEnableBit = 11
 
-    private var apicRegisters: UnsafeMutableRawBufferPointer = UnsafeMutableRawBufferPointer(start: nil, count: 0)
+    private var apicRegisters = UnsafeMutableRawBufferPointer(start: nil, count: 0)
 
+    static func initialise() -> Bool {
+        apic.initialise()
+    }
 
-    mutating func setup(with madtEntries: [MADT.MADTEntry]) -> Bool {
+    static func disableAllIRQs() {
+        apic.disableAllIRQs()
+    }
+
+    static func ackIRQ(_ irq: Int) {
+        apic.ackIRQ(irq)
+    }
+
+    private mutating func initialise() -> Bool {
         guard CPU.capabilities.apic else {
             #kprint("APIC: No APIC installed")
             return false
@@ -176,11 +187,11 @@ struct APIC: ~Copyable {
         var apicStatus = BitArray64(CPU.readMSR(APIC.IA32_APIC_BASE_MSR))
 
         // Enable the APIC if currently disabled
-        if apicStatus[globalEnableBit] != 1 {
-            apicStatus[globalEnableBit] = 1
+        if apicStatus[Self.globalEnableBit] != 1 {
+            apicStatus[Self.globalEnableBit] = 1
             CPU.writeMSR(APIC.IA32_APIC_BASE_MSR, apicStatus.toUInt64())
             apicStatus = BitArray64(CPU.readMSR(APIC.IA32_APIC_BASE_MSR))
-            if apicStatus[globalEnableBit] != 1 {
+            if apicStatus[Self.globalEnableBit] != 1 {
                 #kprint("APIC: failed to enable")
                 return false
             }
@@ -194,7 +205,6 @@ struct APIC: ~Copyable {
             count: APIC.APIC_REGISTER_SPACE_SIZE)
 
         printStatus()
-        setupTimer()
         spuriousIntVector = 0x1ff
         return true
     }
@@ -331,37 +341,124 @@ struct APIC: ~Copyable {
         #kprint("APIC: LVT: Thermal:", lvtThermalSensor)
     }
 
+    static func setupTimer() -> Bool {
+        apic.setupTimer()
+    }
 
-    mutating func setupTimer() {
-        #kprintf("APIC: InitialCount: %8.8X CurrentCount: %8.8X Divide Config: %8.8X\n",
-            initialCount, currentCount, divideConfig)
+    static private(set) var calibratedFrequency: UInt32 = 0
+    private mutating func setupTimer() -> Bool {
+        #kprint("APIC: setting up timer")
 
         var newLvtTimer = lvtTimer
         newLvtTimer.deliveryMode = .Fixed
         // The 7 APIC interrupts start at IDT entry 240
         newLvtTimer.vector = 240
-        newLvtTimer.masked = false
-        newLvtTimer.timerMode = .periodic
-        lvtTimer = newLvtTimer
-        divideConfig = 0b1001
-        initialCount = 100000000
-        #kprint("APIC, new Timer: ", lvtTimer)
+        newLvtTimer.masked = true
 
+        let irq = IRQSetting(isaIrq: 240)
+        let handler = InterruptHandler(name: "apic-timer", handler: timerInterrupt)
+        InterruptManager.setIrqHandler(handler, forInterrupt: irq)
+
+        if let timeSource = TimesourceTSC(), timeSource.hasDeadline {
+            #kprint("APIC: setting up timer using TSC Deadline mode")
+            newLvtTimer.timerMode = .tscDeadline
+            newLvtTimer.masked = false
+            lvtTimer = newLvtTimer
+            memoryBarrier()
+            tscDeadlinePeriod = timeSource.tscFrequency / TICKS_PER_SECOND
+            tscDeadlineNext = rdtsc()
+            #kprintf("apic: tscDeadlinePeriod: %u tscDeadlineNext: %u\n", tscDeadlinePeriod,
+                     tscDeadlineNext)
+            rearmAPICTimer()
+        } else {
+            #kprint("APIC: No valid TSC information")
+            #kprint("APIC: setting up timer using Periodic mode")
+            if cpu.crystalFrequency > 0 {
+                #kprintf("APIC: Using busFrequency of %u hz\n", cpu.crystalFrequency)
+                self.initialCount = UInt32(cpu.crystalFrequency / TICKS_PER_SECOND)
+            } else {
+                let freq1 = calibrate()
+                let freq2 = calibrate()
+                let freq3 = calibrate()
+                let frequency = UInt32((freq1 + freq2 + freq3) / 3)
+                #kprintf("APIC: calibrated frequency: %u setting initialCount to %u\n",
+                         frequency, frequency / UInt32(TICKS_PER_SECOND)
+                )
+                self.initialCount = frequency / UInt32(TICKS_PER_SECOND)
+                APIC.calibratedFrequency = frequency
+            }
+            self.divideConfig = 0x3 //0b1011   // Divide by 1
+            newLvtTimer.timerMode = .periodic
+            newLvtTimer.masked = false
+            if currentTicks() > 0 {
+                fatalError("currentTicks is \(currentTicks())")
+            }
+            lvtTimer = newLvtTimer
+        }
+
+        #kprint("APIC: new Timer: ", lvtTimer)
         #kprintf("APIC: InitialCount: %8.8X CurrentCount: %8.8X Divide Config: %8.8X\n",
             initialCount, currentCount, divideConfig)
+        return true
+    }
+
+    // Calibrate the APIC against the PM timer to get the timer frequency
+    private mutating func calibrate() -> UInt64 {
+        guard let timerPort = ACPI.fadt?.pmTimerPort, timerPort > 0 else {
+            fatalError("no PM timer")
+        }
+        // Set the ticks to maximum (0xffff_ffff), wait 100ms then read the new value
+        self.divideConfig = 0x3 //0b1011   // Divide by 1
+        self.initialCount = 0xffff_ffff
+
+        let milliSeconds = 100
+        let port = UInt16(timerPort)
+        // Treat the timer as 24 bit and wrap appropiately
+        let mask: UInt32 = 0xfff_fff //(1 << 24) - 1
+        let totalTicks = (UInt64(ACPI.pmTimerFrequency) &* UInt64(milliSeconds)) / 1000
+
+        // Read the port until it enters the next tick then loop until total ticks have passed
+        var start = inl(port) & mask
+        while true {
+            let now = inl(port) & mask
+            if now != start {
+                start = now
+                break
+            }
+        }
+
+        let count0 = self.currentCount
+        var elapsed: UInt32 = 0
+        var last = start
+        while elapsed <= totalTicks {
+            let now = inl(port) & mask
+            if now < last {
+                elapsed += now + (mask + 1) - last
+            } else {
+                elapsed += (now - last)
+            }
+            last = now
+            pause()
+        }
+        let count = self.currentCount
+
+        let frequency = UInt64(count0 - count) * 10;
+        #kprintf("APIC: calibrate, count0 is %u, count is %u for 100ms. frequency: %u.%uMHz\n",
+                count0, count, frequency / 1000_000, frequency % 1_000_000
+        )
+        guard frequency > 0 else {
+            fatalError("APIC has 0 frequency!")
+        }
+        return frequency
     }
 }
 
+private(set) var tscDeadlinePeriod: UInt64 = 0
+private(set) var tscDeadlineNext: UInt64 = 0
 
-// Called from entry.asm:_apic_int_handler
-@_silgen_name("apicIntHandler")
-public func apicIntHandler(registers: ExceptionRegisters) {
-    let apicInt = Int(registers.pointee.error_code)
-    guard apicInt >= 0 && apicInt < 7 else {
-        #kprintf("OOPS: Invalid APIC interrupt: %#x\n", apicInt)
-        stop()
+func rearmAPICTimer() {
+    if tscDeadlineNext > 0 {
+        tscDeadlineNext &+= tscDeadlinePeriod
+        wrmsr(0x6e0, UInt32(truncatingIfNeeded: tscDeadlineNext), UInt32(truncatingIfNeeded: tscDeadlineNext >> 32))
     }
-
-    //printf("APIC INT Handler: %d\n", apicInt)
-    InterruptManager.ackIRQ(apicInt)
 }

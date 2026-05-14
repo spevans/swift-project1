@@ -68,6 +68,11 @@ public func cacheTest() {
 
 func sleepTest(milliseconds: Int) {
     // sleepTest
+    #kprint("using ACPI.wait")
+    showDateTime()
+    ACPI.wait(milliSeconds: UInt32(milliseconds))
+    showDateTime()
+
     #kprint("using sleep()")
     showDateTime()
     sleep(milliseconds: milliseconds)

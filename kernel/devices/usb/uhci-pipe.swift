@@ -182,7 +182,7 @@ extension HCD_UHCI {
 
 
         override func submitURB(_ urb: consuming USB.Request) {
-            self.timeout = current_ticks() + 1000
+            self.timeout = currentTicks() + 1000
 
             guard self.activeUrb == nil else {
                 fatalError("uhci-pipe: Endpoint already processing URB")

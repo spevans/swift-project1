@@ -37,8 +37,63 @@ private func dateCommand(arguments: [String]) {
     showDateTime()
 }
 
+
 private func showCPUCommand(arguments: [String]) {
-    CPU.getInfo()
+
+    if let command = arguments.first {
+
+        switch command {
+            case "cpuid":
+                if arguments.count > 1, let leaf = UInt32(arguments[1]) {
+                    if let result = CPU.capabilities.cpuidLeaf(leaf) {
+                        #kprintf("eax: 0x%8.8x ebx: 0x%8.8x ecx: 0x%8.8x edx: 0x%8.8x\n",
+                                 result.regs.eax, result.regs.ebx, result.regs.ecx, result.regs.edx)
+                    } else {
+                        #kprintf("Leaf 0x%x not supported\n", leaf)
+                    }
+                } else {
+                    #kprint("usage: showcpu cpuid <leaf>")
+                }
+
+            case "rdmsr":
+                if arguments.count > 1, let msr = UInt32(arguments[1]) {
+                    let (lo, hi) = CPU.readMSR(msr)
+                    #kprintf("lo: 0x%8.8x 0x%8.8x 0x%16.16x\n", lo, hi,
+                             UInt64(lo) | (UInt64(hi) << 32)
+                    )
+                } else {
+                    #kprint("usage: showcpu rdmsr <msr>")
+                }
+
+            default:
+                #kprintf("Invalid command '%s'\n", command)
+        }
+        return
+    }
+
+    #kprintf("CPU: vendor: %s brand: %s\nCPU: family: %02xh  Model: %02xh  Stepping: %u  Type: %u\n",
+             CPU.cpuId.vendorName, CPU.cpuId.processorBrandString,
+             UInt32(cpu.displayFamily), UInt32(cpu.displayModel),
+             UInt32(cpu.stepping), UInt32(cpu.processorType))
+    #kprint("CPU: Microarchitecture:", cpu.microarchitecture.description,
+            cpu.microarchitecture.isPerformanceHybrid ? "(Performance Hybrid)" : "")
+    #kprintf("CPU: Frequencies base: %uMHz cpu: %uMHz tsc: %uMHz crystal: %uMHz\n",
+             cpu.baseFrequency / 1_000_000, cpu.cpuFrequency / 1_000_000,
+             cpu.tscFrequency / 1_000_000, cpu.crystalFrequency / 1_000_000)
+    #kprintf("CPUID: maxBasicInput: 0x%x\t maxExtInput: 0x%8.8x\n",
+             CPU.cpuId.maxBasicInput, CPU.cpuId.maxExtendedInput)
+
+    if let ts = TimesourceTSC() {
+        #kprint("CPU: Timesource:", ts.description)
+    } else {
+        #kprint("CPU: No timesource")
+    }
+    if APIC.calibratedFrequency > 0 {
+        #kprintf("APIC calibrated frequency: %u %u.%3.3uMhz\n",
+                 APIC.calibratedFrequency,
+                 APIC.calibratedFrequency / 1_000_000,
+                 APIC.calibratedFrequency % 1_000_000)
+    }
 }
 
 private func dumpPCICommand(arguments: [String]) {
@@ -87,6 +142,7 @@ private func timerCommand(arguments: [String]) {
         return true
     }
 }
+
 
 private func showDevCommand(arguments: [String]) {
     guard let devname = arguments.first else {
@@ -137,7 +193,7 @@ private func sleepTestCommand(arguments: [String]) {
 
 private func testsCommand(arguments: [String]) {
     showDateTime()
-    CPU.getInfo()
+    showCPUCommand(arguments: [])
     #kprint("dumppci")
     system.deviceManager.dumpPCIDevices()
     #kprint("dumppnp")
@@ -151,11 +207,8 @@ private func testsCommand(arguments: [String]) {
 }
 
 private func uptimeCommand(arguments: [String]) {
-    let ticks = current_ticks()
-    let seconds = ticks / 1000
-    var ms = String(ticks % 1000)
-    while ms.count < 3 { ms = "0" + ms }
-    #kprint("Uptime \(seconds).\(ms)")
+    let ticks = currentTicks()
+    #kprintf("Uptime %u.%0.3u\n", ticks / TICKS_PER_SECOND, ticks % TICKS_PER_SECOND)
 }
 
 private func vmxOnCommand(arguments: [String]) {
@@ -244,6 +297,7 @@ private func showMCFG(arguments: [String]) {
         #kprint("No MCFG table found")
     }
 }
+
 
 private let commands: [String: ShellCommand] = [
     "help":     ShellCommand(helpCommand, "Show the available commands"),

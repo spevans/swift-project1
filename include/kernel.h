@@ -161,13 +161,13 @@ void irq85_stub(void);
 void irq86_stub(void);
 void irq87_stub(void);
 
-void apic_int0_stub(void);
-void apic_int1_stub(void);
-void apic_int2_stub(void);
-void apic_int3_stub(void);
-void apic_int4_stub(void);
-void apic_int5_stub(void);
-void apic_int6_stub(void);
+void irq240_stub(void);
+void irq241_stub(void);
+void irq242_stub(void);
+void irq243_stub(void);
+void irq244_stub(void);
+void irq245_stub(void);
+void irq246_stub(void);
 
 // kprintf
 int kvlprintf(const char * _Nonnull fmt, size_t len, va_list args);
@@ -188,15 +188,15 @@ unsigned int read_int_nest_count(void);
 void run_first_task(void);
 void set_interrupt_manager(const void * _Nonnull im);
 
-// timer.asm
-uint64_t current_ticks(void);
-void timer_callback(void);
-void sleep_in_milliseconds(uint64_t);
-
 uint64_t _cacheReadTest(uint8_t * _Nullable p, uint64_t count, uint8_t * _Nullable result);
 uint64_t _cacheWriteTest(uint8_t * _Nullable p, uint64_t count, uint8_t data);
 
 static long atomic_inc(long * _Nonnull value) {
+    return __atomic_fetch_add(value, 1, __ATOMIC_SEQ_CST);
+}
+
+static inline __attribute__((__always_inline__))
+long atomic_uinc(uint64_t * _Nonnull value) {
     return __atomic_fetch_add(value, 1, __ATOMIC_SEQ_CST);
 }
 

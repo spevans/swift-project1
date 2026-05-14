@@ -1,5 +1,5 @@
 /*
- * kernel/devices/vmx.swift
+ * kernel/arch/x86_64/vm/vmx.swift
  *
  * Created by Simon Evans on 28/06/2019.
  * Copyright © 2019 Simon Evans. All rights reserved.
@@ -7,6 +7,7 @@
  * VMX functionality.
  *
  */
+
 
 nonisolated(unsafe) private var globalVmcs: VMCS?  // pointer to global VMCS
 
