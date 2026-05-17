@@ -1,4 +1,4 @@
-// swift-tools-version: 5.10
+// swift-tools-version: 6.2
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -6,30 +6,23 @@ import CompilerPluginSupport
 
 let package = Package(
     name: "Kernel",
-    platforms: [.macOS(.v13)],
+    platforms: [.macOS(.v26)],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
     ],
 
     dependencies: [
-        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0-latest"),
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "602.0.0"),
+        .package(path: "macros/Printf")
     ],
 
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
-        .macro(
-            name: "PrintfMacros",
-            dependencies: [
-                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
-                .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
-            ],
-            path: "macros/Printf/Sources/PrintfMacros"
-        ),
         // Build most of the kernel to be used in tests. This stub excludes some files for now
         // until they are made arch independant and can be run in userspace if needed.
         .target(name: "Kernel",
-                dependencies: ["PrintfMacros"],
+                dependencies: [.product(name: "Printf", package: "Printf"),],
                 path: "kernel",
                 exclude: ["arch",
                           "init",
@@ -73,7 +66,6 @@ let package = Package(
                           "mm/PageDirectoryPointerTable.swift",
                           "mm/PageMapLevel4Table.swift",
                           "mm/symbols.swift",
-                          "klib/kprint.swift",
                          ],
                 cSettings: [.define("TEST")],
                 swiftSettings: [.define("TEST"),
@@ -88,7 +80,7 @@ let package = Package(
         // Note that some tests are excluded because getting the ACPI to compile currently causes a compiler crash.
         .testTarget(
             name: "KernelTests",
-            dependencies: [ "PrintfMacros", "Kernel" ],
+            dependencies: [  "Kernel", .product(name: "Printf", package: "Printf"), ],
             path: "Tests",
             sources: [
                 "ACPIAMLTypeTests.swift",

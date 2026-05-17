@@ -8,6 +8,7 @@
  *
  */
 
+
 class HCDData {
     init() {}
 }
@@ -173,7 +174,7 @@ class USBDevice: Device {
         // Get full DeviceDescriptor
         if USBTrace {
             #kprintf("usbdev: %s Getting full DeviceDescriptor of length: %u\n",
-                     self.description, address, deviceDescriptor.bLength)
+                     self.description, deviceDescriptor.bLength)
         }
         guard let fullDeviceDescriptor = self.getDeviceDescriptor(length: UInt16(deviceDescriptor.bLength)) else {
             if USBTrace {

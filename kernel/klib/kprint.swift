@@ -1,16 +1,25 @@
-//
-//  kprint.swift
-//  project1
-//
-//  Created by Simon Evans on 25/04/2025.
-//  Copyright © 2025 Simon Evans. All rights reserved.
-//
+/*
+ * kernel/klib/kprint.swift
+ *
+ * Created by Simon Evans on 25/04/2025.
+ * Copyright © 2025 Simon Evans. All rights reserved.
+ *
+ */
+
 
 @freestanding(expression)
-macro kprint(_ item: StaticString, _ items: CustomStringConvertible...) -> () = #externalMacro(module: "PrintfMacros", type: "KPrintStaticStringMacro")
+macro kprint(_ item: StaticString, _ items: CustomStringConvertible..., separator: String = " ", terminator: String = "\n") -> () = #externalMacro(module: "PrintfMacros", type: "KPrintStaticStringMacro")
 
 @freestanding(expression)
-macro kprint(_ item: CustomStringConvertible, _ items: CustomStringConvertible...) -> () = #externalMacro(module: "PrintfMacros", type: "KPrintStringMacro")
+macro kprint(_ item: CustomStringConvertible, _ items: CustomStringConvertible..., separator: String = " ", terminator: String = "\n") -> () = #externalMacro(module: "PrintfMacros", type: "KPrintStringMacro")
+
+
+@freestanding(expression)
+macro kprintf(_ value: StaticString, _ items: PrintfArg...) -> () = #externalMacro(module: "PrintfMacros", type: "PrintfMacro")
+
+@freestanding(expression)
+macro serialPrintf(_ value: StaticString, _ items: PrintfArg...) -> () = #externalMacro(module: "PrintfMacros", type: "PrintfMacro")
+
 
 private var _tty = _TTY()
 private var _serial = _Serial()
@@ -19,46 +28,23 @@ private var _serial = _Serial()
 // as the pointer to the string is being passed directly and the single unicode
 // scalar case is explictly rejected.
 @inline(never)
-func _kprint(_ string: StaticString) {
+func _kprint(_ string: StaticString, terminator: String = "\n") {
     _tty.write(string)
-    _tty.write("\n")
-}
-
-
-@inline(never)
-@_disfavoredOverload
-func _kprint(_ string: String) {
-    _tty.write(string)
-    _tty.write("\n")
-}
-
-
-@inline(never)
-func _kprint(_ firstItem: String, _ items: String..., separator: String = " ",
-    terminator: String = "\n") {
-
-    _tty.write(firstItem)
-    for item in items {
-        _tty.write(separator)
-        _tty.write(item)
-    }
     _tty.write(terminator)
 }
 
 
 @inline(never)
-func _kprint(_ firstItem: StaticString, _ items: String..., separator: String = " ",
-    terminator: String = "\n") {
-
-    _tty.write(firstItem)
-    for item in items {
+func _kprint(_ args: Span<String>, separator: String = " ", terminator: String = "\n") {
+    _tty.write(args[0])
+    for i in args.indices[1...] {
         _tty.write(separator)
-        _tty.write(item)
+        _tty.write(args[i])
     }
     _tty.write(terminator)
 }
 
-private func _show_kprintf_error(_ error: PrintfError, forFormat format: StaticString) {
+func _show_kprintf_error(_ error: PrintfError, forFormat format: StaticString) {
     let msg = switch error {
         case .invalidNumber: "Invalid Number"
         case .invalidString: "Invalid String"
@@ -77,23 +63,9 @@ private func _show_kprintf_error(_ error: PrintfError, forFormat format: StaticS
 }
 
 @inline(never)
-func _kprintf(_ format: StaticString, _ arg: _PrintfArg) {
-    if !format.isASCII {
-        fatalError("\(format) is not an ASCII string")
-    }
+func _kprintf(_ format: StaticString, args: Span<_PrintfArg>) {
     do {
-        try _printf(to: &_tty, format: format, arg, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-    } catch {
-        _show_kprintf_error(error, forFormat: format)
-    }
-}
-
-
-@inline(never)
-func _kprintf(_ format: StaticString, _ arg0: _PrintfArg, _ arg1: _PrintfArg? = nil, _ arg2: _PrintfArg? = nil, _ arg3: _PrintfArg? = nil, _ arg4: _PrintfArg? = nil, _ arg5: _PrintfArg? = nil, _ arg6: _PrintfArg? = nil,
-              _ arg7: _PrintfArg? = nil, _ arg8: _PrintfArg? = nil, _ arg9: _PrintfArg? = nil, _ arg10: _PrintfArg? = nil) {
-    do {
-        try _printf(to: &_tty, format: format, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
+        try _printf(to: &_tty, format: format, args: args)
     } catch {
         _show_kprintf_error(error, forFormat: format)
     }
@@ -116,10 +88,9 @@ func _serialPrint(_ string: String, terminator: String = "\n") {
 
 
 @inline(never)
-func _serialPrintf(_ format: StaticString, _ arg0: _PrintfArg, _ arg1: _PrintfArg? = nil, _ arg2: _PrintfArg? = nil, _ arg3: _PrintfArg? = nil, _ arg4: _PrintfArg? = nil, _ arg5: _PrintfArg? = nil, _ arg6: _PrintfArg? = nil,
-                   _ arg7: _PrintfArg? = nil, _ arg8: _PrintfArg? = nil, _ arg9: _PrintfArg? = nil, _ arg10: _PrintfArg? = nil) {
+func _serialPrintf(_ format: StaticString, args: Span<_PrintfArg>) {
     do {
-        try _printf(to: &_serial, format: format, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
+        try _printf(to: &_serial, format: format, args: args)
     } catch {
         _show_kprintf_error(error, forFormat: format)
     }

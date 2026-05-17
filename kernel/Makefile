@@ -5,7 +5,8 @@ GITVER := $(shell git rev-parse HEAD)
 
 SWIFT_MODULE := SwiftKernel
 SWIFT_OBJS := SwiftKernel.o
-SWIFT_SRCS := $(shell find `pwd` -name '*.swift' | egrep -v 'version.swift|/teststub/') init/version.swift
+PRINTF_SRCS := $(wildcard $(TOPDIR)/macros/Printf/Sources/Printf/*.swift)
+SWIFT_SRCS := $(shell find `pwd` -name '*.swift' | egrep -v 'version.swift|/teststub/') init/version.swift $(PRINTF_SRCS)
 
 KSWIFTC_FLAGS := -g -O -Xcc -mno-red-zone -Xcc -mcmodel=kernel				\
 	-Xcc -Wall -Xcc -Wextra -Xcc -std=gnu11	-Xcc -mno-mmx -Xcc -mno-sse -Xcc -mno-sse2	\

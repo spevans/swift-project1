@@ -14,13 +14,10 @@ macro usbhubDebug(_ item: CustomStringConvertible, _ items: CustomStringConverti
 
 
 private let USBHUB_DEBUG = true
-internal func _usbhubDebug(_ item1: String, _ items: String...) {
+internal func _usbhubDebug(_ items: Span<String>) {
     if USBHUB_DEBUG {
-        _kprint(item1, terminator: "")
-        for item in items {
-            _kprint(" ", item, terminator: "")
-        }
-        _kprint("")
+        _kprint("USB-HUB:", terminator: " ")
+        _kprint(items)
     }
 }
 
@@ -358,7 +355,7 @@ final class USBHubDriver: DeviceDriver {
 
     private func portStatus(_ port: Int) -> PortStatus? {
         guard port > 0, port <= self.ports else {
-            #kprintf("%s: port: %d invalid port: %d\n", self.instanceName, port)
+            #kprintf("%s: invalid port: %d\n", self.instanceName, port)
             return nil
         }
         // Get port status

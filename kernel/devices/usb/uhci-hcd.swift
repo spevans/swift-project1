@@ -14,13 +14,10 @@ macro uhciDebug(_ item: CustomStringConvertible, _ items: CustomStringConvertibl
 
 
 internal let UHCI_DEBUG = false
-internal func _uhciDebug(_ items: String...) {
+internal func _uhciDebug(_ items: Span<String>) {
     if UHCI_DEBUG {
-        _kprint("UHCI:", terminator: "")
-        for item in items {
-            _kprint(" ", item, terminator: "")
-        }
-        _kprint("")
+        _kprint("UHCI:", terminator: " ")
+        _kprint(items)
     }
 }
 

@@ -1,4 +1,4 @@
-// swift-tools-version: 5.10
+// swift-tools-version: 6.2
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -6,20 +6,20 @@ import CompilerPluginSupport
 
 let package = Package(
     name: "Printf",
-    platforms: [.macOS(.v10_15), .iOS(.v13), .tvOS(.v13), .watchOS(.v6), .macCatalyst(.v13)],
+    platforms: [.macOS(.v26)],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
-//        .library(
-//            name: "Printf",
-//            targets: ["Printf"]
-//       ),
-//        .executable(
-//            name: "PrintfClient",
-//            targets: ["PrintfClient"]
-//        ),
+        .library(
+            name: "Printf",
+            targets: ["Printf"]
+       ),
+        .executable(
+            name: "PrintfClient",
+            targets: ["PrintfClient"]
+        ),
     ],
     dependencies: [
-        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0-latest"),
+        .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "602.0.0"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -37,7 +37,7 @@ let package = Package(
         .target(name: "Printf", dependencies: ["PrintfMacros"]),
 
         // A client of the library, which is able to use the macro in its own code.
-//        .executableTarget(name: "PrintfClient", dependencies: ["Printf"]),
+        .executableTarget(name: "PrintfClient", dependencies: ["Printf"]),
 
         // A test target used to develop the macro implementation.
         .testTarget(

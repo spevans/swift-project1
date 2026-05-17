@@ -60,14 +60,14 @@ class PS2Device: Device {
             if self.controller.sendCommand1stPort(cmd, data: data) {
                 return self.controller.getResponse()
             } else {
-                if KBD8042Debug { #kprintf("i8042: port1 send command failed\n", port) }
+                if KBD8042Debug { #kprint("i8042: port1 send command failed") }
                 return nil
             }
         } else if port == 2 {
             if self.controller.sendCommand2ndPort(cmd, data: data) {
                 return self.controller.getResponse()
             } else {
-                if KBD8042Debug { #kprintf("i8042: port2 send command failed\n", port) }
+                if KBD8042Debug { #kprint("i8042: port2 send command failed") }
                 return nil
             }
         }

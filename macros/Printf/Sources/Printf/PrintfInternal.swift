@@ -1,9 +1,11 @@
-//
-//  PrintfInternal.swift
-//  Printf
-//
-//  Created by Simon Evans on 24/09/2024.
-//
+/*
+ * macros/Printf/Sources/Printf/PrintfInternal.swift
+ *
+ * Created by Simon Evans on 24/09/2024.
+ * Copyright © 2024 Simon Evans. All rights reserved.
+ *
+ */
+
 
 private enum FormatChar: UInt8 {
     case startOfFormat   = 37   // '%'
@@ -43,35 +45,15 @@ private enum FormatChar: UInt8 {
 }
 
 
-// The args are unrolled rather than taking a _PrintfArg... as that would allocate
 @inline(never)
-internal func _printf<Target: UnicodeOutputStream>(to output: inout Target, format: StaticString, _ arg0: _PrintfArg, _ arg1: _PrintfArg?,
-                                                   _ arg2: _PrintfArg?, _ arg3: _PrintfArg?, _ arg4: _PrintfArg?, _ arg5: _PrintfArg?, _ arg6: _PrintfArg?,
-                                                   _ arg7: _PrintfArg?, _ arg8: _PrintfArg?, _ arg9: _PrintfArg?, _ arg10: _PrintfArg?) throws(PrintfError) {
+public func _printf<Target: UnicodeOutputStream>(
+    to output: inout Target, format: StaticString,
+    args: Span<_PrintfArg>
+) throws(PrintfError) {
     precondition(format.isASCII)
 
     let buffer = UnsafeBufferPointer(start: format.utf8Start,
                                      count: format.utf8CodeUnitCount)
-
-    func arg(_ index: Int) throws(PrintfError) -> _PrintfArg {
-        let result: _PrintfArg? = switch index {
-            case 0: arg0
-            case 1: arg1
-            case 2: arg2
-            case 3: arg3
-            case 4: arg4
-            case 5: arg5
-            case 6: arg6
-            case 7: arg7
-            case 8: arg8
-            case 9: arg9
-            case 10: arg10
-            default: nil
-        }
-        if let result = result { return result }
-        throw PrintfError.missingArgument
-    }
-
     var formatIterator = buffer.makeIterator()
 
     var argIndex = 0
@@ -89,7 +71,10 @@ internal func _printf<Target: UnicodeOutputStream>(to output: inout Target, form
                 throw PrintfError.invalidFormatChar(char)
             }
 
-            let arg = try arg(argIndex)
+            guard argIndex < args.count else {
+                throw PrintfError.missingArgument
+            }
+            let arg = args[argIndex]
             argIndex += 1
             try dispatchPrint(to: &output, formatChar: fc, item: arg,
                               formatIterator: &formatIterator)
@@ -97,9 +82,9 @@ internal func _printf<Target: UnicodeOutputStream>(to output: inout Target, form
         }
         output.write(UnicodeScalar(char))
     }
-//    guard argIndex == args.count else {
-//        throw PrintfError.excessArguments
-//    }
+    guard argIndex == args.count else {
+        throw PrintfError.excessArguments
+    }
 }
 
 private struct _PrintfFormat {
@@ -313,11 +298,13 @@ private func _printNumber<Target: UnicodeOutputStream>(to output: inout Target, 
 
     if format.width != 0 && fieldWidth > format.width {
         fieldWidth = format.width
-    } else {
+    } else if !format.leftAligned {
         for _ in stride(from: fieldWidth, to: format.width, by: 1) {
             output.write(padChar)
         }
     }
+
+    let totalChars = fieldWidth
 
     if isNegative {
         output.write(FormatChar.minusSign.char)
@@ -334,5 +321,11 @@ private func _printNumber<Target: UnicodeOutputStream>(to output: inout Target, 
 
     for x in stride(from: fieldWidth - 1, through: 0, by: -1) {
         output.write(digit(at: x))
+    }
+
+    if format.leftAligned {
+        for _ in stride(from: totalChars, to: format.width, by: 1) {
+            output.write(FormatChar.space.char)
+        }
     }
 }

@@ -1,62 +1,56 @@
 import Printf
 
-@freestanding(expression)
-macro printf(_ item: StaticString, _ items: PrintfArg...) -> () = #externalMacro(module: "PrintfMacros", type: "PrintfMacro")
+#printf("test %d %d %d\n", 1, 2, 3)
 
-@freestanding(expression)
-macro sprintf(_ item: StaticString, _ items: PrintfArg...) -> String = #externalMacro(module: "PrintfMacros", type: "PrintfMacro")
-
-#printf("test", 1,2,3)
-
-//let s: String = #sprintf("Using sprintf: %d", 1)
-//print("s: ", s)
+let s: String = #sprintf("Using sprintf: %d", 1)
+print("s: ", s)
 
 let s2 = #sprintf("Using sprintf: %d", 1)
-
-//let s2 = String._sprintf("Using sprintf: %d", 1._printfArg)
 print("s2: ", s2)
 
 
+struct _TTY : UnicodeOutputStream {
+    mutating func write(_ string: StaticString) {
+        if string.utf8CodeUnitCount == 0 { return }
+        print(string, terminator: "")
+    }
+
+    mutating func write(_ character: Character) {
+        print(character, terminator: "")
+    }
+    mutating func write(_ string: String) {
+        if string.isEmpty { return }
+        print(string, terminator: "")
+    }
+
+    mutating func write(_ unicodeScalar: UnicodeScalar) {
+                print(unicodeScalar, terminator: "")
+    }
+}
+var _tty = _TTY()
 
 @freestanding(expression)
-macro uhciDebug(_ item: CustomStringConvertible, _ items: CustomStringConvertible...) -> () = #externalMacro(module: "PrintfMacros", type: "DebugMacro")
+macro myTTYprintf(_ value: StaticString, _ items: PrintfArg...) -> () = #externalMacro(module: "PrintfMacros", type: "PrintfMacro")
 
-#uhciDebug("test")
+@freestanding(expression)
+macro serialPrintf(_ value: StaticString, _ items: PrintfArg...) -> () = #externalMacro(module: "PrintfMacros", type: "PrintfMacro")
 
-func _uhciDebug(_ items: String...) {
-    for item in items {
-        print("uhci", item)
+
+@MainActor func _myTTYprintf(_ format: StaticString, args: Span<_PrintfArg>) {
+    do {
+        try _printf(to: &_tty, format: format, args: args)
+    } catch {
+        fatalError("error")
     }
 }
 
-@freestanding(expression)
-macro kprint(_ item: StaticString, _ items: CustomStringConvertible...) -> () = #externalMacro(module: "PrintfMacros", type: "KPrintStaticStringMacro")
-
-@freestanding(expression)
-macro kprint(_ item: String, _ items: CustomStringConvertible...) -> () = #externalMacro(module: "PrintfMacros", type: "KPrintStringMacro")
-
-
-func _kprint(_ item: StaticString, _ items: String...) {
-    print("_kprint[StaticString]", item, terminator: "")
-    for x in items {
-        print(", ", x, separator: "", terminator: "")
+@MainActor func _serialPrintf(_ format: StaticString, args: Span<_PrintfArg>) {
+    do {
+        try _printf(to: &_tty, format: format, args: args)
+    } catch {
+        fatalError(error.description)
     }
-    print("")
 }
 
-func _kprint(_ item: String, _ items: String...) {
-    print("_kprint[String]", item, terminator: "")
-    for x in items {
-        print(", ", x, separator: "", terminator: "")
-    }
-    print("")
-}
-
-let ss: StaticString = "This is a Static String"
-let s = "This is a String"
-
-#kprint(ss)
-#kprint(ss, 1,2,3)
-
-#kprint(s)
-#kprint(s, 1,2,3)
+#myTTYprintf("This is from myTTYprintf: %d\n", 123)
+#serialPrintf("This is from serialPrintf: 0x%x\n", UInt(123))

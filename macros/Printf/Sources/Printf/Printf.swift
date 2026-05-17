@@ -1,12 +1,13 @@
-//
-//  Printf.swift
-//  Printf
-//
-//  Created by Simon Evans on 23/09/2024.
-//  Copyright © Simon Evans. All rights reserved.
-//
-//  Simple printf implementation.
-//
+/*
+ * macros/Printf/Sources/Printf/Printf.swift
+ *
+ * Created by Simon Evans on 23/09/2024.
+ * Copyright © Simon Evans. All rights reserved.
+ *
+ * Simple printf implementation.
+ *
+ */
+
 
 // Basic version of printf() so that the klibc version, kprintf(), doesnt have
 // to be used. This has a couple of advantages but the main one is that when
@@ -82,37 +83,13 @@
 
 
 @freestanding(expression)
-macro kprintf(_ value: StaticString, _ items: PrintfArg...) -> () = #externalMacro(module: "PrintfMacros", type: "PrintfMacro")
+public macro printf(_ value: StaticString, _ items: PrintfArg...) -> () = #externalMacro(module: "PrintfMacros", type: "PrintfMacro")
 
 @freestanding(expression)
-macro sprintf(_ value: StaticString, _ items: PrintfArg...) -> String = #externalMacro(module: "PrintfMacros", type: "PrintfMacro")
-
-@freestanding(expression)
-macro serialPrintf(_ value: StaticString, _ items: PrintfArg...) -> () = #externalMacro(module: "PrintfMacros", type: "PrintfMacro")
-
-#if TEST
-struct _tty : UnicodeOutputStream {
-    mutating func write(_ string: StaticString) {
-        if string.utf8CodeUnitCount == 0 { return }
-        print(string, terminator: "")
-    }
-
-    mutating func write(_ character: Character) {
-        print(character, terminator: "")
-    }
-    mutating func write(_ string: String) {
-        if string.isEmpty { return }
-        print(string, terminator: "")
-    }
-
-    mutating func write(_ unicodeScalar: UnicodeScalar) {
-        print(CChar(ch), terminator: "")
-    }
-}
-#endif
+public macro sprintf(_ value: StaticString, _ items: PrintfArg...) -> String = #externalMacro(module: "PrintfMacros", type: "PrintfMacro")
 
 
-enum PrintfError: Error, CustomStringConvertible {
+public enum PrintfError: Error {
     case invalidNumber
     case invalidString
     case invalidCharacter
@@ -125,8 +102,11 @@ enum PrintfError: Error, CustomStringConvertible {
     case invalidFormatChar(UInt8)
     case missingArgument
     case excessArguments
+}
 
-    var description: String {
+
+extension PrintfError: Equatable, CustomStringConvertible {
+    public var description: String {
         return switch self {
             case .invalidNumber: "Invalid Number"
             case .invalidString: "Invalid String"
@@ -144,6 +124,7 @@ enum PrintfError: Error, CustomStringConvertible {
     }
 }
 
+
 public enum _PrintfArg {
     case signedInteger(Int64)
     case unsignedInteger(UInt64)
@@ -153,7 +134,7 @@ public enum _PrintfArg {
     case character(Character)
     case string(String)
     case staticString(StaticString)
-    
+
     var unsignedValue: UInt64 {
         get throws(PrintfError) {
             switch self {
@@ -315,7 +296,7 @@ extension UnsafeMutablePointer: PrintfArg {
 // In future it may be replaced with a TextOutputStreamble type instead.
 // Useing a function allows the underlying printf engine to be used for
 // sprintf() as well.
-protocol UnicodeOutputStream {
+public protocol UnicodeOutputStream {
     mutating func write(_ string: String)
     mutating func write(_ string: StaticString)
     mutating func write(_ unicodeScalar: UnicodeScalar)
@@ -329,7 +310,7 @@ private struct _sprintfTTY: UnicodeOutputStream {
     mutating func write(_ string: String) {
         value += string
     }
-    
+
     mutating func write(_ unicodeScalar: UnicodeScalar) {
         value += String(unicodeScalar)
     }
@@ -346,19 +327,22 @@ private struct _sprintfTTY: UnicodeOutputStream {
 }
 
 
-extension String {        
-    public static func _sprintf(_ format: StaticString, _ arg0: _PrintfArg, _ arg1: _PrintfArg? = nil, _ arg2: _PrintfArg? = nil, _ arg3: _PrintfArg? = nil,
-                         _ arg4: _PrintfArg? = nil, _ arg5: _PrintfArg? = nil, _ arg6: _PrintfArg? = nil, _ arg7: _PrintfArg? = nil,
-                         _ arg8: _PrintfArg? = nil, _ arg9: _PrintfArg? = nil, _ arg10: _PrintfArg? = nil) -> String {
+extension String {
+    public static func _sprintf(_ format: StaticString, args: Span<_PrintfArg>) -> String {
         do {
             var output = _sprintfTTY()
-            try _printf(to: &output, format: format, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
+            try _printf(to: &output, format: format, args: args)
             return output.value
-        } catch  {
-            fatalError("_sprintf: Error with format string '\(format)': \(error.description)")
+        } catch {
+#if hasFeature(Embedded)
+            _show_kprintf_error(error, forFormat: format)
+#endif
+            fatalError()
         }
     }
 }
+
+#if !hasFeature(Embedded)
 
 #if os(macOS)
 import Darwin
@@ -372,7 +356,7 @@ private struct _putcharTTY: UnicodeOutputStream {
             putchar(Int32(ch))
         }
     }
-    
+
     mutating func write(_ string: StaticString) {
         if string.hasPointerRepresentation {
             string.withUTF8Buffer { buffer in
@@ -384,13 +368,13 @@ private struct _putcharTTY: UnicodeOutputStream {
             write(string.unicodeScalar)
         }
     }
-    
+
     mutating func write(_ unicodeScalar: UnicodeScalar) {
         for ch in unicodeScalar.utf8 {
             putchar(Int32(ch))
         }
     }
-    
+
     mutating func write(_ character: Character) {
         for ch in character.utf8 {
             putchar(Int32(ch))
@@ -398,15 +382,15 @@ private struct _putcharTTY: UnicodeOutputStream {
     }
 }
 
-public func _printf(_ format: StaticString, _ arg0: _PrintfArg, _ arg1: _PrintfArg? = nil, _ arg2: _PrintfArg? = nil, _ arg3: _PrintfArg? = nil,
-                   _ arg4: _PrintfArg? = nil, _ arg5: _PrintfArg? = nil, _ arg6: _PrintfArg? = nil, _ arg7: _PrintfArg? = nil,
-                   _ arg8: _PrintfArg? = nil, _ arg9: _PrintfArg? = nil, _ arg10: _PrintfArg? = nil) {
 
+public func _printf(_ format: StaticString, args: Span<_PrintfArg>) {
     do {
         var output = _putcharTTY()
-        try _printf(to: &output, format: format, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
-    } catch  {
+        try _printf(to: &output, format: format, args: args)
+    } catch {
         fatalError("printf: Error with format string '\(format)': \(error.description)")
     }
 }
+
+#endif
 

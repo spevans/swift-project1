@@ -1,12 +1,14 @@
-//
-//  TestUtils.swift
-//  tests
-//
-//  Created by Simon Evans on 02/08/2019.
-//  Copyright © 2019 Simon Evans. All rights reserved.
-//
+/*
+ * kernel/teststub/TestUtils.swift
+ *
+ * Created by Simon Evans on 02/08/2019.
+ * Copyright © 2019 Simon Evans. All rights reserved.
+ *
+ */
+
 
 import Foundation
+@_exported import Printf
 
 let PAGE_SIZE = UInt(4096)
 // Mock functions and types
@@ -141,7 +143,7 @@ func koops(_ message: String) -> Never {
     fatalError(message)
 }
 
-internal struct _tty : UnicodeOutputStream {
+internal struct _TTY : UnicodeOutputStream {
     mutating func write(_ string: StaticString) {
         print(string, terminator: "")
     }
@@ -165,7 +167,7 @@ internal struct _tty : UnicodeOutputStream {
 }
 
 
-internal struct _serial: UnicodeOutputStream {
+internal struct _Serial: UnicodeOutputStream {
     mutating func write(_ string: StaticString) {
         print(string, terminator: "")
     }
