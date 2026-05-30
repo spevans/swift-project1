@@ -15,6 +15,13 @@ Hopefully the changes will be upstreamed into the main Swift project at some poi
 
 ## Current status
 
+30/05/2026
+- Rewrite printf macros to use InlineArray and Span for stack allocated varargs.
+- Move timer to use APIC instead of HPET/PIT for better timer control.
+- Fix ACPI to split parsing of fixed and AML tables.
+- Speed up TTY Framebuffer using Span.
+- Add ACPI Time and Date device driver.
+
 04/05/2026
 - USB fixes for UHCI and XHCI and improved USB3 enumeration.
 - Add PS/2 Mouse driver for QEMU.
